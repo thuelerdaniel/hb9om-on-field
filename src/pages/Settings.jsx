@@ -58,8 +58,7 @@ export default function Settings() {
     setQrzTestResult(null);
     try {
       const res = await base44.functions.invoke("fetchQRZ", {
-        callsign: "HB9OM",
-        test_only: true
+        callsign: "HB9OM"
       });
       if (res.data?.error) {
         setQrzTestResult({ success: false, message: res.data.error });

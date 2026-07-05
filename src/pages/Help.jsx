@@ -118,9 +118,9 @@ const SECTIONS = [
         example: "Rufzeichen «HB9ABC» eingeben → Speichern → beim nächsten Clubstation-QSO bereits vorausgefüllt."
       },
       {
-        title: "QRZ.com konfigurieren",
-        body: "Aktivieren Sie die QRZ.com-Abfrage und geben Sie Ihre QRZ-Benutzername und Passwort ein. Wenn Sie keine eigenen Zugangsdaten haben, werden die Standard-Zugangsdaten der App verwendet (sofern konfiguriert). Klicken Sie auf «Verbindung testen», um zu prüfen, ob die Anmeldung funktioniert.",
-        example: "QRZ aktivieren → Benutzername/Passwort eingeben → «Verbindung testen» → grünes Häkchen = funktioniert."
+        title: "QRZ.com Abfrage",
+        body: "Die QRZ.com-Abfrage ist mit einer XML-Subscription des Clubs vorkonfiguriert. Aktivieren oder deaktivieren Sie die Abfrage mit dem Schalter. Klicken Sie auf «QRZ-Verbindung testen», um zu prüfen, ob die Anmeldung funktioniert. Beim Erfassen eines QSOs werden Name, Adresse, Land, Grid-Locator und E-Mail des Operators automatisch von QRZ.com geladen.",
+        example: "QRZ aktivieren → «Verbindung testen» → grünes Häkchen = funktioniert."
       },
       {
         title: "Daten aktualisieren",
