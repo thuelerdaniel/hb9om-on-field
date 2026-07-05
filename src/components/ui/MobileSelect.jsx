@@ -3,7 +3,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 
 const EMPTY_SENTINEL = "__empty_value__";
 
-export default function MobileSelect({ value, onValueChange, options, triggerClassName, placeholder }) {
+export default function MobileSelect({ value, onValueChange, options, triggerClassName, contentClassName, placeholder }) {
   const adjust = (v) => (v === "" || v === undefined || v === null) ? EMPTY_SENTINEL : String(v);
   const adjustedValue = adjust(value);
   const adjustedOptions = options.map(o => ({
@@ -16,7 +16,7 @@ export default function MobileSelect({ value, onValueChange, options, triggerCla
       <SelectTrigger className={triggerClassName}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className={contentClassName || "z-[10003]"}>
         {adjustedOptions.map(o => (
           <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
         ))}

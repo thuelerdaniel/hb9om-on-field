@@ -141,12 +141,19 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
   const nearbyRefs = useMemo(() => {
     if (!mapCenter || !allMarkers || allMarkers.length === 0) return [];
     const [clat, clng] = mapCenter;
-    return allMarkers
+    let result = allMarkers
       .map(m => ({ ...m, distance: haversine(clat, clng, m.lat, m.lng) }))
-      .filter(m => m.distance < 25)
+      .filter(m => m.distance < 25);
+
+    // Filter by selected reference type (except custom/generell where all are shown)
+    if (refType && refType !== "custom" && refType !== "generell") {
+      result = result.filter(m => m.layerType === refType);
+    }
+
+    return result
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 20);
-  }, [mapCenter, allMarkers]);
+  }, [mapCenter, allMarkers, refType]);
 
   useEffect(() => {
     if (nearbyRefs.length === 1 && nearbyRefs[0].distance < 2 && !refCode && !isEditing) {
