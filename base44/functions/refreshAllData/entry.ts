@@ -262,7 +262,9 @@ Deno.serve(async (req) => {
     const successCount = results.filter(r => r.status === 'success').length;
     const overallStatus = successCount === results.length ? 'success' : successCount > 0 ? 'partial' : 'failed';
 
-    await base44.asServiceRole.entities.SyncLog.create({
+    // SyncLog pro User: nutzerspezifisch wenn angemeldet, sonst service role (scheduled)
+    const syncLogClient = user ? base44.entities.SyncLog : base44.asServiceRole.entities.SyncLog;
+    await syncLogClient.create({
       timestamp: new Date().toISOString(),
       overall_status: overallStatus,
       total_duration_ms: totalDuration,

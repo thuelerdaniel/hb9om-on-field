@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -10,6 +10,7 @@ const TYPE_LABELS = {
 };
 
 export default function Settings() {
+  const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [cacheStatus, setCacheStatus] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,9 +142,9 @@ export default function Settings() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link to="/" className="p-1.5 hover:bg-gray-100 rounded-lg">
+          <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </Link>
+          </button>
           <div className="flex items-center gap-2 flex-1">
             <SettingsIcon className="w-5 h-5 text-gray-700" />
             <h1 className="text-sm font-bold text-gray-900">Einstellungen</h1>

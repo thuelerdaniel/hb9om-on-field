@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
@@ -14,6 +14,7 @@ const REF_TYPE_LABELS = {
 };
 
 export default function Log() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("all");
@@ -142,9 +143,9 @@ export default function Log() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link to="/" className="p-1.5 hover:bg-gray-100 rounded-lg">
+          <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </Link>
+          </button>
           <div className="flex items-center gap-2 flex-1">
             <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
               <Radio className="w-4 h-4 text-white" />
