@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker, WMSTileLayer } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker, WMSTileLayer, useMapEvents, Circle } from "react-leaflet";
+import L from "leaflet";
 import { base44 } from "@/api/base44Client";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl, { LAYER_GROUPS } from "@/components/map/LayerControl";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import SearchResults from "@/components/map/SearchResults";
-import { Loader2 } from "lucide-react";
+import ScaleControl from "@/components/map/ScaleControl";
+import GpsControl from "@/components/map/GpsControl";
+import SettingsDialog, { DEFAULT_SETTINGS } from "@/components/map/SettingsDialog";
+import LogDialog from "@/components/map/LogDialog";
+import { Loader2, Settings, NotebookPen } from "lucide-react";
 
-// Swiss HBFF sample data (key references with coordinates from hbff.ch)
+// Swiss HBFF data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
   { code: "HBFF-0001", name: "Aeulehaeg Nature Reserve, Balzers", lat: 47.0667, lng: 9.5167, canton: "", parkType: "Nature Res.", link: "https://hbff.ch/geo/HBFF-0001.htm" },
   { code: "HBFF-0008", name: "Neeracher Ried Bird Reserve", lat: 47.4833, lng: 8.4500, canton: "ZH", parkType: "Bird Reserve", link: "https://hbff.ch/geo/HBFF-0008.htm" },
@@ -32,14 +37,17 @@ const HBFF_DATA = [
 // Swiss IOTA references
 const IOTA_DATA = [
   { code: "EU-165", name: "Bodensee Inseln (Mainau, Reichenau)", lat: 47.6600, lng: 9.2000, link: "https://www.iotamaps.com/index.php" },
+  { code: "EU-040", name: "Isole di Brissago", lat: 46.1280, lng: 8.7080, link: "https://www.iotamaps.com/index.php" },
 ];
 
-// Swiss Lighthouses
+// Swiss Lighthouses (WLOTA / ILLW)
 const LIGHTHOUSE_DATA = [
-  { code: "CH0001", name: "Leuchtturm Rheinfall Schloss Laufen", lat: 47.6777, lng: 8.6153, link: "https://wllw.org/index.php/en/" },
+  { code: "CH0001", name: "Leuchtturm Rheinfall Schloss Laufen", lat: 47.6777, lng: 8.6153, link: "https://wlota.org/" },
+  { code: "CH0002", name: "Leuchtturm Rorschach Hafen", lat: 47.5080, lng: 9.5040, link: "https://illw.net/" },
+  { code: "CH0003", name: "Leuchtturm Kreuzlingen", lat: 47.6340, lng: 9.1710, link: "https://wlota.org/" },
 ];
 
-// Swiss WCA Castles (sample)
+// Swiss WCA Castles
 const CASTLE_DATA = [
   { code: "HB-00001", name: "Schloss Lenzburg", lat: 47.3886, lng: 8.1847, canton: "AG", link: "https://castle-map.infs.ch/" },
   { code: "HB-00002", name: "Schloss Habsburg", lat: 47.4628, lng: 8.1810, canton: "AG", link: "https://castle-map.infs.ch/" },
@@ -56,7 +64,7 @@ const CASTLE_DATA = [
   { code: "HB-00070", name: "Schloss Sargans", lat: 47.0467, lng: 9.4533, canton: "SG", link: "https://castle-map.infs.ch/" },
 ];
 
-// Swiss WWBOTA bunkers (sample)
+// Swiss WWBOTA bunkers
 const WWBOTA_DATA = [
   { code: "HB-0001", name: "Bunker Sargans Festung", lat: 47.0500, lng: 9.4400, link: "https://wwbota.net/map/" },
   { code: "HB-0002", name: "Festung Heldsberg", lat: 47.4950, lng: 9.5950, link: "https://wwbota.net/map/" },
@@ -81,11 +89,28 @@ const LAYER_COLORS = {
   swiss_protected: "#16a085"
 };
 
+const SETTINGS_KEY = "hb9om_onfield_settings";
+
+function loadSettings() {
+  try {
+    const s = localStorage.getItem(SETTINGS_KEY);
+    return s ? JSON.parse(s) : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
 function MapBounds({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
     if (center) map.flyTo(center, zoom || 13, { duration: 1 });
   }, [center, zoom]);
+  return null;
+}
+
+function MapController({ onMapReady }) {
+  const map = useMap();
+  useEffect(() => { onMapReady(map); }, [map, onMapReady]);
   return null;
 }
 
@@ -98,10 +123,25 @@ export default function Home() {
   const [flyZoom, setFlyZoom] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState({});
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [gpsPosition, setGpsPosition] = useState(null);
+  const [scaleMode, setScaleMode] = useState("auto");
+  const [scaleValue, setScaleValue] = useState(25000);
+  const [mapInstance, setMapInstance] = useState(null);
 
   // API-loaded data
   const [sotaData, setSotaData] = useState([]);
   const [potaData, setPotaData] = useState([]);
+
+  // Load settings
+  useEffect(() => {
+    const s = loadSettings();
+    setSettings(s);
+    setScaleMode(s.scaleMode || "auto");
+    setScaleValue(s.scaleValue || 25000);
+  }, []);
 
   // Load SOTA from API
   useEffect(() => {
@@ -131,6 +171,24 @@ export default function Home() {
     setActiveLayers(prev =>
       prev.includes(layerId) ? prev.filter(l => l !== layerId) : [...prev, layerId]
     );
+  }, []);
+
+  const handleSaveSettings = useCallback((s) => {
+    setSettings(s);
+    setScaleMode(s.scaleMode || "auto");
+    setScaleValue(s.scaleValue || 25000);
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  }, []);
+
+  const handleLocate = useCallback((lat, lng, accuracy) => {
+    setGpsPosition({ lat, lng, accuracy });
+    setFlyTo([lat, lng]);
+    setFlyZoom(16);
+  }, []);
+
+  const handleScaleChange = useCallback(({ mode, value, zoom }) => {
+    setScaleMode(mode);
+    if (value !== undefined) setScaleValue(value);
   }, []);
 
   // Build all markers by layer
@@ -209,7 +267,22 @@ export default function Home() {
         onSearchChange={setSearchQuery}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         sidebarOpen={sidebarOpen}
-      />
+      >
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="p-1.5 rounded-lg hover:bg-gray-100"
+          title="Grundeinstellungen"
+        >
+          <Settings className="w-5 h-5 text-gray-600" />
+        </button>
+        <button
+          onClick={() => setLogOpen(true)}
+          className="p-1.5 rounded-lg hover:bg-gray-100"
+          title="QSO-Logbuch & ADIF-Export"
+        >
+          <NotebookPen className="w-5 h-5 text-gray-600" />
+        </button>
+      </MapHeader>
 
       {searchResults.length > 0 && (
         <SearchResults
@@ -233,6 +306,7 @@ export default function Home() {
           className="h-full w-full"
           zoomControl={false}
         >
+          <MapController onMapReady={setMapInstance} />
           <TileLayer url={baseTileUrl} attribution={baseAttrib} maxZoom={19} />
 
           {/* Swiss Federal Inventories WMS overlay */}
@@ -288,6 +362,30 @@ export default function Home() {
             </CircleMarker>
           ))}
 
+          {/* GPS position marker */}
+          {gpsPosition && (
+            <>
+              <CircleMarker
+                center={[gpsPosition.lat, gpsPosition.lng]}
+                radius={8}
+                pathOptions={{ color: "#2563eb", fillColor: "#2563eb", fillOpacity: 1, weight: 3 }}
+              >
+                <Popup>
+                  <div className="text-sm">
+                    <p className="font-semibold text-blue-600">Mein Standort</p>
+                    <p className="text-xs text-gray-500">{gpsPosition.lat.toFixed(5)}, {gpsPosition.lng.toFixed(5)}</p>
+                    {gpsPosition.accuracy && <p className="text-xs text-gray-400">Genauigkeit: ±{Math.round(gpsPosition.accuracy)} m</p>}
+                  </div>
+                </Popup>
+              </CircleMarker>
+              <Circle
+                center={[gpsPosition.lat, gpsPosition.lng]}
+                radius={gpsPosition.accuracy || 50}
+                pathOptions={{ color: "#2563eb", fillColor: "#2563eb", fillOpacity: 0.1, weight: 1 }}
+              />
+            </>
+          )}
+
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}
         </MapContainer>
 
@@ -297,6 +395,17 @@ export default function Home() {
           baseLayer={baseLayer}
           onChangeBaseLayer={setBaseLayer}
         />
+
+        {mapInstance && (
+          <ScaleControl
+            map={mapInstance}
+            scaleMode={scaleMode}
+            scaleValue={scaleValue}
+            onScaleChange={handleScaleChange}
+          />
+        )}
+
+        <GpsControl onLocate={handleLocate} />
 
         {/* Stats bar */}
         <div className="absolute bottom-3 left-3 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2 text-xs text-gray-600 flex items-center gap-4">
@@ -312,6 +421,19 @@ export default function Home() {
           })}
         </div>
       </div>
+
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        onSave={handleSaveSettings}
+      />
+      <LogDialog
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        settings={settings}
+        gpsPosition={gpsPosition}
+      />
     </div>
   );
 }

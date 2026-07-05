@@ -1,0 +1,87 @@
+{
+  "name": "LogEntry",
+  "type": "object",
+  "properties": {
+    "qso_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Datum des QSO (YYYYMMDD im ADIF)"
+    },
+    "time_on": {
+      "type": "string",
+      "description": "Startzeit UTC HHMM"
+    },
+    "time_off": {
+      "type": "string",
+      "description": "Endzeit UTC HHMM"
+    },
+    "callsign_contact": {
+      "type": "string",
+      "description": "Rufzeichen der Gegenstation"
+    },
+    "frequency": {
+      "type": "number",
+      "description": "Frequenz in MHz"
+    },
+    "band": {
+      "type": "string",
+      "description": "Band z.B. 2m, 70cm, 20m"
+    },
+    "mode": {
+      "type": "string",
+      "description": "Betriebsart z.B. FM, SSB, CW, FT8"
+    },
+    "rst_sent": {
+      "type": "string",
+      "description": "Gegebenes Rapport"
+    },
+    "rst_recv": {
+      "type": "string",
+      "description": "Erhaltenes Rapport"
+    },
+    "operator": {
+      "type": "string",
+      "description": "Eigenes Rufzeichen / Operator"
+    },
+    "tx_power": {
+      "type": "number",
+      "description": "Sendeleistung in Watt"
+    },
+    "reference": {
+      "type": "string",
+      "description": "Aktivierte Referenz z.B. HB/AG-001"
+    },
+    "reference_type": {
+      "type": "string",
+      "enum": [
+        "SOTA",
+        "POTA",
+        "HBFF",
+        "WWBOTA",
+        "WCA",
+        "COTA",
+        "IOTA",
+        "WLOTA",
+        "ILLW"
+      ],
+      "description": "Programmtyp der Referenz"
+    },
+    "my_lat": {
+      "type": "number"
+    },
+    "my_lng": {
+      "type": "number"
+    },
+    "comment": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "qso_date",
+    "time_on",
+    "callsign_contact",
+    "frequency",
+    "mode",
+    "operator"
+  ]
+}
