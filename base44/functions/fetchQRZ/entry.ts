@@ -7,7 +7,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { callsign, qrz_username, qrz_password, test_only } = await req.json();
+    const { callsign } = await req.json();
     if (!callsign || callsign.length < 3) {
       return Response.json({ error: 'Invalid callsign' }, { status: 400 });
     }
@@ -15,21 +15,15 @@ Deno.serve(async (req) => {
     const xmlParser = new XMLParser({ ignoreAttributes: false });
     const agent = 'hb9om-onfield';
 
-    // Build credential list: user-provided first, then app-level env vars as fallback
-    // test_only mode: only try the provided credentials — no env fallback (for Settings test)
+    // Fixed credentials from app-level env vars
     const envUser = Deno.env.get("QRZ_USERNAME");
     const envPass = Deno.env.get("QRZ_PASSWORD");
-    const credentialSets = [];
-    if (qrz_username && qrz_password) {
-      credentialSets.push({ user: qrz_username, pass: qrz_password, label: 'user' });
-    }
-    if (!test_only && envUser && envPass) {
-      credentialSets.push({ user: envUser, pass: envPass, label: 'app' });
+
+    if (!envUser || !envPass) {
+      return Response.json({ error: 'QRZ.com Anmeldedaten nicht konfiguriert' }, { status: 200 });
     }
 
-    if (credentialSets.length === 0) {
-      return Response.json({ error: 'QRZ.com Anmeldedaten nicht konfiguriert – in Einstellungen erfassen oder QRZ-Abfrage deaktivieren' }, { status: 200 });
-    }
+    const credentialSets = [{ user: envUser, pass: envPass, label: 'app' }];
 
     // Step 1: Get session key — try each credential set until one works
     let sessionKey = null;
