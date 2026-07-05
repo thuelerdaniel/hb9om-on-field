@@ -1,5 +1,6 @@
 import React from "react";
-import { Radio, Search, Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Radio, Search, Menu, X, BookOpen } from "lucide-react";
 
 export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen }) {
   return (
@@ -31,6 +32,15 @@ export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar
             />
           </div>
         </div>
+
+        <Link
+          to="/log"
+          className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg flex items-center gap-1.5 transition-colors"
+          title="QSO-Logbuch"
+        >
+          <BookOpen className="w-4 h-4" />
+          <span className="hidden sm:inline">Logbuch</span>
+        </Link>
       </div>
     </header>
   );

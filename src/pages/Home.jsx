@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker, WMSTileLayer } from "react-leaflet";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { MapContainer, TileLayer, Popup, useMap, CircleMarker, WMSTileLayer, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl, { LAYER_GROUPS } from "@/components/map/LayerControl";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import SearchResults from "@/components/map/SearchResults";
-import { Loader2 } from "lucide-react";
+import SplashScreen from "@/components/map/SplashScreen";
+import LogEntryForm from "@/components/map/LogEntryForm";
+import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
+import { CASTLE_DATA } from "@/data/castles";
+import { Loader2, Radio, Plus } from "lucide-react";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -14,7 +18,7 @@ const HBFF_DATA = [
   { code: "HBFF-0009", name: "Wasserschloss Brugg-Stilli Floodplains", lat: 47.4800, lng: 8.2300, canton: "AG", parkType: "Floodpl. Res.", link: "https://hbff.ch/geo/HBFF-0009.htm" },
   { code: "HBFF-0010", name: "Park of Jura Aargau", lat: 47.4200, lng: 7.9800, canton: "AG", parkType: "Natur park", link: "https://hbff.ch/geo/HBFF-0010.htm" },
   { code: "HBFF-0012", name: "Säntis Protected Natural Area", lat: 47.2494, lng: 9.3432, canton: "AI", parkType: "Pr.Nat.Area", link: "https://hbff.ch/geo/HBFF-0012.htm" },
-  { code: "HBFF-0014", name: "Regional Natur park Diemtigtal", lat: 46.6300, lng: 7.5000, canton: "BE", parkType: "Natur park", link: "https://hbff.ch/geo/HBFF-0014.htm" },
+  { code: "HBFF-0014", name: "Regional Naturpark Diemtigtal", lat: 46.6300, lng: 7.5000, canton: "BE", parkType: "Natur park", link: "https://hbff.ch/geo/HBFF-0014.htm" },
   { code: "HBFF-0016", name: "Park Chasseral", lat: 47.1317, lng: 7.0578, canton: "BE", parkType: "Natur park", link: "https://hbff.ch/geo/HBFF-0016.htm" },
   { code: "HBFF-0020", name: "Vanil Noir Nature Reserve", lat: 46.5100, lng: 7.1400, canton: "FR", parkType: "Nature Res.", link: "https://hbff.ch/geo/HBFF-0020.htm" },
   { code: "HBFF-0021", name: "Préalpes Fribourgeoises Nature Park", lat: 46.5500, lng: 7.1000, canton: "FR", parkType: "Natur park", link: "https://hbff.ch/geo/HBFF-0021.htm" },
@@ -34,29 +38,7 @@ const IOTA_DATA = [
   { code: "EU-165", name: "Bodensee Inseln (Mainau, Reichenau)", lat: 47.6600, lng: 9.2000, link: "https://www.iotamaps.com/index.php" },
 ];
 
-// Swiss Lighthouses
-const LIGHTHOUSE_DATA = [
-  { code: "CH0001", name: "Leuchtturm Rheinfall Schloss Laufen", lat: 47.6777, lng: 8.6153, link: "https://wllw.org/index.php/en/" },
-];
-
-// Swiss WCA Castles (sample)
-const CASTLE_DATA = [
-  { code: "HB-00001", name: "Schloss Lenzburg", lat: 47.3886, lng: 8.1847, canton: "AG", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00002", name: "Schloss Habsburg", lat: 47.4628, lng: 8.1810, canton: "AG", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00003", name: "Schloss Hallwyl", lat: 47.3292, lng: 8.1954, canton: "AG", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00010", name: "Schloss Chillon", lat: 46.4142, lng: 6.9272, canton: "VD", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00011", name: "Schloss Gruyères", lat: 46.5837, lng: 7.0810, canton: "FR", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00020", name: "Munot Schaffhausen", lat: 47.6925, lng: 8.6378, canton: "SH", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00030", name: "Schloss Thun", lat: 46.7556, lng: 7.6281, canton: "BE", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00040", name: "Castelgrande Bellinzona", lat: 46.1948, lng: 9.0205, canton: "TI", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00041", name: "Montebello Bellinzona", lat: 46.1923, lng: 9.0265, canton: "TI", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00042", name: "Sasso Corbaro Bellinzona", lat: 46.1875, lng: 9.0338, canton: "TI", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00050", name: "Schloss Kyburg", lat: 47.4567, lng: 8.7442, canton: "ZH", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00060", name: "Schloss Rapperswil", lat: 47.2264, lng: 8.8167, canton: "SG", link: "https://castle-map.infs.ch/" },
-  { code: "HB-00070", name: "Schloss Sargans", lat: 47.0467, lng: 9.4533, canton: "SG", link: "https://castle-map.infs.ch/" },
-];
-
-// Swiss WWBOTA bunkers (sample)
+// Swiss WWBOTA bunkers
 const WWBOTA_DATA = [
   { code: "HB-0001", name: "Bunker Sargans Festung", lat: 47.0500, lng: 9.4400, link: "https://wwbota.net/map/" },
   { code: "HB-0002", name: "Festung Heldsberg", lat: 47.4950, lng: 9.5950, link: "https://wwbota.net/map/" },
@@ -89,7 +71,18 @@ function MapBounds({ center, zoom }) {
   return null;
 }
 
+function MapEventHandler({ onMove }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const c = map.getCenter();
+      onMove([c.lat, c.lng]);
+    }
+  });
+  return null;
+}
+
 export default function Home() {
+  const [showSplash, setShowSplash] = useState(true);
   const [activeLayers, setActiveLayers] = useState(["sota"]);
   const [baseLayer, setBaseLayer] = useState("osm");
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,6 +91,8 @@ export default function Home() {
   const [flyZoom, setFlyZoom] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState({});
+  const [mapCenter, setMapCenter] = useState([46.8182, 8.2275]);
+  const [showQsoForm, setShowQsoForm] = useState(false);
 
   // API-loaded data
   const [sotaData, setSotaData] = useState([]);
@@ -204,6 +199,8 @@ export default function Home() {
 
   return (
     <div className="h-screen w-screen flex flex-col relative">
+      {showSplash && <SplashScreen onDismiss={() => setShowSplash(false)} />}
+
       <MapHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -234,6 +231,7 @@ export default function Home() {
           zoomControl={false}
         >
           <TileLayer url={baseTileUrl} attribution={baseAttrib} maxZoom={19} />
+          <MapEventHandler onMove={setMapCenter} />
 
           {/* Swiss Federal Inventories WMS overlay */}
           {activeLayers.includes("swiss_protected") && (
@@ -298,8 +296,18 @@ export default function Home() {
           onChangeBaseLayer={setBaseLayer}
         />
 
+        {/* New QSO floating button */}
+        <button
+          onClick={() => setShowQsoForm(true)}
+          className="absolute bottom-5 right-3 z-[1000] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
+          title="Neues QSO erfassen"
+        >
+          <Plus className="w-5 h-5" />
+          <span className="text-sm font-medium">Neues QSO</span>
+        </button>
+
         {/* Stats bar */}
-        <div className="absolute bottom-3 left-3 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2 text-xs text-gray-600 flex items-center gap-4">
+        <div className="absolute bottom-5 left-3 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2 text-xs text-gray-600 flex items-center gap-4">
           <span className="font-semibold text-gray-900">{allMarkers.length}</span> Referenzen sichtbar
           {activeLayers.map(lid => {
             const lg = LAYER_GROUPS.find(g => g.id === lid);
@@ -312,6 +320,15 @@ export default function Home() {
           })}
         </div>
       </div>
+
+      {showQsoForm && (
+        <LogEntryForm
+          mapCenter={mapCenter}
+          allMarkers={allMarkers}
+          onClose={() => setShowQsoForm(false)}
+          onSaved={() => {}}
+        />
+      )}
     </div>
   );
 }

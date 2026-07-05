@@ -1,0 +1,133 @@
+{
+  "name": "Log",
+  "type": "object",
+  "properties": {
+    "callsign": {
+      "type": "string",
+      "description": "Rufzeichen des QSO-Partners"
+    },
+    "qso_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Datum des QSO"
+    },
+    "time_start": {
+      "type": "string",
+      "description": "Startzeit UTC (HH:MM)"
+    },
+    "time_end": {
+      "type": "string",
+      "description": "Endzeit UTC (HH:MM)"
+    },
+    "frequency": {
+      "type": "number",
+      "description": "Frequenz in MHz"
+    },
+    "band": {
+      "type": "string",
+      "enum": [
+        "160m",
+        "80m",
+        "60m",
+        "40m",
+        "30m",
+        "20m",
+        "17m",
+        "15m",
+        "12m",
+        "10m",
+        "6m",
+        "4m",
+        "2m",
+        "70cm",
+        "23cm",
+        "Other"
+      ],
+      "default": "2m"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "SSB",
+        "CW",
+        "FM",
+        "FT8",
+        "FT4",
+        "PSK",
+        "RTTY",
+        "AM",
+        "Other"
+      ],
+      "default": "FM"
+    },
+    "rst_sent": {
+      "type": "string",
+      "description": "RST gesendet"
+    },
+    "rst_received": {
+      "type": "string",
+      "description": "RST erhalten"
+    },
+    "operator_name": {
+      "type": "string",
+      "description": "Name des Operators (von QRZ.com)"
+    },
+    "operator_address": {
+      "type": "string",
+      "description": "Adresse des Operators (von QRZ.com)"
+    },
+    "operator_country": {
+      "type": "string",
+      "description": "Land des Operators (von QRZ.com)"
+    },
+    "operator_grid": {
+      "type": "string",
+      "description": "Maidenhead Grid Locator des Operators"
+    },
+    "operator_email": {
+      "type": "string",
+      "description": "E-Mail des Operators (von QRZ.com)"
+    },
+    "my_reference": {
+      "type": "string",
+      "description": "Meine Referenz (z.B. HB/AG-001)"
+    },
+    "my_reference_type": {
+      "type": "string",
+      "enum": [
+        "sota",
+        "pota",
+        "hbff",
+        "wwbota",
+        "castle",
+        "iota",
+        "lighthouse",
+        "swiss_protected",
+        "custom"
+      ],
+      "default": "custom"
+    },
+    "my_reference_name": {
+      "type": "string",
+      "description": "Name meiner Referenz"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notizen zum QSO"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "archived"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "callsign",
+    "qso_date",
+    "frequency",
+    "mode"
+  ]
+}

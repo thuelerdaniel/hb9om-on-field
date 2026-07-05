@@ -4,30 +4,31 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Try the public POTA API endpoint for location/park data
-    // Use the public map tile/park API
-    const resp = await fetch('https://api.pota.app/park/grids/HB/4', {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'HB9OM-OnField/1.0'
-      }
-    });
-
-    if (resp.ok) {
-      const parks = await resp.json();
-      const validParks = (Array.isArray(parks) ? parks : []).filter(p => p.latitude && p.longitude).map(p => ({
-        reference: p.reference || p.parkId,
-        name: p.name || p.parkName,
-        lat: parseFloat(p.latitude),
-        lng: parseFloat(p.longitude),
-        locationDesc: p.locationDesc || '',
-        parkType: p.parkType || '',
-        active: true
-      }));
-      return Response.json({ parks: validParks });
+    // POTA API: entity code for Switzerland is "CH" (ISO 3166-1 alpha-2)
+    // Reference: https://api.pota.app/program/parks/{entityCode}
+    for (const entityCode of ['CH', 'HB']) {
+      try {
+        const resp = await fetch(`https://api.pota.app/program/parks/${entityCode}`, {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' }
+        });
+        if (resp.ok) {
+          const parks = await resp.json();
+          const arr = Array.isArray(parks) ? parks : (parks.parks || []);
+          const valid = arr.filter(p => p.latitude && p.longitude).map(p => ({
+            reference: p.reference || p.parkId,
+            name: p.name || p.parkName || '',
+            lat: parseFloat(p.latitude),
+            lng: parseFloat(p.longitude),
+            locationDesc: p.locationDesc || p.location || '',
+            parkType: p.parkType || p.entity || '',
+            active: p.active !== false
+          }));
+          if (valid.length > 0) return Response.json({ parks: valid, source: 'api' });
+        }
+      } catch (_) { /* try next */ }
     }
 
-    // If the API is gated, return curated Swiss POTA park references
+    // Fallback: curated Swiss POTA parks (20 nature parks from pota.app)
     const swissParks = [
       { reference: "HB-0001", name: "Schweizerischer Nationalpark", lat: 46.6600, lng: 10.1700, parkType: "National Park" },
       { reference: "HB-0002", name: "UNESCO Biosphäre Entlebuch", lat: 46.9400, lng: 8.0400, parkType: "Biosphere Reserve" },
@@ -50,8 +51,7 @@ Deno.serve(async (req) => {
       { reference: "HB-0019", name: "Naturerlebnispark Jorat", lat: 46.5700, lng: 6.7100, parkType: "Nature Park" },
       { reference: "HB-0020", name: "Naturpark Neckertal", lat: 47.3100, lng: 9.1200, parkType: "Regional Park" },
     ];
-
-    return Response.json({ parks: swissParks });
+    return Response.json({ parks: swissParks, source: 'curated' });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
