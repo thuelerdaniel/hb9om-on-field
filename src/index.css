@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+  border: 1px solid #f0f0f0;
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 13px;
+}
+
+.leaflet-popup-tip {
+  box-shadow: none;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -1,0 +1,37 @@
+import React from "react";
+import { Radio, Search, Menu, X } from "lucide-react";
+
+export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen }) {
+  return (
+    <header className="absolute top-0 left-0 right-0 z-[1001] bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <button onClick={onToggleSidebar} className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100">
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
+            <Radio className="w-4.5 h-4.5 text-white" />
+          </div>
+          <div className="hidden sm:block">
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">HB9OM On Field</h1>
+            <p className="text-[10px] text-gray-400 leading-tight">Amateurfunk Referenzkarte</p>
+          </div>
+        </div>
+
+        <div className="flex-1 max-w-md ml-auto">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Referenz oder Ort suchen..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent"
+            />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
