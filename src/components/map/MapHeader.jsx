@@ -1,7 +1,7 @@
 import React from "react";
 import { Radio, Search, Menu, X } from "lucide-react";
 
-export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen, children }) {
+export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen }) {
   return (
     <header className="absolute top-0 left-0 right-0 z-[1001] bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
       <div className="flex items-center gap-3 px-4 py-2.5">
@@ -31,8 +31,6 @@ export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar
             />
           </div>
         </div>
-
-        {children && <div className="flex items-center gap-1">{children}</div>}
       </div>
     </header>
   );
