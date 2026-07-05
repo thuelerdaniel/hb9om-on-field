@@ -72,11 +72,14 @@ function MapBounds({ center, zoom }) {
   return null;
 }
 
-function MapEventHandler({ onMove }) {
+function MapEventHandler({ onMove, onZoom }) {
   const map = useMapEvents({
     moveend: () => {
       const c = map.getCenter();
       onMove([c.lat, c.lng]);
+    },
+    zoomend: () => {
+      onZoom(map.getZoom());
     }
   });
   return null;
@@ -84,16 +87,44 @@ function MapEventHandler({ onMove }) {
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
-  const [activeLayers, setActiveLayers] = useState(["sota"]);
-  const [baseLayer, setBaseLayer] = useState("osm");
+  const [activeLayers, setActiveLayers] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_map_active_layers");
+      return saved ? JSON.parse(saved) : ["sota"];
+    } catch { return ["sota"]; }
+  });
+  const [baseLayer, setBaseLayer] = useState(() => localStorage.getItem("hb9om_map_base_layer") || "osm");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [flyTo, setFlyTo] = useState(null);
   const [flyZoom, setFlyZoom] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState({});
-  const [mapCenter, setMapCenter] = useState([46.8182, 8.2275]);
+  const [mapCenter, setMapCenter] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_map_center");
+      return saved ? JSON.parse(saved) : [46.8182, 8.2275];
+    } catch { return [46.8182, 8.2275]; }
+  });
+  const [mapZoom, setMapZoom] = useState(() => {
+    const saved = localStorage.getItem("hb9om_map_zoom");
+    return saved ? parseInt(saved) : 8;
+  });
   const [showQsoForm, setShowQsoForm] = useState(false);
+
+  // Persist map settings to localStorage
+  useEffect(() => {
+    localStorage.setItem("hb9om_map_active_layers", JSON.stringify(activeLayers));
+  }, [activeLayers]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_map_base_layer", baseLayer);
+  }, [baseLayer]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_map_center", JSON.stringify(mapCenter));
+  }, [mapCenter]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_map_zoom", String(mapZoom));
+  }, [mapZoom]);
 
   // API-loaded data
   const [sotaData, setSotaData] = useState([]);
@@ -281,13 +312,13 @@ export default function Home() {
 
       <div className="flex-1 mt-[52px] relative">
         <MapContainer
-          center={[46.8182, 8.2275]}
-          zoom={8}
+          center={mapCenter}
+          zoom={mapZoom}
           className="h-full w-full"
           zoomControl={false}
         >
           <TileLayer url={baseTileUrl} attribution={baseAttrib} maxZoom={19} />
-          <MapEventHandler onMove={setMapCenter} />
+          <MapEventHandler onMove={setMapCenter} onZoom={setMapZoom} />
 
           {/* Swiss Federal Inventories WMS overlay */}
           {activeLayers.includes("swiss_protected") && (
