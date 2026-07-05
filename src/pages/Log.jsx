@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
 
 const REF_TYPE_LABELS = {
@@ -150,6 +150,9 @@ export default function Log() {
               <p className="text-[10px] text-gray-400">{entries.length} Einträge gesamt</p>
             </div>
           </div>
+          <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
+            <HelpCircle className="w-5 h-5" />
+          </Link>
         </div>
       </header>
 

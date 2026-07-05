@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Radio, Search, Menu, X, BookOpen, Settings as SettingsIcon } from "lucide-react";
+import { Radio, Search, Menu, X, BookOpen, Settings as SettingsIcon, HelpCircle } from "lucide-react";
 
 export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen }) {
   return (
@@ -48,6 +48,13 @@ export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar
         >
           <BookOpen className="w-4 h-4" />
           <span className="hidden sm:inline">Logbuch</span>
+        </Link>
+        <Link
+          to="/help"
+          className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Hilfe"
+        >
+          <HelpCircle className="w-4 h-4" />
         </Link>
       </div>
     </header>

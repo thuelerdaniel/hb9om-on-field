@@ -10,6 +10,7 @@ import Home from '@/pages/Home';
 import Log from '@/pages/Log';
 import Settings from '@/pages/Settings';
 import FirstTimeSetup from '@/components/FirstTimeSetup';
+import Help from '@/pages/Help';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -43,6 +44,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Home />} />
         <Route path="/log" element={<Log />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/help" element={<Help />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     </>

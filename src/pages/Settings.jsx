@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Lock, Check, Search } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Lock, Check, Search, HelpCircle } from "lucide-react";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -125,6 +125,9 @@ export default function Settings() {
             <SettingsIcon className="w-5 h-5 text-gray-700" />
             <h1 className="text-sm font-bold text-gray-900">Einstellungen</h1>
           </div>
+          <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
+            <HelpCircle className="w-5 h-5" />
+          </Link>
         </div>
       </header>
 
