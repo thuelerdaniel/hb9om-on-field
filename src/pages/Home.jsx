@@ -283,6 +283,28 @@ export default function Home() {
     return markers;
   }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData]);
 
+  // All available markers (regardless of active layers) — for QSO form nearby refs
+  const allAvailableMarkers = useMemo(() => {
+    const markers = [];
+    if (sotaData.length > 0) {
+      sotaData.forEach(s => {
+        if (s.lat && s.lng) markers.push({ ...s, layerType: "sota", color: LAYER_COLORS.sota, layerLabel: "SOTA" });
+      });
+    }
+    if (potaData.length > 0) {
+      potaData.forEach(p => markers.push({ ...p, layerType: "pota", color: LAYER_COLORS.pota, layerLabel: "POTA" }));
+    }
+    const hbff = hbffData.length > 0 ? hbffData : HBFF_DATA;
+    hbff.forEach(h => markers.push({ ...h, layerType: "hbff", color: LAYER_COLORS.hbff, layerLabel: "HBFF" }));
+    const wwbota = wwbotaData.length > 0 ? wwbotaData : WWBOTA_DATA;
+    wwbota.forEach(b => markers.push({ ...b, layerType: "wwbota", color: LAYER_COLORS.wwbota, layerLabel: "WWBOTA" }));
+    const castles = castleData.length > 0 ? castleData : CASTLE_DATA;
+    castles.forEach(c => markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }));
+    IOTA_DATA.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
+    LIGHTHOUSE_DATA.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
+    return markers;
+  }, [sotaData, potaData, hbffData, wwbotaData, castleData]);
+
   // Search
   useEffect(() => {
     if (searchQuery.length < 2) {
@@ -502,7 +524,8 @@ export default function Home() {
       {showQsoForm && (
         <LogEntryForm
           mapCenter={mapCenter}
-          allMarkers={allMarkers}
+          allMarkers={allAvailableMarkers}
+          activeLayers={activeLayers}
           onClose={() => setShowQsoForm(false)}
           onSaved={() => {}}
         />

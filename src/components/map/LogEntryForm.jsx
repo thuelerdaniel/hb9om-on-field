@@ -63,7 +63,7 @@ const PERSIST_KEYS = {
   myGrid: "hb9om_last_my_grid",
 };
 
-export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, editEntry }) {
+export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onClose, onSaved, editEntry }) {
   const isEditing = !!editEntry;
   const [justSaved, setJustSaved] = useState(false);
 
@@ -100,7 +100,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
   const [clubOperatorName, setClubOperatorName] = useState(editEntry?.club_operator_name || (localStorage.getItem(PERSIST_KEYS.clubOperatorName) || ""));
   const [showClubPopup, setShowClubPopup] = useState(false);
 
-  const [refType, setRefType] = useState(editEntry?.my_reference_type || (localStorage.getItem(PERSIST_KEYS.refType) || "custom"));
+  const [refType, setRefType] = useState(editEntry?.my_reference_type || (activeLayers?.find(l => ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"].includes(l)) || localStorage.getItem(PERSIST_KEYS.refType) || "custom"));
   const [refCode, setRefCode] = useState(editEntry?.my_reference || (localStorage.getItem(PERSIST_KEYS.refCode) || ""));
   const [refName, setRefName] = useState(editEntry?.my_reference_name || (localStorage.getItem(PERSIST_KEYS.refName) || ""));
   const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (localStorage.getItem(PERSIST_KEYS.mySuffix) || ""));
@@ -428,30 +428,38 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
             )}
           </div>
 
-          {/* Date / Time / Freq / Band / Mode / RST */}
+          {/* Date & Time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Datum</label>
-              <input type="date" value={qsoDate} onChange={e => setQsoDate(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <input type="date" value={qsoDate} onChange={e => setQsoDate(e.target.value)} className="w-full mt-1 px-2.5 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Startzeit UTC</label>
               <div className="flex gap-1.5 mt-1">
-                <input type="time" value={timeStart} onChange={e => setTimeStart(e.target.value)} className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <input type="time" value={timeStart} onChange={e => setTimeStart(e.target.value)} className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 <button
                   type="button"
                   onClick={() => setTimeStart(new Date().toISOString().slice(11, 16))}
-                  className="px-2.5 py-2 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center gap-1 flex-shrink-0"
+                  className="px-2.5 py-2 text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center justify-center flex-shrink-0"
                   title="Auf aktuelle UTC-Zeit setzen"
                 >
-                  <Clock className="w-3.5 h-3.5" /> Jetzt
+                  <Clock className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">Frequenz (MHz)</label>
-              <input type="number" step="0.001" value={frequency} onChange={e => setFrequency(e.target.value)} placeholder="z.B. 144.500" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <label className="text-xs font-semibold text-gray-500 uppercase">Endzeit UTC</label>
+              <input type="time" value={timeEnd} onChange={e => setTimeEnd(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase">Frequenz (MHz)</label>
+              <input type="number" step="0.001" value={frequency} onChange={e => setFrequency(e.target.value)} placeholder="z.B. 144.500" className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+          </div>
+
+          {/* Band / Mode / RST */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Band</label>
               <MobileSelect
@@ -470,15 +478,13 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                 options={MODES.map(m => ({ value: m, label: m }))}
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase">RST S</label>
-                <input type="text" value={rstSent} onChange={e => setRstSent(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase">RST R</label>
-                <input type="text" value={rstReceived} onChange={e => setRstReceived(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
-              </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase">RST gesendet</label>
+              <input type="text" value={rstSent} onChange={e => setRstSent(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase">RST erhalten</label>
+              <input type="text" value={rstReceived} onChange={e => setRstReceived(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
           </div>
 
