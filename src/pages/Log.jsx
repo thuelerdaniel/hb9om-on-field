@@ -133,12 +133,7 @@ export default function Log() {
               <p className="text-[10px] text-gray-400">{entries.length} Einträge gesamt</p>
             </div>
           </div>
-          <Link
-            to="/"
-            className="px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> Neues QSO
-          </Link>
+
         </div>
       </header>
 
