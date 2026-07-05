@@ -23,6 +23,8 @@ export default function Settings() {
   const [qrzPassword, setQrzPassword] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [qrzTesting, setQrzTesting] = useState(false);
+  const [qrzTestResult, setQrzTestResult] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -53,6 +55,29 @@ export default function Settings() {
     setQrzEnabled(localStorage.getItem("hb9om_qrz_enabled") !== "false");
     setQrzUsername(localStorage.getItem("hb9om_qrz_username") || "");
     setQrzPassword(localStorage.getItem("hb9om_qrz_password") || "");
+  };
+
+  const handleQrzTest = async () => {
+    setQrzTesting(true);
+    setQrzTestResult(null);
+    try {
+      const res = await base44.functions.invoke("fetchQRZ", {
+        callsign: "HB9OM",
+        qrz_username: qrzUsername.trim() || undefined,
+        qrz_password: qrzPassword || undefined
+      });
+      if (res.data?.error) {
+        setQrzTestResult({ success: false, message: res.data.error });
+      } else if (res.data?.callsign) {
+        setQrzTestResult({ success: true, message: `Erfolgreich: ${res.data.callsign} – ${res.data.name || 'kein Name'}`, data: res.data });
+      } else {
+        setQrzTestResult({ success: false, message: "Unerwartete Antwort von QRZ.com" });
+      }
+    } catch (e) {
+      setQrzTestResult({ success: false, message: "Verbindungsfehler: " + (e.message || "unbekannt") });
+    } finally {
+      setQrzTesting(false);
+    }
   };
 
   const handleSaveProfile = () => {
@@ -169,6 +194,23 @@ export default function Settings() {
                     />
                   </div>
                   <p className="text-[10px] text-gray-400">Daten werden lokal auf diesem Gerät gespeichert</p>
+
+                  <button
+                    onClick={handleQrzTest}
+                    disabled={qrzTesting}
+                    className="w-full mt-2 px-3 py-2 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                  >
+                    {qrzTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                    QRZ-Verbindung testen
+                  </button>
+                  {qrzTestResult && (
+                    <div className={`mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2 ${qrzTestResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      {qrzTestResult.success
+                        ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                      <span>{qrzTestResult.message}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-gray-500 mt-2">

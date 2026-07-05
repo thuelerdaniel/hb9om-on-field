@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { X, Search, Loader2, MapPin, Plus, Radio } from "lucide-react";
+import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User } from "lucide-react";
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -56,41 +56,53 @@ const PERSIST_KEYS = {
   callsignSuffix: "hb9om_last_callsign_suffix",
   mySuffix: "hb9om_last_my_suffix",
   isClubstation: "hb9om_last_is_clubstation",
+  clubCallsign: "hb9om_last_club_callsign",
   clubOperatorCallsign: "hb9om_last_club_op_callsign",
   clubOperatorName: "hb9om_last_club_op_name",
   myGrid: "hb9om_last_my_grid",
 };
 
-export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }) {
-  const [callsign, setCallsign] = useState("");
-  const [callsignSuffix, setCallsignSuffix] = useState(() => localStorage.getItem(PERSIST_KEYS.callsignSuffix) || "");
+export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, editEntry }) {
+  const isEditing = !!editEntry;
+
+  const [callsign, setCallsign] = useState(editEntry?.callsign || "");
+  const [callsignSuffix, setCallsignSuffix] = useState(editEntry?.callsign_suffix ?? (localStorage.getItem(PERSIST_KEYS.callsignSuffix) || ""));
   const [qrzLoading, setQrzLoading] = useState(false);
   const [qrzError, setQrzError] = useState("");
-  const [operator, setOperator] = useState({ name: "", address: "", country: "", grid: "", email: "" });
+  const [saveError, setSaveError] = useState("");
+  const [operator, setOperator] = useState({
+    name: editEntry?.operator_name || "",
+    address: editEntry?.operator_address || "",
+    country: editEntry?.operator_country || "",
+    grid: editEntry?.operator_grid || "",
+    email: editEntry?.operator_email || ""
+  });
 
   const today = new Date().toISOString().slice(0, 10);
   const nowUTC = new Date().toISOString().slice(11, 16);
 
-  const [qsoDate, setQsoDate] = useState(today);
-  const [timeStart, setTimeStart] = useState(nowUTC);
-  const [timeEnd, setTimeEnd] = useState("");
-  const [frequency, setFrequency] = useState(() => localStorage.getItem(PERSIST_KEYS.frequency) || "");
-  const [band, setBand] = useState(() => localStorage.getItem(PERSIST_KEYS.band) || "2m");
-  const [mode, setMode] = useState(() => localStorage.getItem(PERSIST_KEYS.mode) || "FM");
-  const [rstSent, setRstSent] = useState(() => localStorage.getItem(PERSIST_KEYS.rstSent) || "59");
-  const [rstReceived, setRstReceived] = useState(() => localStorage.getItem(PERSIST_KEYS.rstReceived) || "59");
-  const [notes, setNotes] = useState("");
+  const [qsoDate, setQsoDate] = useState(editEntry?.qso_date || today);
+  const [timeStart, setTimeStart] = useState(editEntry?.time_start || nowUTC);
+  const [timeEnd, setTimeEnd] = useState(editEntry?.time_end || "");
+  const [frequency, setFrequency] = useState(editEntry ? String(editEntry.frequency || "") : (localStorage.getItem(PERSIST_KEYS.frequency) || ""));
+  const [band, setBand] = useState(editEntry?.band || (localStorage.getItem(PERSIST_KEYS.band) || "2m"));
+  const [mode, setMode] = useState(editEntry?.mode || (localStorage.getItem(PERSIST_KEYS.mode) || "FM"));
+  const [rstSent, setRstSent] = useState(editEntry?.rst_sent || (localStorage.getItem(PERSIST_KEYS.rstSent) || "59"));
+  const [rstReceived, setRstReceived] = useState(editEntry?.rst_received || (localStorage.getItem(PERSIST_KEYS.rstReceived) || "59"));
+  const [notes, setNotes] = useState(editEntry?.notes || "");
   const [saving, setSaving] = useState(false);
 
-  const [isClubstation, setIsClubstation] = useState(() => localStorage.getItem(PERSIST_KEYS.isClubstation) === "true");
-  const [clubOperatorCallsign, setClubOperatorCallsign] = useState(() => localStorage.getItem(PERSIST_KEYS.clubOperatorCallsign) || "");
-  const [clubOperatorName, setClubOperatorName] = useState(() => localStorage.getItem(PERSIST_KEYS.clubOperatorName) || "");
+  const [isClubstation, setIsClubstation] = useState(editEntry?.is_clubstation ?? (localStorage.getItem(PERSIST_KEYS.isClubstation) === "true"));
+  const [clubCallsign, setClubCallsign] = useState(editEntry?.club_callsign || (localStorage.getItem(PERSIST_KEYS.clubCallsign) || ""));
+  const [clubOperatorCallsign, setClubOperatorCallsign] = useState(editEntry?.club_operator_callsign || (localStorage.getItem(PERSIST_KEYS.clubOperatorCallsign) || localStorage.getItem("hb9om_my_callsign") || ""));
+  const [clubOperatorName, setClubOperatorName] = useState(editEntry?.club_operator_name || (localStorage.getItem(PERSIST_KEYS.clubOperatorName) || ""));
+  const [showClubPopup, setShowClubPopup] = useState(false);
 
-  const [refType, setRefType] = useState(() => localStorage.getItem(PERSIST_KEYS.refType) || "custom");
-  const [refCode, setRefCode] = useState(() => localStorage.getItem(PERSIST_KEYS.refCode) || "");
-  const [refName, setRefName] = useState(() => localStorage.getItem(PERSIST_KEYS.refName) || "");
-  const [mySuffix, setMySuffix] = useState(() => localStorage.getItem(PERSIST_KEYS.mySuffix) || "");
-  const [myGrid, setMyGrid] = useState(() => localStorage.getItem(PERSIST_KEYS.myGrid) || "");
+  const [refType, setRefType] = useState(editEntry?.my_reference_type || (localStorage.getItem(PERSIST_KEYS.refType) || "custom"));
+  const [refCode, setRefCode] = useState(editEntry?.my_reference || (localStorage.getItem(PERSIST_KEYS.refCode) || ""));
+  const [refName, setRefName] = useState(editEntry?.my_reference_name || (localStorage.getItem(PERSIST_KEYS.refName) || ""));
+  const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (localStorage.getItem(PERSIST_KEYS.mySuffix) || ""));
+  const [myGrid, setMyGrid] = useState(editEntry?.my_grid || (localStorage.getItem(PERSIST_KEYS.myGrid) || ""));
   const [showRefDropdown, setShowRefDropdown] = useState(false);
 
   const wakeLockRef = useRef(null);
@@ -121,6 +133,8 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     };
   }, []);
 
+
+
   const nearbyRefs = useMemo(() => {
     if (!mapCenter || !allMarkers || allMarkers.length === 0) return [];
     const [clat, clng] = mapCenter;
@@ -132,7 +146,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
   }, [mapCenter, allMarkers]);
 
   useEffect(() => {
-    if (nearbyRefs.length === 1 && nearbyRefs[0].distance < 2 && !refCode) {
+    if (nearbyRefs.length === 1 && nearbyRefs[0].distance < 2 && !refCode && !isEditing) {
       const r = nearbyRefs[0];
       setRefType(r.layerType || "custom");
       setRefCode(r.code || r.reference || "");
@@ -151,7 +165,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     if (!qrzEnabled) return;
     if (!callsign || callsign.length < 3) return;
 
-    const qrzUsername = localStorage.getItem("hb9om_qrz_username") || "";
+    const qrzUsername = (localStorage.getItem("hb9om_qrz_username") || "").trim();
     const qrzPassword = localStorage.getItem("hb9om_qrz_password") || "";
 
     setQrzLoading(true);
@@ -228,6 +242,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     localStorage.setItem(PERSIST_KEYS.callsignSuffix, callsignSuffix);
     localStorage.setItem(PERSIST_KEYS.mySuffix, mySuffix);
     localStorage.setItem(PERSIST_KEYS.isClubstation, isClubstation ? "true" : "false");
+    localStorage.setItem(PERSIST_KEYS.clubCallsign, clubCallsign);
     localStorage.setItem(PERSIST_KEYS.clubOperatorCallsign, clubOperatorCallsign);
     localStorage.setItem(PERSIST_KEYS.clubOperatorName, clubOperatorName);
     localStorage.setItem(PERSIST_KEYS.myGrid, myGrid);
@@ -236,8 +251,9 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
   const handleSave = async () => {
     if (!callsign || !qsoDate || !frequency) return;
     setSaving(true);
+    setSaveError("");
     try {
-      await base44.entities.Log.create({
+      const payload = {
         callsign: callsign.toUpperCase().trim(),
         callsign_suffix: callsignSuffix,
         qso_date: qsoDate,
@@ -254,6 +270,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
         operator_grid: operator.grid,
         operator_email: operator.email,
         is_clubstation: isClubstation,
+        club_callsign: isClubstation ? clubCallsign.toUpperCase().trim() : "",
         club_operator_callsign: isClubstation ? clubOperatorCallsign.toUpperCase().trim() : "",
         club_operator_name: isClubstation ? clubOperatorName : "",
         my_reference: refType === "generell" ? "" : refCode,
@@ -262,16 +279,32 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
         my_suffix: mySuffix,
         my_grid: refType === "generell" ? myGrid : "",
         notes,
-        status: "active"
-      });
-      persistFormValues();
+        status: editEntry?.status || "active"
+      };
+
+      if (isEditing) {
+        await base44.entities.Log.update(editEntry.id, payload);
+      } else {
+        await base44.entities.Log.create(payload);
+        persistFormValues();
+      }
       if (onSaved) onSaved();
       if (onClose) onClose();
     } catch (e) {
-      setQrzError("Fehler beim Speichern: " + (e.message || "unbekannt"));
+      setSaveError("Fehler beim Speichern: " + (e.message || "unbekannt"));
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleClubPopupConfirm = () => {
+    if (!clubCallsign || clubCallsign.length < 3) return;
+    setShowClubPopup(false);
+  };
+
+  const handleClubPopupClose = () => {
+    if (!clubCallsign) setIsClubstation(false);
+    setShowClubPopup(false);
   };
 
   return (
@@ -282,8 +315,8 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
           <div className="flex items-center gap-2">
-            <Radio className="w-5 h-5 text-gray-700" />
-            <h2 className="font-bold text-gray-900">Neues QSO-Log</h2>
+            {isEditing ? <Pencil className="w-5 h-5 text-gray-700" /> : <Radio className="w-5 h-5 text-gray-700" />}
+            <h2 className="font-bold text-gray-900">{isEditing ? "QSO bearbeiten" : "Neues QSO-Log"}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
             <X className="w-5 h-5 text-gray-500" />
@@ -291,16 +324,43 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
         </div>
 
         <div className="p-5 space-y-4">
+          {/* Clubstation toggle */}
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={isClubstation}
-              onChange={e => setIsClubstation(e.target.checked)}
+              onChange={e => {
+                const checked = e.target.checked;
+                setIsClubstation(checked);
+                if (checked && !clubCallsign) {
+                  setShowClubPopup(true);
+                }
+              }}
               className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500"
             />
-            <span className="text-sm text-gray-700">Clubstation – Operator abweichend</span>
+            <span className="text-sm text-gray-700 flex items-center gap-1.5">
+              <Building className="w-3.5 h-3.5" /> Clubstation – abweichendes Stations-Rufzeichen
+            </span>
           </label>
 
+          {/* Clubstation summary (when active and popup closed) */}
+          {isClubstation && clubCallsign && !showClubPopup && (
+            <div className="p-3 bg-blue-50 rounded-lg flex items-center justify-between">
+              <div className="text-xs space-y-0.5">
+                <p className="font-mono font-bold text-gray-900">{clubCallsign.toUpperCase()}</p>
+                {clubOperatorCallsign && <p className="text-gray-600">Operator: {clubOperatorCallsign.toUpperCase()}{clubOperatorName && ` · ${clubOperatorName}`}</p>}
+              </div>
+              <button
+                onClick={() => setShowClubPopup(true)}
+                className="p-1.5 hover:bg-white rounded-lg text-blue-600"
+                title="Bearbeiten"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* QSO Partner */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rufzeichen (QSO-Partner)</label>
             <div className="flex gap-2 mt-1">
@@ -345,31 +405,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
             )}
           </div>
 
-          {isClubstation && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase">Operator (Rufzeichen)</label>
-                <input
-                  type="text"
-                  value={clubOperatorCallsign}
-                  onChange={e => setClubOperatorCallsign(e.target.value)}
-                  placeholder="z.B. HB9ABC"
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase">Name Operator</label>
-                <input
-                  type="text"
-                  value={clubOperatorName}
-                  onChange={e => setClubOperatorName(e.target.value)}
-                  placeholder="Name des Operators"
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
-              </div>
-            </div>
-          )}
-
+          {/* Date / Time / Freq / Band / Mode / RST */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Datum</label>
@@ -407,6 +443,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
             </div>
           </div>
 
+          {/* Standort / Referenz */}
           <div className="p-4 bg-gray-50 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
@@ -495,6 +532,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
             )}
           </div>
 
+          {/* Notizen */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase">Notizen</label>
             <textarea
@@ -505,6 +543,8 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
               className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
             />
           </div>
+
+          {saveError && <p className="text-xs text-red-600">{saveError}</p>}
         </div>
 
         <div className="flex gap-2 px-5 py-4 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
@@ -519,11 +559,81 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
             disabled={saving || !callsign || !frequency}
             className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            QSO speichern
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {isEditing ? "Aktualisieren" : "QSO speichern"}
           </button>
         </div>
       </div>
+
+      {/* Clubstation Popup */}
+      {showClubPopup && (
+        <div className="fixed inset-0 z-[10002] bg-black/50 flex items-center justify-center p-4" onClick={handleClubPopupClose}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <Building className="w-4 h-4 text-blue-600" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-sm">Clubstation</h3>
+              </div>
+              <button onClick={handleClubPopupClose} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                  <Building className="w-3 h-3" /> Rufzeichen der Clubstation *
+                </label>
+                <input
+                  type="text"
+                  value={clubCallsign}
+                  onChange={e => setClubCallsign(e.target.value.toUpperCase().trim())}
+                  onKeyDown={e => e.key === "Enter" && clubCallsign.length >= 3 && handleClubPopupConfirm()}
+                  placeholder="z.B. HB9OM"
+                  autoFocus
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                  <User className="w-3 h-3" /> Operator (persönliches Rufzeichen)
+                </label>
+                <input
+                  type="text"
+                  value={clubOperatorCallsign}
+                  onChange={e => setClubOperatorCallsign(e.target.value)}
+                  placeholder="z.B. HB9ABC"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase">Name Operator</label>
+                <input
+                  type="text"
+                  value={clubOperatorName}
+                  onChange={e => setClubOperatorName(e.target.value)}
+                  placeholder="Name des Operators"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+              <p className="text-[10px] text-gray-400">Das Clubstations-Rufzeichen wird für jeden QSO-Eintrag gespeichert.</p>
+            </div>
+            <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
+              <button onClick={handleClubPopupClose} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Abbrechen
+              </button>
+              <button
+                onClick={handleClubPopupConfirm}
+                disabled={!clubCallsign || clubCallsign.length < 3}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40"
+              >
+                Bestätigen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

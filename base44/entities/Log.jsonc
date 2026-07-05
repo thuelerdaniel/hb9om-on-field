@@ -105,6 +105,10 @@
       "default": false,
       "description": "Loggen fuer Clubstation"
     },
+    "club_callsign": {
+      "type": "string",
+      "description": "Rufzeichen der Clubstation (z.B. HB9OM)"
+    },
     "club_operator_callsign": {
       "type": "string",
       "description": "Operator Rufzeichen (bei Clubstation)"

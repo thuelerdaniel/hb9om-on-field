@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
 
 const REF_TYPE_LABELS = {
@@ -19,6 +19,7 @@ export default function Log() {
   const [showConfirmArchive, setShowConfirmArchive] = useState(null);
   const [sortBy, setSortBy] = useState("date_desc");
   const [showQsoForm, setShowQsoForm] = useState(false);
+  const [editEntry, setEditEntry] = useState(null);
 
   useEffect(() => {
     loadEntries();
@@ -64,6 +65,7 @@ export default function Log() {
         e.operator_grid ? `<gridsquare:${(e.operator_grid).length}>${e.operator_grid}` : "",
         e.operator_country ? `<country:${(e.operator_country).length}>${e.operator_country}` : "",
         e.my_grid ? `<my_gridsquare:${(e.my_grid).length}>${e.my_grid}` : "",
+        e.is_clubstation && e.club_callsign ? `<station_callsign:${(e.club_callsign).length}>${e.club_callsign}` : "",
         e.is_clubstation && e.club_operator_callsign ? `<operator:${(e.club_operator_callsign).length}>${e.club_operator_callsign}` : "",
         e.notes ? `<notes:${(e.notes).length}>${e.notes}` : "",
       ].filter(Boolean).join(" ");
@@ -112,6 +114,16 @@ export default function Log() {
     } catch (e) { }
   };
 
+  const handleEdit = (entry) => {
+    setEditEntry(entry);
+    setShowQsoForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowQsoForm(false);
+    setEditEntry(null);
+  };
+
   const typeCounts = useMemo(() => {
     const counts = {};
     entries.forEach(e => {
@@ -138,7 +150,6 @@ export default function Log() {
               <p className="text-[10px] text-gray-400">{entries.length} Einträge gesamt</p>
             </div>
           </div>
-
         </div>
       </header>
 
@@ -222,7 +233,13 @@ export default function Log() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-bold text-gray-900 text-sm">{entry.callsign}{entry.callsign_suffix}</span>
                       {entry.operator_name && <span className="text-xs text-gray-500">{entry.operator_name}</span>}
-                      {entry.is_clubstation && entry.club_operator_callsign && (
+                      {entry.is_clubstation && entry.club_callsign && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1">
+                          <Building className="w-2.5 h-2.5" /> {entry.club_callsign}
+                          {entry.club_operator_callsign && ` · Op: ${entry.club_operator_callsign}`}
+                        </span>
+                      )}
+                      {entry.is_clubstation && !entry.club_callsign && entry.club_operator_callsign && (
                         <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">Op: {entry.club_operator_callsign}{entry.club_operator_name && ` · ${entry.club_operator_name}`}</span>
                       )}
                       {entry.status === "archived" && (
@@ -260,6 +277,15 @@ export default function Log() {
                     {entry.notes && <p className="text-xs text-gray-400 mt-1 italic">{entry.notes}</p>}
                   </div>
                   <div className="flex flex-col gap-1">
+                    {entry.status !== "archived" && (
+                      <button
+                        onClick={() => handleEdit(entry)}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"
+                        title="Bearbeiten"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
                     {entry.status === "archived" ? (
                       <button
                         onClick={() => handleUnarchive(entry.id)}
@@ -294,7 +320,7 @@ export default function Log() {
 
       {/* New QSO floating button */}
       <button
-        onClick={() => setShowQsoForm(true)}
+        onClick={() => { setEditEntry(null); setShowQsoForm(true); }}
         className="fixed bottom-5 right-3 z-[1000] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
         title="Neues QSO erfassen"
       >
@@ -306,7 +332,8 @@ export default function Log() {
         <LogEntryForm
           mapCenter={null}
           allMarkers={[]}
-          onClose={() => setShowQsoForm(false)}
+          editEntry={editEntry}
+          onClose={handleCloseForm}
           onSaved={loadEntries}
         />
       )}
