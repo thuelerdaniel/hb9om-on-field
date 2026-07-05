@@ -64,7 +64,8 @@ export default function Settings() {
       const res = await base44.functions.invoke("fetchQRZ", {
         callsign: "HB9OM",
         qrz_username: qrzUsername.trim() || undefined,
-        qrz_password: qrzPassword || undefined
+        qrz_password: qrzPassword || undefined,
+        test_only: true
       });
       if (res.data?.error) {
         setQrzTestResult({ success: false, message: res.data.error });

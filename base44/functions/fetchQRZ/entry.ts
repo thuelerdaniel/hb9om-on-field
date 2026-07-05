@@ -7,7 +7,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { callsign, qrz_username, qrz_password } = await req.json();
+    const { callsign, qrz_username, qrz_password, test_only } = await req.json();
     if (!callsign || callsign.length < 3) {
       return Response.json({ error: 'Invalid callsign' }, { status: 400 });
     }
@@ -16,13 +16,14 @@ Deno.serve(async (req) => {
     const agent = 'hb9om-onfield';
 
     // Build credential list: user-provided first, then app-level env vars as fallback
+    // test_only mode: only try the provided credentials — no env fallback (for Settings test)
     const envUser = Deno.env.get("QRZ_USERNAME");
     const envPass = Deno.env.get("QRZ_PASSWORD");
     const credentialSets = [];
     if (qrz_username && qrz_password) {
       credentialSets.push({ user: qrz_username, pass: qrz_password, label: 'user' });
     }
-    if (envUser && envPass) {
+    if (!test_only && envUser && envPass) {
       credentialSets.push({ user: envUser, pass: envPass, label: 'app' });
     }
 
