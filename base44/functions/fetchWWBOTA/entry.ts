@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
             locator: locator,
             scheme: scheme,
             dxcc: dxcc,
-            link: `https://wwbota.net/map/`
+            link: `https://wwbota.net/hbbota/`
           });
         }
       }

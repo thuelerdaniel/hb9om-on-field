@@ -2,12 +2,12 @@ import React from "react";
 import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink } from "lucide-react";
 
 const LAYER_META = {
-  sota: { icon: Mountain, color: "#e74c3c", label: "SOTA", program: "Summits on the Air", linkBase: "https://www.sotl.as/summits/" },
+  sota: { icon: Mountain, color: "#e74c3c", label: "SOTA", program: "Summits on the Air", linkBase: "https://sotl.as/summits/" },
   pota: { icon: Trees, color: "#27ae60", label: "POTA", program: "Parks on the Air", linkBase: "https://pota.app/#/park/" },
   hbff: { icon: Trees, color: "#8e44ad", label: "HBFF", program: "Flora & Fauna Schweiz", linkBase: "" },
-  wwbota: { icon: Building, color: "#795548", label: "WWBOTA", program: "Bunkers on the Air", linkBase: "https://wwbota.net/map/" },
+  wwbota: { icon: Building, color: "#795548", label: "WWBOTA", program: "Bunkers on the Air", linkBase: "https://wwbota.net/hbbota/" },
   castle: { icon: Castle, color: "#e67e22", label: "WCA/COTA", program: "Burgen on the Air", linkBase: "" },
-  iota: { icon: MapPin, color: "#3498db", label: "IOTA", program: "Islands on the Air", linkBase: "https://www.iotamaps.com/index.php" },
+  iota: { icon: MapPin, color: "#3498db", label: "IOTA", program: "Islands on the Air", linkBase: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html?filter_search=" },
   lighthouse: { icon: Anchor, color: "#f39c12", label: "WLOTA", program: "Lighthouses on the Air", linkBase: "" },
   swiss_protected: { icon: Trees, color: "#16a085", label: "BLN/Moor", program: "Bundesinventar", linkBase: "https://map.geo.admin.ch/" }
 };
@@ -17,11 +17,15 @@ export default function MarkerPopup({ data, layerType }) {
   const Icon = meta.icon || MapPin;
 
   // Build external link based on layer type and data
-  const externalLink = data.link || (() => {
-    if (!meta.linkBase) return null;
+  // Specific deep links take priority over generic data.link
+  const externalLink = (() => {
     if (layerType === "sota" && data.code) return meta.linkBase + data.code;
     if (layerType === "pota" && (data.reference || data.code)) return meta.linkBase + (data.reference || data.code);
-    return meta.linkBase;
+    if (layerType === "iota" && (data.code || data.reference)) return meta.linkBase + (data.code || data.reference);
+    if (layerType === "wwbota") return meta.linkBase;
+    if (data.link) return data.link;
+    if (meta.linkBase) return meta.linkBase;
+    return null;
   })();
 
   return (

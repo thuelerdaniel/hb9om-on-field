@@ -35,21 +35,21 @@ const HBFF_DATA = [
 
 // Swiss IOTA references
 const IOTA_DATA = [
-  { code: "EU-165", name: "Bodensee Inseln (Mainau, Reichenau)", lat: 47.6600, lng: 9.2000, link: "https://www.iotamaps.com/index.php" },
+  { code: "EU-165", name: "Bodensee Inseln (Mainau, Reichenau)", lat: 47.6600, lng: 9.2000, link: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html?filter_search=EU-165" },
 ];
 
 // Swiss WWBOTA bunkers
 const WWBOTA_DATA = [
-  { code: "HB-0001", name: "Bunker Sargans Festung", lat: 47.0500, lng: 9.4400, link: "https://wwbota.net/map/" },
-  { code: "HB-0002", name: "Festung Heldsberg", lat: 47.4950, lng: 9.5950, link: "https://wwbota.net/map/" },
-  { code: "HB-0003", name: "Artilleriewerk Faulensee", lat: 46.6667, lng: 7.7167, link: "https://wwbota.net/map/" },
-  { code: "HB-0004", name: "Festung Crestawald", lat: 46.7750, lng: 9.4167, link: "https://wwbota.net/map/" },
-  { code: "HB-0005", name: "Euschels Festung", lat: 46.6300, lng: 7.2600, link: "https://wwbota.net/map/" },
-  { code: "HB-0006", name: "Festung Vitznau", lat: 47.0133, lng: 8.4808, link: "https://wwbota.net/map/" },
-  { code: "HB-0007", name: "Artilleriewerk Reuenthal", lat: 47.5700, lng: 8.1600, link: "https://wwbota.net/map/" },
-  { code: "HB-0008", name: "Festung Dailly", lat: 46.2583, lng: 7.0083, link: "https://wwbota.net/map/" },
-  { code: "HB-0009", name: "Festung Savatan", lat: 46.2667, lng: 7.0500, link: "https://wwbota.net/map/" },
-  { code: "HB-0010", name: "Artilleriewerk Magletsch", lat: 47.1167, lng: 9.4833, link: "https://wwbota.net/map/" },
+  { code: "HB-0001", name: "Bunker Sargans Festung", lat: 47.0500, lng: 9.4400, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0002", name: "Festung Heldsberg", lat: 47.4950, lng: 9.5950, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0003", name: "Artilleriewerk Faulensee", lat: 46.6667, lng: 7.7167, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0004", name: "Festung Crestawald", lat: 46.7750, lng: 9.4167, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0005", name: "Euschels Festung", lat: 46.6300, lng: 7.2600, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0006", name: "Festung Vitznau", lat: 47.0133, lng: 8.4808, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0007", name: "Artilleriewerk Reuenthal", lat: 47.5700, lng: 8.1600, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0008", name: "Festung Dailly", lat: 46.2583, lng: 7.0083, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0009", name: "Festung Savatan", lat: 46.2667, lng: 7.0500, link: "https://wwbota.net/hbbota/" },
+  { code: "HB-0010", name: "Artilleriewerk Magletsch", lat: 47.1167, lng: 9.4833, link: "https://wwbota.net/hbbota/" },
 ];
 
 const LAYER_COLORS = {
