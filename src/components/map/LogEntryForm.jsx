@@ -106,6 +106,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
   const [showRefDropdown, setShowRefDropdown] = useState(false);
 
   const wakeLockRef = useRef(null);
+  const qrzInFlightRef = useRef(false);
 
   useEffect(() => {
     const requestWakeLock = async () => {
@@ -161,6 +162,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
   }, [refType, mapCenter]);
 
   const handleQRZLookup = async () => {
+    if (qrzInFlightRef.current) return;
     const qrzEnabled = localStorage.getItem("hb9om_qrz_enabled") !== "false";
     if (!qrzEnabled) return;
     if (!callsign || callsign.length < 3) return;
@@ -168,6 +170,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
     const qrzUsername = (localStorage.getItem("hb9om_qrz_username") || "").trim();
     const qrzPassword = localStorage.getItem("hb9om_qrz_password") || "";
 
+    qrzInFlightRef.current = true;
     setQrzLoading(true);
     setQrzError("");
     try {
@@ -207,6 +210,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
     } catch (e) {
       setQrzError("QRZ.com Abfrage nicht verfügbar – Daten manuell eingeben");
     } finally {
+      qrzInFlightRef.current = false;
       setQrzLoading(false);
     }
   };
