@@ -78,6 +78,6 @@ Deno.serve(async (req) => {
       url: callsignData.url || null
     });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'QRZ.com Abfrage fehlgeschlagen: ' + (error.message || 'unbekannter Fehler') }, { status: 200 });
   }
 });
