@@ -108,6 +108,15 @@ export default function Settings() {
     }
   };
 
+  const handleDeleteQrzLog = async () => {
+    try {
+      for (const entry of qrzLookups) {
+        await base44.entities.QrzLookup.delete(entry.id);
+      }
+      setQrzLookups([]);
+    } catch (e) { }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     setRefreshResult(null);
@@ -224,9 +233,19 @@ export default function Settings() {
 
         {/* QRZ Lookup Log */}
         <section>
-          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <Search className="w-4 h-4" /> QRZ-Abfrageprotokoll
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <Search className="w-4 h-4" /> QRZ-Abfrageprotokoll
+            </h2>
+            {qrzLookups.length > 0 && (
+              <button
+                onClick={handleDeleteQrzLog}
+                className="px-3 py-1 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Protokoll löschen
+              </button>
+            )}
+          </div>
           {qrzLookups.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
               <Search className="w-10 h-10 text-gray-200 mx-auto mb-2" />
