@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User } from "lucide-react";
+import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check } from "lucide-react";
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -64,6 +64,7 @@ const PERSIST_KEYS = {
 
 export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, editEntry }) {
   const isEditing = !!editEntry;
+  const [justSaved, setJustSaved] = useState(false);
 
   const [callsign, setCallsign] = useState(editEntry?.callsign || "");
   const [callsignSuffix, setCallsignSuffix] = useState(editEntry?.callsign_suffix ?? (localStorage.getItem(PERSIST_KEYS.callsignSuffix) || ""));
@@ -284,12 +285,28 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
 
       if (isEditing) {
         await base44.entities.Log.update(editEntry.id, payload);
+        if (onSaved) onSaved();
+        if (onClose) onClose();
       } else {
         await base44.entities.Log.create(payload);
         persistFormValues();
+        if (onSaved) onSaved();
+        // Reset for next QSO but keep persistent values (freq, band, mode, etc.)
+        setCallsign("");
+        setCallsignSuffix(localStorage.getItem(PERSIST_KEYS.callsignSuffix) || "");
+        setOperator({ name: "", address: "", country: "", grid: "", email: "" });
+        setQrzError("");
+        setSaveError("");
+        setNotes("");
+        const now = new Date();
+        setQsoDate(now.toISOString().slice(0, 10));
+        setTimeStart(now.toISOString().slice(11, 16));
+        setTimeEnd("");
+        setRstSent(localStorage.getItem(PERSIST_KEYS.rstSent) || "59");
+        setRstReceived(localStorage.getItem(PERSIST_KEYS.rstReceived) || "59");
+        setJustSaved(true);
+        setTimeout(() => setJustSaved(false), 2500);
       }
-      if (onSaved) onSaved();
-      if (onClose) onClose();
     } catch (e) {
       setSaveError("Fehler beim Speichern: " + (e.message || "unbekannt"));
     } finally {
@@ -559,8 +576,8 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
             disabled={saving || !callsign || !frequency}
             className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {isEditing ? "Aktualisieren" : "QSO speichern"}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : justSaved ? <Check className="w-4 h-4" /> : isEditing ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {isEditing ? "Aktualisieren" : justSaved ? "Gespeichert!" : "QSO speichern & weiter"}
           </button>
         </div>
       </div>

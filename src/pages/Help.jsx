@@ -55,8 +55,8 @@ const SECTIONS = [
     items: [
       {
         title: "Neues QSO erfassen",
-        body: "Klicken Sie auf den grünen Button «Neues QSO» unten rechts. Im Formular geben Sie Rufzeichen, Datum, Zeit, Frequenz, Band, Mode und RST-Werte ein. Optionale Felder: Notizen, Standort/Referenz, Suffix.",
-        example: "Rufzeichen HB9XYZ eingeben → QRZ-Abfrage füllt automatisch Name, Adresse und Grid aus."
+        body: "Klicken Sie auf den schwarzen Button «Neues QSO» unten rechts. Im Formular geben Sie Rufzeichen, Datum, Zeit, Frequenz, Band, Mode und RST-Werte ein. Optionale Felder: Notizen, Standort/Referenz, Suffix. Nach dem Speichern bleibt das Formular offen, damit Sie direkt das nächste QSO erfassen können. Rufzeichen, Operator-Daten und Notizen werden zurückgesetzt, häufige Werte (Frequenz, Band, Mode, RST, Referenz) bleiben erhalten. Schliessen Sie das Formular mit «Abbrechen» oder dem X-Icon, wenn Sie fertig sind.",
+        example: "Rufzeichen HB9XYZ eingeben → QRZ-Abfrage füllt Name, Adresse und Grid aus → «QSO speichern & weiter» → Formular bleibt offen für das nächste QSO."
       },
       {
         title: "QRZ.com-Abfrage",
@@ -153,8 +153,8 @@ const SECTIONS = [
       },
       {
         title: "Formulardaten bleiben erhalten",
-        body: "Häufige Eingaben (Frequenz, Band, Mode, RST, Referenz-Typ) werden nach dem Speichern eines QSOs gespeichert und beim nächsten QSO vorausgefüllt. So müssen Sie bei mehreren QSOs hintereinander nicht alles neu eingeben.",
-        example: "Nach QSO auf 2m/FM ist das nächste QSO automatisch wieder auf 2m/FM eingestellt."
+        body: "Häufige Eingaben (Frequenz, Band, Mode, RST, Referenz-Typ, Suffix, Clubstation) werden nach dem Speichern eines QSOs gespeichert und beim nächsten QSO vorausgefüllt. Da das Formular nach dem Speichern offen bleibt, können Sie mehrere QSOs hintereinander schnell erfassen – nur Rufzeichen, Datum und Zeit müssen Sie pro QSO anpassen.",
+        example: "Nach QSO auf 2m/FM ist das nächste QSO automatisch wieder auf 2m/FM eingestellt – einfach neues Rufzeichen eingeben und speichern."
       },
       {
         title: "Externe Links",
