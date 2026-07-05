@@ -10,6 +10,24 @@ function haversine(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function latLngToGrid(lat, lng) {
+  const adjLng = lng + 180;
+  const adjLat = lat + 90;
+  const fieldLng = Math.floor(adjLng / 20);
+  const fieldLat = Math.floor(adjLat / 10);
+  const squareLng = Math.floor((adjLng % 20) / 2);
+  const squareLat = Math.floor(adjLat % 10);
+  return String.fromCharCode(65 + fieldLng) + String.fromCharCode(65 + fieldLat) + squareLng + squareLat;
+}
+
+const SUFFIXES = [
+  { value: "", label: "—" },
+  { value: "/P", label: "/P" },
+  { value: "/M", label: "/M" },
+  { value: "/AM", label: "/AM" },
+  { value: "/MM", label: "/MM" },
+];
+
 const REF_TYPES = [
   { value: "sota", label: "SOTA" },
   { value: "pota", label: "POTA" },
@@ -19,13 +37,13 @@ const REF_TYPES = [
   { value: "iota", label: "IOTA" },
   { value: "lighthouse", label: "Leuchtturm" },
   { value: "swiss_protected", label: "Bundesinventar" },
+  { value: "generell", label: "Generell (nur Locator)" },
   { value: "custom", label: "Eigenes Referenz" },
 ];
 
 const BANDS = ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "4m", "2m", "70cm", "23cm", "Other"];
 const MODES = ["SSB", "CW", "FM", "FT8", "FT4", "PSK", "RTTY", "AM", "Other"];
 
-// Persisted QSO form fields (kept across sessions until changed)
 const PERSIST_KEYS = {
   frequency: "hb9om_last_frequency",
   band: "hb9om_last_band",
@@ -35,10 +53,17 @@ const PERSIST_KEYS = {
   refType: "hb9om_last_ref_type",
   refCode: "hb9om_last_ref_code",
   refName: "hb9om_last_ref_name",
+  callsignSuffix: "hb9om_last_callsign_suffix",
+  mySuffix: "hb9om_last_my_suffix",
+  isClubstation: "hb9om_last_is_clubstation",
+  clubOperatorCallsign: "hb9om_last_club_op_callsign",
+  clubOperatorName: "hb9om_last_club_op_name",
+  myGrid: "hb9om_last_my_grid",
 };
 
 export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }) {
   const [callsign, setCallsign] = useState("");
+  const [callsignSuffix, setCallsignSuffix] = useState(() => localStorage.getItem(PERSIST_KEYS.callsignSuffix) || "");
   const [qrzLoading, setQrzLoading] = useState(false);
   const [qrzError, setQrzError] = useState("");
   const [operator, setOperator] = useState({ name: "", address: "", country: "", grid: "", email: "" });
@@ -57,24 +82,26 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Reference selection
+  const [isClubstation, setIsClubstation] = useState(() => localStorage.getItem(PERSIST_KEYS.isClubstation) === "true");
+  const [clubOperatorCallsign, setClubOperatorCallsign] = useState(() => localStorage.getItem(PERSIST_KEYS.clubOperatorCallsign) || "");
+  const [clubOperatorName, setClubOperatorName] = useState(() => localStorage.getItem(PERSIST_KEYS.clubOperatorName) || "");
+
   const [refType, setRefType] = useState(() => localStorage.getItem(PERSIST_KEYS.refType) || "custom");
   const [refCode, setRefCode] = useState(() => localStorage.getItem(PERSIST_KEYS.refCode) || "");
   const [refName, setRefName] = useState(() => localStorage.getItem(PERSIST_KEYS.refName) || "");
+  const [mySuffix, setMySuffix] = useState(() => localStorage.getItem(PERSIST_KEYS.mySuffix) || "");
+  const [myGrid, setMyGrid] = useState(() => localStorage.getItem(PERSIST_KEYS.myGrid) || "");
   const [showRefDropdown, setShowRefDropdown] = useState(false);
 
   const wakeLockRef = useRef(null);
 
-  // Prevent screen sleep while form is open
   useEffect(() => {
     const requestWakeLock = async () => {
       try {
         if ("wakeLock" in navigator) {
           wakeLockRef.current = await navigator.wakeLock.request("screen");
         }
-      } catch (e) {
-        // Wake lock not available or denied – silently ignore
-      }
+      } catch (e) { }
     };
     requestWakeLock();
 
@@ -94,7 +121,6 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     };
   }, []);
 
-  // Compute nearby references from map center
   const nearbyRefs = useMemo(() => {
     if (!mapCenter || !allMarkers || allMarkers.length === 0) return [];
     const [clat, clng] = mapCenter;
@@ -105,7 +131,6 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
       .slice(0, 20);
   }, [mapCenter, allMarkers]);
 
-  // Auto-select nearest reference if only one is very close
   useEffect(() => {
     if (nearbyRefs.length === 1 && nearbyRefs[0].distance < 2 && !refCode) {
       const r = nearbyRefs[0];
@@ -115,12 +140,17 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     }
   }, [nearbyRefs]);
 
+  useEffect(() => {
+    if (refType === "generell" && mapCenter && !myGrid) {
+      setMyGrid(latLngToGrid(mapCenter[0], mapCenter[1]));
+    }
+  }, [refType, mapCenter]);
+
   const handleQRZLookup = async () => {
     const qrzEnabled = localStorage.getItem("hb9om_qrz_enabled") !== "false";
-    if (!qrzEnabled) return; // QRZ disabled by user
+    if (!qrzEnabled) return;
     if (!callsign || callsign.length < 3) return;
 
-    // User credentials are optional – function falls back to app-level credentials
     const qrzUsername = localStorage.getItem("hb9om_qrz_username") || "";
     const qrzPassword = localStorage.getItem("hb9om_qrz_password") || "";
 
@@ -134,7 +164,6 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
       });
       if (res.data?.error) {
         setQrzError(res.data.error);
-        // Log failed lookup
         base44.entities.QrzLookup.create({
           callsign: callsign.toUpperCase().trim(),
           lookup_status: "error",
@@ -149,7 +178,6 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
           grid: d.grid || "",
           email: d.email || ""
         });
-        // Log successful lookup
         base44.entities.QrzLookup.create({
           callsign: d.callsign,
           name: d.name || "",
@@ -178,7 +206,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
           await base44.entities.QrzLookup.delete(e.id);
         }
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { }
   };
 
   const selectRef = (r) => {
@@ -197,6 +225,12 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     localStorage.setItem(PERSIST_KEYS.refType, refType);
     localStorage.setItem(PERSIST_KEYS.refCode, refCode);
     localStorage.setItem(PERSIST_KEYS.refName, refName);
+    localStorage.setItem(PERSIST_KEYS.callsignSuffix, callsignSuffix);
+    localStorage.setItem(PERSIST_KEYS.mySuffix, mySuffix);
+    localStorage.setItem(PERSIST_KEYS.isClubstation, isClubstation ? "true" : "false");
+    localStorage.setItem(PERSIST_KEYS.clubOperatorCallsign, clubOperatorCallsign);
+    localStorage.setItem(PERSIST_KEYS.clubOperatorName, clubOperatorName);
+    localStorage.setItem(PERSIST_KEYS.myGrid, myGrid);
   };
 
   const handleSave = async () => {
@@ -205,6 +239,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     try {
       await base44.entities.Log.create({
         callsign: callsign.toUpperCase().trim(),
+        callsign_suffix: callsignSuffix,
         qso_date: qsoDate,
         time_start: timeStart,
         time_end: timeEnd,
@@ -218,9 +253,14 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
         operator_country: operator.country,
         operator_grid: operator.grid,
         operator_email: operator.email,
-        my_reference: refCode,
+        is_clubstation: isClubstation,
+        club_operator_callsign: isClubstation ? clubOperatorCallsign.toUpperCase().trim() : "",
+        club_operator_name: isClubstation ? clubOperatorName : "",
+        my_reference: refType === "generell" ? "" : refCode,
         my_reference_type: refType,
-        my_reference_name: refName,
+        my_reference_name: refType === "generell" ? "" : refName,
+        my_suffix: mySuffix,
+        my_grid: refType === "generell" ? myGrid : "",
         notes,
         status: "active"
       });
@@ -240,7 +280,6 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Radio className="w-5 h-5 text-gray-700" />
@@ -252,7 +291,16 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Callsign with QRZ lookup */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isClubstation}
+              onChange={e => setIsClubstation(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500"
+            />
+            <span className="text-sm text-gray-700">Clubstation – Operator abweichend</span>
+          </label>
+
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rufzeichen (QSO-Partner)</label>
             <div className="flex gap-2 mt-1">
@@ -265,6 +313,14 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
                 placeholder="z.B. HB9XYZ"
                 className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
               />
+              <select
+                value={callsignSuffix}
+                onChange={e => setCallsignSuffix(e.target.value)}
+                className="px-2 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+                title="Suffix des QSO-Partners"
+              >
+                {SUFFIXES.map(s => <option key={s.value} value={s.value}>{s.value || "—"}</option>)}
+              </select>
               <button
                 onClick={handleQRZLookup}
                 disabled={qrzLoading || !callsign}
@@ -279,17 +335,41 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
               <div className="mt-2 p-3 bg-blue-50 rounded-lg text-xs space-y-0.5">
                 <p className="font-medium text-gray-900">{operator.name}</p>
                 {operator.address && <p className="text-gray-600">{operator.address}</p>}
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   {operator.country && <span className="text-gray-500">{operator.country}</span>}
                   {operator.grid && <span className="text-gray-500 font-mono">Grid: {operator.grid}</span>}
+                  {operator.email && <span className="text-gray-500">{operator.email}</span>}
                 </div>
-                {operator.email && <p className="text-gray-500">{operator.email}</p>}
                 <p className="text-blue-500 mt-1">✓ Daten von QRZ.com übernommen</p>
               </div>
             )}
           </div>
 
-          {/* QSO Details */}
+          {isClubstation && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase">Operator (Rufzeichen)</label>
+                <input
+                  type="text"
+                  value={clubOperatorCallsign}
+                  onChange={e => setClubOperatorCallsign(e.target.value)}
+                  placeholder="z.B. HB9ABC"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase">Name Operator</label>
+                <input
+                  type="text"
+                  value={clubOperatorName}
+                  onChange={e => setClubOperatorName(e.target.value)}
+                  placeholder="Name des Operators"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Datum</label>
@@ -327,7 +407,6 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
             </div>
           </div>
 
-          {/* My Reference */}
           <div className="p-4 bg-gray-50 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
@@ -368,21 +447,47 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
               >
                 {REF_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
-              <input
-                type="text"
-                value={refCode}
-                onChange={e => setRefCode(e.target.value)}
-                placeholder="Referenz-Code (z.B. HB/AG-001)"
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
-              />
+              <select
+                value={mySuffix}
+                onChange={e => setMySuffix(e.target.value)}
+                className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+                title="Mein Suffix (/P, /M, /AM, /MM)"
+              >
+                {SUFFIXES.map(s => <option key={s.value} value={s.value}>{s.value || "Suffix"}</option>)}
+              </select>
             </div>
-            <input
-              type="text"
-              value={refName}
-              onChange={e => setRefName(e.target.value)}
-              placeholder="Name der Referenz"
-              className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-            />
+
+            {refType === "generell" ? (
+              <div className="mt-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase">Mein Locator (Maidenhead)</label>
+                <input
+                  type="text"
+                  value={myGrid}
+                  onChange={e => setMyGrid(e.target.value.toUpperCase())}
+                  placeholder="z.B. JN36"
+                  maxLength={8}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Standard 4 Stellen – auf 6 Stellen erweiterbar</p>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={refCode}
+                  onChange={e => setRefCode(e.target.value)}
+                  placeholder="Referenz-Code (z.B. HB/AG-001)"
+                  className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <input
+                  type="text"
+                  value={refName}
+                  onChange={e => setRefName(e.target.value)}
+                  placeholder="Name der Referenz"
+                  className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </>
+            )}
             {mapCenter && (
               <p className="text-[10px] text-gray-400 mt-1.5">
                 📍 Karte zentriert auf: {mapCenter[0].toFixed(4)}, {mapCenter[1].toFixed(4)}
@@ -390,7 +495,6 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
             )}
           </div>
 
-          {/* Notes */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase">Notizen</label>
             <textarea
@@ -403,7 +507,6 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex gap-2 px-5 py-4 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
           <button
             onClick={onClose}

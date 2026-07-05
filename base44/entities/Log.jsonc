@@ -6,6 +6,18 @@
       "type": "string",
       "description": "Rufzeichen des QSO-Partners"
     },
+    "callsign_suffix": {
+      "type": "string",
+      "enum": [
+        "",
+        "/P",
+        "/M",
+        "/AM",
+        "/MM"
+      ],
+      "default": "",
+      "description": "Suffix des QSO-Partners (/P, /M, /AM, /MM)"
+    },
     "qso_date": {
       "type": "string",
       "format": "date",
@@ -70,23 +82,36 @@
     },
     "operator_name": {
       "type": "string",
-      "description": "Name des Operators (von QRZ.com)"
+      "description": "Name des QSO-Partners (von QRZ.com)"
     },
     "operator_address": {
       "type": "string",
-      "description": "Adresse des Operators (von QRZ.com)"
+      "description": "Adresse des QSO-Partners (von QRZ.com)"
     },
     "operator_country": {
       "type": "string",
-      "description": "Land des Operators (von QRZ.com)"
+      "description": "Land des QSO-Partners (von QRZ.com)"
     },
     "operator_grid": {
       "type": "string",
-      "description": "Maidenhead Grid Locator des Operators"
+      "description": "Maidenhead Grid Locator des QSO-Partners"
     },
     "operator_email": {
       "type": "string",
-      "description": "E-Mail des Operators (von QRZ.com)"
+      "description": "E-Mail des QSO-Partners (von QRZ.com)"
+    },
+    "is_clubstation": {
+      "type": "boolean",
+      "default": false,
+      "description": "Loggen fuer Clubstation"
+    },
+    "club_operator_callsign": {
+      "type": "string",
+      "description": "Operator Rufzeichen (bei Clubstation)"
+    },
+    "club_operator_name": {
+      "type": "string",
+      "description": "Operator Name (bei Clubstation)"
     },
     "my_reference": {
       "type": "string",
@@ -103,6 +128,7 @@
         "iota",
         "lighthouse",
         "swiss_protected",
+        "generell",
         "custom"
       ],
       "default": "custom"
@@ -110,6 +136,22 @@
     "my_reference_name": {
       "type": "string",
       "description": "Name meiner Referenz"
+    },
+    "my_suffix": {
+      "type": "string",
+      "enum": [
+        "",
+        "/P",
+        "/M",
+        "/AM",
+        "/MM"
+      ],
+      "default": "",
+      "description": "Mein Suffix (/P, /M, /AM, /MM)"
+    },
+    "my_grid": {
+      "type": "string",
+      "description": "Mein Maidenhead Locator (bei Generell)"
     },
     "notes": {
       "type": "string",

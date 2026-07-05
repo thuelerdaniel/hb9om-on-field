@@ -7,7 +7,7 @@ import LogEntryForm from "@/components/map/LogEntryForm";
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
   castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm",
-  swiss_protected: "Bundesinventar", custom: "Eigenes"
+  swiss_protected: "Bundesinventar", generell: "Generell", custom: "Eigenes"
 };
 
 export default function Log() {
@@ -49,8 +49,9 @@ export default function Log() {
   const handleExport = () => {
     const header = "HB9OM On Field - ADIF Export\n<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
     const records = filtered.map(e => {
+      const fullCall = (e.callsign || "") + (e.callsign_suffix || "");
       const fields = [
-        `<call:${(e.callsign || "").length}>${e.callsign || ""}`,
+        `<call:${fullCall.length}>${fullCall}`,
         `<qso_date:8>${(e.qso_date || "").replace(/-/g, "")}`,
         `<time_on:4>${(e.time_start || "").replace(":", "")}`,
         `<band:${(e.band || "").length}>${e.band || ""}`,
@@ -62,6 +63,8 @@ export default function Log() {
         e.operator_name ? `<name:${(e.operator_name).length}>${e.operator_name}` : "",
         e.operator_grid ? `<gridsquare:${(e.operator_grid).length}>${e.operator_grid}` : "",
         e.operator_country ? `<country:${(e.operator_country).length}>${e.operator_country}` : "",
+        e.my_grid ? `<my_gridsquare:${(e.my_grid).length}>${e.my_grid}` : "",
+        e.is_clubstation && e.club_operator_callsign ? `<operator:${(e.club_operator_callsign).length}>${e.club_operator_callsign}` : "",
         e.notes ? `<notes:${(e.notes).length}>${e.notes}` : "",
       ].filter(Boolean).join(" ");
       return fields + " <eor>";
@@ -217,8 +220,11 @@ export default function Log() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-bold text-gray-900 text-sm">{entry.callsign}</span>
+                      <span className="font-mono font-bold text-gray-900 text-sm">{entry.callsign}{entry.callsign_suffix}</span>
                       {entry.operator_name && <span className="text-xs text-gray-500">{entry.operator_name}</span>}
+                      {entry.is_clubstation && entry.club_operator_callsign && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">Op: {entry.club_operator_callsign}{entry.club_operator_name && ` · ${entry.club_operator_name}`}</span>
+                      )}
                       {entry.status === "archived" && (
                         <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">Archiviert</span>
                       )}
@@ -228,6 +234,7 @@ export default function Log() {
                       <span className="font-medium">{entry.band} {entry.mode}</span>
                       {entry.frequency && <span>{entry.frequency} MHz</span>}
                       <span>RST {entry.rst_sent}/{entry.rst_received}</span>
+                      {entry.my_suffix && <span className="text-blue-600 font-medium">{entry.my_suffix}</span>}
                     </div>
                     {entry.my_reference && (
                       <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs">
@@ -238,8 +245,17 @@ export default function Log() {
                         {entry.my_reference_name && <span className="text-gray-400">· {entry.my_reference_name}</span>}
                       </div>
                     )}
-                    {entry.operator_country && (
-                      <p className="text-xs text-gray-400 mt-0.5">{entry.operator_country}{entry.operator_grid && ` · Grid: ${entry.operator_grid}`}</p>
+                    {!entry.my_reference && entry.my_grid && (
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs">
+                        <span className="px-1.5 py-0.5 bg-green-50 text-green-600 rounded font-medium">Locator</span>
+                        <span className="font-mono text-gray-700">{entry.my_grid}</span>
+                      </div>
+                    )}
+                    {(entry.operator_address || entry.operator_country || entry.operator_email) && (
+                      <div className="text-xs text-gray-400 mt-0.5 space-y-0.5">
+                        {entry.operator_address && <p>{entry.operator_address}</p>}
+                        <p>{entry.operator_country}{entry.operator_grid && ` · Grid: ${entry.operator_grid}`}{entry.operator_email && ` · ${entry.operator_email}`}</p>
+                      </div>
                     )}
                     {entry.notes && <p className="text-xs text-gray-400 mt-1 italic">{entry.notes}</p>}
                   </div>
