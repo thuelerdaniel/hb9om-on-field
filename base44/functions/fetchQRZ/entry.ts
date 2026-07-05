@@ -12,7 +12,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid callsign' }, { status: 400 });
     }
 
-    if (!qrz_username || !qrz_password) {
+    // Use user-provided credentials, or fall back to app-level env vars
+    const qrzUser = qrz_username || Deno.env.get("QRZ_USERNAME");
+    const qrzPass = qrz_password || Deno.env.get("QRZ_PASSWORD");
+
+    if (!qrzUser || !qrzPass) {
       return Response.json({ error: 'QRZ.com Anmeldedaten nicht konfiguriert – in Einstellungen erfassen oder QRZ-Abfrage deaktivieren' }, { status: 200 });
     }
 
@@ -20,7 +24,7 @@ Deno.serve(async (req) => {
     const agent = 'hb9om-onfield';
 
     // Step 1: Get session key
-    const loginUrl = `https://xmldata.qrz.com/xml/current/?username=${encodeURIComponent(qrz_username)};password=${encodeURIComponent(qrz_password)};agent=${agent}`;
+    const loginUrl = `https://xmldata.qrz.com/xml/current/?username=${encodeURIComponent(qrzUser)};password=${encodeURIComponent(qrzPass)};agent=${agent}`;
     const loginResp = await fetch(loginUrl);
     const loginXml = await loginResp.text();
     const loginData = xmlParser.parse(loginXml);

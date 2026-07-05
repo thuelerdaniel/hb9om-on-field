@@ -120,23 +120,26 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     if (!qrzEnabled) return; // QRZ disabled by user
     if (!callsign || callsign.length < 3) return;
 
+    // User credentials are optional – function falls back to app-level credentials
     const qrzUsername = localStorage.getItem("hb9om_qrz_username") || "";
     const qrzPassword = localStorage.getItem("hb9om_qrz_password") || "";
-    if (!qrzUsername || !qrzPassword) {
-      setQrzError("QRZ.com Anmeldedaten fehlen – in Einstellungen erfassen");
-      return;
-    }
 
     setQrzLoading(true);
     setQrzError("");
     try {
       const res = await base44.functions.invoke("fetchQRZ", {
         callsign: callsign.toUpperCase().trim(),
-        qrz_username: qrzUsername,
-        qrz_password: qrzPassword
+        qrz_username: qrzUsername || undefined,
+        qrz_password: qrzPassword || undefined
       });
       if (res.data?.error) {
         setQrzError(res.data.error);
+        // Log failed lookup
+        base44.entities.QrzLookup.create({
+          callsign: callsign.toUpperCase().trim(),
+          lookup_status: "error",
+          error_message: res.data.error
+        }).then(() => trimQrzLog()).catch(() => {});
       } else if (res.data?.callsign) {
         const d = res.data;
         setOperator({
@@ -146,12 +149,36 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
           grid: d.grid || "",
           email: d.email || ""
         });
+        // Log successful lookup
+        base44.entities.QrzLookup.create({
+          callsign: d.callsign,
+          name: d.name || "",
+          address: d.address || "",
+          country: d.country || "",
+          grid: d.grid || "",
+          email: d.email || "",
+          lat: d.lat || null,
+          lng: d.lng || null,
+          lookup_status: "success"
+        }).then(() => trimQrzLog()).catch(() => {});
       }
     } catch (e) {
       setQrzError("QRZ.com Abfrage nicht verfügbar – Daten manuell eingeben");
     } finally {
       setQrzLoading(false);
     }
+  };
+
+  const trimQrzLog = async () => {
+    try {
+      const entries = await base44.entities.QrzLookup.list("-created_date", 50);
+      if (entries && entries.length > 10) {
+        const toDelete = entries.slice(10);
+        for (const e of toDelete) {
+          await base44.entities.QrzLookup.delete(e.id);
+        }
+      }
+    } catch (e) { /* ignore */ }
   };
 
   const selectRef = (r) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Lock, Check } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Lock, Check, Search } from "lucide-react";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -14,6 +14,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshResult, setRefreshResult] = useState(null);
+  const [qrzLookups, setQrzLookups] = useState([]);
 
   // User profile
   const [myCallsign, setMyCallsign] = useState("");
@@ -31,12 +32,14 @@ export default function Settings() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [logsData, cacheData] = await Promise.all([
+      const [logsData, cacheData, qrzData] = await Promise.all([
         base44.entities.SyncLog.list("-created_date", 50),
-        base44.entities.ReferenceData.list()
+        base44.entities.ReferenceData.list(),
+        base44.entities.QrzLookup.list("-created_date", 10)
       ]);
       setLogs(logsData || []);
       setCacheStatus(cacheData || []);
+      setQrzLookups(qrzData || []);
     } catch (e) {
       setLogs([]);
       setCacheStatus([]);
@@ -183,6 +186,51 @@ export default function Settings() {
               {profileSaved ? "Gespeichert" : "Profil speichern"}
             </button>
           </div>
+        </section>
+
+        {/* QRZ Lookup Log */}
+        <section>
+          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Search className="w-4 h-4" /> QRZ-Abfrageprotokoll
+          </h2>
+          {qrzLookups.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <Search className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Noch keine QRZ-Abfragen durchgeführt</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {qrzLookups.map(entry => (
+                <div key={entry.id} className="bg-white rounded-xl border border-gray-200 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {entry.lookup_status === 'success'
+                        ? <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        : <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                      }
+                      <span className="font-mono font-bold text-sm text-gray-900">{entry.callsign}</span>
+                      {entry.name && <span className="text-xs text-gray-500 truncate">{entry.name}</span>}
+                    </div>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">
+                      {new Date(entry.created_date).toLocaleString('de-CH')}
+                    </span>
+                  </div>
+                  {entry.lookup_status === 'success' ? (
+                    <div className="mt-1 text-xs text-gray-500 space-y-0.5">
+                      {entry.address && <p>{entry.address}</p>}
+                      <div className="flex gap-3 flex-wrap">
+                        {entry.country && <span>{entry.country}</span>}
+                        {entry.grid && <span className="font-mono">Grid: {entry.grid}</span>}
+                        {entry.email && <span>{entry.email}</span>}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-xs text-red-500">{entry.error_message}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Cache Status */}

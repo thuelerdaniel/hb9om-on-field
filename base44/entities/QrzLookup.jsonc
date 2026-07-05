@@ -1,0 +1,54 @@
+{
+  "name": "QrzLookup",
+  "type": "object",
+  "properties": {
+    "callsign": {
+      "type": "string",
+      "description": "Abgefragtes Rufzeichen"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name des Operators (von QRZ.com)"
+    },
+    "address": {
+      "type": "string",
+      "description": "Adresse (von QRZ.com)"
+    },
+    "country": {
+      "type": "string",
+      "description": "Land (von QRZ.com)"
+    },
+    "grid": {
+      "type": "string",
+      "description": "Maidenhead Grid Locator"
+    },
+    "email": {
+      "type": "string",
+      "description": "E-Mail (von QRZ.com)"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "lookup_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error"
+      ],
+      "default": "success",
+      "description": "Status der Abfrage"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Fehlermeldung bei fehlgeschlagener Abfrage"
+    }
+  },
+  "required": [
+    "callsign"
+  ]
+}
