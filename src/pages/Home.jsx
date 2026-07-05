@@ -10,6 +10,7 @@ import LogEntryForm from "@/components/map/LogEntryForm";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
 import { Loader2, Radio, Plus } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -366,7 +367,7 @@ export default function Home() {
         {/* New QSO floating button */}
         <button
           onClick={() => setShowQsoForm(true)}
-          className="fixed bottom-5 right-3 z-[10001] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
+          className="fixed bottom-20 right-3 z-[10001] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
           title="Neues QSO erfassen"
         >
           <Plus className="w-5 h-5" />
@@ -374,7 +375,7 @@ export default function Home() {
         </button>
 
         {/* Stats bar */}
-        <div className="absolute bottom-5 left-3 z-[1000] max-w-[calc(100%-5.5rem)] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2 text-xs text-gray-600 flex items-center gap-4 flex-wrap">
+        <div className="absolute bottom-20 left-3 z-[1000] max-w-[calc(100%-5.5rem)] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2 text-xs text-gray-600 flex items-center gap-4 flex-wrap">
           <span className="font-semibold text-gray-900">{allMarkers.length}</span> Referenzen sichtbar
           {activeLayers.map(lid => {
             const lg = LAYER_GROUPS.find(g => g.id === lid);
@@ -396,6 +397,8 @@ export default function Home() {
           onSaved={() => {}}
         />
       )}
+
+      <BottomNavigation />
     </div>
   );
 }

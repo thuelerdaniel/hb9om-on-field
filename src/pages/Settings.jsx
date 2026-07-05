@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -23,6 +24,9 @@ export default function Settings() {
   const [profileSaved, setProfileSaved] = useState(false);
   const [qrzTesting, setQrzTesting] = useState(false);
   const [qrzTestResult, setQrzTestResult] = useState(null);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState("");
 
   useEffect(() => {
     loadData();
@@ -87,6 +91,23 @@ export default function Settings() {
     }, 500);
   };
 
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    setDeleteAccountError("");
+    try {
+      const user = await base44.auth.me();
+      if (user) {
+        await base44.entities.User.delete(user.id);
+      }
+      await base44.auth.logout();
+      window.location.href = "/login";
+    } catch (e) {
+      setDeleteAccountError("Fehler beim Löschen des Kontos: " + (e.message || "unbekannt"));
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     setRefreshResult(null);
@@ -109,7 +130,7 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link to="/" className="p-1.5 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -124,7 +145,7 @@ export default function Settings() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24">
         {/* User Profile */}
         <section className="bg-white rounded-xl border border-gray-200 p-4">
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -348,6 +369,55 @@ export default function Settings() {
           )}
         </section>
       </div>
+
+      {/* Delete Account */}
+      <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Konto löschen</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Alle Daten werden unwiderruflich gelöscht</p>
+          </div>
+          <button
+            onClick={() => setShowDeleteAccount(true)}
+            className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Konto löschen
+          </button>
+        </div>
+      </section>
+
+      {showDeleteAccount && (
+        <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowDeleteAccount(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-lg font-bold text-center text-gray-900">Konto wirklich löschen?</h3>
+            <p className="text-sm text-gray-500 text-center mt-2">
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre QSO-Logs, Einstellungen und Daten werden unwiderruflich gelöscht.
+            </p>
+            {deleteAccountError && (
+              <p className="text-xs text-red-600 text-center mt-2">{deleteAccountError}</p>
+            )}
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => { setShowDeleteAccount(false); setDeleteAccountError(""); }} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Abbrechen
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {deletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Endgültig löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BottomNavigation />
     </div>
   );
 }

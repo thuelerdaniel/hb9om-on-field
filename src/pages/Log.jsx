@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
+import MobileSelect from "@/components/ui/MobileSelect";
+import BottomNavigation from "@/components/BottomNavigation";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -136,7 +138,7 @@ export default function Log() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link to="/" className="p-1.5 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -156,41 +158,42 @@ export default function Log() {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 py-4">
+      <div className="max-w-5xl mx-auto px-4 py-4 pb-24">
         {/* Toolbar */}
         <div className="bg-white rounded-xl border border-gray-200 p-3 mb-4 flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <Filter className="w-4 h-4" />
             <span>Filter:</span>
           </div>
-          <select
+          <MobileSelect
             value={filterType}
-            onChange={e => setFilterType(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            <option value="all">Alle Typen</option>
-            {Object.entries(REF_TYPE_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l} ({typeCounts[v] || 0})</option>
-            ))}
-          </select>
-          <select
+            onValueChange={setFilterType}
+            triggerClassName="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+            options={[
+              { value: "all", label: "Alle Typen" },
+              ...Object.entries(REF_TYPE_LABELS).map(([v, l]) => ({ value: v, label: `${l} (${typeCounts[v] || 0})` }))
+            ]}
+          />
+          <MobileSelect
             value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            <option value="active">Aktiv</option>
-            <option value="archived">Archiviert</option>
-            <option value="all">Alle</option>
-          </select>
-          <select
+            onValueChange={setFilterStatus}
+            triggerClassName="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+            options={[
+              { value: "active", label: "Aktiv" },
+              { value: "archived", label: "Archiviert" },
+              { value: "all", label: "Alle" }
+            ]}
+          />
+          <MobileSelect
             value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            <option value="date_desc">Datum (neueste zuerst)</option>
-            <option value="date_asc">Datum (älteste zuerst)</option>
-            <option value="callsign">Rufzeichen (A-Z)</option>
-          </select>
+            onValueChange={setSortBy}
+            triggerClassName="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+            options={[
+              { value: "date_desc", label: "Datum (neueste zuerst)" },
+              { value: "date_asc", label: "Datum (älteste zuerst)" },
+              { value: "callsign", label: "Rufzeichen (A-Z)" }
+            ]}
+          />
 
           <div className="flex-1" />
 
@@ -324,7 +327,7 @@ export default function Log() {
       {/* New QSO floating button */}
       <button
         onClick={() => { setEditEntry(null); setShowQsoForm(true); }}
-        className="fixed bottom-5 right-3 z-[1000] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
+        className="fixed bottom-20 right-3 z-[1000] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
         title="Neues QSO erfassen"
       >
         <Plus className="w-5 h-5" />
@@ -386,6 +389,8 @@ export default function Log() {
           </div>
         </div>
       )}
+
+      <BottomNavigation />
     </div>
   );
 }

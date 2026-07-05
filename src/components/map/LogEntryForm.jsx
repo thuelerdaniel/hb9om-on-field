@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check } from "lucide-react";
+import MobileSelect from "@/components/ui/MobileSelect";
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -390,14 +391,12 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                 placeholder="z.B. HB9XYZ"
                 className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
               />
-              <select
+              <MobileSelect
                 value={callsignSuffix}
-                onChange={e => setCallsignSuffix(e.target.value)}
-                className="px-2 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-                title="Suffix des QSO-Partners"
-              >
-                {SUFFIXES.map(s => <option key={s.value} value={s.value}>{s.value || "—"}</option>)}
-              </select>
+                onValueChange={setCallsignSuffix}
+                triggerClassName="px-2 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9 w-16"
+                options={SUFFIXES.map(s => ({ value: s.value, label: s.value || "—" }))}
+              />
               <button
                 onClick={handleQRZLookup}
                 disabled={qrzLoading || !callsign}
@@ -438,15 +437,21 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Band</label>
-              <select value={band} onChange={e => setBand(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300">
-                {BANDS.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
+              <MobileSelect
+                value={band}
+                onValueChange={setBand}
+                triggerClassName="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+                options={BANDS.map(b => ({ value: b, label: b }))}
+              />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Mode</label>
-              <select value={mode} onChange={e => setMode(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300">
-                {MODES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <MobileSelect
+                value={mode}
+                onValueChange={setMode}
+                triggerClassName="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+                options={MODES.map(m => ({ value: m, label: m }))}
+              />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -494,21 +499,18 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
             )}
 
             <div className="grid grid-cols-2 gap-2">
-              <select
+              <MobileSelect
                 value={refType}
-                onChange={e => setRefType(e.target.value)}
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                {REF_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-              <select
+                onValueChange={setRefType}
+                triggerClassName="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+                options={REF_TYPES.map(t => ({ value: t.value, label: t.label }))}
+              />
+              <MobileSelect
                 value={mySuffix}
-                onChange={e => setMySuffix(e.target.value)}
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-                title="Mein Suffix (/P, /M, /AM, /MM)"
-              >
-                {SUFFIXES.map(s => <option key={s.value} value={s.value}>{s.value || "Suffix"}</option>)}
-              </select>
+                onValueChange={setMySuffix}
+                triggerClassName="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+                options={SUFFIXES.map(s => ({ value: s.value, label: s.value || "Suffix" }))}
+              />
             </div>
 
             {refType === "generell" ? (
