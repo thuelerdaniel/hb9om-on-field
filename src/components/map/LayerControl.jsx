@@ -53,7 +53,7 @@ const LAYER_GROUPS = [
   },
   {
     id: "swiss_protected",
-    label: "Schweizer Bundesinventare",
+    label: "HBFF und Natur Zonen",
     icon: Trees,
     color: "#16a085",
     description: "BLN, Moore, Vogelreservate"
