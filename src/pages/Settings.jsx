@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Lock, Check, Search, HelpCircle } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle } from "lucide-react";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -19,8 +19,6 @@ export default function Settings() {
   // User profile
   const [myCallsign, setMyCallsign] = useState("");
   const [qrzEnabled, setQrzEnabled] = useState(true);
-  const [qrzUsername, setQrzUsername] = useState("");
-  const [qrzPassword, setQrzPassword] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [qrzTesting, setQrzTesting] = useState(false);
@@ -53,8 +51,6 @@ export default function Settings() {
   const loadProfile = () => {
     setMyCallsign(localStorage.getItem("hb9om_my_callsign") || "");
     setQrzEnabled(localStorage.getItem("hb9om_qrz_enabled") !== "false");
-    setQrzUsername(localStorage.getItem("hb9om_qrz_username") || "");
-    setQrzPassword(localStorage.getItem("hb9om_qrz_password") || "");
   };
 
   const handleQrzTest = async () => {
@@ -63,8 +59,6 @@ export default function Settings() {
     try {
       const res = await base44.functions.invoke("fetchQRZ", {
         callsign: "HB9OM",
-        qrz_username: qrzUsername.trim() || undefined,
-        qrz_password: qrzPassword || undefined,
         test_only: true
       });
       if (res.data?.error) {
@@ -85,8 +79,6 @@ export default function Settings() {
     setProfileSaving(true);
     localStorage.setItem("hb9om_my_callsign", myCallsign.toUpperCase().trim());
     localStorage.setItem("hb9om_qrz_enabled", String(qrzEnabled));
-    localStorage.setItem("hb9om_qrz_username", qrzUsername.trim());
-    localStorage.setItem("hb9om_qrz_password", qrzPassword);
     localStorage.setItem("hb9om_setup_complete", "true");
     setTimeout(() => {
       setProfileSaving(false);
@@ -171,33 +163,8 @@ export default function Settings() {
                 <div className="mt-3 space-y-2">
                   <p className="text-xs text-amber-600 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5" />
-                    Erfordert einen zahlenden QRZ.com XML-Subscription-Account
+                    QRZ.com XML-Subscription ist hinterlegt und einsatzbereit
                   </p>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                      <User className="w-3 h-3" /> QRZ.com Benutzername
-                    </label>
-                    <input
-                      type="text"
-                      value={qrzUsername}
-                      onChange={e => setQrzUsername(e.target.value)}
-                      placeholder="QRZ.com Benutzername"
-                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                      <Lock className="w-3 h-3" /> QRZ.com Passwort
-                    </label>
-                    <input
-                      type="password"
-                      value={qrzPassword}
-                      onChange={e => setQrzPassword(e.target.value)}
-                      placeholder="QRZ.com Passwort"
-                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    />
-                  </div>
-                  <p className="text-[10px] text-gray-400">Daten werden lokal auf diesem Gerät gespeichert</p>
 
                   <button
                     onClick={handleQrzTest}

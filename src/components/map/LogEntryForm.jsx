@@ -167,17 +167,12 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
     if (!qrzEnabled) return;
     if (!callsign || callsign.length < 3) return;
 
-    const qrzUsername = (localStorage.getItem("hb9om_qrz_username") || "").trim();
-    const qrzPassword = localStorage.getItem("hb9om_qrz_password") || "";
-
     qrzInFlightRef.current = true;
     setQrzLoading(true);
     setQrzError("");
     try {
       const res = await base44.functions.invoke("fetchQRZ", {
-        callsign: callsign.toUpperCase().trim(),
-        qrz_username: qrzUsername || undefined,
-        qrz_password: qrzPassword || undefined
+        callsign: callsign.toUpperCase().trim()
       });
       if (res.data?.error) {
         setQrzError(res.data.error);

@@ -5,8 +5,6 @@ export default function FirstTimeSetup() {
   const [show, setShow] = useState(false);
   const [myCallsign, setMyCallsign] = useState("");
   const [qrzEnabled, setQrzEnabled] = useState(true);
-  const [qrzUsername, setQrzUsername] = useState("");
-  const [qrzPassword, setQrzPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,8 +20,6 @@ export default function FirstTimeSetup() {
   const loadSaved = () => {
     setMyCallsign(localStorage.getItem("hb9om_my_callsign") || "");
     setQrzEnabled(localStorage.getItem("hb9om_qrz_enabled") !== "false");
-    setQrzUsername(localStorage.getItem("hb9om_qrz_username") || "");
-    setQrzPassword(localStorage.getItem("hb9om_qrz_password") || "");
   };
 
   const handleSave = () => {
@@ -32,15 +28,9 @@ export default function FirstTimeSetup() {
       setError("Bitte geben Sie Ihr Rufzeichen ein (mind. 3 Zeichen)");
       return;
     }
-    if (qrzEnabled && (!qrzUsername || !qrzPassword)) {
-      setError("QRZ.com ist aktiviert – bitte Benutzername und Passwort eingeben oder QRZ deaktivieren");
-      return;
-    }
     setSaving(true);
     localStorage.setItem("hb9om_my_callsign", myCallsign.toUpperCase().trim());
     localStorage.setItem("hb9om_qrz_enabled", String(qrzEnabled));
-    localStorage.setItem("hb9om_qrz_username", qrzUsername.trim());
-    localStorage.setItem("hb9om_qrz_password", qrzPassword);
     localStorage.setItem("hb9om_setup_complete", "true");
     setTimeout(() => {
       setSaving(false);
@@ -97,29 +87,8 @@ export default function FirstTimeSetup() {
               <div className="mt-3 space-y-2">
                 <p className="text-xs text-amber-600 flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" />
-                  QRZ.com benötigt einen zahlenden XML-Subscription-Account
+                  QRZ.com XML-Subscription ist hinterlegt und einsatzbereit
                 </p>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase">QRZ.com Benutzername</label>
-                  <input
-                    type="text"
-                    value={qrzUsername}
-                    onChange={e => setQrzUsername(e.target.value)}
-                    placeholder="QRZ.com Benutzername"
-                    className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase">QRZ.com Passwort</label>
-                  <input
-                    type="password"
-                    value={qrzPassword}
-                    onChange={e => setQrzPassword(e.target.value)}
-                    placeholder="QRZ.com Passwort"
-                    className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
-                </div>
-                <p className="text-[10px] text-gray-400">Daten werden lokal auf diesem Gerät gespeichert</p>
               </div>
             ) : (
               <p className="text-xs text-gray-500 mt-2">
