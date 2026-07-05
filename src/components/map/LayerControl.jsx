@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Layers, ChevronDown, ChevronRight, Eye, EyeOff, Radio, Mountain, Trees, Castle, Anchor, Building, MapPin } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler } from "lucide-react";
 
 const LAYER_GROUPS = [
   {
@@ -66,16 +66,18 @@ const BASE_LAYERS = [
   { id: "satellite", label: "Satellit (ESRI)" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState({});
+const MAP_SCALES = [
+  { id: "10000", label: "1:10'000" },
+  { id: "25000", label: "1:25'000" },
+  { id: "50000", label: "1:50'000" },
+  { id: "100000", label: "1:100'000" }
+];
 
-  const toggleGroup = (id) => {
-    setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale }) {
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="absolute top-3 right-3 z-[1000]">
+    <div className="absolute top-3 right-3 z-[10002]">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-white shadow-lg rounded-lg p-2.5 hover:bg-gray-50 transition-colors border border-gray-200"
@@ -85,7 +87,8 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
       </button>
 
       {isOpen && (
-        <div className="absolute top-12 right-0 bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-h-[80vh] overflow-y-auto">
+        <div className="absolute top-12 right-0 bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
+          {/* Hintergrundkarte */}
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide">Hintergrundkarte</h3>
             <div className="mt-2 space-y-1">
@@ -105,6 +108,26 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             </div>
           </div>
 
+          {/* Kartenmassstab */}
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+              <Ruler className="w-4 h-4" /> Kartenmassstab
+            </h3>
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              {MAP_SCALES.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => onSelectScale(s.id)}
+                  className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-50 text-gray-700 hover:bg-gray-900 hover:text-white transition-colors"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1.5">Zoom wird automatisch aus Breitengrad berechnet.</p>
+          </div>
+
+          {/* Overlay-Ebenen */}
           <div className="p-4">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide mb-3">Overlay-Ebenen</h3>
             <div className="space-y-1">
@@ -149,4 +172,4 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   );
 }
 
-export { LAYER_GROUPS, BASE_LAYERS };
+export { LAYER_GROUPS, BASE_LAYERS, MAP_SCALES };

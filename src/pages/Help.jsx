@@ -22,8 +22,18 @@ const SECTIONS = [
       },
       {
         title: "Layer ein-/ausschalten",
-        body: "Über das Seitenmenü (links oben, drei Striche) können Sie verschiedene Referenz-Typen ein- und ausschalten: SOTA, POTA, HBFF, WWBOTA, Burgen, IOTA, Leuchttürme und Bundesinventare. Ausserdem können Sie die Hintergrundkarte wechseln (Strassenkarte, Satellit, SwissTopo).",
+        body: "Über das Ebenen-Menü (rechts oben, Layer-Icon) können Sie verschiedene Referenz-Typen ein- und ausschalten: SOTA, POTA, HBFF, WWBOTA, Burgen, IOTA, Leuchttürme und Bundesinventare. Ausserdem können Sie die Hintergrundkarte wechseln (Strassenkarte, Satellit, SwissTopo). Das Menü öffnet sich immer ganz oben und liegt über allen anderen Elementen.",
         example: "Nur SOTA-Gipfel anzeigen: Alle anderen Layer ausschalten, nur SOTA aktiv lassen."
+      },
+      {
+        title: "Kartenmassstab wählen",
+        body: "Im Ebenen-Menü unter «Kartenmassstab» können Sie einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000. Die Karte zoomt automatisch auf die entsprechende Stufe. Der Zoom wird anhand der aktuellen Breitenkoordinate berechnet, damit der Massstab korrekt ist.",
+        example: "1:25'000 wählen → Karte zoomt auf Massstab 1:25'000 (ca. Zoomstufe 14 in der Schweiz)."
+      },
+      {
+        title: "Legende ein-/ausblenden",
+        body: "Unten links auf der Karte finden Sie die Legende, die die Farben der aktiven Layer anzeigt. Klicken Sie auf die Leiste, um die Legende ein- oder auszublenden (minimieren). Im minimierten Zustand wird nur die Anzahl sichtbarer Referenzen angezeigt. Die Legende überlappt nicht mit dem «Neues QSO»-Button.",
+        example: "Legende minimieren: auf die Leiste unten links klicken → nur noch die Referenzanzahl wird angezeigt."
       },
       {
         title: "Marker anklicken",

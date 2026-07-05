@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Popup, useMap, CircleMarker, WMSTileLayer, use
 import { base44 } from "@/api/base44Client";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl, { LAYER_GROUPS } from "@/components/map/LayerControl";
+import MapLegend from "@/components/map/MapLegend";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import SearchResults from "@/components/map/SearchResults";
 import SplashScreen from "@/components/map/SplashScreen";
@@ -270,6 +271,17 @@ export default function Home() {
     setSearchQuery("");
   };
 
+  const handleSelectScale = useCallback((scaleId) => {
+    const scale = parseInt(scaleId);
+    const lat = mapCenter[0];
+    const metersPerPixel = scale * 0.00028;
+    const earthCircumference = 40075016.686;
+    const zoom = Math.log2((earthCircumference * Math.cos(lat * Math.PI / 180)) / (metersPerPixel * 256));
+    const roundedZoom = Math.max(1, Math.min(19, Math.round(zoom)));
+    setFlyTo([mapCenter[0], mapCenter[1]]);
+    setFlyZoom(roundedZoom);
+  }, [mapCenter]);
+
   const isLoading = Object.values(loading).some(v => v);
 
   const baseTileUrl = baseLayer === "swisstopo"
@@ -393,6 +405,7 @@ export default function Home() {
           onToggleLayer={toggleLayer}
           baseLayer={baseLayer}
           onChangeBaseLayer={setBaseLayer}
+          onSelectScale={handleSelectScale}
         />
 
         {/* New QSO floating button */}
@@ -405,19 +418,7 @@ export default function Home() {
           <span className="text-sm font-medium">Neues QSO</span>
         </button>
 
-        {/* Stats bar */}
-        <div className="absolute bottom-20 left-3 z-[1000] max-w-[calc(100%-5.5rem)] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2 text-xs text-gray-600 flex items-center gap-4 flex-wrap">
-          <span className="font-semibold text-gray-900">{allMarkers.length}</span> Referenzen sichtbar
-          {activeLayers.map(lid => {
-            const lg = LAYER_GROUPS.find(g => g.id === lid);
-            return lg ? (
-              <span key={lid} className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: LAYER_COLORS[lid] }} />
-                {lg.label.split("–")[0].trim()}
-              </span>
-            ) : null;
-          })}
-        </div>
+        <MapLegend activeLayers={activeLayers} markerCount={allMarkers.length} />
       </div>
 
       {showQsoForm && (
