@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
+import LogStats from "@/components/log/LogStats";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -22,6 +23,7 @@ export default function Log() {
   const [sortBy, setSortBy] = useState("date_desc");
   const [showQsoForm, setShowQsoForm] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
+  const [view, setView] = useState("list");
 
   useEffect(() => {
     loadEntries();
@@ -152,6 +154,13 @@ export default function Log() {
               <p className="text-[10px] text-gray-400">{entries.length} Einträge gesamt</p>
             </div>
           </div>
+          <button
+            onClick={() => setView(view === "list" ? "stats" : "list")}
+            className={`p-1.5 rounded-lg ${view === "stats" ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}
+            title={view === "list" ? "Statistik anzeigen" : "Liste anzeigen"}
+          >
+            {view === "list" ? <BarChart3 className="w-5 h-5" /> : <List className="w-5 h-5" />}
+          </button>
           <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
             <HelpCircle className="w-5 h-5" />
           </Link>
@@ -159,8 +168,9 @@ export default function Log() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-4 pb-24">
+        {view === "stats" && <LogStats entries={entries} />}
         {/* Toolbar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-3 mb-4 flex flex-wrap items-center gap-2">
+        <div className={`bg-white rounded-xl border border-gray-200 p-3 mb-4 ${view === "stats" ? "hidden" : "flex flex-wrap items-center gap-2"}`}>
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <Filter className="w-4 h-4" />
             <span>Filter:</span>
@@ -218,7 +228,7 @@ export default function Log() {
         </div>
 
         {/* Entries */}
-        {loading ? (
+        {view === "stats" ? null : loading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
           </div>
