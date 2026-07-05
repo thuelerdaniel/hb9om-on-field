@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { X, Search, Loader2, MapPin, Plus, Radio } from "lucide-react";
 
@@ -25,6 +25,18 @@ const REF_TYPES = [
 const BANDS = ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "4m", "2m", "70cm", "23cm", "Other"];
 const MODES = ["SSB", "CW", "FM", "FT8", "FT4", "PSK", "RTTY", "AM", "Other"];
 
+// Persisted QSO form fields (kept across sessions until changed)
+const PERSIST_KEYS = {
+  frequency: "hb9om_last_frequency",
+  band: "hb9om_last_band",
+  mode: "hb9om_last_mode",
+  rstSent: "hb9om_last_rst_sent",
+  rstReceived: "hb9om_last_rst_received",
+  refType: "hb9om_last_ref_type",
+  refCode: "hb9om_last_ref_code",
+  refName: "hb9om_last_ref_name",
+};
+
 export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }) {
   const [callsign, setCallsign] = useState("");
   const [qrzLoading, setQrzLoading] = useState(false);
@@ -37,29 +49,57 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
   const [qsoDate, setQsoDate] = useState(today);
   const [timeStart, setTimeStart] = useState(nowUTC);
   const [timeEnd, setTimeEnd] = useState("");
-  const [frequency, setFrequency] = useState("");
-  const [band, setBand] = useState("2m");
-  const [mode, setMode] = useState("FM");
-  const [rstSent, setRstSent] = useState("59");
-  const [rstReceived, setRstReceived] = useState("59");
+  const [frequency, setFrequency] = useState(() => localStorage.getItem(PERSIST_KEYS.frequency) || "");
+  const [band, setBand] = useState(() => localStorage.getItem(PERSIST_KEYS.band) || "2m");
+  const [mode, setMode] = useState(() => localStorage.getItem(PERSIST_KEYS.mode) || "FM");
+  const [rstSent, setRstSent] = useState(() => localStorage.getItem(PERSIST_KEYS.rstSent) || "59");
+  const [rstReceived, setRstReceived] = useState(() => localStorage.getItem(PERSIST_KEYS.rstReceived) || "59");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Reference selection
-  const [refType, setRefType] = useState("custom");
-  const [refCode, setRefCode] = useState("");
-  const [refName, setRefName] = useState("");
+  const [refType, setRefType] = useState(() => localStorage.getItem(PERSIST_KEYS.refType) || "custom");
+  const [refCode, setRefCode] = useState(() => localStorage.getItem(PERSIST_KEYS.refCode) || "");
+  const [refName, setRefName] = useState(() => localStorage.getItem(PERSIST_KEYS.refName) || "");
   const [showRefDropdown, setShowRefDropdown] = useState(false);
 
+  const wakeLockRef = useRef(null);
+
+  // Prevent screen sleep while form is open
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      try {
+        if ("wakeLock" in navigator) {
+          wakeLockRef.current = await navigator.wakeLock.request("screen");
+        }
+      } catch (e) {
+        // Wake lock not available or denied – silently ignore
+      }
+    };
+    requestWakeLock();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && wakeLockRef.current === null) {
+        requestWakeLock();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, []);
+
   // Compute nearby references from map center
-  const nearbyRefs = React.useMemo(() => {
+  const nearbyRefs = useMemo(() => {
     if (!mapCenter || !allMarkers || allMarkers.length === 0) return [];
     const [clat, clng] = mapCenter;
     return allMarkers
-      .map(m => ({
-        ...m,
-        distance: haversine(clat, clng, m.lat, m.lng)
-      }))
+      .map(m => ({ ...m, distance: haversine(clat, clng, m.lat, m.lng) }))
       .filter(m => m.distance < 25)
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 20);
@@ -76,11 +116,25 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
   }, [nearbyRefs]);
 
   const handleQRZLookup = async () => {
+    const qrzEnabled = localStorage.getItem("hb9om_qrz_enabled") !== "false";
+    if (!qrzEnabled) return; // QRZ disabled by user
     if (!callsign || callsign.length < 3) return;
+
+    const qrzUsername = localStorage.getItem("hb9om_qrz_username") || "";
+    const qrzPassword = localStorage.getItem("hb9om_qrz_password") || "";
+    if (!qrzUsername || !qrzPassword) {
+      setQrzError("QRZ.com Anmeldedaten fehlen – in Einstellungen erfassen");
+      return;
+    }
+
     setQrzLoading(true);
     setQrzError("");
     try {
-      const res = await base44.functions.invoke("fetchQRZ", { callsign: callsign.toUpperCase().trim() });
+      const res = await base44.functions.invoke("fetchQRZ", {
+        callsign: callsign.toUpperCase().trim(),
+        qrz_username: qrzUsername,
+        qrz_password: qrzPassword
+      });
       if (res.data?.error) {
         setQrzError(res.data.error);
       } else if (res.data?.callsign) {
@@ -105,6 +159,17 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
     setRefCode(r.code || r.reference || "");
     setRefName(r.name || "");
     setShowRefDropdown(false);
+  };
+
+  const persistFormValues = () => {
+    localStorage.setItem(PERSIST_KEYS.frequency, frequency);
+    localStorage.setItem(PERSIST_KEYS.band, band);
+    localStorage.setItem(PERSIST_KEYS.mode, mode);
+    localStorage.setItem(PERSIST_KEYS.rstSent, rstSent);
+    localStorage.setItem(PERSIST_KEYS.rstReceived, rstReceived);
+    localStorage.setItem(PERSIST_KEYS.refType, refType);
+    localStorage.setItem(PERSIST_KEYS.refCode, refCode);
+    localStorage.setItem(PERSIST_KEYS.refName, refName);
   };
 
   const handleSave = async () => {
@@ -132,6 +197,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved }
         notes,
         status: "active"
       });
+      persistFormValues();
       if (onSaved) onSaved();
       if (onClose) onClose();
     } catch (e) {

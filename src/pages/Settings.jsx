@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Lock, Check } from "lucide-react";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -15,8 +15,17 @@ export default function Settings() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshResult, setRefreshResult] = useState(null);
 
+  // User profile
+  const [myCallsign, setMyCallsign] = useState("");
+  const [qrzEnabled, setQrzEnabled] = useState(true);
+  const [qrzUsername, setQrzUsername] = useState("");
+  const [qrzPassword, setQrzPassword] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
   useEffect(() => {
     loadData();
+    loadProfile();
   }, []);
 
   const loadData = async () => {
@@ -34,6 +43,27 @@ export default function Settings() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadProfile = () => {
+    setMyCallsign(localStorage.getItem("hb9om_my_callsign") || "");
+    setQrzEnabled(localStorage.getItem("hb9om_qrz_enabled") !== "false");
+    setQrzUsername(localStorage.getItem("hb9om_qrz_username") || "");
+    setQrzPassword(localStorage.getItem("hb9om_qrz_password") || "");
+  };
+
+  const handleSaveProfile = () => {
+    setProfileSaving(true);
+    localStorage.setItem("hb9om_my_callsign", myCallsign.toUpperCase().trim());
+    localStorage.setItem("hb9om_qrz_enabled", String(qrzEnabled));
+    localStorage.setItem("hb9om_qrz_username", qrzUsername.trim());
+    localStorage.setItem("hb9om_qrz_password", qrzPassword);
+    localStorage.setItem("hb9om_setup_complete", "true");
+    setTimeout(() => {
+      setProfileSaving(false);
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+    }, 500);
   };
 
   const handleRefresh = async () => {
@@ -71,6 +101,90 @@ export default function Settings() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* User Profile */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <User className="w-4 h-4" /> Mein Profil
+          </h2>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Mein Rufzeichen</label>
+              <input
+                type="text"
+                value={myCallsign}
+                onChange={e => setMyCallsign(e.target.value)}
+                placeholder="z.B. HB9XYZ"
+                className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+              />
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                    <Radio className="w-4 h-4" /> QRZ.com Abfrage
+                  </label>
+                  <p className="text-xs text-gray-500 mt-0.5">Automatische Rufzeichen-Datenabfrage</p>
+                </div>
+                <button
+                  onClick={() => setQrzEnabled(!qrzEnabled)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${qrzEnabled ? 'bg-gray-900' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${qrzEnabled ? 'translate-x-6' : ''}`} />
+                </button>
+              </div>
+
+              {qrzEnabled ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Erfordert einen zahlenden QRZ.com XML-Subscription-Account
+                  </p>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                      <User className="w-3 h-3" /> QRZ.com Benutzername
+                    </label>
+                    <input
+                      type="text"
+                      value={qrzUsername}
+                      onChange={e => setQrzUsername(e.target.value)}
+                      placeholder="QRZ.com Benutzername"
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> QRZ.com Passwort
+                    </label>
+                    <input
+                      type="password"
+                      value={qrzPassword}
+                      onChange={e => setQrzPassword(e.target.value)}
+                      placeholder="QRZ.com Passwort"
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400">Daten werden lokal auf diesem Gerät gespeichert</p>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 mt-2">
+                  QRZ-Abfrage deaktiviert. Rufzeichen-Daten manuell im QSO-Formular eingeben.
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={handleSaveProfile}
+              disabled={profileSaving}
+              className="w-full px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {profileSaved ? <Check className="w-4 h-4" /> : profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {profileSaved ? "Gespeichert" : "Profil speichern"}
+            </button>
+          </div>
+        </section>
+
         {/* Cache Status */}
         <section>
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
