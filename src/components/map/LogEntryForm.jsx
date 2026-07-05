@@ -396,7 +396,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                 onBlur={handleQRZLookup}
                 onKeyDown={e => e.key === "Enter" && handleQRZLookup()}
                 placeholder="z.B. HB9XYZ"
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
               />
               <MobileSelect
                 value={callsignSuffix}
@@ -432,22 +432,22 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Datum</label>
-              <input type="date" value={qsoDate} onChange={e => setQsoDate(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <input type="date" value={qsoDate} onChange={e => setQsoDate(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Startzeit UTC</label>
-              <input type="time" value={timeStart} onChange={e => setTimeStart(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <input type="time" value={timeStart} onChange={e => setTimeStart(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Frequenz (MHz)</label>
-              <input type="number" step="0.001" value={frequency} onChange={e => setFrequency(e.target.value)} placeholder="z.B. 144.500" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <input type="number" step="0.001" value={frequency} onChange={e => setFrequency(e.target.value)} placeholder="z.B. 144.500" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Band</label>
               <MobileSelect
                 value={band}
                 onValueChange={setBand}
-                triggerClassName="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+                triggerClassName="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
                 options={BANDS.map(b => ({ value: b, label: b }))}
               />
             </div>
@@ -456,18 +456,18 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
               <MobileSelect
                 value={mode}
                 onValueChange={setMode}
-                triggerClassName="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+                triggerClassName="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
                 options={MODES.map(m => ({ value: m, label: m }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase">RST S</label>
-                <input type="text" value={rstSent} onChange={e => setRstSent(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <input type="text" value={rstSent} onChange={e => setRstSent(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase">RST R</label>
-                <input type="text" value={rstReceived} onChange={e => setRstReceived(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <input type="text" value={rstReceived} onChange={e => setRstReceived(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
               </div>
             </div>
           </div>
@@ -529,7 +529,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                   onChange={e => setMyGrid(e.target.value.toUpperCase())}
                   placeholder="z.B. JN36"
                   maxLength={8}
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
                 />
                 <p className="text-[10px] text-gray-400 mt-1">Standard 4 Stellen – auf 6 Stellen erweiterbar</p>
               </div>
@@ -540,14 +540,14 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                   value={refCode}
                   onChange={e => setRefCode(e.target.value)}
                   placeholder="Referenz-Code (z.B. HB/AG-001)"
-                  className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
                 />
                 <input
                   type="text"
                   value={refName}
                   onChange={e => setRefName(e.target.value)}
                   placeholder="Name der Referenz"
-                  className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 />
               </>
             )}
@@ -566,7 +566,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
               onChange={e => setNotes(e.target.value)}
               rows={2}
               placeholder="Zusätzliche Informationen..."
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
             />
           </div>
 
@@ -618,7 +618,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                   onKeyDown={e => e.key === "Enter" && clubCallsign.length >= 3 && handleClubPopupConfirm()}
                   placeholder="z.B. HB9OM"
                   autoFocus
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
                 />
               </div>
               <div>
@@ -630,7 +630,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                   value={clubOperatorCallsign}
                   onChange={e => setClubOperatorCallsign(e.target.value)}
                   placeholder="z.B. HB9ABC"
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
                 />
               </div>
               <div>
@@ -640,7 +640,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                   value={clubOperatorName}
                   onChange={e => setClubOperatorName(e.target.value)}
                   placeholder="Name des Operators"
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 />
               </div>
               <p className="text-[10px] text-gray-400">Das Clubstations-Rufzeichen wird für jeden QSO-Eintrag gespeichert.</p>

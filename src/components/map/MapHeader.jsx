@@ -28,7 +28,7 @@ export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar
               placeholder="Referenz oder Ort suchen..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent"
+              className="w-full pl-9 pr-4 py-2 text-sm bg-white text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent"
             />
           </div>
         </div>

@@ -13,10 +13,10 @@ export default function MobileSelect({ value, onValueChange, options, triggerCla
 
   return (
     <Select value={adjustedValue} onValueChange={v => onValueChange(v === EMPTY_SENTINEL ? "" : v)}>
-      <SelectTrigger className={triggerClassName}>
+      <SelectTrigger className={`bg-white text-gray-900 ${triggerClassName || ""}`}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent className={contentClassName || "z-[10003]"}>
+      <SelectContent className={contentClassName || "z-[10003] bg-white text-gray-900 border-gray-200"}>
         {adjustedOptions.map(o => (
           <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
         ))}

@@ -169,7 +169,7 @@ export default function Settings() {
                 value={myCallsign}
                 onChange={e => setMyCallsign(e.target.value)}
                 placeholder="z.B. HB9XYZ"
-                className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
               />
             </div>
 
