@@ -14,8 +14,10 @@ export default function MapControls({
   onZoomOut,
   onScaleUp,
   onScaleDown,
+  baseLayer,
 }) {
   const scaleLabel = lockedScale ? SCALE_LABELS[lockedScale] : "Auto";
+  const showScale = baseLayer === "swisstopo";
 
   return (
     <div className="absolute right-3 top-20 z-[10001] flex flex-col gap-2">
@@ -40,7 +42,8 @@ export default function MapControls({
         </button>
       </div>
 
-      {/* Scale controls */}
+      {/* Scale controls – nur bei Swisstopo-Karte */}
+      {showScale && (
       <div className={`bg-white rounded-lg shadow-lg border flex flex-col items-center overflow-hidden ${lockedScale ? "border-blue-400" : "border-gray-200"}`}>
         <button
           onClick={onScaleUp}
@@ -63,6 +66,7 @@ export default function MapControls({
           <Minus className="w-3.5 h-3.5 text-gray-700" />
         </button>
       </div>
+      )}
     </div>
   );
 }

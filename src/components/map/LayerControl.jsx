@@ -108,7 +108,8 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             </div>
           </div>
 
-          {/* Kartenmassstab */}
+          {/* Kartenmassstab – nur bei Swisstopo */}
+          {baseLayer === "swisstopo" && (
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
               <Ruler className="w-4 h-4" /> Kartenmassstab
@@ -140,6 +141,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             </div>
             <p className="text-[10px] text-gray-400 mt-1.5">Massstab wird gesperrt und beim Verschieben automatisch gehalten. Zum Aufheben "Dynamisch" wählen.</p>
           </div>
+          )}
 
           {/* Overlay-Ebenen */}
           <div className="p-4">

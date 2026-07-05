@@ -333,9 +333,9 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
   };
 
   return (
-    <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4 pb-20" onClick={onClose}>
+    <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-3 pb-20" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[calc(100vh-6rem)] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100vh-6rem)] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
@@ -388,7 +388,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
           {/* QSO Partner */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rufzeichen (QSO-Partner)</label>
-            <div className="flex gap-2 mt-1">
+            <div className="flex gap-1.5 mt-1">
               <input
                 type="text"
                 value={callsign}
@@ -396,18 +396,18 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
                 onBlur={handleQRZLookup}
                 onKeyDown={e => e.key === "Enter" && handleQRZLookup()}
                 placeholder="z.B. HB9XYZ"
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                className="flex-1 min-w-0 px-2.5 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
               />
               <MobileSelect
                 value={callsignSuffix}
                 onValueChange={setCallsignSuffix}
-                triggerClassName="px-2 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9 w-16"
+                triggerClassName="px-1.5 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9 w-12 flex-shrink-0"
                 options={SUFFIXES.map(s => ({ value: s.value, label: s.value || "—" }))}
               />
               <button
                 onClick={handleQRZLookup}
                 disabled={qrzLoading || !callsign}
-                className="px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 flex items-center gap-1.5"
+                className="px-2.5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 flex items-center gap-1 flex-shrink-0"
               >
                 {qrzLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 QRZ
@@ -583,17 +583,17 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
           {saveError && <p className="text-xs text-red-600">{saveError}</p>}
         </div>
 
-        <div className="flex gap-2 px-5 py-4 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
+        <div className="flex gap-2 px-4 py-3 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+            className="flex-1 px-3 py-2.5 text-xs sm:text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
           >
             Abbrechen
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !callsign || !frequency}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
+            className="flex-1 px-3 py-2.5 text-xs sm:text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : justSaved ? <Check className="w-4 h-4" /> : isEditing ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {isEditing ? "Aktualisieren" : justSaved ? "Gespeichert!" : "QSO speichern & weiter"}

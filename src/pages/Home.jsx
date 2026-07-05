@@ -305,6 +305,13 @@ export default function Home() {
     setSearchQuery("");
   };
 
+  const handleChangeBaseLayer = useCallback((layer) => {
+    setBaseLayer(layer);
+    if (layer !== "swisstopo") {
+      setLockedScale(null);
+    }
+  }, []);
+
   const handleSelectScale = useCallback((scaleId) => {
     if (scaleId === "auto") {
       setLockedScale(null);
@@ -465,7 +472,7 @@ export default function Home() {
           activeLayers={activeLayers}
           onToggleLayer={toggleLayer}
           baseLayer={baseLayer}
-          onChangeBaseLayer={setBaseLayer}
+          onChangeBaseLayer={handleChangeBaseLayer}
           onSelectScale={handleSelectScale}
           lockedScale={lockedScale}
         />
@@ -476,6 +483,7 @@ export default function Home() {
           onZoomOut={handleZoomOut}
           onScaleUp={handleScaleUp}
           onScaleDown={handleScaleDown}
+          baseLayer={baseLayer}
         />
 
         {/* New QSO floating button */}
