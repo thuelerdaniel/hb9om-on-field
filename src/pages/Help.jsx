@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
 
 const SECTIONS = [
   {
@@ -257,7 +258,7 @@ export default function Help() {
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 pb-24">
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">
           <p className="font-semibold mb-1">Willkommen bei HB9OM On Field!</p>
           <p className="text-blue-700 text-xs leading-relaxed">
@@ -292,6 +293,8 @@ export default function Help() {
           <p className="mt-1">Bei Fragen oder Problemen wenden Sie sich an den Club HB9OM.</p>
         </div>
       </div>
+
+      <BottomNavigation />
     </div>
   );
 }

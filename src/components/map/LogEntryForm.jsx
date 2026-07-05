@@ -333,9 +333,9 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
   };
 
   return (
-    <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4 pb-20" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[calc(100vh-6rem)] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
@@ -603,8 +603,8 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
 
       {/* Clubstation Popup */}
       {showClubPopup && (
-        <div className="fixed inset-0 z-[10002] bg-black/50 flex items-center justify-center p-4" onClick={handleClubPopupClose}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[10002] bg-black/50 flex items-center justify-center p-4 pb-20" onClick={handleClubPopupClose}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[calc(100vh-6rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
