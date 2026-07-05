@@ -1,0 +1,42 @@
+{
+  "name": "ReferenceData",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "sota",
+        "pota",
+        "hbff",
+        "wwbota",
+        "castle",
+        "lighthouse",
+        "iota"
+      ],
+      "description": "Referenz-Typ"
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Array der zwischengespeicherten Referenzdaten"
+    },
+    "total_count": {
+      "type": "number",
+      "description": "Anzahl der Referenzen"
+    },
+    "source": {
+      "type": "string",
+      "description": "Datenquelle"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Aktualisierung"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

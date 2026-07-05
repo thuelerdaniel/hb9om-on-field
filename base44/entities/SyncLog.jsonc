@@ -1,0 +1,43 @@
+{
+  "name": "SyncLog",
+  "type": "object",
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt der Aktualisierung"
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "partial",
+        "failed"
+      ],
+      "description": "Gesamtstatus der Aktualisierung"
+    },
+    "total_duration_ms": {
+      "type": "number",
+      "description": "Gesamtdauer in Millisekunden"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Ergebnisse pro Referenz-Typ"
+    },
+    "trigger": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "manual"
+      ],
+      "description": "Ausloeser der Aktualisierung"
+    }
+  },
+  "required": [
+    "timestamp",
+    "overall_status"
+  ]
+}

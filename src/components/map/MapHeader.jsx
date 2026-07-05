@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Radio, Search, Menu, X, BookOpen } from "lucide-react";
+import { Radio, Search, Menu, X, BookOpen, Settings as SettingsIcon } from "lucide-react";
 
 export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen }) {
   return (
@@ -33,6 +33,14 @@ export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar
           </div>
         </div>
 
+        <Link
+          to="/settings"
+          className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg flex items-center gap-1.5 transition-colors"
+          title="Einstellungen"
+        >
+          <SettingsIcon className="w-4 h-4" />
+          <span className="hidden sm:inline">Einstellungen</span>
+        </Link>
         <Link
           to="/log"
           className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg flex items-center gap-1.5 transition-colors"

@@ -1,0 +1,178 @@
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock } from "lucide-react";
+
+const TYPE_LABELS = {
+  sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+  castle: "Burgen/Schlösser", lighthouse: "Leuchttürme", iota: "IOTA"
+};
+
+export default function Settings() {
+  const [logs, setLogs] = useState([]);
+  const [cacheStatus, setCacheStatus] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshResult, setRefreshResult] = useState(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [logsData, cacheData] = await Promise.all([
+        base44.entities.SyncLog.list("-created_date", 50),
+        base44.entities.ReferenceData.list()
+      ]);
+      setLogs(logsData || []);
+      setCacheStatus(cacheData || []);
+    } catch (e) {
+      setLogs([]);
+      setCacheStatus([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setRefreshResult(null);
+    try {
+      const res = await base44.functions.invoke("refreshAllData", {});
+      setRefreshResult(res.data);
+      setTimeout(() => loadData(), 1000);
+    } catch (e) {
+      setRefreshResult({ error: e.message });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const StatusIcon = ({ status }) => {
+    if (status === 'success') return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+    if (status === 'partial') return <AlertCircle className="w-4 h-4 text-amber-500" />;
+    return <XCircle className="w-4 h-4 text-red-500" />;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Link to="/" className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </Link>
+          <div className="flex items-center gap-2 flex-1">
+            <SettingsIcon className="w-5 h-5 text-gray-700" />
+            <h1 className="text-sm font-bold text-gray-900">Einstellungen</h1>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Cache Status */}
+        <section>
+          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Database className="w-4 h-4" /> Daten-Cache
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {cacheStatus.length === 0 && !loading ? (
+              <div className="col-span-full bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">
+                Keine zwischengespeicherten Daten vorhanden
+              </div>
+            ) : (
+              cacheStatus.map(entry => (
+                <div key={entry.id} className="bg-white rounded-xl border border-gray-200 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-900">{TYPE_LABELS[entry.type] || entry.type}</span>
+                    <span className="text-lg font-bold text-gray-900">{entry.total_count}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {entry.last_updated ? new Date(entry.last_updated).toLocaleString('de-CH') : 'Nie'}
+                  </p>
+                  <p className="text-[10px] text-gray-400">Quelle: {entry.source}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Refresh Button */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Daten aktualisieren</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Alle Referenzdaten neu abrufen und zwischenspeichern</p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 flex items-center gap-2"
+            >
+              {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {refreshing ? "Aktualisiert..." : "Jetzt aktualisieren"}
+            </button>
+          </div>
+          {refreshResult && (
+            <div className={`mt-3 p-3 rounded-lg text-sm ${refreshResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+              {refreshResult.error
+                ? `Fehler: ${refreshResult.error}`
+                : `Aktualisierung abgeschlossen: ${refreshResult.results?.filter(r => r.status === 'success').length || 0}/${refreshResult.results?.length || 0} Quellen erfolgreich (${(refreshResult.total_duration_ms / 1000).toFixed(1)}s)`
+              }
+            </div>
+          )}
+        </section>
+
+        {/* Sync Log */}
+        <section>
+          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Clock className="w-4 h-4" /> Aktualisierungsprotokoll
+          </h2>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <Clock className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Noch keine Aktualisierungen protokolliert</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {logs.map(log => (
+                <div key={log.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <StatusIcon status={log.overall_status} />
+                      <span className="text-sm font-medium text-gray-900">
+                        {new Date(log.created_date).toLocaleString('de-CH')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <span>{log.trigger === 'manual' ? 'Manuell' : 'Automatisch'}</span>
+                      <span>{(log.total_duration_ms / 1000).toFixed(1)}s</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                    {log.results?.map((r, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-xs">
+                        {r.status === 'success'
+                          ? <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
+                          : <XCircle className="w-3 h-3 text-red-500 flex-shrink-0" />
+                        }
+                        <span className="text-gray-600">{TYPE_LABELS[r.type] || r.type}</span>
+                        <span className="text-gray-400 font-medium">{r.count}</span>
+                        {r.error && <span className="text-red-400 truncate" title={r.error}>({r.error.slice(0, 30)})</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}

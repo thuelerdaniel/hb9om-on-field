@@ -120,8 +120,8 @@ async function extractCoordsFromKMZ(kmzUrl) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const isAuthed = await base44.auth.isAuthenticated();
+    if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
     const batchSize = body.batchSize || 50;

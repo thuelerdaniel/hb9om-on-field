@@ -97,10 +97,32 @@ export default function Home() {
   // API-loaded data
   const [sotaData, setSotaData] = useState([]);
   const [potaData, setPotaData] = useState([]);
+  const [hbffData, setHbffData] = useState([]);
+  const [wwbotaData, setWwbotaData] = useState([]);
+  const [castleData, setCastleData] = useState([]);
+  const [cacheLoaded, setCacheLoaded] = useState(false);
 
-  // Load SOTA from API
+  // Load all cached reference data on mount
   useEffect(() => {
-    if (!activeLayers.includes("sota") || sotaData.length > 0) return;
+    base44.entities.ReferenceData.list()
+      .then(cached => {
+        if (!cached) return;
+        cached.forEach(entry => {
+          if (!entry.references) return;
+          if (entry.type === 'sota') setSotaData(entry.references);
+          if (entry.type === 'pota') setPotaData(entry.references);
+          if (entry.type === 'hbff') setHbffData(entry.references);
+          if (entry.type === 'wwbota') setWwbotaData(entry.references);
+          if (entry.type === 'castle') setCastleData(entry.references);
+        });
+      })
+      .catch(() => {})
+      .finally(() => setCacheLoaded(true));
+  }, []);
+
+  // Load SOTA from API if not cached
+  useEffect(() => {
+    if (!cacheLoaded || !activeLayers.includes("sota") || sotaData.length > 0) return;
     setLoading(prev => ({ ...prev, sota: true }));
     base44.functions.invoke("fetchSOTA", { region: "HB" })
       .then(res => {
@@ -108,11 +130,11 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, sota: false })));
-  }, [activeLayers]);
+  }, [activeLayers, cacheLoaded]);
 
-  // Load POTA from API
+  // Load POTA from API if not cached
   useEffect(() => {
-    if (!activeLayers.includes("pota") || potaData.length > 0) return;
+    if (!cacheLoaded || !activeLayers.includes("pota") || potaData.length > 0) return;
     setLoading(prev => ({ ...prev, pota: true }));
     base44.functions.invoke("fetchPOTA", {})
       .then(res => {
@@ -120,7 +142,37 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, pota: false })));
-  }, [activeLayers]);
+  }, [activeLayers, cacheLoaded]);
+
+  // Load HBFF from API if not cached
+  useEffect(() => {
+    if (!cacheLoaded || !activeLayers.includes("hbff") || hbffData.length > 0) return;
+    setLoading(prev => ({ ...prev, hbff: true }));
+    base44.functions.invoke("fetchHBFF", { batchSize: 500, batchStart: 0 })
+      .then(res => { if (res.data?.references) setHbffData(res.data.references); })
+      .catch(() => {})
+      .finally(() => setLoading(prev => ({ ...prev, hbff: false })));
+  }, [activeLayers, cacheLoaded]);
+
+  // Load WWBOTA from API if not cached
+  useEffect(() => {
+    if (!cacheLoaded || !activeLayers.includes("wwbota") || wwbotaData.length > 0) return;
+    setLoading(prev => ({ ...prev, wwbota: true }));
+    base44.functions.invoke("fetchWWBOTA", {})
+      .then(res => { if (res.data?.bunkers) setWwbotaData(res.data.bunkers); })
+      .catch(() => {})
+      .finally(() => setLoading(prev => ({ ...prev, wwbota: false })));
+  }, [activeLayers, cacheLoaded]);
+
+  // Load Castles from API if not cached
+  useEffect(() => {
+    if (!cacheLoaded || !activeLayers.includes("castle") || castleData.length > 0) return;
+    setLoading(prev => ({ ...prev, castle: true }));
+    base44.functions.invoke("fetchCastles", {})
+      .then(res => { if (res.data?.castles) setCastleData(res.data.castles); })
+      .catch(() => {})
+      .finally(() => setLoading(prev => ({ ...prev, castle: false })));
+  }, [activeLayers, cacheLoaded]);
 
   const toggleLayer = useCallback((layerId) => {
     setActiveLayers(prev =>
@@ -143,13 +195,16 @@ export default function Home() {
       });
     }
     if (activeLayers.includes("hbff")) {
-      HBFF_DATA.forEach(h => markers.push({ ...h, layerType: "hbff", color: LAYER_COLORS.hbff, layerLabel: "HBFF" }));
+      const hbff = hbffData.length > 0 ? hbffData : HBFF_DATA;
+      hbff.forEach(h => markers.push({ ...h, layerType: "hbff", color: LAYER_COLORS.hbff, layerLabel: "HBFF" }));
     }
     if (activeLayers.includes("wwbota")) {
-      WWBOTA_DATA.forEach(b => markers.push({ ...b, layerType: "wwbota", color: LAYER_COLORS.wwbota, layerLabel: "WWBOTA" }));
+      const wwbota = wwbotaData.length > 0 ? wwbotaData : WWBOTA_DATA;
+      wwbota.forEach(b => markers.push({ ...b, layerType: "wwbota", color: LAYER_COLORS.wwbota, layerLabel: "WWBOTA" }));
     }
     if (activeLayers.includes("castle")) {
-      CASTLE_DATA.forEach(c => markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }));
+      const castles = castleData.length > 0 ? castleData : CASTLE_DATA;
+      castles.forEach(c => markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }));
     }
     if (activeLayers.includes("iota")) {
       IOTA_DATA.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
@@ -159,7 +214,7 @@ export default function Home() {
     }
 
     return markers;
-  }, [activeLayers, sotaData, potaData]);
+  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData]);
 
   // Search
   useEffect(() => {
