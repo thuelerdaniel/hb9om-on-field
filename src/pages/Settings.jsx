@@ -28,6 +28,8 @@ export default function Settings() {
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState("");
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
+  const [autoUpdateLoading, setAutoUpdateLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -37,14 +39,18 @@ export default function Settings() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [logsData, cacheData, qrzData] = await Promise.all([
+      const [logsData, cacheData, qrzData, settingsData] = await Promise.all([
         base44.entities.SyncLog.list("-created_date", 50),
         base44.entities.ReferenceData.list(),
-        base44.entities.QrzLookup.list("-created_date", 10)
+        base44.entities.QrzLookup.list("-created_date", 10),
+        base44.entities.AppSetting.filter({ key: "auto_update" })
       ]);
       setLogs(logsData || []);
       setCacheStatus(cacheData || []);
       setQrzLookups(qrzData || []);
+      if (settingsData && settingsData.length > 0) {
+        setAutoUpdateEnabled(settingsData[0].enabled !== false);
+      }
     } catch (e) {
       setLogs([]);
       setCacheStatus([]);
@@ -132,6 +138,23 @@ export default function Settings() {
     }
   };
 
+  const handleToggleAutoUpdate = async (enabled) => {
+    setAutoUpdateLoading(true);
+    try {
+      const existing = await base44.entities.AppSetting.filter({ key: "auto_update" });
+      if (existing.length > 0) {
+        await base44.entities.AppSetting.update(existing[0].id, { enabled, value: String(enabled) });
+      } else {
+        await base44.entities.AppSetting.create({ key: "auto_update", enabled, value: String(enabled) });
+      }
+      setAutoUpdateEnabled(enabled);
+    } catch (e) {
+      setAutoUpdateEnabled(!enabled);
+    } finally {
+      setAutoUpdateLoading(false);
+    }
+  };
+
   const StatusIcon = ({ status }) => {
     if (status === 'success') return <CheckCircle2 className="w-4 h-4 text-green-500" />;
     if (status === 'partial') return <AlertCircle className="w-4 h-4 text-amber-500" />;
@@ -142,7 +165,7 @@ export default function Settings() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg">
+          <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate("/")} className="p-1.5 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div className="flex items-center gap-2 flex-1">
@@ -316,6 +339,25 @@ export default function Settings() {
 
         {/* Refresh Button */}
         <section className="bg-white rounded-xl border border-gray-200 p-4">
+          {/* Auto-update toggle */}
+          <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <Clock className="w-4 h-4" /> Stündliche Automatik
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {autoUpdateEnabled ? "Referenzdaten werden stündlich automatisch aktualisiert" : "Nur manuelle Aktualisierung – Automatik deaktiviert"}
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleAutoUpdate(!autoUpdateEnabled)}
+              disabled={autoUpdateLoading}
+              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${autoUpdateEnabled ? 'bg-gray-900' : 'bg-gray-300'} ${autoUpdateLoading ? 'opacity-40' : ''}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autoUpdateEnabled ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-gray-900">Daten aktualisieren</h3>

@@ -1,0 +1,22 @@
+{
+  "name": "AppSetting",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Einstellungsschl\u00fcssel"
+    },
+    "value": {
+      "type": "string",
+      "description": "Wert der Einstellung"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Aktiviert oder deaktiviert"
+    }
+  },
+  "required": [
+    "key"
+  ]
+}

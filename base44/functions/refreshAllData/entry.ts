@@ -223,6 +223,16 @@ Deno.serve(async (req) => {
     let user = null;
     try { user = await base44.auth.me(); } catch {}
 
+    // Skip scheduled runs if auto-update is disabled (manual runs always proceed)
+    if (!user) {
+      try {
+        const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'auto_update' });
+        if (settings.length > 0 && settings[0].enabled === false) {
+          return Response.json({ skipped: true, message: 'Automatische Aktualisierung deaktiviert' });
+        }
+      } catch {}
+    }
+
     const startTime = Date.now();
     const taskDefs = [
       { type: 'sota', fn: fetchSotaData },
