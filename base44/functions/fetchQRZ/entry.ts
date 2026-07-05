@@ -3,10 +3,7 @@ import { XMLParser } from 'npm:fast-xml-parser@4.5.2';
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
+    createClientFromRequest(req);
     const { callsign } = await req.json();
     if (!callsign || callsign.length < 3) {
       return Response.json({ error: 'Invalid callsign' }, { status: 400 });
