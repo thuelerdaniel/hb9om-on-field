@@ -96,22 +96,13 @@ function MapController({ lockedScale, mapRef }) {
 
   useEffect(() => {
     if (!lockedScale) return;
-
-    const adjustZoom = () => {
-      const center = map.getCenter();
-      const lat = center.lat;
-      const metersPerPixel = lockedScale * 0.00028;
-      const earthCircumference = 40075016.686;
-      const requiredZoom = Math.log2((earthCircumference * Math.cos(lat * Math.PI / 180)) / (metersPerPixel * 256));
-      const roundedZoom = Math.max(1, Math.min(19, Math.round(requiredZoom)));
-      if (Math.abs(roundedZoom - map.getZoom()) >= 1) {
-        map.setZoom(roundedZoom, { animate: false });
-      }
-    };
-
-    adjustZoom();
-    map.on('moveend', adjustZoom);
-    return () => map.off('moveend', adjustZoom);
+    const center = map.getCenter();
+    const lat = center.lat;
+    const metersPerPixel = lockedScale * 0.00028;
+    const earthCircumference = 40075016.686;
+    const requiredZoom = Math.log2((earthCircumference * Math.cos(lat * Math.PI / 180)) / (metersPerPixel * 256));
+    const roundedZoom = Math.max(1, Math.min(19, Math.round(requiredZoom)));
+    map.setZoom(roundedZoom, { animate: true });
   }, [map, lockedScale]);
 
   return null;
@@ -324,12 +315,10 @@ export default function Home() {
   }, []);
 
   const handleZoomIn = useCallback(() => {
-    setLockedScale(null);
     if (mapRef.current) mapRef.current.zoomIn();
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setLockedScale(null);
     if (mapRef.current) mapRef.current.zoomOut();
   }, []);
 
