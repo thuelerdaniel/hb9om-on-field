@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check } from "lucide-react";
+import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock } from "lucide-react";
 import MobileSelect from "@/components/ui/MobileSelect";
 
 function haversine(lat1, lon1, lat2, lon2) {
@@ -436,7 +436,17 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Startzeit UTC</label>
-              <input type="time" value={timeStart} onChange={e => setTimeStart(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <div className="flex gap-1.5 mt-1">
+                <input type="time" value={timeStart} onChange={e => setTimeStart(e.target.value)} className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <button
+                  type="button"
+                  onClick={() => setTimeStart(new Date().toISOString().slice(11, 16))}
+                  className="px-2.5 py-2 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center gap-1 flex-shrink-0"
+                  title="Auf aktuelle UTC-Zeit setzen"
+                >
+                  <Clock className="w-3.5 h-3.5" /> Jetzt
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Frequenz (MHz)</label>
