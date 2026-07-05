@@ -68,7 +68,8 @@ export default function Settings() {
         setQrzTestResult({ success: false, message: "Unerwartete Antwort von QRZ.com" });
       }
     } catch (e) {
-      setQrzTestResult({ success: false, message: "Verbindungsfehler: " + (e.message || "unbekannt") });
+      const detail = e?.response?.data?.error || e?.message || "unbekannt";
+      setQrzTestResult({ success: false, message: "Fehler: " + detail });
     } finally {
       setQrzTesting(false);
     }

@@ -203,7 +203,8 @@ export default function LogEntryForm({ mapCenter, allMarkers, onClose, onSaved, 
         }).then(() => trimQrzLog()).catch(() => {});
       }
     } catch (e) {
-      setQrzError("QRZ.com Abfrage nicht verfügbar – Daten manuell eingeben");
+      const detail = e?.response?.data?.error || e?.message || "unbekannt";
+      setQrzError("QRZ.com Abfrage fehlgeschlagen: " + detail);
     } finally {
       qrzInFlightRef.current = false;
       setQrzLoading(false);
