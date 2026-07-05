@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, ChevronDown, ChevronUp, CheckCircle2, ArchiveRestore } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore } from "lucide-react";
+import LogEntryForm from "@/components/map/LogEntryForm";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -17,6 +18,7 @@ export default function Log() {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(null);
   const [sortBy, setSortBy] = useState("date_desc");
+  const [showQsoForm, setShowQsoForm] = useState(false);
 
   useEffect(() => {
     loadEntries();
@@ -204,9 +206,6 @@ export default function Log() {
           <div className="text-center py-20">
             <Radio className="w-12 h-12 text-gray-200 mx-auto mb-3" />
             <p className="text-gray-400 text-sm">Keine Log-Einträge gefunden</p>
-            <Link to="/" className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800">
-              <Plus className="w-4 h-4" /> Neues QSO erfassen
-            </Link>
           </div>
         ) : (
           <div className="space-y-2">
@@ -276,6 +275,25 @@ export default function Log() {
           </div>
         )}
       </div>
+
+      {/* New QSO floating button */}
+      <button
+        onClick={() => setShowQsoForm(true)}
+        className="fixed bottom-5 right-3 z-[1000] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
+        title="Neues QSO erfassen"
+      >
+        <Plus className="w-5 h-5" />
+        <span className="text-sm font-medium">Neues QSO</span>
+      </button>
+
+      {showQsoForm && (
+        <LogEntryForm
+          mapCenter={null}
+          allMarkers={[]}
+          onClose={() => setShowQsoForm(false)}
+          onSaved={loadEntries}
+        />
+      )}
 
       {/* Confirm Delete All Modal */}
       {showConfirmDelete && (
