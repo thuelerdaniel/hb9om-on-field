@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
 
     if (!callsignData) {
       const msg = lookupSession?.Message || 'Keine Daten gefunden';
-      return Response.json({ error: `QRZ.com: ${msg}` }, { status: 404 });
+      return Response.json({ error: `QRZ.com: ${msg}` }, { status: 200 });
     }
 
     return Response.json({
