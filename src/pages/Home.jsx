@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { MapContainer, TileLayer, Popup, useMap, CircleMarker, WMSTileLayer, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import MapHeader from "@/components/map/MapHeader";
@@ -8,6 +8,7 @@ import MarkerPopup from "@/components/map/MarkerPopup";
 import SearchResults from "@/components/map/SearchResults";
 import SplashScreen from "@/components/map/SplashScreen";
 import LogEntryForm from "@/components/map/LogEntryForm";
+import MapControls from "@/components/map/MapControls";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
 import { Loader2, Radio, Plus } from "lucide-react";
@@ -86,6 +87,36 @@ function MapEventHandler({ onMove, onZoom }) {
   return null;
 }
 
+function MapController({ lockedScale, mapRef }) {
+  const map = useMap();
+
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map, mapRef]);
+
+  useEffect(() => {
+    if (!lockedScale) return;
+
+    const adjustZoom = () => {
+      const center = map.getCenter();
+      const lat = center.lat;
+      const metersPerPixel = lockedScale * 0.00028;
+      const earthCircumference = 40075016.686;
+      const requiredZoom = Math.log2((earthCircumference * Math.cos(lat * Math.PI / 180)) / (metersPerPixel * 256));
+      const roundedZoom = Math.max(1, Math.min(19, Math.round(requiredZoom)));
+      if (Math.abs(roundedZoom - map.getZoom()) >= 1) {
+        map.setZoom(roundedZoom, { animate: false });
+      }
+    };
+
+    adjustZoom();
+    map.on('moveend', adjustZoom);
+    return () => map.off('moveend', adjustZoom);
+  }, [map, lockedScale]);
+
+  return null;
+}
+
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeLayers, setActiveLayers] = useState(() => {
@@ -112,6 +143,11 @@ export default function Home() {
     return saved ? parseInt(saved) : 8;
   });
   const [showQsoForm, setShowQsoForm] = useState(false);
+  const [lockedScale, setLockedScale] = useState(() => {
+    const saved = localStorage.getItem("hb9om_map_locked_scale");
+    return saved ? parseInt(saved) : null;
+  });
+  const mapRef = useRef(null);
 
   // Persist map settings to localStorage
   useEffect(() => {
@@ -126,6 +162,13 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_map_zoom", String(mapZoom));
   }, [mapZoom]);
+  useEffect(() => {
+    if (lockedScale) {
+      localStorage.setItem("hb9om_map_locked_scale", String(lockedScale));
+    } else {
+      localStorage.removeItem("hb9om_map_locked_scale");
+    }
+  }, [lockedScale]);
 
   // API-loaded data
   const [sotaData, setSotaData] = useState([]);
@@ -272,15 +315,43 @@ export default function Home() {
   };
 
   const handleSelectScale = useCallback((scaleId) => {
+    if (scaleId === "auto") {
+      setLockedScale(null);
+      return;
+    }
     const scale = parseInt(scaleId);
-    const lat = mapCenter[0];
-    const metersPerPixel = scale * 0.00028;
-    const earthCircumference = 40075016.686;
-    const zoom = Math.log2((earthCircumference * Math.cos(lat * Math.PI / 180)) / (metersPerPixel * 256));
-    const roundedZoom = Math.max(1, Math.min(19, Math.round(zoom)));
-    setFlyTo([mapCenter[0], mapCenter[1]]);
-    setFlyZoom(roundedZoom);
-  }, [mapCenter]);
+    setLockedScale(prev => prev === scale ? null : scale);
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    setLockedScale(null);
+    if (mapRef.current) mapRef.current.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setLockedScale(null);
+    if (mapRef.current) mapRef.current.zoomOut();
+  }, []);
+
+  const handleScaleUp = useCallback(() => {
+    const scales = [10000, 25000, 50000, 100000];
+    setLockedScale(prev => {
+      const idx = scales.indexOf(prev);
+      if (idx === -1) return 100000;
+      if (idx === 0) return prev;
+      return scales[idx - 1];
+    });
+  }, []);
+
+  const handleScaleDown = useCallback(() => {
+    const scales = [10000, 25000, 50000, 100000];
+    setLockedScale(prev => {
+      const idx = scales.indexOf(prev);
+      if (idx === -1) return prev;
+      if (idx === scales.length - 1) return null;
+      return scales[idx + 1];
+    });
+  }, []);
 
   const isLoading = Object.values(loading).some(v => v);
 
@@ -331,6 +402,7 @@ export default function Home() {
         >
           <TileLayer url={baseTileUrl} attribution={baseAttrib} maxZoom={19} />
           <MapEventHandler onMove={setMapCenter} onZoom={setMapZoom} />
+          <MapController lockedScale={lockedScale} mapRef={mapRef} />
 
           {/* Swiss Federal Inventories WMS overlay */}
           {activeLayers.includes("swiss_protected") && (
@@ -406,6 +478,15 @@ export default function Home() {
           baseLayer={baseLayer}
           onChangeBaseLayer={setBaseLayer}
           onSelectScale={handleSelectScale}
+          lockedScale={lockedScale}
+        />
+
+        <MapControls
+          lockedScale={lockedScale}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onScaleUp={handleScaleUp}
+          onScaleDown={handleScaleDown}
         />
 
         {/* New QSO floating button */}

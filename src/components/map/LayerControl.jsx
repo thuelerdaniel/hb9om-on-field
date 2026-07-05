@@ -73,7 +73,7 @@ const MAP_SCALES = [
   { id: "100000", label: "1:100'000" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale }) {
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -113,18 +113,32 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
               <Ruler className="w-4 h-4" /> Kartenmassstab
             </h3>
-            <div className="mt-2 grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => onSelectScale("auto")}
+              className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1.5 ${
+                !lockedScale
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              Dynamisch (Auto)
+            </button>
+            <div className="grid grid-cols-2 gap-1.5">
               {MAP_SCALES.map(s => (
                 <button
                   key={s.id}
                   onClick={() => onSelectScale(s.id)}
-                  className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-50 text-gray-700 hover:bg-gray-900 hover:text-white transition-colors"
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    lockedScale === parseInt(s.id)
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-50 text-gray-700 hover:bg-gray-900 hover:text-white"
+                  }`}
                 >
                   {s.label}
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-gray-400 mt-1.5">Zoom wird automatisch aus Breitengrad berechnet.</p>
+            <p className="text-[10px] text-gray-400 mt-1.5">Massstab wird gesperrt und beim Verschieben automatisch gehalten. Zum Aufheben "Dynamisch" wählen.</p>
           </div>
 
           {/* Overlay-Ebenen */}
