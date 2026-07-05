@@ -324,21 +324,33 @@ export default function Home() {
           )}
 
           {allMarkers.map((m, idx) => (
-            <CircleMarker
-              key={`${m.layerType}-${m.code || m.reference || idx}`}
-              center={[m.lat, m.lng]}
-              radius={6}
-              pathOptions={{
-                color: m.color,
-                fillColor: m.color,
-                fillOpacity: 0.8,
-                weight: 2
-              }}
-            >
-              <Popup>
-                <MarkerPopup data={m} layerType={m.layerType} />
-              </Popup>
-            </CircleMarker>
+            <React.Fragment key={`${m.layerType}-${m.code || m.reference || idx}`}>
+              <CircleMarker
+                center={[m.lat, m.lng]}
+                radius={15}
+                pathOptions={{
+                  color: "transparent",
+                  fillColor: "transparent",
+                  fillOpacity: 0,
+                  weight: 0
+                }}
+              >
+                <Popup>
+                  <MarkerPopup data={m} layerType={m.layerType} />
+                </Popup>
+              </CircleMarker>
+              <CircleMarker
+                center={[m.lat, m.lng]}
+                radius={6}
+                pathOptions={{
+                  color: m.color,
+                  fillColor: m.color,
+                  fillOpacity: 0.8,
+                  weight: 2
+                }}
+                interactive={false}
+              />
+            </React.Fragment>
           ))}
 
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}
