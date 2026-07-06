@@ -126,6 +126,7 @@ export default function PositionMarker({ position, fixed, radius = 5000, onRadiu
       <Circle
         center={[lat, lng]}
         radius={radius}
+        interactive={false}
         pathOptions={{
           color: fixed ? "#2563eb" : "#ef4444",
           fillColor: fixed ? "#2563eb" : "#ef4444",
