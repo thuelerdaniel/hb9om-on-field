@@ -1,7 +1,7 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Circle, Marker, Tooltip, Popup } from "react-leaflet";
 import L from "leaflet";
-import { Navigation } from "lucide-react";
+import { Navigation, MapPin } from "lucide-react";
 
 function latLngToGrid(lat, lng) {
   const adjLng = lng + 180;
@@ -21,28 +21,26 @@ function latLngToGrid(lat, lng) {
   );
 }
 
-// Approximate WGS84 -> LV95 (Swiss grid EPSG:2056), accuracy ~1m for Switzerland
-// Formula from swisstopo (uses 10000 arc-second units)
+// WGS84 -> LV95 (Swiss grid EPSG:2056), accuracy ~1m for Switzerland
 function wgs84ToLV95(lat, lng) {
   const phi = ((lat - 46.95240555555556) * 3600) / 10000;
   const lambda = ((lng - 7.439583333333333) * 3600) / 10000;
-
   const y =
-    600072.37 +
-    211455.93 * lambda -
-    10938.51 * lambda * phi -
-    0.36 * lambda * phi * phi -
-    44.54 * lambda * lambda * lambda;
-
+    600072.37 + 211455.93 * lambda - 10938.51 * lambda * phi - 0.36 * lambda * phi * phi - 44.54 * lambda * lambda * lambda;
   const x =
-    200147.07 +
-    308807.95 * phi +
-    3745.25 * lambda * lambda -
-    76.63 * phi * phi -
-    194.56 * lambda * lambda * phi +
-    119.79 * phi * phi * phi;
-
+    200147.07 + 308807.95 * phi + 3745.25 * lambda * lambda - 76.63 * phi * phi - 194.56 * lambda * lambda * phi + 119.79 * phi * phi * phi;
   return { E: Math.round(y + 2000000), N: Math.round(x + 1000000) };
+}
+
+// LV95 -> WGS84 (inverse approximate formula from swisstopo NAVREF)
+function lv95ToWgs84(E, N) {
+  const yp = (E - 2000000) / 1000000;
+  const xp = (N - 1000000) / 1000000;
+  const lambda =
+    2.6779094 + 4.728982 * yp + 0.791484 * yp * xp + 0.1306 * yp * xp * xp - 0.0436 * yp * yp * yp;
+  const phi =
+    16.9023892 + 3.238272 * xp - 0.270978 * yp * yp - 0.002528 * xp * xp - 0.0447 * yp * yp * xp - 0.0140 * xp * xp * xp;
+  return { lat: phi * 100 / 36, lng: lambda * 100 / 36 };
 }
 
 function formatRadius(m) {
@@ -66,19 +64,19 @@ function createPositionIcon(fixed) {
       "></div>
     </div>
   `;
-  return L.divIcon({
-    html,
-    className: "position-marker-icon",
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-  });
+  return L.divIcon({ html, className: "position-marker-icon", iconSize: [24, 24], iconAnchor: [12, 12] });
 }
 
-export default function PositionMarker({ position, fixed, radius = 5000, onRadiusChange }) {
-  const sliderRef = useRef(null);
+export default function PositionMarker({ position, fixed, radius = 5000, onRadiusChange, onPositionChange }) {
+  const interactiveRef = useRef(null);
+  const [latInput, setLatInput] = useState("");
+  const [lngInput, setLngInput] = useState("");
+  const [eInput, setEInput] = useState("");
+  const [nInput, setNInput] = useState("");
+  const [radiusInput, setRadiusInput] = useState("");
 
   useEffect(() => {
-    const el = sliderRef.current;
+    const el = interactiveRef.current;
     if (!el) return;
     L.DomEvent.disableClickPropagation(el);
     L.DomEvent.disableScrollPropagation(el);
@@ -93,6 +91,35 @@ export default function PositionMarker({ position, fixed, radius = 5000, onRadiu
   const grid = latLngToGrid(lat, lng);
   const lv95 = wgs84ToLV95(lat, lng);
   const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+  const handleWgsGo = () => {
+    const la = parseFloat(latInput.replace(",", "."));
+    const ln = parseFloat(lngInput.replace(",", "."));
+    if (isNaN(la) || isNaN(ln)) return;
+    if (la < -90 || la > 90 || ln < -180 || ln > 180) return;
+    onPositionChange?.([la, ln]);
+    setLatInput("");
+    setLngInput("");
+  };
+
+  const handleLv95Go = () => {
+    const e = parseFloat(eInput.replace(/['\s]/g, "").replace(",", "."));
+    const n = parseFloat(nInput.replace(/['\s]/g, "").replace(",", "."));
+    if (isNaN(e) || isNaN(n)) return;
+    const { lat: la, lng: ln } = lv95ToWgs84(e, n);
+    if (la < -90 || la > 90 || ln < -180 || ln > 180) return;
+    onPositionChange?.([la, ln]);
+    setEInput("");
+    setNInput("");
+  };
+
+  const handleRadiusInput = (val) => {
+    setRadiusInput(val);
+    const m = parseInt(val);
+    if (!isNaN(m) && m >= 100 && m <= 10000) {
+      onRadiusChange?.(m);
+    }
+  };
 
   return (
     <>
@@ -112,7 +139,7 @@ export default function PositionMarker({ position, fixed, radius = 5000, onRadiu
           {fixed ? "📍 Fixierte Position" : "📍 Meine Position (GPS)"}
         </Tooltip>
         <Popup>
-          <div className="text-xs space-y-1.5 min-w-[200px]">
+          <div ref={interactiveRef} className="text-xs space-y-1.5 min-w-[220px]">
             <div className="font-bold text-gray-900 text-sm pb-1 border-b border-gray-100">
               {fixed ? "📍 Fixierte Position" : "📍 GPS-Position"}
             </div>
@@ -120,29 +147,86 @@ export default function PositionMarker({ position, fixed, radius = 5000, onRadiu
               <span className="text-gray-500">Maidenhead:</span>{" "}
               <span className="font-mono font-bold text-gray-900">{grid}</span>
             </div>
-            <div>
-              <span className="text-gray-500">Breite:</span>{" "}
-              <span className="font-mono text-gray-900">{lat.toFixed(5)}° N</span>
-            </div>
-            <div>
-              <span className="text-gray-500">Länge:</span>{" "}
-              <span className="font-mono text-gray-900">{lng.toFixed(5)}° E</span>
-            </div>
+
+            {/* WGS84 editable */}
             <div className="pt-1 border-t border-gray-100">
-              <span className="text-gray-500">LV95:</span>
-              <div className="font-mono text-gray-900 mt-0.5">
-                E: {lv95.E.toLocaleString("de-CH")}
-              </div>
-              <div className="font-mono text-gray-900">
-                N: {lv95.N.toLocaleString("de-CH")}
+              <span className="text-gray-500 block mb-1">WGS84 (Breite / Länge)</span>
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={latInput}
+                  onChange={(e) => setLatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleWgsGo()}
+                  placeholder={lat.toFixed(5)}
+                  className="flex-1 min-w-0 px-1.5 py-1 text-[11px] border border-gray-200 rounded bg-white text-gray-900 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <input
+                  type="text"
+                  value={lngInput}
+                  onChange={(e) => setLngInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleWgsGo()}
+                  placeholder={lng.toFixed(5)}
+                  className="flex-1 min-w-0 px-1.5 py-1 text-[11px] border border-gray-200 rounded bg-white text-gray-900 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <button
+                  onClick={handleWgsGo}
+                  disabled={!latInput || !lngInput}
+                  className="px-2 py-1 bg-gray-900 text-white rounded text-[11px] font-medium hover:bg-gray-800 disabled:opacity-30 flex-shrink-0"
+                  title="Position setzen"
+                >
+                  <MapPin className="w-3 h-3" />
+                </button>
               </div>
             </div>
 
-            {/* Radius slider */}
-            <div ref={sliderRef} className="pt-1.5 border-t border-gray-100">
+            {/* LV95 editable */}
+            <div className="pt-1 border-t border-gray-100">
+              <span className="text-gray-500 block mb-1">LV95 (E / N)</span>
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={eInput}
+                  onChange={(e) => setEInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleLv95Go()}
+                  placeholder={lv95.E.toLocaleString("de-CH")}
+                  className="flex-1 min-w-0 px-1.5 py-1 text-[11px] border border-gray-200 rounded bg-white text-gray-900 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <input
+                  type="text"
+                  value={nInput}
+                  onChange={(e) => setNInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleLv95Go()}
+                  placeholder={lv95.N.toLocaleString("de-CH")}
+                  className="flex-1 min-w-0 px-1.5 py-1 text-[11px] border border-gray-200 rounded bg-white text-gray-900 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <button
+                  onClick={handleLv95Go}
+                  disabled={!eInput || !nInput}
+                  className="px-2 py-1 bg-gray-900 text-white rounded text-[11px] font-medium hover:bg-gray-800 disabled:opacity-30 flex-shrink-0"
+                  title="Position setzen"
+                >
+                  <MapPin className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Radius slider + number input */}
+            <div className="pt-1.5 border-t border-gray-100">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-gray-500">Radius</span>
-                <span className="font-mono font-bold text-gray-900">{formatRadius(radius)}</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={100}
+                    max={10000}
+                    step={100}
+                    value={radiusInput !== "" ? radiusInput : radius}
+                    onChange={(e) => handleRadiusInput(e.target.value)}
+                    onBlur={() => setRadiusInput("")}
+                    className="w-16 px-1 py-0.5 text-[11px] border border-gray-200 rounded bg-white text-gray-900 font-mono text-right focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                  <span className="text-gray-400 text-[10px]">m</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -155,6 +239,7 @@ export default function PositionMarker({ position, fixed, radius = 5000, onRadiu
               />
               <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
                 <span>100 m</span>
+                <span>{formatRadius(radius)}</span>
                 <span>10 km</span>
               </div>
             </div>
@@ -164,9 +249,9 @@ export default function PositionMarker({ position, fixed, radius = 5000, onRadiu
               href={navUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-1 flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors no-underline"
+              className="mt-2 flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors no-underline"
             >
-              <Navigation className="w-3.5 h-3.5" />
+              <Navigation className="w-4 h-4" />
               Navigieren zu
             </a>
           </div>

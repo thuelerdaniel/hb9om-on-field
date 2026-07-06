@@ -436,6 +436,14 @@ export default function Home() {
     setFlyZoom(calculateZoomForRadius(latlng[0], positionRadius));
   }, [pickingPosition, positionRadius, calculateZoomForRadius]);
 
+  const handlePositionChange = useCallback((latlng) => {
+    setFixedPosition(latlng);
+    setGpsPosition(null);
+    setPositionMode("fixed");
+    setFlyTo(latlng);
+    setFlyZoom(calculateZoomForRadius(latlng[0], positionRadius));
+  }, [positionRadius, calculateZoomForRadius]);
+
   const currentPosition = positionMode === "fixed" ? fixedPosition : (positionMode === "gps" ? gpsPosition : null);
   const positionFixed = positionMode === "fixed";
 
@@ -496,7 +504,7 @@ export default function Home() {
           <MapController lockedScale={lockedScale} mapRef={mapRef} />
 
           {currentPosition && (
-            <PositionMarker position={currentPosition} fixed={positionFixed} radius={positionRadius} onRadiusChange={setPositionRadius} />
+            <PositionMarker position={currentPosition} fixed={positionFixed} radius={positionRadius} onRadiusChange={setPositionRadius} onPositionChange={handlePositionChange} />
           )}
 
           {/* Swiss Federal Inventories WMS overlay */}

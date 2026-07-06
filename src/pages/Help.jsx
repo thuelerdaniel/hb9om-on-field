@@ -39,8 +39,8 @@ const SECTIONS = [
       },
       {
         title: "Meine Position (GPS)",
-        body: "Klicken Sie auf den GPS-Button (Standort-Icon links neben der Karte), um Ihre aktuelle GPS-Position auf der Karte anzuzeigen. Die Karte zoomt automatisch so heraus, dass der Radiuskreis vollständig sichtbar ist. Die Position wird auch im QSO-Formular für die Suche nach Referenzen in der Nähe verwendet. Die Pin-Nadel ist rot bei GPS-Position und blau bei fixierter Position. Klicken Sie auf die Pin-Nadel, um ein Popup mit Maidenhead-Locator, Längen- und Breitengrad (WGS84) sowie Schweizer Koordinaten (LV95) anzuzeigen. Im Popup können Sie den Radius des Kreises mit einem Schieberegler von 100 m bis 10 km anpassen. Mit dem Button «Navigieren zu» übergeben Sie die Position an Google Maps zur Navigation.",
-        example: "GPS-Button klicken → Karte zoomt heraus, Kreis sichtbar → Pin-Nadel anklicken → Koordinaten, Radiusschieber und Navigieren-Button."
+        body: "Klicken Sie auf den GPS-Button (Standort-Icon links neben der Karte), um Ihre aktuelle GPS-Position auf der Karte anzuzeigen. Die Karte zoomt automatisch so heraus, dass der Radiuskreis vollständig sichtbar ist. Die Position wird auch im QSO-Formular für die Suche nach Referenzen in der Nähe verwendet. Die Pin-Nadel ist rot bei GPS-Position und blau bei fixierter Position. Klicken Sie auf die Pin-Nadel, um ein Popup mit Maidenhead-Locator, Längen- und Breitengrad (WGS84) sowie Schweizer Koordinaten (LV95) anzuzeigen. Im Popup können Sie die Koordinaten manuell eingeben (WGS84 Breite/Länge oder LV95 E/N) und der Pin springt an die neue Position. Ausserdem können Sie den Radius des Kreises mit einem Schieberegler oder per Zahleneingabe von 100 m bis 10 km anpassen. Mit dem Button «Navigieren zu» übergeben Sie die Position an Google Maps zur Navigation.",
+        example: "GPS-Button klicken → Karte zoomt heraus, Kreis sichtbar → Pin-Nadel anklicken → Koordinaten, manuelle Eingabe, Radiusschieber und Navigieren-Button."
       },
       {
         title: "Position fixieren",
@@ -302,6 +302,9 @@ export default function Help() {
           <p className="text-[10px] text-gray-400 mt-2">paypal.me/Thueler</p>
         </div>
 
+        {/* Bandplan - direkt nach PayPal-Spende */}
+        <BandPlanInfo />
+
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">
           <p className="font-semibold mb-1">Willkommen bei HB9OM On Field!</p>
           <p className="text-blue-700 text-xs leading-relaxed">
@@ -330,9 +333,6 @@ export default function Help() {
             <HelpSection section={section} />
           </div>
         ))}
-
-        {/* Bandplan */}
-        <BandPlanInfo />
 
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
           <p>HB9OM On Field · Amateurfunk Referenzkarte & QSO-Logbuch</p>
