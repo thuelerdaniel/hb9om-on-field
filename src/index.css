@@ -21,6 +21,10 @@
   box-shadow: none;
 }
 
+.leaflet-popup-content a[href*="google.com/maps"] {
+  color: #ffffff !important;
+}
+
 .leaflet-control-attribution {
   margin-bottom: calc(54px + env(safe-area-inset-bottom)) !important;
   border-radius: 4px 0 0 0 !important;
