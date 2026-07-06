@@ -34,13 +34,13 @@ const SECTIONS = [
       },
       {
         title: "Legende ein-/ausblenden",
-        body: "Unten links auf der Karte finden Sie die Legende, die die Farben der aktiven Layer anzeigt. Klicken Sie auf die Leiste, um die Legende ein- oder auszublenden (minimieren). Im minimierten Zustand wird nur die Anzahl sichtbarer Referenzen angezeigt. Die Legende überlappt nicht mit dem «Neues QSO»-Button.",
-        example: "Legende minimieren: auf die Leiste unten links klicken → nur noch die Referenzanzahl wird angezeigt."
+        body: "Unten links auf der Karte finden Sie die Legende, die die Farben der aktiven Layer anzeigt. Klicken Sie auf die Leiste, um die Legende zu minimieren (nur Referenzanzahl wird angezeigt). Klicken Sie auf das X-Symbol, um die Legende komplett auszublenden. Ein Layer-Icon erscheint, um die Legende wieder einzublenden.",
+        example: "Legende ausblenden: X-Symbol klicken → Legende verschwindet → Layer-Icon klicken zum Wiederherstellen."
       },
       {
         title: "Meine Position (GPS)",
-        body: "Klicken Sie auf den GPS-Button (Standort-Icon rechts neben der Karte), um Ihre aktuelle GPS-Position auf der Karte anzuzeigen. Es wird ein 5-km-Umkreis gezeichnet. Die Position wird auch im QSO-Formular für die Suche nach Referenzen in der Nähe verwendet. Die Pin-Nadel ist rot bei GPS-Position und blau bei fixierter Position.",
-        example: "GPS-Button klicken → Karte zoomt auf Ihre Position → 5-km-Kreis erscheint → QSO-Formular zeigt nahe Referenzen."
+        body: "Klicken Sie auf den GPS-Button (Standort-Icon links neben der Karte), um Ihre aktuelle GPS-Position auf der Karte anzuzeigen. Es wird ein 5-km-Umkreis gezeichnet. Die Position wird auch im QSO-Formular für die Suche nach Referenzen in der Nähe verwendet. Die Pin-Nadel ist rot bei GPS-Position und blau bei fixierter Position. Klicken Sie auf die Pin-Nadel, um ein Popup mit Maidenhead-Locator, Längen- und Breitengrad (WGS84) sowie Schweizer Koordinaten (LV95) anzuzeigen.",
+        example: "GPS-Button klicken → Karte zoomt auf Ihre Position → 5-km-Kreis erscheint → Pin-Nadel anklicken zeigt Koordinaten & Locator."
       },
       {
         title: "Position fixieren",
@@ -280,6 +280,28 @@ export default function Help() {
       </header>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 pb-24">
+        {/* PayPal Spende - am Anfang */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 bg-amber-100 rounded-full mb-2">
+            <Coffee className="w-5 h-5 text-amber-700" />
+          </div>
+          <h3 className="text-sm font-bold text-gray-900 mb-1">Spende mir einen Kaffee ☕</h3>
+          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+            Wenn Ihnen diese App gefällt und Sie die Entwicklung unterstützen möchten,
+            freue ich mich über eine kleine Spende.
+          </p>
+          <a
+            href="https://paypal.me/Thueler"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0070ba] text-white rounded-lg text-sm font-medium hover:bg-[#005ea6] transition-colors"
+          >
+            <Coffee className="w-4 h-4" />
+            Über PayPal spenden
+          </a>
+          <p className="text-[10px] text-gray-400 mt-2">paypal.me/Thueler</p>
+        </div>
+
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">
           <p className="font-semibold mb-1">Willkommen bei HB9OM On Field!</p>
           <p className="text-blue-700 text-xs leading-relaxed">
@@ -312,31 +334,12 @@ export default function Help() {
         {/* Bandplan */}
         <BandPlanInfo />
 
-        {/* PayPal Spende */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-          <div className="inline-flex items-center justify-center w-10 h-10 bg-amber-100 rounded-full mb-2">
-            <Coffee className="w-5 h-5 text-amber-700" />
-          </div>
-          <h3 className="text-sm font-bold text-gray-900 mb-1">Spende mir einen Kaffee ☕</h3>
-          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
-            Wenn Ihnen diese App gefällt und Sie die Entwicklung unterstützen möchten,
-            freue ich mich über eine kleine Spende.
-          </p>
-          <a
-            href="https://paypal.me/Thueler"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0070ba] text-white rounded-lg text-sm font-medium hover:bg-[#005ea6] transition-colors"
-          >
-            <Coffee className="w-4 h-4" />
-            Über PayPal spenden
-          </a>
-          <p className="text-[10px] text-gray-400 mt-2">paypal.me/Thueler</p>
-        </div>
-
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
           <p>HB9OM On Field · Amateurfunk Referenzkarte & QSO-Logbuch</p>
-          <p className="mt-1">Bei Fragen oder Problemen wenden Sie sich an den Club HB9OM.</p>
+          <p className="mt-1">
+            Bei Fragen oder Problemen wenden Sie sich an den Club HB9OM:{" "}
+            <a href="mailto:hb9om@hb9om.ch" className="text-blue-600 font-medium hover:underline">hb9om@hb9om.ch</a>
+          </p>
           <p className="mt-2 text-[10px] text-gray-400 leading-relaxed">
             Haftungsausschluss: Diese App wird ohne jegliche Gewährleistung bereitgestellt.
             Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen.

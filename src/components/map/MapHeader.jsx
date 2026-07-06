@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Radio, Search, Menu, X, BookOpen, Settings as SettingsIcon, HelpCircle } from "lucide-react";
+import { Search, Menu, X, BookOpen, Settings as SettingsIcon, HelpCircle } from "lucide-react";
 
 export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen }) {
   return (
@@ -10,14 +10,9 @@ export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-            <Radio className="w-4.5 h-4.5 text-white" />
-          </div>
-          <div className="hidden sm:block">
-            <h1 className="text-sm font-bold text-gray-900 leading-tight">HB9OM On Field</h1>
-            <p className="text-[10px] text-gray-400 leading-tight">Amateurfunk Referenzkarte</p>
-          </div>
+        <div className="hidden sm:block">
+          <h1 className="text-sm font-bold text-gray-900 leading-tight">HB9OM On Field</h1>
+          <p className="text-[10px] text-gray-400 leading-tight">Amateurfunk Referenzkarte</p>
         </div>
 
         <div className="flex-1 max-w-md ml-auto">

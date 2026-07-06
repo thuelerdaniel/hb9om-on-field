@@ -178,7 +178,7 @@ function getModeColor(mode) {
 }
 
 export default function BandPlanInfo() {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
