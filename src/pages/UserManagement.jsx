@@ -20,6 +20,7 @@ export default function UserManagement() {
   const [actionError, setActionError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     checkAdminAndLoad();
@@ -34,12 +35,21 @@ export default function UserManagement() {
       }
       setIsAdmin(true);
       setCurrentUser(me);
+    } catch (e) {
+      navigate("/");
+      return;
+    } finally {
+      setAuthChecked(true);
+    }
+
+    // Load users separately — don't redirect on failure
+    setLoading(true);
+    try {
       const data = await base44.entities.User.list("-created_date", 200);
       setUsers(data || []);
     } catch (e) {
-      navigate("/");
+      setLoadError(e?.response?.data?.detail || e?.message || "unbekannt");
     } finally {
-      setAuthChecked(true);
       setLoading(false);
     }
   };
@@ -147,6 +157,21 @@ export default function UserManagement() {
         {loading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
+          </div>
+        ) : loadError ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+            <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
+            <p className="text-sm font-medium text-red-700 mb-1">Benutzerliste konnte nicht geladen werden</p>
+            <p className="text-xs text-red-500 mb-3">{loadError}</p>
+            <p className="text-xs text-gray-500">
+              Falls Sie kürzlich zum Admin befördert wurden, melden Sie sich bitte einmal ab und wieder an, um die Sitzung zu aktualisieren.
+            </p>
+            <button
+              onClick={() => base44.auth.logout(window.location.href)}
+              className="mt-4 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 inline-flex items-center gap-2"
+            >
+              Abmelden und neu anmelden
+            </button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">

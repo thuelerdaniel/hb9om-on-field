@@ -437,47 +437,47 @@ export default function Settings() {
             </div>
           )}
         </section>
-      </div>
 
-      {/* Admin: User Management */}
-      {currentUser?.role === "admin" && (
+        {/* Admin: User Management */}
+        {currentUser?.role === "admin" && (
+         <section className="bg-white rounded-xl border border-gray-200 p-4">
+           <div className="flex items-center justify-between">
+             <div>
+               <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                 <Users className="w-4 h-4" /> Benutzerverwaltung
+               </h3>
+               <p className="text-xs text-gray-500 mt-0.5">Angemeldete Benutzer sehen und Passwörter zurücksetzen</p>
+             </div>
+             <Link
+               to="/users"
+               className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center gap-2"
+             >
+               <Users className="w-4 h-4" />
+               Benutzer
+             </Link>
+           </div>
+         </section>
+        )}
+
+        {/* Delete Account */}
         <section className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                <Users className="w-4 h-4" /> Benutzerverwaltung
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">Angemeldete Benutzer sehen und Passwörter zurücksetzen</p>
-            </div>
-            <Link
-              to="/users"
-              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center gap-2"
-            >
-              <Users className="w-4 h-4" />
-              Benutzer
-            </Link>
-          </div>
+         <div className="flex items-center justify-between">
+           <div>
+             <h3 className="text-sm font-bold text-gray-900">Konto löschen</h3>
+             <p className="text-xs text-gray-500 mt-0.5">Alle Daten werden unwiderruflich gelöscht</p>
+           </div>
+           <button
+             onClick={() => setShowDeleteAccount(true)}
+             className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-2"
+           >
+             <Trash2 className="w-4 h-4" />
+             Konto löschen
+           </button>
+         </div>
         </section>
-      )}
-
-      {/* Delete Account */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-gray-900">Konto löschen</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Alle Daten werden unwiderruflich gelöscht</p>
-          </div>
-          <button
-            onClick={() => setShowDeleteAccount(true)}
-            className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            Konto löschen
-          </button>
         </div>
-      </section>
 
-      {showDeleteAccount && (
+        {showDeleteAccount && (
         <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowDeleteAccount(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
