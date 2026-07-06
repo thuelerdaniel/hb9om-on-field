@@ -543,33 +543,29 @@ export default function Home() {
           )}
 
           {allMarkers.map((m, idx) => (
-            <React.Fragment key={`${m.layerType}-${m.code || m.reference || idx}`}>
-              <CircleMarker
-                center={[m.lat, m.lng]}
-                radius={15}
-                pathOptions={{
-                  color: "transparent",
-                  fillColor: "transparent",
-                  fillOpacity: 0,
-                  weight: 0
-                }}
-              >
-                <Popup>
-                  <MarkerPopup data={m} layerType={m.layerType} />
-                </Popup>
-              </CircleMarker>
-              <CircleMarker
-                center={[m.lat, m.lng]}
-                radius={6}
-                pathOptions={{
-                  color: m.color,
-                  fillColor: m.color,
-                  fillOpacity: 0.8,
-                  weight: 2
-                }}
-                interactive={false}
-              />
-            </React.Fragment>
+            <CircleMarker
+              key={`${m.layerType}-${m.code || m.reference || idx}`}
+              center={[m.lat, m.lng]}
+              radius={7}
+              pathOptions={{
+                color: m.color,
+                fillColor: m.color,
+                fillOpacity: 0.85,
+                weight: 2
+              }}
+              eventHandlers={{
+                click: (e) => {
+                  const map = e.target._map;
+                  if (map) {
+                    map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 13), { duration: 0.5 });
+                  }
+                }
+              }}
+            >
+              <Popup>
+                <MarkerPopup data={m} layerType={m.layerType} />
+              </Popup>
+            </CircleMarker>
           ))}
 
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}

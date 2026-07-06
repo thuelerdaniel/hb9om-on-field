@@ -6,6 +6,22 @@
   font-family: inherit;
 }
 
+.leaflet-interactive {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Increase touch target for small CircleMarkers on mobile */
+.leaflet-overlay-pane svg path.leaflet-interactive {
+  stroke-width: 3;
+}
+
+@media (max-width: 768px) {
+  .leaflet-overlay-pane svg path.leaflet-interactive {
+    stroke-width: 6;
+  }
+}
+
 .leaflet-popup-content-wrapper {
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.12);
