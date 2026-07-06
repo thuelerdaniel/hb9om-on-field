@@ -98,6 +98,18 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
       setAuthChecked(true);
+
+      // Track last login time (throttled to once per 10 minutes via localStorage)
+      try {
+        const lastTracked = localStorage.getItem("hb9om_last_login_tracked");
+        const now = Date.now();
+        if (!lastTracked || now - parseInt(lastTracked) > 10 * 60 * 1000) {
+          await base44.auth.updateMe({ last_login: new Date().toISOString() });
+          localStorage.setItem("hb9om_last_login_tracked", String(now));
+        }
+      } catch (e) {
+        // Non-critical — don't block app load
+      }
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);

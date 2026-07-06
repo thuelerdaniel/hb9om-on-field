@@ -7,6 +7,11 @@
         "admin",
         "user"
       ]
+    },
+    "last_login": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt der letzten Anmeldung"
     }
   },
   "required": [
