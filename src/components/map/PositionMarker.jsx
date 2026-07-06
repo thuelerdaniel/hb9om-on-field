@@ -134,7 +134,7 @@ export default function PositionMarker({ position, fixed, radius = 5000, onRadiu
           dashArray: "6 4",
         }}
       />
-      <Marker position={[lat, lng]} icon={createPositionIcon(fixed)}>
+      <Marker position={[lat, lng]} icon={createPositionIcon(fixed)} zIndexOffset={1000}>
         <Tooltip direction="top" offset={[0, -8]} opacity={0.95}>
           {fixed ? "📍 Fixierte Position" : "📍 Meine Position (GPS)"}
         </Tooltip>
