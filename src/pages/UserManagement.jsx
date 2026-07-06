@@ -30,10 +30,9 @@ export default function UserManagement() {
     setAuthChecked(true);
     setLoading(true);
     try {
-      // Try to load users — the server checks the actual database role,
-      // not the (possibly stale) JWT token. Returns 403 for non-admins.
-      const data = await base44.entities.User.list("-created_date", 200);
-      setUsers(data || []);
+      // Backend function does a fresh DB role lookup — JWT may be stale after promotion
+      const res = await base44.functions.invoke("adminManageUsers", { action: "list" });
+      setUsers(res.data?.users || []);
       setIsAdmin(true);
       try {
         const me = await base44.auth.me();
@@ -44,7 +43,7 @@ export default function UserManagement() {
       if (status === 403) {
         setIsAdmin(false);
       } else {
-        setLoadError(e?.response?.data?.detail || e?.message || "unbekannt");
+        setLoadError(e?.response?.data?.error || e?.response?.data?.detail || e?.message || "unbekannt");
       }
     } finally {
       setLoading(false);
@@ -70,7 +69,7 @@ export default function UserManagement() {
     setActionError("");
     const newRole = roleTarget.role === "admin" ? "user" : "admin";
     try {
-      await base44.entities.User.update(roleTarget.id, { role: newRole });
+      await base44.functions.invoke("adminManageUsers", { action: "updateRole", userId: roleTarget.id, role: newRole });
       setUsers(prev => prev.map(u => u.id === roleTarget.id ? { ...u, role: newRole } : u));
       setRoleTarget(null);
     } catch (e) {
@@ -85,7 +84,7 @@ export default function UserManagement() {
     setDeleting(true);
     setActionError("");
     try {
-      await base44.entities.User.delete(deleteTarget.id);
+      await base44.functions.invoke("adminManageUsers", { action: "delete", userId: deleteTarget.id });
       setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
       setDeleteTarget(null);
     } catch (e) {

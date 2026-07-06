@@ -67,10 +67,10 @@ export default function Settings() {
     try {
       const me = await base44.auth.me();
       setCurrentUser(me);
-      // Check admin status via server (not stale JWT token)
+      // Check admin status via backend function with fresh DB lookup
       try {
-        await base44.entities.User.list("-created_date", 1);
-        setIsAdmin(true);
+        const res = await base44.functions.invoke("adminManageUsers", { action: "checkStatus" });
+        setIsAdmin(res.data?.isAdmin === true);
       } catch (e) {
         setIsAdmin(false);
       }
