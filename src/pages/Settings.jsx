@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 
 const TYPE_LABELS = {
@@ -30,6 +30,7 @@ export default function Settings() {
   const [deleteAccountError, setDeleteAccountError] = useState("");
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
   const [autoUpdateLoading, setAutoUpdateLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -59,9 +60,13 @@ export default function Settings() {
     }
   };
 
-  const loadProfile = () => {
+  const loadProfile = async () => {
     setMyCallsign(localStorage.getItem("hb9om_my_callsign") || "");
     setQrzEnabled(localStorage.getItem("hb9om_qrz_enabled") !== "false");
+    try {
+      const me = await base44.auth.me();
+      setCurrentUser(me);
+    } catch (e) { }
   };
 
   const handleQrzTest = async () => {
@@ -433,6 +438,27 @@ export default function Settings() {
           )}
         </section>
       </div>
+
+      {/* Admin: User Management */}
+      {currentUser?.role === "admin" && (
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <Users className="w-4 h-4" /> Benutzerverwaltung
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">Angemeldete Benutzer sehen und Passwörter zurücksetzen</p>
+            </div>
+            <Link
+              to="/users"
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Benutzer
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Delete Account */}
       <section className="bg-white rounded-xl border border-gray-200 p-4">
