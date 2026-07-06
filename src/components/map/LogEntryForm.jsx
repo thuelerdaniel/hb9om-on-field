@@ -489,8 +489,16 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
             </div>
           </div>
 
-          {/* Band / Mode / RST / Power */}
+          {/* RST */}
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase">RST gesendet</label>
+              <input type="text" value={rstSent} onChange={e => setRstSent(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase">RST erhalten</label>
+              <input type="text" value={rstReceived} onChange={e => setRstReceived(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Band</label>
               <MobileSelect
@@ -508,14 +516,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                 triggerClassName="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
                 options={MODES.map(m => ({ value: m, label: m }))}
               />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">RST gesendet</label>
-              <input type="text" value={rstSent} onChange={e => setRstSent(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">RST erhalten</label>
-              <input type="text" value={rstReceived} onChange={e => setRstReceived(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
           </div>
 
