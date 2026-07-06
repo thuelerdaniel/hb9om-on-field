@@ -107,7 +107,7 @@ function MapController({ lockedScale, mapRef }) {
     const metersPerPixel = lockedScale * 0.00028;
     const earthCircumference = 40075016.686;
     const requiredZoom = Math.log2((earthCircumference * Math.cos(lat * Math.PI / 180)) / (metersPerPixel * 256));
-    const roundedZoom = Math.max(1, Math.min(19, Math.round(requiredZoom)));
+    const roundedZoom = Math.max(1, Math.min(22, Math.round(requiredZoom)));
     map.setZoom(roundedZoom, { animate: true });
   }, [map, lockedScale]);
 
@@ -152,6 +152,10 @@ export default function Home() {
   const [positionMode, setPositionMode] = useState("none"); // "gps" | "fixed" | "none"
   const [pickingPosition, setPickingPosition] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [positionRadius, setPositionRadius] = useState(() => {
+    const saved = localStorage.getItem("hb9om_position_radius");
+    return saved ? parseInt(saved) : 5000;
+  });
 
   // Persist map settings to localStorage
   useEffect(() => {
@@ -173,6 +177,10 @@ export default function Home() {
       localStorage.removeItem("hb9om_map_locked_scale");
     }
   }, [lockedScale]);
+
+  useEffect(() => {
+    localStorage.setItem("hb9om_position_radius", String(positionRadius));
+  }, [positionRadius]);
 
   // API-loaded data
   const [sotaData, setSotaData] = useState([]);
@@ -384,6 +392,15 @@ export default function Home() {
     });
   }, []);
 
+  const calculateZoomForRadius = useCallback((lat, radius) => {
+    const earthCircumference = 40075016.686;
+    const size = mapRef.current ? mapRef.current.getSize() : { x: 400, y: 400 };
+    const minDim = Math.min(size.x, size.y);
+    const targetMetersPerPixel = (radius * 2 * 2.5) / minDim;
+    const zoom = Math.log2((earthCircumference * Math.cos(lat * Math.PI / 180)) / (256 * targetMetersPerPixel));
+    return Math.max(8, Math.min(17, Math.round(zoom)));
+  }, []);
+
   const handleGpsLocate = useCallback(() => {
     if (!navigator.geolocation) return;
     setGpsLoading(true);
@@ -394,7 +411,7 @@ export default function Home() {
         setFixedPosition(null);
         setPositionMode("gps");
         setFlyTo(newPos);
-        setFlyZoom(13);
+        setFlyZoom(calculateZoomForRadius(newPos[0], positionRadius));
         setGpsLoading(false);
       },
       (err) => {
@@ -403,7 +420,7 @@ export default function Home() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
-  }, []);
+  }, [calculateZoomForRadius, positionRadius]);
 
   const handleTogglePickPosition = useCallback(() => {
     setPickingPosition(prev => !prev);
@@ -416,8 +433,8 @@ export default function Home() {
     setPositionMode("fixed");
     setPickingPosition(false);
     setFlyTo(latlng);
-    setFlyZoom(13);
-  }, [pickingPosition]);
+    setFlyZoom(calculateZoomForRadius(latlng[0], positionRadius));
+  }, [pickingPosition, positionRadius, calculateZoomForRadius]);
 
   const currentPosition = positionMode === "fixed" ? fixedPosition : (positionMode === "gps" ? gpsPosition : null);
   const positionFixed = positionMode === "fixed";
@@ -469,7 +486,7 @@ export default function Home() {
           className="h-full w-full"
           zoomControl={false}
         >
-          <TileLayer url={baseTileUrl} attribution={baseAttrib} maxZoom={19} />
+          <TileLayer url={baseTileUrl} attribution={baseAttrib} maxZoom={baseLayer === "swisstopo" ? 22 : 19} />
           <MapEventHandler
             onMove={setMapCenter}
             onZoom={setMapZoom}
@@ -479,7 +496,7 @@ export default function Home() {
           <MapController lockedScale={lockedScale} mapRef={mapRef} />
 
           {currentPosition && (
-            <PositionMarker position={currentPosition} fixed={positionFixed} radius={5000} />
+            <PositionMarker position={currentPosition} fixed={positionFixed} radius={positionRadius} onRadiusChange={setPositionRadius} />
           )}
 
           {/* Swiss Federal Inventories WMS overlay */}

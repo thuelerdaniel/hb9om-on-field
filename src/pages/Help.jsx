@@ -29,7 +29,7 @@ const SECTIONS = [
       },
       {
         title: "Kartenmassstab wählen",
-        body: "Im Ebenen-Menü unter «Kartenmassstab» können Sie einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000. Die Karte zoomt automatisch auf die entsprechende Stufe. Der Zoom wird anhand der aktuellen Breitenkoordinate berechnet, damit der Massstab korrekt ist.",
+        body: "Im Ebenen-Menü unter «Kartenmassstab» können Sie einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000. Die Karte zoomt automatisch auf die entsprechende Stufe. Der Zoom wird anhand der aktuellen Breitenkoordinate und der Bildschirmauflösung (96 DPI Standard) berechnet, damit der Massstab korrekt ist. Diese Funktion ist für die SwissTopo-Karte (pixelkarte-farbe) kalibriert und entspricht den offiziellen Kartenmassstäben. Die SwissTopo-Karte unterstützt Zoomstufen bis 22 für maximale Detailgenauigkeit.",
         example: "1:25'000 wählen → Karte zoomt auf Massstab 1:25'000 (ca. Zoomstufe 14 in der Schweiz)."
       },
       {
@@ -39,13 +39,13 @@ const SECTIONS = [
       },
       {
         title: "Meine Position (GPS)",
-        body: "Klicken Sie auf den GPS-Button (Standort-Icon links neben der Karte), um Ihre aktuelle GPS-Position auf der Karte anzuzeigen. Es wird ein 5-km-Umkreis gezeichnet. Die Position wird auch im QSO-Formular für die Suche nach Referenzen in der Nähe verwendet. Die Pin-Nadel ist rot bei GPS-Position und blau bei fixierter Position. Klicken Sie auf die Pin-Nadel, um ein Popup mit Maidenhead-Locator, Längen- und Breitengrad (WGS84) sowie Schweizer Koordinaten (LV95) anzuzeigen.",
-        example: "GPS-Button klicken → Karte zoomt auf Ihre Position → 5-km-Kreis erscheint → Pin-Nadel anklicken zeigt Koordinaten & Locator."
+        body: "Klicken Sie auf den GPS-Button (Standort-Icon links neben der Karte), um Ihre aktuelle GPS-Position auf der Karte anzuzeigen. Die Karte zoomt automatisch so heraus, dass der Radiuskreis vollständig sichtbar ist. Die Position wird auch im QSO-Formular für die Suche nach Referenzen in der Nähe verwendet. Die Pin-Nadel ist rot bei GPS-Position und blau bei fixierter Position. Klicken Sie auf die Pin-Nadel, um ein Popup mit Maidenhead-Locator, Längen- und Breitengrad (WGS84) sowie Schweizer Koordinaten (LV95) anzuzeigen. Im Popup können Sie den Radius des Kreises mit einem Schieberegler von 100 m bis 10 km anpassen. Mit dem Button «Navigieren zu» übergeben Sie die Position an Google Maps zur Navigation.",
+        example: "GPS-Button klicken → Karte zoomt heraus, Kreis sichtbar → Pin-Nadel anklicken → Koordinaten, Radiusschieber und Navigieren-Button."
       },
       {
         title: "Position fixieren",
-        body: "Wenn Sie die GPS-Position nicht verwenden möchten oder kein GPS-Empfang haben, können Sie die Position frei auf der Karte festlegen: Klicken Sie auf den Pin-Button, dann auf die gewünschte Stelle der Karte. Die fixierte Position (blau) ersetzt die GPS-Position für die Referenzsuche im QSO-Formular. Klicken Sie erneut auf den GPS-Button, um zur GPS-Position zurückzukehren.",
-        example: "Pin-Button → Karte antippen → Position wird blau markiert → QSO-Formular nutzt diese Position."
+        body: "Wenn Sie die GPS-Position nicht verwenden möchten oder kein GPS-Empfang haben, können Sie die Position frei auf der Karte festlegen: Klicken Sie auf den Pin-Button, dann auf die gewünschte Stelle der Karte. Die Karte zoomt automatisch so heraus, dass der Radiuskreis vollständig sichtbar ist. Die fixierte Position (blau) ersetzt die GPS-Position für die Referenzsuche im QSO-Formular. Im Popup können Sie den Radius anpassen und die Position an Google Maps übergeben. Klicken Sie erneut auf den GPS-Button, um zur GPS-Position zurückzukehren.",
+        example: "Pin-Button → Karte antippen → Position blau, Karte zoomt heraus → Popup mit Koordinaten, Radiusschieber und Navigieren-Button."
       },
       {
         title: "Marker anklicken",

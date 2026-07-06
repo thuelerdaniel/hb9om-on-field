@@ -10,9 +10,16 @@ export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
 
-        <div className="hidden sm:block">
-          <h1 className="text-sm font-bold text-gray-900 leading-tight">HB9OM On Field</h1>
-          <p className="text-[10px] text-gray-400 leading-tight">Amateurfunk Referenzkarte</p>
+        <div className="hidden sm:flex items-center gap-2">
+          <img
+            src="https://files.designer.hoststar.ch/f7/57/f75700fb-91da-4797-8c19-551f569930d2.png"
+            alt="HB9OM"
+            className="w-7 h-7 rounded object-contain"
+          />
+          <div>
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">HB9OM On Field</h1>
+            <p className="text-[10px] text-gray-400 leading-tight">Amateurfunk Referenzkarte</p>
+          </div>
         </div>
 
         <div className="flex-1 max-w-md ml-auto">
