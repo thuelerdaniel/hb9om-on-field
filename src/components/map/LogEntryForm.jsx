@@ -395,7 +395,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100vh-6rem)] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
           <div className="flex items-center gap-2">
             {isEditing ? <Pencil className="w-5 h-5 text-gray-700" /> : <Radio className="w-5 h-5 text-gray-700" />}
             <h2 className="font-bold text-gray-900">{isEditing ? "QSO bearbeiten" : "Neues QSO-Log"}</h2>
@@ -405,43 +405,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
-          {/* Clubstation toggle */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isClubstation}
-              onChange={e => {
-                const checked = e.target.checked;
-                setIsClubstation(checked);
-                if (checked && !clubCallsign) {
-                  setShowClubPopup(true);
-                }
-              }}
-              className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500"
-            />
-            <span className="text-sm text-gray-700 flex items-center gap-1.5">
-              <Building className="w-3.5 h-3.5" /> Clubstation – abweichendes Stations-Rufzeichen
-            </span>
-          </label>
-
-          {/* Clubstation summary (when active and popup closed) */}
-          {isClubstation && clubCallsign && !showClubPopup && (
-            <div className="p-3 bg-blue-50 rounded-lg flex items-center justify-between">
-              <div className="text-xs space-y-0.5">
-                <p className="font-mono font-bold text-gray-900">{clubCallsign.toUpperCase()}</p>
-                {clubOperatorCallsign && <p className="text-gray-600">Operator: {clubOperatorCallsign.toUpperCase()}{clubOperatorName && ` · ${clubOperatorName}`}</p>}
-              </div>
-              <button
-                onClick={() => setShowClubPopup(true)}
-                className="p-1.5 hover:bg-white rounded-lg text-blue-600"
-                title="Bearbeiten"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
+        <div className="p-4 space-y-3">
           {/* QSO Partner */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rufzeichen (QSO-Partner)</label>
@@ -568,6 +532,42 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
               className="w-full mt-1 px-2.5 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
+
+          {/* Clubstation toggle */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isClubstation}
+              onChange={e => {
+                const checked = e.target.checked;
+                setIsClubstation(checked);
+                if (checked && !clubCallsign) {
+                  setShowClubPopup(true);
+                }
+              }}
+              className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500"
+            />
+            <span className="text-sm text-gray-700 flex items-center gap-1.5">
+              <Building className="w-3.5 h-3.5" /> Clubstation – abweichendes Stations-Rufzeichen
+            </span>
+          </label>
+
+          {/* Clubstation summary (when active and popup closed) */}
+          {isClubstation && clubCallsign && !showClubPopup && (
+            <div className="p-3 bg-blue-50 rounded-lg flex items-center justify-between">
+              <div className="text-xs space-y-0.5">
+                <p className="font-mono font-bold text-gray-900">{clubCallsign.toUpperCase()}</p>
+                {clubOperatorCallsign && <p className="text-gray-600">Operator: {clubOperatorCallsign.toUpperCase()}{clubOperatorName && ` · ${clubOperatorName}`}</p>}
+              </div>
+              <button
+                onClick={() => setShowClubPopup(true)}
+                className="p-1.5 hover:bg-white rounded-lg text-blue-600"
+                title="Bearbeiten"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Standort / Referenz */}
           <div className="p-4 bg-gray-50 rounded-xl">
