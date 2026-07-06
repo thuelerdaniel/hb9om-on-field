@@ -322,15 +322,17 @@ export default function Settings() {
               </div>
             ) : (
               cacheStatus.map(entry => (
-                <div key={entry.id} className="bg-white rounded-xl border border-gray-200 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-900">{TYPE_LABELS[entry.type] || entry.type}</span>
-                    <span className="text-lg font-bold text-gray-900">{entry.total_count}</span>
+                <div key={entry.id} className="bg-white rounded-xl border border-gray-200 p-3 overflow-hidden">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gray-900 truncate">{TYPE_LABELS[entry.type] || entry.type}</span>
+                    <span className="text-lg font-bold text-gray-900 flex-shrink-0">{entry.total_count}</span>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-gray-400 mt-1 truncate">
                     {entry.last_updated ? new Date(entry.last_updated).toLocaleString('de-CH') : 'Nie'}
                   </p>
-                  <p className="text-[10px] text-gray-400">Quelle: {entry.source}</p>
+                  {entry.source && (
+                    <p className="text-[10px] text-gray-400 truncate" title={entry.source}>Quelle: {entry.source}</p>
+                  )}
                 </div>
               ))
             )}

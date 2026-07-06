@@ -54,9 +54,15 @@ export default function SplashScreen({ onDismiss }) {
           </p>
 
           <div className="inline-block px-4 py-1.5 rounded-full bg-white/10 border border-white/20">
-            <span className="text-sm font-mono text-slate-200">Version 0.55</span>
+            <span className="text-sm font-mono text-slate-200">Version 0.56</span>
           </div>
         </a>
+
+        <p className="text-[10px] text-slate-500 mt-6 max-w-xs mx-auto leading-relaxed text-center">
+          Haftungsausschluss: Diese App wird ohne jegliche Gewährleistung bereitgestellt.
+          Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen.
+          Die Nutzung erfolgt auf eigene Verantwortung.
+        </p>
 
         <div className="mt-8">
           <div className="w-32 h-1 bg-white/10 rounded-full mx-auto overflow-hidden">

@@ -51,6 +51,7 @@ const PERSIST_KEYS = {
   mode: "hb9om_last_mode",
   rstSent: "hb9om_last_rst_sent",
   rstReceived: "hb9om_last_rst_received",
+  power: "hb9om_last_power",
   refType: "hb9om_last_ref_type",
   refCode: "hb9om_last_ref_code",
   refName: "hb9om_last_ref_name",
@@ -63,7 +64,41 @@ const PERSIST_KEYS = {
   myGrid: "hb9om_last_my_grid",
 };
 
-export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onClose, onSaved, editEntry }) {
+// Band <-> Frequency mapping (IARU Region 1)
+const BAND_FREQ_RANGES = {
+  "160m": [1.810, 2.000],
+  "80m": [3.500, 3.800],
+  "60m": [5.3515, 5.3665],
+  "40m": [7.000, 7.200],
+  "30m": [10.100, 10.150],
+  "20m": [14.000, 14.350],
+  "17m": [18.068, 18.168],
+  "15m": [21.000, 21.450],
+  "12m": [24.890, 24.990],
+  "10m": [28.000, 29.700],
+  "6m": [50.000, 52.000],
+  "4m": [70.000, 70.500],
+  "2m": [144.000, 146.000],
+  "70cm": [430.000, 440.000],
+  "23cm": [1240.000, 1300.000],
+};
+
+function freqToBand(freq) {
+  const f = parseFloat(freq);
+  if (!f || isNaN(f)) return null;
+  for (const [band, [min, max]] of Object.entries(BAND_FREQ_RANGES)) {
+    if (f >= min && f <= max) return band;
+  }
+  return null;
+}
+
+function bandToCenterFreq(band) {
+  const range = BAND_FREQ_RANGES[band];
+  if (!range) return null;
+  return Math.round(((range[0] + range[1]) / 2) * 1000) / 1000;
+}
+
+export default function LogEntryForm({ mapCenter, myPosition, allMarkers, activeLayers, onClose, onSaved, editEntry }) {
   const isEditing = !!editEntry;
   const [justSaved, setJustSaved] = useState(false);
 
@@ -91,8 +126,25 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
   const [mode, setMode] = useState(editEntry?.mode || (localStorage.getItem(PERSIST_KEYS.mode) || "FM"));
   const [rstSent, setRstSent] = useState(editEntry?.rst_sent || (localStorage.getItem(PERSIST_KEYS.rstSent) || "59"));
   const [rstReceived, setRstReceived] = useState(editEntry?.rst_received || (localStorage.getItem(PERSIST_KEYS.rstReceived) || "59"));
+  const [power, setPower] = useState(editEntry?.power != null ? String(editEntry.power) : (localStorage.getItem(PERSIST_KEYS.power) || ""));
   const [notes, setNotes] = useState(editEntry?.notes || "");
   const [saving, setSaving] = useState(false);
+
+  const handleFrequencyChange = (val) => {
+    setFrequency(val);
+    const detectedBand = freqToBand(val);
+    if (detectedBand && detectedBand !== band) {
+      setBand(detectedBand);
+    }
+  };
+
+  const handleBandChange = (newBand) => {
+    setBand(newBand);
+    const centerFreq = bandToCenterFreq(newBand);
+    if (centerFreq) {
+      setFrequency(String(centerFreq));
+    }
+  };
 
   const [isClubstation, setIsClubstation] = useState(editEntry?.is_clubstation ?? (localStorage.getItem(PERSIST_KEYS.isClubstation) === "true"));
   const [clubCallsign, setClubCallsign] = useState(editEntry?.club_callsign || (localStorage.getItem(PERSIST_KEYS.clubCallsign) || ""));
@@ -138,9 +190,11 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
 
 
 
+  const positionCenter = myPosition || mapCenter;
+
   const nearbyRefs = useMemo(() => {
-    if (!mapCenter || !allMarkers || allMarkers.length === 0) return [];
-    const [clat, clng] = mapCenter;
+    if (!positionCenter || !allMarkers || allMarkers.length === 0) return [];
+    const [clat, clng] = positionCenter;
     let result = allMarkers
       .map(m => ({ ...m, distance: haversine(clat, clng, m.lat, m.lng) }))
       .filter(m => m.distance < 25);
@@ -153,7 +207,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
     return result
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 20);
-  }, [mapCenter, allMarkers, refType]);
+  }, [positionCenter, allMarkers, refType]);
 
   useEffect(() => {
     if (nearbyRefs.length === 1 && nearbyRefs[0].distance < 2 && !refCode && !isEditing) {
@@ -165,10 +219,10 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
   }, [nearbyRefs]);
 
   useEffect(() => {
-    if (refType === "generell" && mapCenter && !myGrid) {
-      setMyGrid(latLngToGrid(mapCenter[0], mapCenter[1]));
+    if (refType === "generell" && positionCenter && !myGrid) {
+      setMyGrid(latLngToGrid(positionCenter[0], positionCenter[1]));
     }
-  }, [refType, mapCenter]);
+  }, [refType, positionCenter]);
 
   const handleQRZLookup = async () => {
     if (qrzInFlightRef.current) return;
@@ -245,6 +299,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
     localStorage.setItem(PERSIST_KEYS.mode, mode);
     localStorage.setItem(PERSIST_KEYS.rstSent, rstSent);
     localStorage.setItem(PERSIST_KEYS.rstReceived, rstReceived);
+    localStorage.setItem(PERSIST_KEYS.power, power);
     localStorage.setItem(PERSIST_KEYS.refType, refType);
     localStorage.setItem(PERSIST_KEYS.refCode, refCode);
     localStorage.setItem(PERSIST_KEYS.refName, refName);
@@ -273,6 +328,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
         mode,
         rst_sent: rstSent,
         rst_received: rstReceived,
+        power: power ? parseFloat(power) : null,
         operator_name: operator.name,
         operator_address: operator.address,
         operator_country: operator.country,
@@ -312,6 +368,7 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
         setTimeEnd("");
         setRstSent(localStorage.getItem(PERSIST_KEYS.rstSent) || "59");
         setRstReceived(localStorage.getItem(PERSIST_KEYS.rstReceived) || "59");
+        setPower(localStorage.getItem(PERSIST_KEYS.power) || "");
         setJustSaved(true);
         setTimeout(() => setJustSaved(false), 2500);
       }
@@ -454,17 +511,17 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Frequenz (MHz)</label>
-              <input type="number" step="0.001" value={frequency} onChange={e => setFrequency(e.target.value)} placeholder="z.B. 144.500" className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <input type="number" step="0.001" value={frequency} onChange={e => handleFrequencyChange(e.target.value)} placeholder="z.B. 144.500" className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
           </div>
 
-          {/* Band / Mode / RST */}
+          {/* Band / Mode / RST / Power */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Band</label>
               <MobileSelect
                 value={band}
-                onValueChange={setBand}
+                onValueChange={handleBandChange}
                 triggerClassName="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
                 options={BANDS.map(b => ({ value: b, label: b }))}
               />
@@ -486,6 +543,20 @@ export default function LogEntryForm({ mapCenter, allMarkers, activeLayers, onCl
               <label className="text-xs font-semibold text-gray-500 uppercase">RST erhalten</label>
               <input type="text" value={rstReceived} onChange={e => setRstReceived(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
+          </div>
+
+          {/* Power */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase">Sendeleistung (Watt)</label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              value={power}
+              onChange={e => setPower(e.target.value)}
+              placeholder="z.B. 5"
+              className="w-full mt-1 px-2.5 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
           </div>
 
           {/* Standort / Referenz */}

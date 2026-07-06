@@ -80,6 +80,10 @@
       "type": "string",
       "description": "RST erhalten"
     },
+    "power": {
+      "type": "number",
+      "description": "Sendeleistung in Watt"
+    },
     "operator_name": {
       "type": "string",
       "description": "Name des QSO-Partners (von QRZ.com)"

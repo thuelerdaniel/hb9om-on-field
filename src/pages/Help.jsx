@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import BandPlanInfo from "@/components/help/BandPlanInfo";
 
 const SECTIONS = [
   {
@@ -35,6 +36,16 @@ const SECTIONS = [
         title: "Legende ein-/ausblenden",
         body: "Unten links auf der Karte finden Sie die Legende, die die Farben der aktiven Layer anzeigt. Klicken Sie auf die Leiste, um die Legende ein- oder auszublenden (minimieren). Im minimierten Zustand wird nur die Anzahl sichtbarer Referenzen angezeigt. Die Legende überlappt nicht mit dem «Neues QSO»-Button.",
         example: "Legende minimieren: auf die Leiste unten links klicken → nur noch die Referenzanzahl wird angezeigt."
+      },
+      {
+        title: "Meine Position (GPS)",
+        body: "Klicken Sie auf den GPS-Button (Standort-Icon rechts neben der Karte), um Ihre aktuelle GPS-Position auf der Karte anzuzeigen. Es wird ein 5-km-Umkreis gezeichnet. Die Position wird auch im QSO-Formular für die Suche nach Referenzen in der Nähe verwendet. Die Pin-Nadel ist rot bei GPS-Position und blau bei fixierter Position.",
+        example: "GPS-Button klicken → Karte zoomt auf Ihre Position → 5-km-Kreis erscheint → QSO-Formular zeigt nahe Referenzen."
+      },
+      {
+        title: "Position fixieren",
+        body: "Wenn Sie die GPS-Position nicht verwenden möchten oder kein GPS-Empfang haben, können Sie die Position frei auf der Karte festlegen: Klicken Sie auf den Pin-Button, dann auf die gewünschte Stelle der Karte. Die fixierte Position (blau) ersetzt die GPS-Position für die Referenzsuche im QSO-Formular. Klicken Sie erneut auf den GPS-Button, um zur GPS-Position zurückzukehren.",
+        example: "Pin-Button → Karte antippen → Position wird blau markiert → QSO-Formular nutzt diese Position."
       },
       {
         title: "Marker anklicken",
@@ -75,8 +86,18 @@ const SECTIONS = [
         example: "Eingabe «HB9XYZ» + Tab-Taste oder QRZ-Button → Daten werden geladen und im blauen Kasten angezeigt."
       },
       {
+        title: "Band & Frequenz自动",
+        body: "Das Band passt sich automatisch an die eingegebene Frequenz an (z.B. 144.500 MHz → 2m). Wenn Sie das Band manuell ändern, springt die Frequenz automatisch in die Mitte des Bandes (z.B. 2m → 145.500 MHz). Dies beschleunigt die QSO-Erfassung und verhindert Eingabefehler.",
+        example: "Frequenz 145.500 eingeben → Band wird automatisch auf «2m» gesetzt. Band «70cm» wählen → Frequenz springt auf 433.500 MHz."
+      },
+      {
+        title: "Sendeleistung (Power)",
+        body: "Im QSO-Formular können Sie die Sendeleistung in Watt eingeben. Der Wert bleibt für das nächste QSO erhalten. Für ADIF-Exporte wird das Feld mit exportiert.",
+        example: "QRP-Betrieb: «5» Watt eingeben → wird gespeichert und im nächsten QSO vorausgefüllt."
+      },
+      {
         title: "Standort / Referenz erfassen",
-        body: "Im Formular können Sie Ihren eigenen Standort erfassen: Wählen Sie den Referenz-Typ (SOTA, POTA, etc.), geben Sie den Referenz-Code ein oder wählen Sie aus den in der Nähe befindlichen Referenzen (wenn die Karte geöffnet ist). Für generelle Standorte ohne Referenz wählen Sie «Generell» und geben nur Ihren Maidenhead-Locator ein.",
+        body: "Im Formular können Sie Ihren eigenen Standort erfassen: Wählen Sie den Referenz-Typ (SOTA, POTA, etc.), geben Sie den Referenz-Code ein oder wählen Sie aus den in der Nähe befindlichen Referenzen. Die Referenzen in der Nähe basieren auf Ihrer GPS-Position oder der fixierten Kartenposition (5-km-Umkreis). Für generelle Standorte ohne Referenz wählen Sie «Generell» und geben nur Ihren Maidenhead-Locator ein.",
         example: "Auf dem Gipfel: Typ «SOTA» wählen, Code «HB/AG-001» eingeben, Name wird automatisch ergänzt."
       },
       {
@@ -288,9 +309,38 @@ export default function Help() {
           </div>
         ))}
 
+        {/* Bandplan */}
+        <BandPlanInfo />
+
+        {/* PayPal Spende */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 bg-amber-100 rounded-full mb-2">
+            <Coffee className="w-5 h-5 text-amber-700" />
+          </div>
+          <h3 className="text-sm font-bold text-gray-900 mb-1">Spende mir einen Kaffee ☕</h3>
+          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+            Wenn Ihnen diese App gefällt und Sie die Entwicklung unterstützen möchten,
+            freue ich mich über eine kleine Spende.
+          </p>
+          <a
+            href="https://paypal.me/Thueler"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0070ba] text-white rounded-lg text-sm font-medium hover:bg-[#005ea6] transition-colors"
+          >
+            <Coffee className="w-4 h-4" />
+            Über PayPal spenden
+          </a>
+          <p className="text-[10px] text-gray-400 mt-2">paypal.me/Thueler</p>
+        </div>
+
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
           <p>HB9OM On Field · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">Bei Fragen oder Problemen wenden Sie sich an den Club HB9OM.</p>
+          <p className="mt-2 text-[10px] text-gray-400 leading-relaxed">
+            Haftungsausschluss: Diese App wird ohne jegliche Gewährleistung bereitgestellt.
+            Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen.
+          </p>
         </div>
       </div>
 

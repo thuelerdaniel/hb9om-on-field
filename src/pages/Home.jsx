@@ -9,9 +9,10 @@ import SearchResults from "@/components/map/SearchResults";
 import SplashScreen from "@/components/map/SplashScreen";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import MapControls from "@/components/map/MapControls";
+import PositionMarker from "@/components/map/PositionMarker";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
-import { Loader2, Radio, Plus } from "lucide-react";
+import { Loader2, Radio, Plus, LocateFixed, MapPin } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
@@ -74,7 +75,7 @@ function MapBounds({ center, zoom }) {
   return null;
 }
 
-function MapEventHandler({ onMove, onZoom }) {
+function MapEventHandler({ onMove, onZoom, onMapClick, clickMode }) {
   const map = useMapEvents({
     moveend: () => {
       const c = map.getCenter();
@@ -82,6 +83,11 @@ function MapEventHandler({ onMove, onZoom }) {
     },
     zoomend: () => {
       onZoom(map.getZoom());
+    },
+    click: (e) => {
+      if (clickMode && onMapClick) {
+        onMapClick([e.latlng.lat, e.latlng.lng]);
+      }
     }
   });
   return null;
@@ -139,6 +145,13 @@ export default function Home() {
     return saved ? parseInt(saved) : null;
   });
   const mapRef = useRef(null);
+
+  // GPS / fixed position
+  const [gpsPosition, setGpsPosition] = useState(null);
+  const [fixedPosition, setFixedPosition] = useState(null);
+  const [positionMode, setPositionMode] = useState("none"); // "gps" | "fixed" | "none"
+  const [pickingPosition, setPickingPosition] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   // Persist map settings to localStorage
   useEffect(() => {
@@ -371,6 +384,44 @@ export default function Home() {
     });
   }, []);
 
+  const handleGpsLocate = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const newPos = [pos.coords.latitude, pos.coords.longitude];
+        setGpsPosition(newPos);
+        setFixedPosition(null);
+        setPositionMode("gps");
+        setFlyTo(newPos);
+        setFlyZoom(13);
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsLoading(false);
+        alert("GPS-Position konnte nicht ermittelt werden: " + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  }, []);
+
+  const handleTogglePickPosition = useCallback(() => {
+    setPickingPosition(prev => !prev);
+  }, []);
+
+  const handleMapClick = useCallback((latlng) => {
+    if (!pickingPosition) return;
+    setFixedPosition(latlng);
+    setGpsPosition(null);
+    setPositionMode("fixed");
+    setPickingPosition(false);
+    setFlyTo(latlng);
+    setFlyZoom(13);
+  }, [pickingPosition]);
+
+  const currentPosition = positionMode === "fixed" ? fixedPosition : (positionMode === "gps" ? gpsPosition : null);
+  const positionFixed = positionMode === "fixed";
+
   const isLoading = Object.values(loading).some(v => v);
 
   const baseTileUrl = baseLayer === "swisstopo"
@@ -419,8 +470,17 @@ export default function Home() {
           zoomControl={false}
         >
           <TileLayer url={baseTileUrl} attribution={baseAttrib} maxZoom={19} />
-          <MapEventHandler onMove={setMapCenter} onZoom={setMapZoom} />
+          <MapEventHandler
+            onMove={setMapCenter}
+            onZoom={setMapZoom}
+            onMapClick={handleMapClick}
+            clickMode={pickingPosition}
+          />
           <MapController lockedScale={lockedScale} mapRef={mapRef} />
+
+          {currentPosition && (
+            <PositionMarker position={currentPosition} fixed={positionFixed} radius={5000} />
+          )}
 
           {/* Swiss Federal Inventories WMS overlay */}
           {activeLayers.includes("swiss_protected") && (
@@ -508,6 +568,37 @@ export default function Home() {
           baseLayer={baseLayer}
         />
 
+        {/* GPS / Position controls */}
+        <div className="absolute left-3 top-20 z-[10001] flex flex-col gap-2">
+          <button
+            onClick={handleGpsLocate}
+            disabled={gpsLoading}
+            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+              positionMode === "gps" ? "border-red-400 text-red-500" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            } ${gpsLoading ? "opacity-40" : ""}`}
+            title="Meine GPS-Position anzeigen"
+          >
+            {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LocateFixed className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={handleTogglePickPosition}
+            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+              pickingPosition ? "border-blue-400 text-blue-500 animate-pulse" :
+              positionMode === "fixed" ? "border-blue-400 text-blue-500" :
+              "border-gray-200 text-gray-700 hover:bg-gray-50"
+            }`}
+            title={pickingPosition ? "Auf Karte tippen um Position zu setzen" : "Position auf Karte fixieren"}
+          >
+            <MapPin className="w-4 h-4" />
+          </button>
+        </div>
+
+        {pickingPosition && (
+          <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[10001] bg-gray-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
+            📍 Auf Karte tippen um Position zu setzen
+          </div>
+        )}
+
         {/* New QSO floating button */}
         <button
           onClick={() => setShowQsoForm(true)}
@@ -524,6 +615,7 @@ export default function Home() {
       {showQsoForm && (
         <LogEntryForm
           mapCenter={mapCenter}
+          myPosition={currentPosition}
           allMarkers={allAvailableMarkers}
           activeLayers={activeLayers}
           onClose={() => setShowQsoForm(false)}
