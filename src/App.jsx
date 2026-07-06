@@ -22,7 +22,7 @@ import ResetPassword from '@/pages/ResetPassword';
 // Add page imports here
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
   const location = useLocation();
 
   // Show loading spinner while checking app public settings or auth
@@ -38,11 +38,9 @@ const AuthenticatedApp = () => {
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
-      navigateToLogin();
-      return null;
     }
+    // For 'auth_required' and other auth errors, fall through to render routes.
+    // ProtectedRoute will redirect to /login (the app's own login page).
   }
 
   // Render the main app
