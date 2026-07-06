@@ -22,7 +22,7 @@ import ResetPassword from '@/pages/ResetPassword';
 // Add page imports here
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated } = useAuth();
   const location = useLocation();
 
   // Show loading spinner while checking app public settings or auth
@@ -46,7 +46,7 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <>
-      <FirstTimeSetup />
+      {isAuthenticated && <FirstTimeSetup />}
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/login" element={<Login />} />
