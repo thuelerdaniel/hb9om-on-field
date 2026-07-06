@@ -31,6 +31,7 @@ export default function Settings() {
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
   const [autoUpdateLoading, setAutoUpdateLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -66,6 +67,13 @@ export default function Settings() {
     try {
       const me = await base44.auth.me();
       setCurrentUser(me);
+      // Check admin status via server (not stale JWT token)
+      try {
+        await base44.entities.User.list("-created_date", 1);
+        setIsAdmin(true);
+      } catch (e) {
+        setIsAdmin(false);
+      }
     } catch (e) { }
   };
 
@@ -439,7 +447,7 @@ export default function Settings() {
         </section>
 
         {/* Admin: User Management */}
-        {currentUser?.role === "admin" && (
+        {isAdmin && (
          <section className="bg-white rounded-xl border border-gray-200 p-4">
            <div className="flex items-center justify-between">
              <div>

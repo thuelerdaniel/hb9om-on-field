@@ -27,28 +27,25 @@ export default function UserManagement() {
   }, []);
 
   const checkAdminAndLoad = async () => {
-    try {
-      const me = await base44.auth.me();
-      if (!me || me.role !== "admin") {
-        navigate("/");
-        return;
-      }
-      setIsAdmin(true);
-      setCurrentUser(me);
-    } catch (e) {
-      navigate("/");
-      return;
-    } finally {
-      setAuthChecked(true);
-    }
-
-    // Load users separately — don't redirect on failure
+    setAuthChecked(true);
     setLoading(true);
     try {
+      // Try to load users — the server checks the actual database role,
+      // not the (possibly stale) JWT token. Returns 403 for non-admins.
       const data = await base44.entities.User.list("-created_date", 200);
       setUsers(data || []);
+      setIsAdmin(true);
+      try {
+        const me = await base44.auth.me();
+        setCurrentUser(me);
+      } catch (e) { }
     } catch (e) {
-      setLoadError(e?.response?.data?.detail || e?.message || "unbekannt");
+      const status = e?.response?.status;
+      if (status === 403) {
+        setIsAdmin(false);
+      } else {
+        setLoadError(e?.response?.data?.detail || e?.message || "unbekannt");
+      }
     } finally {
       setLoading(false);
     }
@@ -120,7 +117,27 @@ export default function UserManagement() {
     );
   }
 
-  if (!isAdmin) return null;
+  if (!loading && !isAdmin && !loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShieldOff className="w-8 h-8 text-red-400" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Kein Zugriff</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Sie benötigen Administrator-Rechte, um auf die Benutzerverwaltung zuzugreifen.
+          </p>
+          <button
+            onClick={() => navigate("/settings")}
+            className="px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800"
+          >
+            Zurück zu Einstellungen
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

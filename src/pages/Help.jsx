@@ -86,7 +86,7 @@ const SECTIONS = [
         example: "Eingabe «HB9XYZ» + Tab-Taste oder QRZ-Button → Daten werden geladen und im blauen Kasten angezeigt."
       },
       {
-        title: "Band & Frequenz自动",
+        title: "Band & Frequenz automatisch",
         body: "Das Band passt sich automatisch an die eingegebene Frequenz an (z.B. 144.500 MHz → 2m). Wenn Sie das Band manuell ändern, springt die Frequenz automatisch in die Mitte des Bandes (z.B. 2m → 145.500 MHz). Dies beschleunigt die QSO-Erfassung und verhindert Eingabefehler.",
         example: "Frequenz 145.500 eingeben → Band wird automatisch auf «2m» gesetzt. Band «70cm» wählen → Frequenz springt auf 433.500 MHz."
       },
@@ -131,6 +131,11 @@ const SECTIONS = [
         example: "Alle QSOs von 2026 exportieren: Nach Datum sortieren → Export klicken → .adi-Datei wird heruntergeladen."
       },
       {
+        title: "Statistik-Ansicht",
+        body: "Über das Balken-Diagramm-Icon oben rechts im Logbuch können Sie zwischen Listen- und Statistik-Ansicht wechseln. Die Statistik zeigt übersichtliche Diagramme zu QSOs pro Band, Mode, Referenz-Typ und Monat sowie weitere Kennzahlen.",
+        example: "Balken-Icon klicken → Statistik mit Diagrammen zu Bändern, Modes und Referenz-Typen."
+      },
+      {
         title: "Einträge löschen",
         body: "Einzelne Einträge können über das Mülleimer-Symbol gelöscht werden. Über den Button «Löschen» oben können alle aktuell gefilterten Einträge auf einmal gelöscht werden (mit Bestätigungsdialog).",
         example: "Vorsicht: Das Löschen ist unwiderruflich – besser zuerst archivieren."
@@ -166,8 +171,23 @@ const SECTIONS = [
       },
       {
         title: "QRZ-Abfrageverlauf",
-        body: "Zeigt die letzten 10 QRZ-Abfragen mit Status (Erfolg/Fehler) und Uhrzeit.",
+        body: "Zeigt die letzten 10 QRZ-Abfragen mit Status (Erfolg/Fehler) und Uhrzeit. Der Verlauf kann mit «Protokoll löschen» geleert werden.",
         example: "HB9XYZ – Erfolg – 14:32 Uhr"
+      },
+      {
+        title: "Stündliche Automatik",
+        body: "Mit dem Schalter «Stündliche Automatik» können Sie die automatische stündliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, HBFF etc. automatisch aktualisiert. Wenn deaktiviert, müssen Sie die Daten manuell über «Jetzt aktualisieren» neu laden.",
+        example: "Automatik ausschalten → Daten werden nur bei manueller Aktualisierung erneuert."
+      },
+      {
+        title: "Konto löschen",
+        body: "Über «Konto löschen» können Sie Ihr Konto inklusive aller QSO-Logs und Einstellungen unwiderruflich löschen. Diese Aktion kann nicht rückgängig gemacht werden.",
+        example: "Konto löschen → Bestätigungsdialog → Endgültig löschen."
+      },
+      {
+        title: "Benutzerverwaltung (Admin)",
+        body: "Administratoren sehen in den Einstellungen einen Bereich «Benutzerverwaltung». Darüber können alle angemeldeten Benutzer eingesehen, Passwörter zurückgesetzt, Rollen geändert (Admin/User) und Benutzer gelöscht werden. Neue Admins müssen sich einmal ab- und wieder anmelden, falls ihre Rolle kürzlich geändert wurde.",
+        example: "Admin → Einstellungen → Benutzerverwaltung → Benutzer zum Admin befördern."
       }
     ]
   },
