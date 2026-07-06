@@ -405,7 +405,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
           </button>
         </div>
 
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-2">
           {/* QSO Partner */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rufzeichen (QSO-Partner)</label>
@@ -450,7 +450,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
           </div>
 
           {/* Date & Time */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Datum</label>
               <input type="date" value={qsoDate} onChange={e => setQsoDate(e.target.value)} className="w-full mt-1 px-2.5 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
@@ -490,7 +490,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
           </div>
 
           {/* RST */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">RST gesendet</label>
               <input type="text" value={rstSent} onChange={e => setRstSent(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
