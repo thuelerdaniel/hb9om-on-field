@@ -73,6 +73,7 @@ export default function Log() {
         e.is_clubstation && e.club_callsign ? `<station_callsign:${(e.club_callsign).length}>${e.club_callsign}` : "",
         e.is_clubstation && e.club_operator_callsign ? `<operator:${(e.club_operator_callsign).length}>${e.club_operator_callsign}` : "",
         e.notes ? `<notes:${(e.notes).length}>${e.notes}` : "",
+        e.power != null ? `<tx_pwr:${String(e.power).length}>${e.power}` : "",
       ].filter(Boolean).join(" ");
       return fields + " <eor>";
     }).join("\n");
