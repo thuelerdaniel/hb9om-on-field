@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
+import { base44 } from "@/api/base44Client";
 
 const SECTIONS = [
   {
@@ -227,6 +228,38 @@ const SECTIONS = [
   }
 ];
 
+const ADMIN_SECTIONS = [
+  {
+    id: "admin-referenzen",
+    icon: Pencil,
+    title: "Admin: Referenzen bearbeiten",
+    color: "#dc2626",
+    description: "Als Administrator können Sie Referenzpunkte anpassen und georeferenzieren.",
+    items: [
+      {
+        title: "Referenz auf der Karte bearbeiten",
+        body: "Klicken Sie als Administrator auf einen beliebigen Marker auf der Karte. Im Popup-Fenster finden Sie unten einen «Referenz bearbeiten»-Button. Damit können Sie den Namen, den Ort, manuelle Koordinaten und eine Web-Referenz anpassen.",
+        example: "Burg anklicken → «Referenz bearbeiten» → neuen Namen eingeben → Speichern."
+      },
+      {
+        title: "Nicht georeferenzierte Burgen",
+        body: "In den Einstellungen (Admin-Bereich) finden Sie eine Liste aller Burgen, die keine Koordinaten haben und nicht auf der Karte angezeigt werden. Sie können für jede Burg einen angepassten Namen, Ort, manuelle Koordinaten oder eine Web-Referenz erfassen.",
+        example: "Einstellungen → «Nicht georeferenzierte Burgen» → Burg suchen → Bearbeiten → Koordinaten eingeben."
+      },
+      {
+        title: "Wie Overrides funktionieren",
+        body: "Wenn Sie eine Referenz anpassen, wird ein Override gespeichert. Bei der nächsten Datenaktualisierung werden diese verwendet: Manuelle Koordinaten werden direkt übernommen, angepasste Namen/Orte werden für das automatische Matching verwendet, und Web-Referenzen ersetzen den Standard-Link.",
+        example: "Override mit manuellen Koordinaten → Burg erscheint nach dem nächsten Update auf der Karte."
+      },
+      {
+        title: "Demo-Benutzer",
+        body: "Der Demo-Benutzer (demo@hb9om.ch / demo123) kann in den Einstellungen eingerichtet werden. Seine Daten werden täglich gelöscht. Der Demo-Benutzer kann nicht gelöscht werden.",
+        example: "Einstellungen → «Demo-Benutzer» → «Demo einrichten»."
+      }
+    ]
+  }
+];
+
 function HelpSection({ section }) {
   const [expanded, setExpanded] = useState(true);
   const Icon = section.icon;
@@ -292,6 +325,14 @@ function HelpSection({ section }) {
 }
 
 export default function Help() {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    base44.functions.invoke("adminManageUsers", { action: "checkStatus" })
+      .then(res => setIsAdmin(res.data?.isAdmin === true))
+      .catch(() => setIsAdmin(false));
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -361,6 +402,12 @@ export default function Help() {
         </div>
 
         {SECTIONS.map(section => (
+          <div key={section.id} id={section.id}>
+            <HelpSection section={section} />
+          </div>
+        ))}
+
+        {isAdmin && ADMIN_SECTIONS.map(section => (
           <div key={section.id} id={section.id}>
             <HelpSection section={section} />
           </div>

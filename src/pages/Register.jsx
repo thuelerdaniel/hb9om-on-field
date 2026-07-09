@@ -142,6 +142,14 @@ export default function Register() {
         </>
       }
     >
+      <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
+        <p className="text-sm font-semibold text-blue-900">🔑 Demo-Zugang</p>
+        <p className="text-blue-700 text-xs mt-1">
+          Zum Testen: <strong>demo@hb9om.ch</strong> / <strong>demo123</strong>
+        </p>
+        <p className="text-blue-600 text-[10px] mt-0.5">Demo-Daten werden täglich gelöscht</p>
+      </div>
+
       <Button
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-6"

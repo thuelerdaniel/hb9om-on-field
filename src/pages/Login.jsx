@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/constants";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -23,6 +24,19 @@ export default function Login() {
       window.location.href = "/";
     } catch (err) {
       setError(err.message || "Ungültige E-Mail oder Passwort");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await base44.auth.loginViaEmailPassword(DEMO_EMAIL, DEMO_PASSWORD);
+      window.location.href = "/";
+    } catch (err) {
+      setError("Demo-Login fehlgeschlagen: " + (err.message || "unbekannt"));
     } finally {
       setLoading(false);
     }
@@ -46,6 +60,14 @@ export default function Login() {
         </>
       }
     >
+      <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
+        <p className="text-sm font-semibold text-blue-900">🔑 Demo-Zugang</p>
+        <p className="text-blue-700 text-xs mt-1">
+          Testen Sie die App: <strong>demo@hb9om.ch</strong> / <strong>demo123</strong>
+        </p>
+        <p className="text-blue-600 text-[10px] mt-0.5">Demo-Daten werden täglich gelöscht</p>
+      </div>
+
       <Button
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-6"
@@ -120,6 +142,16 @@ export default function Login() {
           )}
         </Button>
       </form>
+
+      <Button
+        variant="outline"
+        className="w-full h-12 text-sm font-medium mt-3 border-blue-300 text-blue-700 hover:bg-blue-50"
+        onClick={handleDemoLogin}
+        disabled={loading}
+      >
+        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+        Als Demo-Benutzer anmelden
+      </Button>
     </AuthLayout>
   );
 }

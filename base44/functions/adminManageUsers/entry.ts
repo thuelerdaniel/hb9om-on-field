@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+const DEMO_EMAIL = 'demo@hb9om.ch';
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -63,8 +65,22 @@ Deno.serve(async (req) => {
       if (userId === currentUser.id) {
         return Response.json({ error: 'Cannot delete yourself' }, { status: 400 });
       }
+      // Protect demo user from deletion
+      const targetUser = await base44.asServiceRole.entities.User.get(userId);
+      if (targetUser?.email === DEMO_EMAIL) {
+        return Response.json({ error: 'Der Demo-Benutzer kann nicht gelöscht werden' }, { status: 400 });
+      }
       await base44.asServiceRole.entities.User.delete(userId);
       return Response.json({ success: true });
+    }
+
+    if (action === 'setupDemoUser') {
+      try {
+        await base44.users.inviteUser(DEMO_EMAIL, 'user');
+        return Response.json({ success: true, message: 'Demo-Benutzer eingeladen' });
+      } catch (e) {
+        return Response.json({ error: e.message || 'Einladung fehlgeschlagen' }, { status: 500 });
+      }
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });

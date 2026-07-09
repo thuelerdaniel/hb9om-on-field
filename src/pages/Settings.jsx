@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -32,6 +33,8 @@ export default function Settings() {
   const [autoUpdateLoading, setAutoUpdateLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [demoSettingUp, setDemoSettingUp] = useState(false);
+  const [demoSetupResult, setDemoSetupResult] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -148,6 +151,19 @@ export default function Settings() {
       setRefreshResult({ error: e.message });
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleSetupDemo = async () => {
+    setDemoSettingUp(true);
+    setDemoSetupResult(null);
+    try {
+      const res = await base44.functions.invoke("adminManageUsers", { action: "setupDemoUser" });
+      setDemoSetupResult({ message: res.data?.message || "Demo-Benutzer eingeladen" });
+    } catch (e) {
+      setDemoSetupResult({ error: e?.response?.data?.error || e?.message || "Fehler" });
+    } finally {
+      setDemoSettingUp(false);
     }
   };
 
@@ -444,6 +460,36 @@ export default function Settings() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* Admin: Unmatched Castles Editor */}
+        <UnmatchedCastles />
+
+        {/* Admin: Demo User Setup */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <User className="w-4 h-4" /> Demo-Benutzer
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Login: demo@hb9om.ch / demo123 · Daten werden täglich gelöscht
+              </p>
+            </div>
+            <button
+              onClick={handleSetupDemo}
+              disabled={demoSettingUp}
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center gap-2"
+            >
+              {demoSettingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+              Demo einrichten
+            </button>
+          </div>
+          {demoSetupResult && (
+            <div className={`mt-3 p-3 rounded-lg text-sm ${demoSetupResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+              {demoSetupResult.error || demoSetupResult.message}
             </div>
           )}
         </section>

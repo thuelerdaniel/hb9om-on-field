@@ -14,6 +14,7 @@ import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
 import { Loader2, Radio, Plus, LocateFixed, MapPin } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import ReferenceEditDialog from "@/components/admin/ReferenceEditDialog";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -140,6 +141,8 @@ export default function Home() {
     return saved ? parseInt(saved) : 8;
   });
   const [showQsoForm, setShowQsoForm] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
   const [lockedScale, setLockedScale] = useState(() => {
     const saved = localStorage.getItem("hb9om_map_locked_scale");
     return saved ? parseInt(saved) : null;
@@ -189,6 +192,13 @@ export default function Home() {
   const [wwbotaData, setWwbotaData] = useState([]);
   const [castleData, setCastleData] = useState([]);
   const [cacheLoaded, setCacheLoaded] = useState(false);
+
+  // Check admin status
+  useEffect(() => {
+    base44.functions.invoke("adminManageUsers", { action: "checkStatus" })
+      .then(res => setIsAdmin(res.data?.isAdmin === true))
+      .catch(() => setIsAdmin(false));
+  }, []);
 
   // Load all cached reference data on mount
   useEffect(() => {
@@ -570,7 +580,7 @@ export default function Home() {
               }}
             >
               <Popup>
-                <MarkerPopup data={m} layerType={m.layerType} />
+                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => setEditTarget({ data, layerType: m.layerType })} />
               </Popup>
             </CircleMarker>
           ))}
@@ -639,6 +649,17 @@ export default function Home() {
 
         <MapLegend activeLayers={activeLayers} markerCount={allMarkers.length} castleStats={castleStats} />
       </div>
+
+      {editTarget && (
+        <ReferenceEditDialog
+          referenceType={editTarget.layerType}
+          originalCode={editTarget.data.code || editTarget.data.reference || ""}
+          originalName={editTarget.data.name || ""}
+          originalLocation={editTarget.data.canton || editTarget.data.wcaLocation || editTarget.data.region || ""}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => setEditTarget(null)}
+        />
+      )}
 
       {showQsoForm && (
         <LogEntryForm

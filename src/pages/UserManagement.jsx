@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ArrowLeft, Users, Loader2, Mail, KeyRound, Search, Shield, CheckCircle2, AlertCircle, Trash2, UserCog, Clock, ShieldCheck, ShieldOff } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import { DEMO_EMAIL } from "@/lib/constants";
 
 export default function UserManagement() {
   const navigate = useNavigate();
@@ -214,6 +215,9 @@ export default function UserManagement() {
                         {isSelf && (
                           <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded-full">Du</span>
                         )}
+                        {user.email === DEMO_EMAIL && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded-full">Demo</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500">
                         <Mail className="w-3 h-3" />
@@ -260,13 +264,13 @@ export default function UserManagement() {
 
                     <button
                       onClick={() => { setDeleteTarget(user); setActionError(""); }}
-                      disabled={isSelf}
+                      disabled={isSelf || user.email === DEMO_EMAIL}
                       className={`px-2.5 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 ${
-                        isSelf
+                        isSelf || user.email === DEMO_EMAIL
                           ? "opacity-30 cursor-not-allowed border-gray-200 text-gray-400"
                           : "text-red-600 border-red-200 hover:bg-red-50"
                       }`}
-                      title={isSelf ? "Du kannst dich nicht selbst löschen" : ""}
+                      title={isSelf ? "Du kannst dich nicht selbst löschen" : user.email === DEMO_EMAIL ? "Demo-Benutzer kann nicht gelöscht werden" : ""}
                     >
                       <Trash2 className="w-3.5 h-3.5" /> Löschen
                     </button>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink } from "lucide-react";
+import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil } from "lucide-react";
 
 const LAYER_META = {
   sota: { icon: Mountain, color: "#e74c3c", label: "SOTA", program: "Summits on the Air", linkBase: "https://sotl.as/summits/" },
@@ -12,7 +12,7 @@ const LAYER_META = {
   swiss_protected: { icon: Trees, color: "#16a085", label: "BLN/Moor", program: "Bundesinventar", linkBase: "https://map.geo.admin.ch/" }
 };
 
-export default function MarkerPopup({ data, layerType }) {
+export default function MarkerPopup({ data, layerType, isAdmin, onEdit }) {
   const meta = LAYER_META[layerType] || {};
   const Icon = meta.icon || MapPin;
 
@@ -76,6 +76,15 @@ export default function MarkerPopup({ data, layerType }) {
           </a>
         );
       })()}
+
+      {isAdmin && onEdit && (
+        <button
+          onClick={() => onEdit(data)}
+          className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
+        >
+          <Pencil className="w-3 h-3" /> Referenz bearbeiten
+        </button>
+      )}
 
       <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
         {data.lat?.toFixed(5)}, {data.lng?.toFixed(5)}

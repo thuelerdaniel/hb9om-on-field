@@ -187,7 +187,7 @@ async function fetchLighthouseData() {
   return lighthouses;
 }
 
-async function fetchCastleData() {
+async function fetchCastleData(castleOverrides) {
   // 1. Download WCA ODS and parse HB-HB0 table (all Swiss castles)
   const odsResp = await fetch('https://wcagroup.org/FORMS/WCALIST.ods', {
     headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' }
@@ -487,12 +487,39 @@ async function fetchCastleData() {
     geo._locNorm = geo.location ? normalizeText(geo.location) : '';
   }
 
-  // === 4-STEP MATCHING: locator → map.admin.ch → OSM/Wikidata → Nominatim ===
+  // === MATCHING: override → locator → map.admin.ch → OSM/Wikidata → Nominatim ===
   const castles = [];
+
+  // Step 0: Apply manual overrides, use adjusted name/location for remaining
+  const afterOverrides = [];
+  for (const wca of wcaEntries) {
+    const override = castleOverrides?.get(wca.wca);
+    if (override?.manual_lat != null && override?.manual_lng != null) {
+      const displayName = override.adjusted_name || wca.name;
+      castles.push({
+        code: wca.wca,
+        name: displayName.charAt(0) + displayName.slice(1).toLowerCase(),
+        lat: override.manual_lat,
+        lng: override.manual_lng,
+        canton: override.adjusted_location || wca.location,
+        link: override.web_reference || 'https://wcagroup.org/?page_id=207',
+        wcaName: wca.name,
+        wcaLocation: wca.location,
+        matchSource: 'manual-override'
+      });
+    } else {
+      afterOverrides.push({
+        ...wca,
+        name: override?.adjusted_name || wca.name,
+        location: override?.adjusted_location || wca.location
+      });
+    }
+  }
+
   const afterLocator = [];
 
   // Step 1: Maidenhead locator from WCA Excel
-  for (const wca of wcaEntries) {
+  for (const wca of afterOverrides) {
     if (wca.locator) {
       const coords = maidenheadToLatLng(wca.locator);
       if (coords) {
@@ -649,6 +676,16 @@ async function fetchCastleData() {
     await new Promise(r => setTimeout(r, 1100));
   }
 
+  // Apply non-coordinate overrides to all castles
+  for (const c of castles) {
+    const override = castleOverrides?.get(c.code);
+    if (!override) continue;
+    if (override.web_reference) c.link = override.web_reference;
+    if (override.adjusted_name && c.matchSource !== 'manual-override') {
+      c.name = override.adjusted_name.charAt(0) + override.adjusted_name.slice(1).toLowerCase();
+    }
+  }
+
   return castles;
 }
 
@@ -669,18 +706,40 @@ Deno.serve(async (req) => {
     }
 
     const startTime = Date.now();
+
+    // Fetch admin overrides for reference data
+    const allOverrides = await base44.asServiceRole.entities.ReferenceOverride.list("-created_date", 500);
+    const overridesByType = new Map();
+    for (const ov of (allOverrides || [])) {
+      if (!overridesByType.has(ov.reference_type)) overridesByType.set(ov.reference_type, new Map());
+      overridesByType.get(ov.reference_type).set(ov.original_code, ov);
+    }
+
     const taskDefs = [
       { type: 'sota', fn: fetchSotaData },
       { type: 'pota', fn: fetchPotaData },
       { type: 'hbff', fn: fetchHbffData },
       { type: 'wwbota', fn: fetchWwbotaData },
       { type: 'lighthouse', fn: fetchLighthouseData },
-      { type: 'castle', fn: fetchCastleData },
+      { type: 'castle', fn: () => fetchCastleData(overridesByType.get('castle') || new Map()) },
     ];
 
     const settled = await Promise.allSettled(taskDefs.map(async (t) => {
       const taskStart = Date.now();
       const items = await t.fn();
+      // Apply admin overrides for non-castle types
+      if (t.type !== 'castle' && overridesByType.has(t.type)) {
+        const typeOverrides = overridesByType.get(t.type);
+        for (const item of items) {
+          const code = item.code || item.reference;
+          if (code && typeOverrides.has(code)) {
+            const ov = typeOverrides.get(code);
+            if (ov.manual_lat != null) { item.lat = ov.manual_lat; item.lng = ov.manual_lng; }
+            if (ov.adjusted_name) item.name = ov.adjusted_name;
+            if (ov.web_reference) item.link = ov.web_reference;
+          }
+        }
+      }
       const now = new Date().toISOString();
 
       // Upsert ReferenceData
