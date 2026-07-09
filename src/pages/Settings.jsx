@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
@@ -41,6 +41,8 @@ export default function Settings() {
   const [demoSettingUp, setDemoSettingUp] = useState(false);
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [storageInfo, setStorageInfo] = useState({ areas: 0, tiles: 0 });
+  const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
+  const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
   const [demoSetupResult, setDemoSetupResult] = useState(null);
 
   useEffect(() => {
@@ -62,6 +64,9 @@ export default function Settings() {
       setQrzLookups(qrzData || []);
       getOfflineAreas().then(areas => setOfflineAreas(areas)).catch(() => {});
       getStorageEstimate().then(info => setStorageInfo(info)).catch(() => {});
+      base44.entities.ReferenceChangeRequest.filter({ status: "pending" })
+        .then(data => setPendingChangeRequests(data?.length || 0))
+        .catch(() => {});
       if (settingsData && settingsData.length > 0) {
         setAutoUpdateEnabled(settingsData[0].enabled !== false);
       }
@@ -216,6 +221,11 @@ export default function Settings() {
     for (const a of areas) await deleteArea(a.id);
     setOfflineAreas([]);
     setStorageInfo({ areas: 0, tiles: 0 });
+  };
+
+  const handleToggleForceOffline = (enabled) => {
+    setForceOffline(enabled);
+    localStorage.setItem("hb9om_force_offline", String(enabled));
   };
 
   const handleToggleAutoUpdate = async (enabled) => {
@@ -393,8 +403,26 @@ export default function Settings() {
         {/* Offline Maps */}
         <section>
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <Download className="w-4 h-4" /> Offline-Karten
+            <Download className="w-4 h-4" /> Offline-Modus
           </h2>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-3">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                {forceOffline ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />} Manuelles Offline
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {forceOffline ? "App wird offline betrieben – Karten aus Cache" : "Offline-Modus manuell aktivieren"}
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleForceOffline(!forceOffline)}
+              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${forceOffline ? 'bg-amber-500' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${forceOffline ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+
+          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Heruntergeladene Karten</h3>
           {offlineAreas.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
               <Download className="w-10 h-10 text-gray-200 mx-auto mb-2" />
@@ -434,8 +462,55 @@ export default function Settings() {
           )}
         </section>
 
+        {/* Change Requests - available for all users */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <ClipboardList className="w-4 h-4" /> Meine Änderungsanträge
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Status eigener Positions-Korrekturen verfolgen oder zurückziehen
+              </p>
+              {pendingChangeRequests > 0 && (
+                <p className="text-xs text-amber-600 mt-1 font-medium flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {pendingChangeRequests} Antrag{pendingChangeRequests !== 1 ? 'äge' : ''} in Prüfung
+                </p>
+              )}
+            </div>
+            <Link
+              to="/change-requests"
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center gap-2"
+            >
+              <ClipboardList className="w-4 h-4" />
+              Anträge
+            </Link>
+          </div>
+        </section>
+
         {isAdmin && (
         <>
+        {/* Admin: Change Request Review */}
+        <section className="bg-amber-50 rounded-xl border-2 border-amber-300 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <ClipboardList className="w-4 h-4 text-amber-600" /> Änderungsanträge prüfen
+              </h3>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Benutzer eingereichte Positions-Korrekturen genehmigen oder ablehnen
+              </p>
+            </div>
+            <Link
+              to="/admin/change-requests"
+              className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 flex items-center gap-2"
+            >
+              <ClipboardList className="w-4 h-4" />
+              Prüfen
+            </Link>
+          </div>
+        </section>
+
         {/* Cache Status */}
         <section>
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">

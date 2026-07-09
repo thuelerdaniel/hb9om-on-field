@@ -14,11 +14,13 @@ import MapControls from "@/components/map/MapControls";
 import PositionMarker from "@/components/map/PositionMarker";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
-import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff } from "lucide-react";
+import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList } from "lucide-react";
+import { Link } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
 import ReferenceEditDialog from "@/components/admin/ReferenceEditDialog";
 import MapTileLayer from "@/components/map/MapTileLayer";
 import OfflineAreaDialog from "@/components/map/OfflineAreaDialog";
+import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
@@ -179,15 +181,26 @@ export default function Home() {
   });
   const [dragMode, setDragMode] = useState(false);
   const [localOverrides, setLocalOverrides] = useState({});
-  const [isOffline, setIsOffline] = useState(typeof navigator !== "undefined" && navigator.onLine === false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
+  const isOffline = !isOnline || forceOffline;
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
   const [serverOverrides, setServerOverrides] = useState({});
+  const [pendingDragChange, setPendingDragChange] = useState(null);
   const { toast } = useToast();
 
   const handleMarkerDrag = async (marker, newLat, newLng) => {
     const code = marker.code || marker.reference;
     if (!code) return;
+
+    // Non-admin: open change request dialog instead of saving directly
+    if (!isAdmin) {
+      setPendingDragChange({ marker, newPosition: [newLat, newLng] });
+      return;
+    }
+
+    // Admin: save directly to ReferenceOverride
     try {
       const overrides = await base44.entities.ReferenceOverride.filter({
         reference_type: marker.layerType,
@@ -274,8 +287,8 @@ export default function Home() {
 
   // Offline detection and area loading
   useEffect(() => {
-    const handleOffline = () => setIsOffline(true);
-    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => setIsOnline(true);
     window.addEventListener("offline", handleOffline);
     window.addEventListener("online", handleOnline);
     getOfflineAreas().then(areas => setOfflineAreas(areas)).catch(() => {});
@@ -717,8 +730,10 @@ export default function Home() {
                     dragend: (e) => {
                       const ll = e.target.getLatLng();
                       const code = m.code || m.reference;
-                      if (code) {
-                        setLocalOverrides(prev => ({ ...prev, [code]: { lat: ll.lat, lng: ll.lng } }));
+                      if (isAdmin) {
+                        if (code) {
+                          setLocalOverrides(prev => ({ ...prev, [code]: { lat: ll.lat, lng: ll.lng } }));
+                        }
                       }
                       handleMarkerDrag(m, ll.lat, ll.lng);
                     }
@@ -808,17 +823,36 @@ export default function Home() {
           >
             <Download className="w-4 h-4" />
           </button>
-          {isAdmin && (
-            <button
-              onClick={() => setDragMode(!dragMode)}
-              className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
-                dragMode ? "border-purple-400 text-purple-500 animate-pulse" : "border-gray-200 text-gray-700 hover:bg-gray-50"
-              }`}
-              title="Punkte verschieben (Drag & Drop)"
-            >
-              <Move className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            onClick={() => {
+              const newVal = !forceOffline;
+              setForceOffline(newVal);
+              localStorage.setItem("hb9om_force_offline", String(newVal));
+              toast({ title: newVal ? "Offline-Modus aktiviert" : "Online-Modus aktiviert", duration: 2000 });
+            }}
+            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+              forceOffline ? "border-amber-400 text-amber-500" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            }`}
+            title={forceOffline ? "Offline-Modus deaktivieren" : "Offline-Modus aktivieren"}
+          >
+            {forceOffline ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => setDragMode(!dragMode)}
+            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+              dragMode ? "border-purple-400 text-purple-500 animate-pulse" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            }`}
+            title={isAdmin ? "Punkte verschieben (Drag & Drop)" : "Punkte korrigieren (Antrag an Admin)"}
+          >
+            <Move className="w-4 h-4" />
+          </button>
+          <Link
+            to="/change-requests"
+            className="w-10 h-10 bg-white rounded-lg shadow-lg border border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center justify-center transition-colors"
+            title="Meine Änderungsanträge"
+          >
+            <ClipboardList className="w-4 h-4" />
+          </Link>
 
         </div>
 
@@ -830,7 +864,7 @@ export default function Home() {
 
         {dragMode && (
           <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[10001] bg-purple-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
-            ✋ Marker festhalten und ziehen
+            {isAdmin ? "✋ Marker festhalten und ziehen" : "✋ Marker ziehen – wird als Antrag gesendet"}
           </div>
         )}
 
@@ -881,6 +915,15 @@ export default function Home() {
             getOfflineAreas().then(areas => setOfflineAreas(areas));
             setShowOfflineDialog(false);
           }}
+        />
+      )}
+
+      {pendingDragChange && (
+        <ChangeRequestDialog
+          marker={pendingDragChange.marker}
+          newPosition={pendingDragChange.newPosition}
+          onClose={() => setPendingDragChange(null)}
+          onSubmit={() => setPendingDragChange(null)}
         />
       )}
 

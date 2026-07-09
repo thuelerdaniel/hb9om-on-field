@@ -54,9 +54,19 @@ const SECTIONS = [
         example: "Klick auf einen SOTA-Gipfel → Popup zeigt Name, Höhe, Punkte und Link zu sotl.as."
       },
       {
-        title: "Marker verschieben (Admin)",
-        body: "Administratoren können den Drag & Drop-Modus aktivieren (Move-Icon links neben der Karte), um Marker an die korrekte Position zu verschieben. Die neuen Koordinaten werden sofort gespeichert und sind für alle Administratoren sichtbar. Angepasste Namen über den «Referenz bearbeiten»-Button erscheinen ebenfalls sofort.",
-        example: "Move-Button aktivieren → Marker festhalten und verschieben → Position wird automatisch gespeichert."
+        title: "Marker verschieben / korrigieren",
+        body: "Alle Benutzer können den Drag & Drop-Modus aktivieren (Move-Icon links neben der Karte), um Marker an die korrekte Position zu verschieben. Administratoren: Die neuen Koordinaten werden sofort gespeichert und sind für alle sichtbar. Normale Benutzer: Die Verschiebung öffnet einen Dialog, in dem ein Kommentar erfasst werden kann. Der Antrag wird an einen Admin gesendet und nach Prüfung freigegeben. Den Status können Sie unter «Meine Anträge» (ClipboardList-Icon auf der Karte oder in den Einstellungen) verfolgen oder den Antrag zurückziehen.",
+        example: "Move-Button aktivieren → Marker ziehen → Dialog mit Kommentarfeld → «Einreichen» → Status unter «Meine Anträge» verfolgen."
+      },
+      {
+        title: "Offline-Modus manuell aktivieren",
+        body: "Klicken Sie auf das Wifi-Icon links neben der Karte, um den Offline-Modus manuell zu aktivieren oder zu deaktivieren. Im Offline-Modus werden Kartenkacheln aus dem Cache geladen (sofern zuvor heruntergeladen) und alle Referenzpunkte aus dem lokalen Speicher angezeigt. QSOs können weiterhin erfasst werden und werden bei Wiederherstellung der Verbindung synchronisiert. Der manuelle Offline-Modus kann auch in den Einstellungen unter «Offline-Modus» ein- und ausgeschaltet werden.",
+        example: "Wifi-Icon klicken → Symbol wird gelb → Offline-Modus aktiv → Kacheln aus Cache werden angezeigt."
+      },
+      {
+        title: "Offline-Karten herunterladen & verwalten",
+        body: "Mit dem Download-Icon links neben der Karte können Sie Kartenausschnitte für die Offline-Nutzung herunterladen. Wählen Sie die Zoom-Stufen und laden Sie die Kacheln herunter. In den Einstellungen unter «Heruntergeladene Karten» sehen Sie alle gespeicherten Gebiete mit Grösse und Datum. Einzelne Gebiete oder alle Offline-Daten können dort gelöscht werden.",
+        example: "Download-Icon → Gebiet auf Karte wählen → Zoom-Stufen auswählen → Download starten → in Einstellungen verwalten."
       },
       {
         title: "Referenz-Typen",
@@ -201,6 +211,16 @@ const SECTIONS = [
         example: "Automatik ausschalten → Daten werden nur bei manueller Aktualisierung erneuert."
       },
       {
+        title: "Meine Änderungsanträge",
+        body: "Unter «Meine Änderungsanträge» in den Einstellungen oder über das ClipboardList-Icon auf der Karte sehen Sie alle Ihre eingereichten Positions-Korrekturen. Jeder Antrag zeigt den Referenz-Code, die aktuelle und vorgeschlagene Position, den Status (In Prüfung, Genehmigt, Abgelehnt, Zurückgezogen) und eventuelle Admin-Kommentare. Ausstehende Anträge können jederzeit zurückgezogen werden.",
+        example: "Einstellungen → «Meine Änderungsanträge» → «Anträge» → Status siehen oder zurückziehen."
+      },
+      {
+        title: "Offline-Modus",
+        body: "In den Einstellungen unter «Offline-Modus» können Sie den manuellen Offline-Modus mit einem Schalter ein- und ausschalten. Zudem werden hier alle heruntergeladenen Offline-Karten aufgelistet. Einzelne Gebiete können gelöscht werden, oder alle Offline-Daten auf einmal.",
+        example: "Offline-Modus Schalter aktivieren → App läuft offline → heruntergeladene Karten anzeigen und verwalten."
+      },
+      {
         title: "Konto löschen",
         body: "Über «Konto löschen» können Sie Ihr Konto inklusive aller QSO-Logs und Einstellungen unwiderruflich löschen. Diese Aktion kann nicht rückgängig gemacht werden.",
         example: "Konto löschen → Bestätigungsdialog → Endgültig löschen."
@@ -285,6 +305,11 @@ const ADMIN_SECTIONS = [
         title: "Demo-Benutzer",
         body: "Der Demo-Benutzer (demo@hb9om.ch / demo123) kann in den Einstellungen eingerichtet werden. Seine Daten werden täglich gelöscht. Der Demo-Benutzer kann nicht gelöscht werden.",
         example: "Einstellungen → «Demo-Benutzer» → «Demo einrichten»."
+      },
+      {
+        title: "Änderungsanträge prüfen",
+        body: "Wenn Benutzer eine Marker-Position korrigieren, wird ein Änderungsantrag erstellt. Diese Anträge erscheinen in den Einstellungen unter «Änderungsanträge prüfen» (farblich hervorgehoben in Orange) und auf der separaten Prüfseite. Ausstehende Anträge sind gelb hinterlegt, genehmigte grün und abgelehnte rot. Sie können jeden Antrag mit optionalem Kommentar genehmigen oder ablehnen. Bei Genehmigung wird die Position sofort als Override gespeichert und auf der Karte angezeigt.",
+        example: "Einstellungen → «Änderungsanträge prüfen» → «Prüfen» → Antrag auswählen → «Genehmigen» oder «Ablehnen»."
       }
     ]
   }

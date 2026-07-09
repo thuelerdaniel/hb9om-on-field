@@ -15,6 +15,8 @@ import Settings from '@/pages/Settings';
 import FirstTimeSetup from '@/components/FirstTimeSetup';
 import Help from '@/pages/Help';
 import UserManagement from '@/pages/UserManagement';
+import ChangeRequests from '@/pages/ChangeRequests';
+import AdminChangeRequests from '@/pages/AdminChangeRequests';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -59,6 +61,8 @@ const AuthenticatedApp = () => {
             <Route path="/settings" element={<PageWrapper><Settings /></PageWrapper>} />
             <Route path="/help" element={<PageWrapper><Help /></PageWrapper>} />
             <Route path="/users" element={<PageWrapper><UserManagement /></PageWrapper>} />
+            <Route path="/change-requests" element={<PageWrapper><ChangeRequests /></PageWrapper>} />
+            <Route path="/admin/change-requests" element={<PageWrapper><AdminChangeRequests /></PageWrapper>} />
           </Route>
           <Route path="*" element={<PageWrapper><PageNotFound /></PageWrapper>} />
         </Routes>

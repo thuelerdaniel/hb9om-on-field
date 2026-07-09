@@ -1,0 +1,88 @@
+{
+  "name": "ReferenceChangeRequest",
+  "type": "object",
+  "properties": {
+    "reference_type": {
+      "type": "string",
+      "enum": [
+        "sota",
+        "pota",
+        "hbff",
+        "wwbota",
+        "castle",
+        "lighthouse",
+        "iota"
+      ],
+      "description": "Referenz-Typ"
+    },
+    "original_code": {
+      "type": "string",
+      "description": "Referenz-Code (z.B. HB/AG-001)"
+    },
+    "original_name": {
+      "type": "string",
+      "description": "Name der Referenz"
+    },
+    "original_lat": {
+      "type": "number",
+      "description": "Aktuelle Position Breitengrad"
+    },
+    "original_lng": {
+      "type": "number",
+      "description": "Aktuelle Position Laengengrad"
+    },
+    "proposed_lat": {
+      "type": "number",
+      "description": "Vorgeschlagene Position Breitengrad"
+    },
+    "proposed_lng": {
+      "type": "number",
+      "description": "Vorgeschlagene Position Laengengrad"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "withdrawn"
+      ],
+      "default": "pending",
+      "description": "Status des Aenderungsantrags"
+    },
+    "submitter_comment": {
+      "type": "string",
+      "description": "Begruendung/Kommentar des Antragstellers"
+    },
+    "admin_comment": {
+      "type": "string",
+      "description": "Kommentar des Admins bei Genehmigung/Ablehnung"
+    },
+    "submitted_by_name": {
+      "type": "string",
+      "description": "Rufzeichen/Name des Antragstellers"
+    },
+    "reviewed_by_name": {
+      "type": "string",
+      "description": "Name des pruefenden Admins"
+    }
+  },
+  "required": [
+    "reference_type",
+    "original_code",
+    "proposed_lat",
+    "proposed_lng"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
