@@ -292,7 +292,7 @@ export default function Home() {
     }
     if (activeLayers.includes("castle")) {
       const castles = castleData.length > 0 ? castleData : CASTLE_DATA;
-      castles.forEach(c => markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }));
+      castles.forEach(c => { if (c.lat && c.lng) markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }); });
     }
     if (activeLayers.includes("iota")) {
       IOTA_DATA.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
@@ -320,7 +320,7 @@ export default function Home() {
     const wwbota = wwbotaData.length > 0 ? wwbotaData : WWBOTA_DATA;
     wwbota.forEach(b => markers.push({ ...b, layerType: "wwbota", color: LAYER_COLORS.wwbota, layerLabel: "WWBOTA" }));
     const castles = castleData.length > 0 ? castleData : CASTLE_DATA;
-    castles.forEach(c => markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }));
+    castles.forEach(c => { if (c.lat && c.lng) markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }); });
     IOTA_DATA.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
     LIGHTHOUSE_DATA.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
     return markers;

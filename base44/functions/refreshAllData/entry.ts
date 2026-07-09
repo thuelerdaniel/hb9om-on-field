@@ -188,31 +188,159 @@ async function fetchLighthouseData() {
 }
 
 async function fetchCastleData() {
-  const sparqlQuery = `SELECT ?item ?itemLabel ?coord WHERE {
-    { ?item wdt:P31/wdt:P279* wd:Q23413 . } UNION { ?item wdt:P31/wdt:P279* wd:Q57821 . } UNION { ?item wdt:P31/wdt:P279* wd:Q1763828 . }
-    ?item wdt:P17 wd:Q39 . ?item wdt:P625 ?coord .
-    SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en,fr,it" . }
-  } LIMIT 2000`;
-  const resp = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparqlQuery)}`, {
-    headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' }
+  // 1. Download WCA ODS and parse HB-HB0 table (all Swiss castles)
+  const odsResp = await fetch('https://wcagroup.org/FORMS/WCALIST.ods', {
+    headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' }
   });
-  if (!resp.ok) throw new Error('Wikidata SPARQL failed');
-  const data = await resp.json();
-  const bindings = data.results?.bindings || [];
-  const seen = new Set();
+  if (!odsResp.ok) throw new Error('WCA list download failed');
+  const odsBuffer = new Uint8Array(await odsResp.arrayBuffer());
+
+  // Parse ZIP to find content.xml
+  let zipOffset = 0;
+  let contentEntry = null;
+  while (zipOffset < odsBuffer.length - 4) {
+    if (odsBuffer[zipOffset] === 0x50 && odsBuffer[zipOffset + 1] === 0x4B &&
+        odsBuffer[zipOffset + 2] === 0x01 && odsBuffer[zipOffset + 3] === 0x02) {
+      const compressedSize = ((odsBuffer[zipOffset + 20] | (odsBuffer[zipOffset + 21] << 8) | (odsBuffer[zipOffset + 22] << 16) | (odsBuffer[zipOffset + 23] << 24)) >>> 0);
+      const fileNameLength = odsBuffer[zipOffset + 28] | (odsBuffer[zipOffset + 29] << 8);
+      const extraFieldLength = odsBuffer[zipOffset + 30] | (odsBuffer[zipOffset + 31] << 8);
+      const fileCommentLength = odsBuffer[zipOffset + 32] | (odsBuffer[zipOffset + 33] << 8);
+      const localHeaderOffset = ((odsBuffer[zipOffset + 42] | (odsBuffer[zipOffset + 43] << 8) | (odsBuffer[zipOffset + 44] << 16) | (odsBuffer[zipOffset + 45] << 24)) >>> 0);
+      const fileName = new TextDecoder().decode(odsBuffer.slice(zipOffset + 46, zipOffset + 46 + fileNameLength));
+      if (fileName === 'content.xml') { contentEntry = { compressedSize, localHeaderOffset }; break; }
+      zipOffset += 46 + fileNameLength + extraFieldLength + fileCommentLength;
+    } else { zipOffset++; }
+  }
+  if (!contentEntry) throw new Error('content.xml not found in WCA ODS');
+
+  const lho = contentEntry.localHeaderOffset;
+  const localFileNameLength = odsBuffer[lho + 26] | (odsBuffer[lho + 27] << 8);
+  const localExtraFieldLength = odsBuffer[lho + 28] | (odsBuffer[lho + 29] << 8);
+  const dataStart = lho + 30 + localFileNameLength + localExtraFieldLength;
+  const compressedData = odsBuffer.slice(dataStart, dataStart + contentEntry.compressedSize);
+  const ds = new DecompressionStream('deflate-raw');
+  const stream = new Blob([compressedData]).stream().pipeThrough(ds);
+  const xml = await new Response(stream).text();
+
+  // Parse HB-HB0 table
+  const hbTableStart = xml.indexOf('table:name="HB-HB0"');
+  if (hbTableStart === -1) throw new Error('HB-HB0 table not found in WCA list');
+  const hbTableEnd = xml.indexOf('</table:table>', hbTableStart);
+  const hbTableXml = xml.substring(hbTableStart, hbTableEnd);
+
+  const wcaEntries = [];
+  const rowRegex = /<table:table-row[^>]*>([\s\S]*?)<\/table:table-row>/g;
+  let rowMatch;
+  while ((rowMatch = rowRegex.exec(hbTableXml)) !== null) {
+    const rowContent = rowMatch[1];
+    if (rowContent.includes('number-rows-repeated')) continue;
+    if (rowContent.includes('number-columns-repeated="256"') && !rowContent.includes('text:p')) continue;
+    const cells = [];
+    const cellRegex = /<table:table-cell[^>]*>([\s\S]*?)<\/table:table-cell>/g;
+    let cellMatch;
+    while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
+      const cellContent = cellMatch[1];
+      const textMatches = cellContent.match(/<text:p[^>]*>([\s\S]*?)<\/text:p>/g);
+      if (textMatches) { cells.push(textMatches.map(t => t.replace(/<[^>]+>/g, '')).join(' ').trim()); }
+      else { cells.push(''); }
+    }
+    if (cells.length >= 4 && cells[0] && cells[0].match(/^HB-\d{5}$/)) {
+      wcaEntries.push({
+        wca: cells[0],
+        name: (cells[3] || '').toUpperCase().replace(/&APOS;/g, "'").replace(/&AMP;/g, "&"),
+        location: (cells[4] || '').toUpperCase().replace(/&APOS;/g, "'").replace(/&AMP;/g, "&")
+      });
+    }
+  }
+
+  // 2. Fetch geo coordinates from OSM Overpass + Wikidata in parallel
+  const [osmResult, wdResult] = await Promise.allSettled([
+    (async () => {
+      const query = `[out:json][timeout:25];(node["historic"~"castle|tower|fort|ruins"](46,5.9,47.9,10.6);way["historic"~"castle|tower|fort|ruins"](46,5.9,47.9,10.6););out center 5000;`;
+      const resp = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'HB9OM-OnField/1.0' },
+        body: 'data=' + encodeURIComponent(query)
+      });
+      if (!resp.ok) return [];
+      const data = await resp.json();
+      const results = [];
+      for (const e of (data.elements || [])) {
+        if (!e.tags?.name) continue;
+        const lat = e.lat || e.center?.lat;
+        const lng = e.lon || e.center?.lon;
+        if (isNaN(lat) || isNaN(lng)) continue;
+        results.push({ name: e.tags.name.toUpperCase(), lat, lng, location: (e.tags?.['addr:city'] || '').toUpperCase() });
+      }
+      return results;
+    })(),
+    (async () => {
+      const sparqlQuery = `SELECT ?item ?itemLabel ?coord ?cantonLabel WHERE { { ?item wdt:P31/wdt:P279* wd:Q23413 . } UNION { ?item wdt:P31/wdt:P279* wd:Q57821 . } UNION { ?item wdt:P31/wdt:P279* wd:Q1763828 . } UNION { ?item wdt:P31/wdt:P279* wd:Q1255038 . } UNION { ?item wdt:P31/wdt:P279* wd:Q3289106 . } UNION { ?item wdt:P31/wdt:P279* wd:Q174782 . } UNION { ?item wdt:P31/wdt:P279* wd:Q1270920 . } ?item wdt:P17 wd:Q39 . ?item wdt:P625 ?coord . OPTIONAL { ?item wdt:P131 ?canton . } SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en,fr,it" . } } LIMIT 3000`;
+      const resp = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparqlQuery)}`, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' }
+      });
+      if (!resp.ok) return [];
+      const data = await resp.json();
+      const seen = new Set();
+      const results = [];
+      for (const b of (data.results?.bindings || [])) {
+        const uri = b.item?.value || '';
+        if (seen.has(uri)) continue;
+        seen.add(uri);
+        const coordMatch = (b.coord?.value || '').match(/Point\(([\d.-]+)\s+([\d.-]+)\)/);
+        if (!coordMatch) continue;
+        results.push({ name: (b.itemLabel?.value || '').toUpperCase(), lat: parseFloat(coordMatch[2]), lng: parseFloat(coordMatch[1]), location: (b.cantonLabel?.value || '').toUpperCase() });
+      }
+      return results;
+    })()
+  ]);
+
+  const geoSources = [
+    ...(osmResult.status === 'fulfilled' ? osmResult.value : []),
+    ...(wdResult.status === 'fulfilled' ? wdResult.value : [])
+  ];
+
+  // 3. Match WCA entries to geo sources
+  const SKIP_WORDS = new Set(['SCHLOSS', 'BURG', 'CHATEAU', 'CHÂTEAU', 'CASTEL', 'CASTELLO', 'FESTUNG', 'RUINE', 'BURGRUINE', 'SCHLOSSE', 'RUIN', 'OF', 'DE', 'LA', 'LE', 'THE', 'ALT', 'NEU', 'ALTES', 'NEUES', 'GROSSES', 'KLEINES', 'MIT', 'UND', 'ST', 'SANKT', 'DER', 'DIE', 'DAS', 'EIN', 'EINE']);
+  const GENERIC_NAMES = new Set(['SCHLOSS', 'BURG', 'CHATEAU', 'CHÂTEAU', 'CASTEL', 'CASTELLO', 'FESTUNG', 'RUINE', 'TURM', 'TURN', 'TOUR', 'TORRE', 'GATE', 'TOR', 'HAUS', 'SCHLOSSLI', 'BURGLI', 'TURMLI']);
+
+  function normalizeName(name) {
+    return name.replace(/&APOS;/g, "'").replace(/&AMP;/g, "&").replace(/[()\[\]/'",.\-]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !SKIP_WORDS.has(w)).join(' ').trim();
+  }
+
   const castles = [];
-  let codeNum = 1;
-  for (const b of bindings) {
-    const uri = b.item?.value || '';
-    if (seen.has(uri)) continue;
-    seen.add(uri);
-    const match = (b.coord?.value || '').match(/Point\(([\d.-]+)\s+([\d.-]+)\)/);
-    if (!match) continue;
-    const lng = parseFloat(match[1]);
-    const lat = parseFloat(match[2]);
-    if (isNaN(lat) || isNaN(lng)) continue;
-    castles.push({ code: `HB-W${String(codeNum).padStart(4, '0')}`, name: b.itemLabel?.value || `Castle`, lat, lng, link: uri });
-    codeNum++;
+  for (const wca of wcaEntries) {
+    const wcaNameNorm = normalizeName(wca.name);
+    const wcaLoc = wca.location;
+    const isGeneric = GENERIC_NAMES.has(wca.name.trim()) || wcaNameNorm.length === 0;
+    let bestMatch = null;
+
+    for (const geo of geoSources) {
+      const geoNameNorm = normalizeName(geo.name);
+      const locMatch = geo.location && (geo.location.includes(wcaLoc) || wcaLoc.includes(geo.location));
+      let nameMatch = false;
+      if (geoNameNorm && wcaNameNorm) {
+        if (geoNameNorm === wcaNameNorm) nameMatch = true;
+        else if (wcaNameNorm.length > 3 && geoNameNorm.includes(wcaNameNorm)) nameMatch = true;
+        else if (geoNameNorm.length > 3 && wcaNameNorm.includes(geoNameNorm)) nameMatch = true;
+      }
+      if (isGeneric) {
+        if (locMatch) { bestMatch = geo; break; }
+      } else {
+        if (nameMatch && locMatch) { bestMatch = geo; break; }
+      }
+    }
+
+    castles.push({
+      code: wca.wca,
+      name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+      lat: bestMatch ? bestMatch.lat : null,
+      lng: bestMatch ? bestMatch.lng : null,
+      canton: bestMatch?.location || wcaLoc,
+      link: 'https://wcagroup.org/?page_id=207',
+      wcaName: wca.name,
+      wcaLocation: wcaLoc
+    });
   }
   return castles;
 }
