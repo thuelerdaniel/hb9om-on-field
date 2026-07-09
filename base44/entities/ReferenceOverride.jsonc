@@ -51,11 +51,7 @@
   "rls": {
     "create": true,
     "read": true,
-    "update": {
-      "created_by_id": "{{user.id}}"
-    },
-    "delete": {
-      "created_by_id": "{{user.id}}"
-    }
+    "update": true,
+    "delete": true
   }
 }
