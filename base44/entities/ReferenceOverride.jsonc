@@ -1,0 +1,61 @@
+{
+  "name": "ReferenceOverride",
+  "type": "object",
+  "properties": {
+    "reference_type": {
+      "type": "string",
+      "enum": [
+        "sota",
+        "pota",
+        "hbff",
+        "wwbota",
+        "castle",
+        "lighthouse",
+        "iota"
+      ],
+      "description": "Referenz-Typ"
+    },
+    "original_code": {
+      "type": "string",
+      "description": "Originaler Referenz-Code (z.B. HB-00001)"
+    },
+    "original_name": {
+      "type": "string",
+      "description": "Originaler Name aus den Quelldaten"
+    },
+    "adjusted_name": {
+      "type": "string",
+      "description": "Angepasster Name fuer besseres Matching"
+    },
+    "adjusted_location": {
+      "type": "string",
+      "description": "Angepasster Ort/Kanton fuer besseres Matching"
+    },
+    "web_reference": {
+      "type": "string",
+      "description": "Web-URL fuer Referenz-Lookup"
+    },
+    "manual_lat": {
+      "type": "number",
+      "description": "Manuell gesetzter Breitengrad"
+    },
+    "manual_lng": {
+      "type": "number",
+      "description": "Manuell gesetzter Laengengrad"
+    }
+  },
+  "required": [
+    "reference_type",
+    "original_code"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
