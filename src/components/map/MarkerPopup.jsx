@@ -63,15 +63,19 @@ export default function MarkerPopup({ data, layerType }) {
         </a>
       )}
 
-      {layerType === "castle" && data.name && (
-        <a
-          href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(data.name + ' ' + (data.canton || data.wcaLocation || '') + ' Schweiz')}`}
-          target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
-        >
-          Wikipedia <ExternalLink className="w-3 h-3" />
-        </a>
-      )}
+      {layerType === "castle" && data.name && (() => {
+        const loc = data.canton || data.wcaLocation || '';
+        const wikiQuery = loc ? `${data.name} ${loc}` : data.name;
+        return (
+          <a
+            href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(wikiQuery)}`}
+            target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+          >
+            Wikipedia <ExternalLink className="w-3 h-3" />
+          </a>
+        );
+      })()}
 
       <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
         {data.lat?.toFixed(5)}, {data.lng?.toFixed(5)}

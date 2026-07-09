@@ -407,13 +407,14 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
             {isEditing ? <Pencil className="w-5 h-5 text-gray-700" /> : <Radio className="w-5 h-5 text-gray-700" />}
             <h2 className="font-bold text-gray-900">{isEditing ? "QSO bearbeiten" : "Neues QSO-Log"}</h2>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={toggleHighContrast}
-              className={`p-1.5 rounded-lg ${highContrast ? 'hc-primary' : 'hover:bg-gray-100'}`}
+              className={`p-1.5 rounded-lg border flex items-center gap-1 ${highContrast ? 'hc-primary border-yellow-400' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}
               title={highContrast ? "Normaler Modus" : "Hoher Kontrast (Sonnenmodus)"}
             >
-              <Sun className="w-5 h-5" />
+              <Sun className="w-4 h-4" />
+              <span className="text-xs font-medium pr-0.5"> Sonne</span>
             </button>
             <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
               <X className="w-5 h-5 text-gray-500" />

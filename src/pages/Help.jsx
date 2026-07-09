@@ -54,17 +54,22 @@ const SECTIONS = [
       },
       {
         title: "Referenz-Typen",
-        body: "Folgende Referenz-Typen werden unterstützt:",
+        body: "Folgende Referenz-Typen werden unterstützt. Klicken Sie auf den Namen, um die aktuelle Referenzliste zu öffnen:",
         list: [
-          { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Summits on the Air – Berggipfel ab 150m Prominenz" },
-          { icon: Trees, color: "#27ae60", name: "POTA", desc: "Parks on the Air – Nationalparks und Schutzgebiete" },
-          { icon: Trees, color: "#8e44ad", name: "HBFF", desc: "Flora & Fauna Schweiz – Naturreservate" },
-          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker" },
-          { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser" },
-          { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Inseln" },
-          { icon: Anchor, color: "#f39c12", name: "WLOTA", desc: "Lighthouses on the Air – Leuchttürme" },
-          { icon: Trees, color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare – Auengebiete, Moore etc." }
+          { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Summits on the Air – Berggipfel ab 150m Prominenz", url: "https://www.sotadata.org.uk/summitlist.aspx" },
+          { icon: Trees, color: "#27ae60", name: "POTA", desc: "Parks on the Air – Nationalparks und Schutzgebiete", url: "https://pota.app/#/park/CH" },
+          { icon: Trees, color: "#8e44ad", name: "HBFF", desc: "Flora & Fauna Schweiz – Naturreservate", url: "https://hbff.ch/Refs/HBFFReferenceSlim.html" },
+          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker", url: "https://wwbota.net/map/" },
+          { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser", url: "https://wcagroup.org/?page_id=207" },
+          { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Inseln", url: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html" },
+          { icon: Anchor, color: "#f39c12", name: "WLOTA", desc: "Lighthouses on the Air – Leuchttürme", url: "https://wllw.org/index.php/en/" },
+          { icon: Trees, color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare – Auengebiete, Moore etc.", url: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html" }
         ]
+      },
+      {
+        title: "Burgen & Schlösser – Wikipedia",
+        body: "In der Detailansicht einer Burg oder eines Schlosses (Marker anklicken) finden Sie einen Wikipedia-Link. Die Suche verwendet den Burgnamen zusammen mit dem Ort/Kanton. Bei Swisstopo-Karten sind viele Burgnamen als Flurnamen auf der Karte sichtbar – diese Namen können im Suchfeld oben gesucht und für die Wikipedia-Recherche genutzt werden.",
+        example: "Burgmarker anklicken → «Wikipedia»-Link → Wikipedia öffnet sich mit Suchergebnis für Burgname + Ort."
       }
     ]
   },
@@ -257,7 +262,14 @@ function HelpSection({ section }) {
                       <div key={j} className="flex items-start gap-2 text-sm">
                         <EntryIcon className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: entry.color }} />
                         <div>
-                          <span className="font-medium text-gray-900">{entry.name}:</span>{" "}
+                          {entry.url ? (
+                            <a href={entry.url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline inline-flex items-center gap-0.5">
+                              {entry.name} <ExternalLink className="w-3 h-3" />
+                            </a>
+                          ) : (
+                            <span className="font-medium text-gray-900">{entry.name}</span>
+                          )}
+                          {": "}
                           <span className="text-gray-600">{entry.desc}</span>
                         </div>
                       </div>
