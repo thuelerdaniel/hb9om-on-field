@@ -390,6 +390,25 @@ async function fetchCastleData() {
     return results;
   }
 
+  // Helper: Nominatim internet geocoding (final fallback)
+  async function searchNominatim(name, location) {
+    const query = location ? `${name} ${location} Schweiz` : `${name} Schweiz`;
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=ch&format=json&limit=1`,
+        { headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' } }
+      );
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      if (!data || data.length === 0) return null;
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      if (isNaN(lat) || isNaN(lng)) return null;
+      if (lat < 45.5 || lat > 48.0 || lng < 5.8 || lng > 10.7) return null;
+      return { lat, lng };
+    } catch { return null; }
+  }
+
   // 4. Match WCA entries to geo sources using name + proximity
   const SKIP_WORDS = new Set(['SCHLOSS', 'BURG', 'CHATEAU', 'CHÂTEAU', 'CASTEL', 'CASTELLO', 'FESTUNG', 'RUINE', 'BURGRUINE', 'SCHLOSSE', 'RUIN', 'OF', 'DE', 'LA', 'LE', 'THE', 'ALT', 'NEU', 'ALTES', 'NEUES', 'GROSSES', 'KLEINES', 'MIT', 'UND', 'ST', 'SANKT', 'DER', 'DIE', 'DAS', 'EIN', 'EINE']);
   const GENERIC_NAMES = new Set(['SCHLOSS', 'BURG', 'CHATEAU', 'CHÂTEAU', 'CASTEL', 'CASTELLO', 'FESTUNG', 'RUINE', 'TURM', 'TURN', 'TOUR', 'TORRE', 'GATE', 'TOR', 'HAUS', 'SCHLOSSLI', 'BURGLI', 'TURMLI']);
@@ -468,45 +487,72 @@ async function fetchCastleData() {
     geo._locNorm = geo.location ? normalizeText(geo.location) : '';
   }
 
+  // === 4-STEP MATCHING: locator → map.admin.ch → OSM/Wikidata → Nominatim ===
   const castles = [];
+  const afterLocator = [];
+
+  // Step 1: Maidenhead locator from WCA Excel
   for (const wca of wcaEntries) {
-    // Priority 1: Use Maidenhead locator from WCA data if available
     if (wca.locator) {
       const coords = maidenheadToLatLng(wca.locator);
       if (coords) {
         castles.push({
           code: wca.wca,
           name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
-          lat: coords.lat,
-          lng: coords.lng,
+          lat: coords.lat, lng: coords.lng,
           canton: wca.location,
           link: 'https://wcagroup.org/?page_id=207',
-          wcaName: wca.name,
-          wcaLocation: wca.location
+          wcaName: wca.name, wcaLocation: wca.location,
+          matchSource: 'locator'
         });
         continue;
       }
     }
+    afterLocator.push(wca);
+  }
 
+  // Step 2: map.admin.ch search for unmatched
+  const afterAdmin = [];
+  if (afterLocator.length > 0) {
+    const adminResults = await batchSearchMapAdminCh(
+      afterLocator.map(w => ({ name: w.name, location: w.location }))
+    );
+    for (let i = 0; i < afterLocator.length; i++) {
+      if (adminResults[i]) {
+        castles.push({
+          code: afterLocator[i].wca,
+          name: afterLocator[i].name.charAt(0) + afterLocator[i].name.slice(1).toLowerCase(),
+          lat: adminResults[i].lat, lng: adminResults[i].lng,
+          canton: afterLocator[i].location,
+          link: 'https://wcagroup.org/?page_id=207',
+          wcaName: afterLocator[i].name, wcaLocation: afterLocator[i].location,
+          matchSource: 'map.admin.ch'
+        });
+      } else {
+        afterAdmin.push(afterLocator[i]);
+      }
+    }
+  }
+
+  // Step 3: OSM/Wikidata name matching on map
+  const afterName = [];
+  for (const wca of afterAdmin) {
     const wcaNameNorm = normalizeName(wca.name);
     const wcaLoc = wca.location;
     const isGeneric = GENERIC_NAMES.has(wca.name.trim()) || wcaNameNorm.length === 0;
     const wcaLocNorm = normalizeText(wcaLoc);
     const placeCoords = placeMap.get(wcaLocNorm);
 
-    // Find candidates via name index (avoids scanning all geoSources)
     let candidates = [];
     if (wcaNameNorm && nameIndex.has(wcaNameNorm)) {
       candidates = nameIndex.get(wcaNameNorm);
     } else if (!isGeneric) {
-      // Try compound variations: "Pulverturm" → "PULVER TURM", "PULVERTURM"
       const variations = generateCompoundVariations(wca.name);
       for (const v of variations) {
         if (nameIndex.has(v)) {
           candidates = candidates.concat(nameIndex.get(v));
         }
       }
-      // Try spaceless match for concatenated names
       if (candidates.length === 0) {
         const wcaFlat = normalizeForCompare(wca.name);
         if (wcaFlat.length > 4) {
@@ -520,7 +566,6 @@ async function fetchCastleData() {
       }
     }
 
-    // For generic names, filter geo sources by location text
     if (isGeneric) {
       candidates = geoSources.filter(g => g._locNorm && (g._locNorm.includes(wcaLocNorm) || wcaLocNorm.includes(g._locNorm)));
     }
@@ -530,7 +575,6 @@ async function fetchCastleData() {
 
     for (const geo of candidates) {
       const locTextMatch = geo._locNorm && (geo._locNorm.includes(wcaLocNorm) || wcaLocNorm.includes(geo._locNorm));
-
       if (isGeneric) {
         if (placeCoords) {
           const dist = haversine(geo.lat, geo.lng, placeCoords[0], placeCoords[1]);
@@ -548,28 +592,61 @@ async function fetchCastleData() {
       }
     }
 
+    if (bestMatch) {
+      castles.push({
+        code: wca.wca,
+        name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+        lat: bestMatch.lat, lng: bestMatch.lng,
+        canton: bestMatch.location || wcaLoc,
+        link: 'https://wcagroup.org/?page_id=207',
+        wcaName: wca.name, wcaLocation: wcaLoc,
+        matchSource: 'osm-wikidata'
+      });
+    } else {
+      afterName.push(wca);
+    }
+  }
+
+  // Step 4: Nominatim internet geocoding (rate-limited: 1.1s per request, max 40 lookups)
+  let nominatimCount = 0;
+  for (const wca of afterName) {
+    if (GENERIC_NAMES.has(wca.name.trim())) {
+      castles.push({
+        code: wca.wca,
+        name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+        lat: null, lng: null,
+        canton: wca.location,
+        link: 'https://wcagroup.org/?page_id=207',
+        wcaName: wca.name, wcaLocation: wca.location,
+        matchSource: null
+      });
+      continue;
+    }
+    if (nominatimCount >= 40) {
+      castles.push({
+        code: wca.wca,
+        name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+        lat: null, lng: null,
+        canton: wca.location,
+        link: 'https://wcagroup.org/?page_id=207',
+        wcaName: wca.name, wcaLocation: wca.location,
+        matchSource: null
+      });
+      continue;
+    }
+    const coords = await searchNominatim(wca.name, wca.location);
+    nominatimCount++;
     castles.push({
       code: wca.wca,
       name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
-      lat: bestMatch ? bestMatch.lat : null,
-      lng: bestMatch ? bestMatch.lng : null,
-      canton: bestMatch?.location || wcaLoc,
+      lat: coords ? coords.lat : null,
+      lng: coords ? coords.lng : null,
+      canton: wca.location,
       link: 'https://wcagroup.org/?page_id=207',
-      wcaName: wca.name,
-      wcaLocation: wcaLoc
+      wcaName: wca.name, wcaLocation: wca.location,
+      matchSource: coords ? 'geocoding' : null
     });
-  }
-  // 5. Fallback: search map.admin.ch for unmatched castles with non-generic names
-  const unmatched = castles
-    .filter(c => c.lat === null && !GENERIC_NAMES.has((c.wcaName || '').trim()));
-  if (unmatched.length > 0) {
-    const adminResults = await batchSearchMapAdminCh(unmatched.map(c => ({ name: c.wcaName, location: c.wcaLocation })));
-    for (let i = 0; i < unmatched.length; i++) {
-      if (adminResults[i]) {
-        unmatched[i].lat = adminResults[i].lat;
-        unmatched[i].lng = adminResults[i].lng;
-      }
-    }
+    await new Promise(r => setTimeout(r, 1100));
   }
 
   return castles;

@@ -410,7 +410,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
           <div className="flex items-center gap-1.5">
             <button
               onClick={toggleHighContrast}
-              className={`p-1.5 rounded-lg border flex items-center gap-1 ${highContrast ? 'hc-primary border-yellow-400' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}
+              className={`p-1.5 rounded-lg border flex items-center gap-1 font-medium shadow-sm ${highContrast ? 'hc-primary border-yellow-400' : 'border-amber-400 bg-amber-100 hover:bg-amber-200 text-amber-800'}`}
               title={highContrast ? "Normaler Modus" : "Hoher Kontrast (Sonnenmodus)"}
             >
               <Sun className="w-4 h-4" />

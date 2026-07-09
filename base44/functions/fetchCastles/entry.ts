@@ -243,6 +243,25 @@ async function searchMapAdminCh(name, location) {
   } catch { return null; }
 }
 
+// --- Nominatim internet geocoding (final fallback) ---
+async function searchNominatim(name, location) {
+  const query = location ? `${name} ${location} Schweiz` : `${name} Schweiz`;
+  try {
+    const resp = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=ch&format=json&limit=1`,
+      { headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' } }
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data || data.length === 0) return null;
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    if (isNaN(lat) || isNaN(lng)) return null;
+    if (lat < 45.5 || lat > 48.0 || lng < 5.8 || lng > 10.7) return null;
+    return { lat, lng };
+  } catch { return null; }
+}
+
 async function batchSearchMapAdminCh(entries) {
   const CONCURRENCY = 8;
   const results = new Array(entries.length).fill(null);
@@ -483,6 +502,21 @@ Deno.serve(async (req) => {
           unmatched[i].lng = adminResults[i].lng;
         }
       }
+    }
+
+    // 6. Final fallback: Nominatim internet geocoding (rate-limited, max 40)
+    const stillUnmatched = castles
+      .filter(c => c.lat === null && !GENERIC_NAMES.has((c.wcaName || '').trim()));
+    let nominatimCount = 0;
+    for (const c of stillUnmatched) {
+      if (nominatimCount >= 40) break;
+      const coords = await searchNominatim(c.wcaName, c.wcaLocation);
+      nominatimCount++;
+      if (coords) {
+        c.lat = coords.lat;
+        c.lng = coords.lng;
+      }
+      await new Promise(r => setTimeout(r, 1100));
     }
 
     const withCoords = castles.filter(c => c.lat !== null).length;

@@ -304,6 +304,13 @@ export default function Home() {
     return markers;
   }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData]);
 
+  // Castle match statistics for legend
+  const castleStats = useMemo(() => {
+    if (castleData.length === 0) return null;
+    const matched = castleData.filter(c => c.lat && c.lng).length;
+    return { matched, total: castleData.length };
+  }, [castleData]);
+
   // All available markers (regardless of active layers) — for QSO form nearby refs
   const allAvailableMarkers = useMemo(() => {
     const markers = [];
@@ -630,7 +637,7 @@ export default function Home() {
           <span className="text-sm font-medium">Neues QSO</span>
         </button>
 
-        <MapLegend activeLayers={activeLayers} markerCount={allMarkers.length} />
+        <MapLegend activeLayers={activeLayers} markerCount={allMarkers.length} castleStats={castleStats} />
       </div>
 
       {showQsoForm && (

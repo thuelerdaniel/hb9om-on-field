@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronUp, X, Layers } from "lucide-react";
 import { LAYER_GROUPS } from "./LayerControl";
 
-export default function MapLegend({ activeLayers, markerCount }) {
+export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
 
@@ -33,6 +33,11 @@ export default function MapLegend({ activeLayers, markerCount }) {
       >
         <span className="font-semibold text-gray-900">{markerCount}</span>
         <span>Referenzen</span>
+        {castleStats && (
+          <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-orange-50 text-orange-700 rounded-full font-medium">
+            Burgen {castleStats.matched}/{castleStats.total}
+          </span>
+        )}
         <span className="flex-1" />
         <span className="text-[10px] text-gray-400 uppercase tracking-wide">Legende</span>
         {collapsed
