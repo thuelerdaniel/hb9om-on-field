@@ -18,7 +18,6 @@ async function parseWCAList() {
 
   const odsBuffer = new Uint8Array(await odsResp.arrayBuffer());
 
-  // Find content.xml in ZIP central directory
   let offset = 0;
   let contentEntry = null;
   while (offset < odsBuffer.length - 4) {
@@ -41,7 +40,6 @@ async function parseWCAList() {
   }
   if (!contentEntry) throw new Error('content.xml not found in ODS file');
 
-  // Extract and decompress content.xml
   const lho = contentEntry.localHeaderOffset;
   const localFileNameLength = readUInt16LE(odsBuffer, lho + 26);
   const localExtraFieldLength = readUInt16LE(odsBuffer, lho + 28);
@@ -50,7 +48,6 @@ async function parseWCAList() {
   const decompressed = inflateRawSync(compressedData);
   const xml = new TextDecoder().decode(decompressed);
 
-  // Parse HB-HB0 table (Swiss castles)
   const hbTableStart = xml.indexOf('table:name="HB-HB0"');
   if (hbTableStart === -1) throw new Error('HB-HB0 table not found in WCA list');
   const hbTableEnd = xml.indexOf('</table:table>', hbTableStart);
@@ -72,8 +69,7 @@ async function parseWCAList() {
       const cellContent = cellMatch[1];
       const textMatches = cellContent.match(/<text:p[^>]*>([\s\S]*?)<\/text:p>/g);
       if (textMatches) {
-        const text = textMatches.map(t => t.replace(/<[^>]+>/g, '')).join(' ').trim();
-        cells.push(text);
+        cells.push(textMatches.map(t => t.replace(/<[^>]+>/g, '')).join(' ').trim());
       } else {
         cells.push('');
       }
@@ -90,12 +86,12 @@ async function parseWCAList() {
   return wcaEntries;
 }
 
-// --- OSM Overpass fetch ---
+// --- OSM Overpass: castles ---
 async function fetchOSMCastles() {
-  const query = `[out:json][timeout:25];(
-    node["historic"~"castle|tower|fort|ruins"](46,5.9,47.9,10.6);
-    way["historic"~"castle|tower|fort|ruins"](46,5.9,47.9,10.6);
-  );out center 5000;`;
+  const query = `[out:json][timeout:30];(
+    node["historic"~"castle|tower|fort|ruins|manor|city_gate|archaeological_site|fortification"](45.8,5.9,48.0,10.6);
+    way["historic"~"castle|tower|fort|ruins|manor|city_gate|archaeological_site|fortification"](45.8,5.9,48.0,10.6);
+  );out center 50000;`;
 
   const resp = await fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
@@ -106,27 +102,54 @@ async function fetchOSMCastles() {
 
   const data = await resp.json();
   const elements = data.elements || [];
-  const results = [];
+  const castles = [];
   for (const e of elements) {
     if (!e.tags?.name) continue;
     const lat = e.lat || e.center?.lat;
     const lng = e.lon || e.center?.lon;
     if (isNaN(lat) || isNaN(lng)) continue;
-    results.push({
+    castles.push({
       name: e.tags.name.toUpperCase(),
       lat, lng,
       location: (e.tags?.['addr:city'] || '').toUpperCase()
     });
   }
-  return results;
+  return castles;
+}
+
+// --- OSM Overpass: places by name (targeted lookup) ---
+async function fetchOSMPlaces(locationNames) {
+  if (locationNames.length === 0) return [];
+  // Build regex of location names (URL-safe, Overpass supports ~ with regex)
+  const nameRegex = locationNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const query = `[out:json][timeout:30];(
+    node["place"~"city|town|village|municipality|hamlet|suburb|quarter"]["name"~"^(${nameRegex})$", i](45.8,5.9,48.0,10.6);
+  );out 5000;`;
+
+  const resp = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'HB9OM-OnField/1.0' },
+    body: 'data=' + encodeURIComponent(query)
+  });
+  if (!resp.ok) return [];
+
+  const data = await resp.json();
+  const elements = data.elements || [];
+  const places = [];
+  for (const e of elements) {
+    if (isNaN(e.lat) || isNaN(e.lon)) continue;
+    places.push({ name: (e.tags?.name || '').toUpperCase(), lat: e.lat, lng: e.lon });
+  }
+  return places;
 }
 
 // --- Wikidata SPARQL fetch ---
 async function fetchWikidataCastles() {
-  const sparqlQuery = `SELECT ?item ?itemLabel ?coord ?cantonLabel WHERE {
+  const sparqlQuery = `SELECT ?item ?itemLabel ?coord ?cantonLabel ?cityLabel WHERE {
     { ?item wdt:P31/wdt:P279* wd:Q23413 . } UNION { ?item wdt:P31/wdt:P279* wd:Q57821 . } UNION { ?item wdt:P31/wdt:P279* wd:Q1763828 . } UNION { ?item wdt:P31/wdt:P279* wd:Q1255038 . } UNION { ?item wdt:P31/wdt:P279* wd:Q3289106 . } UNION { ?item wdt:P31/wdt:P279* wd:Q174782 . } UNION { ?item wdt:P31/wdt:P279* wd:Q1270920 . }
     ?item wdt:P17 wd:Q39 . ?item wdt:P625 ?coord .
     OPTIONAL { ?item wdt:P131 ?canton . }
+    OPTIONAL { ?item wdt:P276 ?city . }
     SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en,fr,it" . }
   } LIMIT 3000`;
 
@@ -149,10 +172,19 @@ async function fetchWikidataCastles() {
       name: (b.itemLabel?.value || '').toUpperCase(),
       lat: parseFloat(coordMatch[2]),
       lng: parseFloat(coordMatch[1]),
-      location: (b.cantonLabel?.value || '').toUpperCase()
+      location: (b.cityLabel?.value || b.cantonLabel?.value || '').toUpperCase()
     });
   }
   return results;
+}
+
+// --- Haversine distance in meters ---
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // --- Matching ---
@@ -165,39 +197,107 @@ const GENERIC_NAMES = new Set(['SCHLOSS', 'BURG', 'CHATEAU', 'CHÂTEAU', 'CASTEL
   'FESTUNG', 'RUINE', 'TURM', 'TURN', 'TOUR', 'TORRE', 'GATE', 'TOR', 'HAUS',
   'SCHLOSSLI', 'BURGLI', 'TURMLI']);
 
-function normalizeName(name) {
-  return name.replace(/&APOS;/g, "'").replace(/&AMP;/g, "&")
+function normalizeText(text) {
+  return text.replace(/&APOS;/g, "'").replace(/&AMP;/g, "&")
+    .replace(/Ä/g, 'AE').replace(/Ö/g, 'OE').replace(/Ü/g, 'UE')
+    .replace(/ä/g, 'AE').replace(/ö/g, 'OE').replace(/ü/g, 'UE')
+    .replace(/é/g, 'E').replace(/è/g, 'E').replace(/ê/g, 'E')
+    .replace(/à/g, 'A').replace(/â/g, 'A').replace(/ç/g, 'C')
+    .replace(/î/g, 'I').replace(/ï/g, 'I').replace(/ô/g, 'O')
     .replace(/[()\[\]/'",.\-]/g, ' ')
+    .toUpperCase()
+    .trim();
+}
+
+function normalizeName(name) {
+  return normalizeText(name)
     .split(/\s+/)
     .filter(w => w.length > 2 && !SKIP_WORDS.has(w))
     .join(' ')
     .trim();
 }
 
-function matchWcaToGeo(wcaEntries, geoSources) {
+function normalizeForCompare(text) {
+  // Remove all spaces for fuzzy comparison (handles concatenated names)
+  return normalizeText(text).replace(/\s+/g, '');
+}
+
+function enrichGeoLocations(geoSources, places) {
+  // For each geo source without a location, find nearest place within 10km
+  for (const geo of geoSources) {
+    if (geo.location) continue;
+    let nearestPlace = null;
+    let nearestDist = 10000; // 10km max
+    for (const p of places) {
+      const dist = haversine(geo.lat, geo.lng, p.lat, p.lng);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestPlace = p;
+      }
+    }
+    if (nearestPlace) geo.location = nearestPlace.name;
+  }
+}
+
+function matchWcaToGeo(wcaEntries, geoSources, places) {
+  // Build place lookup: normalized name → coordinates
+  const placeMap = new Map();
+  for (const p of places) {
+    const key = normalizeText(p.name);
+    if (!placeMap.has(key)) placeMap.set(key, [p.lat, p.lng]);
+  }
+
   const castles = [];
 
   for (const wca of wcaEntries) {
     const wcaNameNorm = normalizeName(wca.name);
     const wcaLoc = wca.location;
     const isGeneric = GENERIC_NAMES.has(wca.name.trim()) || wcaNameNorm.length === 0;
+
+    // Get expected coordinates from WCA location
+    const wcaLocNorm = normalizeText(wcaLoc);
+    const placeCoords = placeMap.get(wcaLocNorm);
+
     let bestMatch = null;
+    let bestDist = Infinity;
 
     for (const geo of geoSources) {
       const geoNameNorm = normalizeName(geo.name);
-      const locMatch = geo.location && (geo.location.includes(wcaLoc) || wcaLoc.includes(geo.location));
 
+      // Name matching
       let nameMatch = false;
       if (geoNameNorm && wcaNameNorm) {
         if (geoNameNorm === wcaNameNorm) nameMatch = true;
         else if (wcaNameNorm.length > 3 && geoNameNorm.includes(wcaNameNorm)) nameMatch = true;
         else if (geoNameNorm.length > 3 && wcaNameNorm.includes(geoNameNorm)) nameMatch = true;
+        else {
+          // Try spaceless comparison for concatenated names (BEFESTIGTEBRUCKE vs BEFESTIGTE BRUCKE)
+          const wcaFlat = normalizeForCompare(wca.name);
+          const geoFlat = normalizeForCompare(geo.name);
+          if (wcaFlat.length > 4 && (wcaFlat === geoFlat || geoFlat.includes(wcaFlat) || wcaFlat.includes(geoFlat))) nameMatch = true;
+        }
       }
 
+      // For generic names, skip name matching - rely on location + proximity
+      // Text-based location match with umlaut normalization
+      const geoLocNorm = geo.location ? normalizeText(geo.location) : '';
+      const locTextMatch = geoLocNorm && (geoLocNorm.includes(wcaLocNorm) || wcaLocNorm.includes(geoLocNorm));
+
       if (isGeneric) {
-        if (locMatch) { bestMatch = geo; break; }
-      } else {
-        if (nameMatch && locMatch) { bestMatch = geo; break; }
+        // Generic names: match by location only
+        if (locTextMatch) {
+          let dist = 0;
+          if (placeCoords) dist = haversine(geo.lat, geo.lng, placeCoords[0], placeCoords[1]);
+          if (dist < bestDist) { bestMatch = geo; bestDist = dist; }
+        }
+      } else if (nameMatch) {
+        // Distinctive names: require location verification
+        if (placeCoords) {
+          const dist = haversine(geo.lat, geo.lng, placeCoords[0], placeCoords[1]);
+          if (dist < 15000 && dist < bestDist) { bestMatch = geo; bestDist = dist; }
+        } else if (locTextMatch) {
+          if (bestDist === Infinity) { bestMatch = geo; bestDist = 0; }
+        }
       }
     }
 
@@ -222,22 +322,29 @@ Deno.serve(async (req) => {
     const isAuthed = await base44.auth.isAuthenticated();
     if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 1. Parse WCA list (all 943 entries from HB-HB0 tab)
+    // 1. Parse WCA list
     const wcaEntries = await parseWCAList();
 
-    // 2. Fetch geo coordinates from OSM + Wikidata in parallel
-    const [osmResult, wdResult] = await Promise.allSettled([
+    // 2. Extract unique location names for targeted place lookup
+    const uniqueLocations = [...new Set(wcaEntries.map(w => w.location))].filter(l => l.length > 0);
+
+    // 3. Fetch OSM castles, OSM places (by name), and Wikidata in parallel
+    const [osmCastlesResult, osmPlacesResult, wdResult] = await Promise.allSettled([
       fetchOSMCastles(),
+      fetchOSMPlaces(uniqueLocations),
       fetchWikidataCastles()
     ]);
 
-    const geoSources = [
-      ...(osmResult.status === 'fulfilled' ? osmResult.value : []),
-      ...(wdResult.status === 'fulfilled' ? wdResult.value : [])
-    ];
+    const osmCastles = osmCastlesResult.status === 'fulfilled' ? osmCastlesResult.value : [];
+    const osmPlaces = osmPlacesResult.status === 'fulfilled' ? osmPlacesResult.value : [];
+    const wdCastles = wdResult.status === 'fulfilled' ? wdResult.value : [];
+    const geoSources = [...osmCastles, ...wdCastles];
 
-    // 3. Match WCA entries to geo sources
-    const castles = matchWcaToGeo(wcaEntries, geoSources);
+    // 4. Enrich geo sources with nearest place names
+    enrichGeoLocations(geoSources, osmPlaces);
+
+    // 5. Match WCA entries to geo sources
+    const castles = matchWcaToGeo(wcaEntries, geoSources, osmPlaces);
     const withCoords = castles.filter(c => c.lat !== null).length;
 
     return Response.json({
@@ -246,6 +353,7 @@ Deno.serve(async (req) => {
       totalWCA: wcaEntries.length,
       matchedWithCoords: withCoords,
       geoSourceCount: geoSources.length,
+      placeCount: osmPlaces.length,
       source: 'WCA list (wcagroup.org) + OSM + Wikidata'
     });
   } catch (error) {
