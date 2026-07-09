@@ -11,6 +11,20 @@
   touch-action: manipulation;
 }
 
+/* Draggable markers: larger touch target, prevent map pan interference */
+.draggable-marker-icon {
+  touch-action: none;
+}
+
+.draggable-marker-icon > div {
+  transition: transform 0.15s ease;
+}
+
+.draggable-marker-icon > div:active {
+  transform: scale(1.2);
+  cursor: grabbing !important;
+}
+
 /* Increase touch target for small CircleMarkers on mobile */
 .leaflet-overlay-pane svg path.leaflet-interactive {
   stroke-width: 3;

@@ -77,10 +77,12 @@ const LAYER_COLORS = {
 
 function createDraggableIcon(color) {
   return L.divIcon({
-    html: `<div style="width: 18px; height: 18px; border-radius: 50%; background: ${color}; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.5); cursor: move;"></div>`,
+    html: `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${color}; border: 4px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.6); cursor: grab; display: flex; align-items: center; justify-content: center; touch-action: none;">
+      <div style="width: 10px; height: 10px; border-radius: 50%; background: white; opacity: 0.7;"></div>
+    </div>`,
     className: "draggable-marker-icon",
-    iconSize: [18, 18],
-    iconAnchor: [9, 9]
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
   });
 }
 
@@ -725,7 +727,7 @@ export default function Home() {
 
           {allMarkers.map((m, idx) => {
             const key = `${m.layerType}-${m.code || m.reference || idx}`;
-            if (dragMode && isAdmin) {
+            if (dragMode) {
               return (
                 <Marker
                   key={key}
@@ -735,12 +737,6 @@ export default function Home() {
                   eventHandlers={{
                     dragend: (e) => {
                       const ll = e.target.getLatLng();
-                      const code = m.code || m.reference;
-                      if (isAdmin) {
-                        if (code) {
-                          setLocalOverrides(prev => ({ ...prev, [code]: { lat: ll.lat, lng: ll.lng } }));
-                        }
-                      }
                       handleMarkerDrag(m, ll.lat, ll.lng);
                     }
                   }}
@@ -869,8 +865,9 @@ export default function Home() {
         )}
 
         {dragMode && (
-          <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[1000] bg-purple-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
-            {isAdmin ? "✋ Marker festhalten und ziehen" : "✋ Marker ziehen – wird als Antrag gesendet"}
+          <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[1000] bg-purple-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap flex items-center gap-1.5">
+            <Move className="w-3.5 h-3.5" />
+            {isAdmin ? "Marker halten & ziehen" : "Marker ziehen → Antrag an Admin"}
           </div>
         )}
 
