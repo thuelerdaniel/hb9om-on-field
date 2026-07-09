@@ -14,9 +14,12 @@ import MapControls from "@/components/map/MapControls";
 import PositionMarker from "@/components/map/PositionMarker";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
-import { Loader2, Radio, Plus, LocateFixed, MapPin, Move } from "lucide-react";
+import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import ReferenceEditDialog from "@/components/admin/ReferenceEditDialog";
+import MapTileLayer from "@/components/map/MapTileLayer";
+import OfflineAreaDialog from "@/components/map/OfflineAreaDialog";
+import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -176,6 +179,9 @@ export default function Home() {
   });
   const [dragMode, setDragMode] = useState(false);
   const [localOverrides, setLocalOverrides] = useState({});
+  const [isOffline, setIsOffline] = useState(typeof navigator !== "undefined" && navigator.onLine === false);
+  const [offlineAreas, setOfflineAreas] = useState([]);
+  const [showOfflineDialog, setShowOfflineDialog] = useState(false);
   const [serverOverrides, setServerOverrides] = useState({});
   const { toast } = useToast();
 
@@ -266,6 +272,19 @@ export default function Home() {
 
   useEffect(() => { loadServerOverrides(); }, [loadServerOverrides]);
 
+  // Offline detection and area loading
+  useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsOffline(false);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    getOfflineAreas().then(areas => setOfflineAreas(areas)).catch(() => {});
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
+
   // Load all cached reference data on mount
   useEffect(() => {
     base44.entities.ReferenceData.list()
@@ -280,7 +299,16 @@ export default function Home() {
           if (entry.type === 'castle') setCastleData(entry.references);
         });
       })
-      .catch(() => {})
+      .catch(() => {
+        // Offline fallback: load cached references from downloaded areas
+        loadOfflineReferences().then(refs => {
+          if (refs.sota?.length) setSotaData(refs.sota);
+          if (refs.pota?.length) setPotaData(refs.pota);
+          if (refs.hbff?.length) setHbffData(refs.hbff);
+          if (refs.wwbota?.length) setWwbotaData(refs.wwbota);
+          if (refs.castle?.length) setCastleData(refs.castle);
+        }).catch(() => {});
+      })
       .finally(() => setCacheLoaded(true));
   }, []);
 
@@ -573,6 +601,8 @@ export default function Home() {
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
+  const tileKeyPrefix = baseLayer === "swisstopo" ? `swisstopo_${swisstopoConfig.layer}` : baseLayer;
+
   const baseAttrib = baseLayer === "swisstopo"
     ? '&copy; <a href="https://www.swisstopo.admin.ch">swisstopo</a>'
     : baseLayer === "satellite"
@@ -598,6 +628,12 @@ export default function Home() {
         />
       )}
 
+      {isOffline && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1001] bg-amber-900 text-white text-xs px-4 py-1.5 rounded-b-lg shadow-lg flex items-center gap-1.5">
+          <WifiOff className="w-3 h-3" /> Offline-Modus – Karte aus Cache
+        </div>
+      )}
+
       {isLoading && (
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1001] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
@@ -612,7 +648,15 @@ export default function Home() {
           className="h-full w-full"
           zoomControl={false}
         >
-          <TileLayer key={swisstopoConfig.layer} url={baseTileUrl} attribution={baseAttrib} maxZoom={baseLayer === "swisstopo" ? 22 : 19} opacity={mapOpacity} />
+          <MapTileLayer
+            url={baseTileUrl}
+            attribution={baseAttrib}
+            maxZoom={baseLayer === "swisstopo" ? 22 : 19}
+            opacity={mapOpacity}
+            isOffline={isOffline}
+            tileKeyPrefix={tileKeyPrefix}
+            key={isOffline ? "offline" : swisstopoConfig.layer}
+          />
           <MapEventHandler
             onMove={setMapCenter}
             onZoom={setMapZoom}
@@ -755,6 +799,15 @@ export default function Home() {
           >
             <MapPin className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => setShowOfflineDialog(true)}
+            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+              offlineAreas.length > 0 ? "border-blue-400 text-blue-500" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            }`}
+            title="Offline-Karte herunterladen"
+          >
+            <Download className="w-4 h-4" />
+          </button>
           {isAdmin && (
             <button
               onClick={() => setDragMode(!dragMode)}
@@ -812,6 +865,21 @@ export default function Home() {
           activeLayers={activeLayers}
           onClose={() => setShowQsoForm(false)}
           onSaved={() => {}}
+        />
+      )}
+
+      {showOfflineDialog && (
+        <OfflineAreaDialog
+          mapRef={mapRef}
+          baseLayer={baseLayer}
+          baseTileUrl={baseTileUrl}
+          tileKeyPrefix={tileKeyPrefix}
+          referenceData={{ sota: sotaData, pota: potaData, hbff: hbffData, wwbota: wwbotaData, castle: castleData }}
+          onClose={() => setShowOfflineDialog(false)}
+          onDownloaded={() => {
+            getOfflineAreas().then(areas => setOfflineAreas(areas));
+            setShowOfflineDialog(false);
+          }}
         />
       )}
 

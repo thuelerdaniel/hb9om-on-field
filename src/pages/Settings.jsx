@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
+import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -38,6 +39,8 @@ export default function Settings() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [demoSettingUp, setDemoSettingUp] = useState(false);
+  const [offlineAreas, setOfflineAreas] = useState([]);
+  const [storageInfo, setStorageInfo] = useState({ areas: 0, tiles: 0 });
   const [demoSetupResult, setDemoSetupResult] = useState(null);
 
   useEffect(() => {
@@ -57,6 +60,8 @@ export default function Settings() {
       setLogs(logsData || []);
       setCacheStatus(cacheData || []);
       setQrzLookups(qrzData || []);
+      getOfflineAreas().then(areas => setOfflineAreas(areas)).catch(() => {});
+      getStorageEstimate().then(info => setStorageInfo(info)).catch(() => {});
       if (settingsData && settingsData.length > 0) {
         setAutoUpdateEnabled(settingsData[0].enabled !== false);
       }
@@ -195,6 +200,22 @@ export default function Settings() {
     } finally {
       setNotifyLoading(false);
     }
+  };
+
+  const handleDeleteOfflineArea = async (id) => {
+    await deleteArea(id);
+    const areas = await getOfflineAreas();
+    setOfflineAreas(areas);
+    const info = await getStorageEstimate();
+    setStorageInfo(info);
+  };
+
+  const handleClearAllOffline = async () => {
+    await clearAllTiles();
+    const areas = await getOfflineAreas();
+    for (const a of areas) await deleteArea(a.id);
+    setOfflineAreas([]);
+    setStorageInfo({ areas: 0, tiles: 0 });
   };
 
   const handleToggleAutoUpdate = async (enabled) => {
@@ -365,6 +386,50 @@ export default function Settings() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* Offline Maps */}
+        <section>
+          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Download className="w-4 h-4" /> Offline-Karten
+          </h2>
+          {offlineAreas.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+              <Download className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Keine Offline-Karten heruntergeladen</p>
+              <p className="text-xs text-gray-400 mt-1">Auf der Karte den Download-Button verwenden</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {offlineAreas.map(area => (
+                <div key={area.id} className="bg-white rounded-xl border border-gray-200 p-3 flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{area.name}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5 flex-wrap">
+                      <span className="flex items-center gap-0.5"><HardDrive className="w-2.5 h-2.5" /> {area.tileCount} Kacheln</span>
+                      <span>~{(area.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
+                      <span>Zoom {area.zoomLevels.join(", ")}</span>
+                      <span>{new Date(area.downloadDate).toLocaleDateString('de-CH')}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteOfflineArea(area.id)}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              {storageInfo.tiles > 0 && (
+                <button
+                  onClick={handleClearAllOffline}
+                  className="w-full px-3 py-2 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Alle Offline-Daten löschen ({storageInfo.tiles} Kacheln)
+                </button>
+              )}
             </div>
           )}
         </section>
