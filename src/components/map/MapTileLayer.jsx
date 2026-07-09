@@ -9,6 +9,8 @@ const OfflineTileLayerClass = L.TileLayer.extend({
     const tile = document.createElement("img");
 
     if (this.options.isOffline) {
+      // Light gray placeholder so missing tiles don't show as black bars
+      tile.style.backgroundColor = "#e8e8e8";
       const key = `${this.options.tileKeyPrefix}_${coords.z}_${coords.x}_${coords.y}`;
       getTile(key)
         .then((blob) => {
@@ -16,10 +18,11 @@ const OfflineTileLayerClass = L.TileLayer.extend({
             tile.src = URL.createObjectURL(blob);
             done(null, tile);
           } else {
-            done(new Error("No cached tile"), tile);
+            // No cached tile – keep light placeholder, no error
+            done(null, tile);
           }
         })
-        .catch(() => done(new Error("DB error"), tile));
+        .catch(() => done(null, tile));
     } else {
       tile.src = this.getTileUrl(coords);
       tile.onload = () => done(null, tile);
