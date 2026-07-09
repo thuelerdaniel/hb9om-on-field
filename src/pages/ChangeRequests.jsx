@@ -39,7 +39,13 @@ export default function ChangeRequests() {
     }
   };
 
-  useEffect(() => { loadRequests(); }, []);
+  useEffect(() => {
+    loadRequests();
+    const unsubscribe = base44.entities.ReferenceChangeRequest.subscribe(() => {
+      loadRequests();
+    });
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, []);
 
   const handleWithdraw = async (id) => {
     setWithdrawingId(id);

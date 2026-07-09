@@ -190,6 +190,7 @@ export default function Home() {
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
   const [serverOverrides, setServerOverrides] = useState({});
   const [pendingDragChange, setPendingDragChange] = useState(null);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const { toast } = useToast();
 
   const handleMarkerDrag = async (marker, newLat, newLng) => {
@@ -286,6 +287,22 @@ export default function Home() {
   }, []);
 
   useEffect(() => { loadServerOverrides(); }, [loadServerOverrides]);
+
+  // Load pending change request count for badge + subscribe to updates
+  useEffect(() => {
+    const loadPendingCount = async () => {
+      try {
+        const requests = await base44.entities.ReferenceChangeRequest.list("-created_date", 100);
+        const pending = (requests || []).filter(r => r.status === "pending").length;
+        setPendingRequestCount(pending);
+      } catch (e) { }
+    };
+    loadPendingCount();
+    const unsubscribe = base44.entities.ReferenceChangeRequest.subscribe(() => {
+      loadPendingCount();
+    });
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, []);
 
   // Offline detection and area loading
   useEffect(() => {
@@ -850,10 +867,19 @@ export default function Home() {
           </button>
           <Link
             to="/change-requests"
-            className="w-10 h-10 bg-white rounded-lg shadow-lg border border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center justify-center transition-colors"
+            className={`relative w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+              pendingRequestCount > 0
+                ? "border-amber-400 text-amber-600"
+                : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            }`}
             title="Meine Änderungsanträge"
           >
             <ClipboardList className="w-4 h-4" />
+            {pendingRequestCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {pendingRequestCount}
+              </span>
+            )}
           </Link>
 
         </div>
