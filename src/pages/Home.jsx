@@ -470,20 +470,26 @@ export default function Home() {
     });
   }, [sotaData, potaData, hbffData, wwbotaData, castleData, serverOverrides]);
 
-  // Search
+  // Search (debounced)
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   useEffect(() => {
-    if (searchQuery.length < 2) {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 250);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (debouncedQuery.length < 2) {
       setSearchResults([]);
       return;
     }
-    const q = searchQuery.toLowerCase();
+    const q = debouncedQuery.toLowerCase();
     const results = allMarkers.filter(m => {
       const name = (m.name || "").toLowerCase();
       const code = (m.code || m.reference || "").toLowerCase();
       return name.includes(q) || code.includes(q);
     }).slice(0, 50);
     setSearchResults(results);
-  }, [searchQuery, allMarkers]);
+  }, [debouncedQuery, allMarkers]);
 
   const handleSelectResult = (item) => {
     setFlyTo([item.lat, item.lng]);
@@ -792,7 +798,7 @@ export default function Home() {
         />
 
         {/* GPS / Position controls */}
-        <div className="absolute left-3 top-20 z-[10001] flex flex-col gap-2">
+        <div className="absolute left-3 top-20 z-[1000] flex flex-col gap-2">
           <button
             onClick={handleGpsLocate}
             disabled={gpsLoading}
@@ -857,13 +863,13 @@ export default function Home() {
         </div>
 
         {pickingPosition && (
-          <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[10001] bg-gray-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
+          <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[1000] bg-gray-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
             📍 Auf Karte tippen um Position zu setzen
           </div>
         )}
 
         {dragMode && (
-          <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[10001] bg-purple-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
+          <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[1000] bg-purple-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
             {isAdmin ? "✋ Marker festhalten und ziehen" : "✋ Marker ziehen – wird als Antrag gesendet"}
           </div>
         )}
@@ -871,7 +877,7 @@ export default function Home() {
         {/* New QSO floating button */}
         <button
           onClick={() => setShowQsoForm(true)}
-          className="fixed bottom-20 right-3 z-[10001] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
+          className="fixed bottom-20 right-3 z-[1000] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
           title="Neues QSO erfassen"
         >
           <Plus className="w-5 h-5" />

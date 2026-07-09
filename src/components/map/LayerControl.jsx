@@ -77,7 +77,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="absolute top-3 right-3 z-[10002]">
+    <div className="absolute top-3 right-3 z-[1000]">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-white shadow-lg rounded-lg p-2.5 hover:bg-gray-50 transition-colors border border-gray-200"
