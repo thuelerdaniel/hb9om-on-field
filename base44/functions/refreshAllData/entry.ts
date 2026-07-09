@@ -248,7 +248,8 @@ async function fetchCastleData() {
       wcaEntries.push({
         wca: cells[0],
         name: (cells[3] || '').toUpperCase().replace(/&APOS;/g, "'").replace(/&AMP;/g, "&"),
-        location: (cells[4] || '').toUpperCase().replace(/&APOS;/g, "'").replace(/&AMP;/g, "&")
+        location: (cells[4] || '').toUpperCase().replace(/&APOS;/g, "'").replace(/&AMP;/g, "&"),
+        locator: (cells[5] || '').toUpperCase().trim()
       });
     }
   }
@@ -320,6 +321,74 @@ async function fetchCastleData() {
   const osmPlaces = osmPlacesResult.status === 'fulfilled' ? osmPlacesResult.value : [];
   const wdCastles = wdResult.status === 'fulfilled' ? wdResult.value : [];
   const geoSources = [...osmCastles, ...wdCastles];
+
+  // Helper: Maidenhead grid locator to lat/lng
+  function maidenheadToLatLng(locator) {
+    if (!locator || locator.length < 4) return null;
+    const loc = locator.toUpperCase();
+    const c1 = loc.charCodeAt(0) - 65;
+    const c2 = loc.charCodeAt(1) - 65;
+    if (c1 < 0 || c1 > 17 || c2 < 0 || c2 > 17) return null;
+    let lng = c1 * 20 - 180;
+    let lat = c2 * 10 - 90;
+    const s1 = parseInt(loc[2]);
+    const s2 = parseInt(loc[3]);
+    if (isNaN(s1) || isNaN(s2)) return null;
+    lng += s1 * 2;
+    lat += s2;
+    if (loc.length >= 6) {
+      const ss1 = loc.charCodeAt(4) - 65;
+      const ss2 = loc.charCodeAt(5) - 65;
+      if (ss1 < 0 || ss1 > 23 || ss2 < 0 || ss2 > 23) return null;
+      lng += ss1 * (5 / 60);
+      lat += ss2 * (2.5 / 60);
+      lng += 2.5 / 60;
+      lat += 1.25 / 60;
+    } else {
+      lng += 1;
+      lat += 0.5;
+    }
+    return { lat, lng };
+  }
+
+  // Helper: search map.admin.ch for Swiss castles by name
+  async function searchMapAdminCh(name, location) {
+    const searchText = location ? `${name} ${location}` : name;
+    try {
+      const resp = await fetch(`https://api3.geo.admin.ch/rest/services/api/SearchServer?searchText=${encodeURIComponent(searchText)}&type=locations&limit=5`, {
+        headers: { 'User-Agent': 'HB9OM-OnField/1.0' }
+      });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      const results = data.results || [];
+      const nameLower = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!nameLower || nameLower.length < 3) return null;
+      for (const r of results) {
+        const detail = (r.attrs?.detail || '').toLowerCase().replace(/<[^>]+>/g, '').replace(/[^a-z0-9]/g, '');
+        if (detail.includes(nameLower)) {
+          const lat = r.attrs?.lat;
+          const lng = r.attrs?.lon;
+          if (isNaN(lat) || isNaN(lng)) continue;
+          if (lat < 45.5 || lat > 48.0 || lng < 5.8 || lng > 10.7) continue;
+          return { lat, lng };
+        }
+      }
+      return null;
+    } catch { return null; }
+  }
+
+  async function batchSearchMapAdminCh(entries) {
+    const CONCURRENCY = 8;
+    const results = new Array(entries.length).fill(null);
+    for (let i = 0; i < entries.length; i += CONCURRENCY) {
+      const batch = entries.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(e => searchMapAdminCh(e.name, e.location)));
+      for (let j = 0; j < batchResults.length; j++) {
+        results[i + j] = batchResults[j];
+      }
+    }
+    return results;
+  }
 
   // 4. Match WCA entries to geo sources using name + proximity
   const SKIP_WORDS = new Set(['SCHLOSS', 'BURG', 'CHATEAU', 'CHÂTEAU', 'CASTEL', 'CASTELLO', 'FESTUNG', 'RUINE', 'BURGRUINE', 'SCHLOSSE', 'RUIN', 'OF', 'DE', 'LA', 'LE', 'THE', 'ALT', 'NEU', 'ALTES', 'NEUES', 'GROSSES', 'KLEINES', 'MIT', 'UND', 'ST', 'SANKT', 'DER', 'DIE', 'DAS', 'EIN', 'EINE']);
@@ -401,6 +470,24 @@ async function fetchCastleData() {
 
   const castles = [];
   for (const wca of wcaEntries) {
+    // Priority 1: Use Maidenhead locator from WCA data if available
+    if (wca.locator) {
+      const coords = maidenheadToLatLng(wca.locator);
+      if (coords) {
+        castles.push({
+          code: wca.wca,
+          name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+          lat: coords.lat,
+          lng: coords.lng,
+          canton: wca.location,
+          link: 'https://wcagroup.org/?page_id=207',
+          wcaName: wca.name,
+          wcaLocation: wca.location
+        });
+        continue;
+      }
+    }
+
     const wcaNameNorm = normalizeName(wca.name);
     const wcaLoc = wca.location;
     const isGeneric = GENERIC_NAMES.has(wca.name.trim()) || wcaNameNorm.length === 0;
@@ -472,6 +559,19 @@ async function fetchCastleData() {
       wcaLocation: wcaLoc
     });
   }
+  // 5. Fallback: search map.admin.ch for unmatched castles with non-generic names
+  const unmatched = castles
+    .filter(c => c.lat === null && !GENERIC_NAMES.has((c.wcaName || '').trim()));
+  if (unmatched.length > 0) {
+    const adminResults = await batchSearchMapAdminCh(unmatched.map(c => ({ name: c.wcaName, location: c.wcaLocation })));
+    for (let i = 0; i < unmatched.length; i++) {
+      if (adminResults[i]) {
+        unmatched[i].lat = adminResults[i].lat;
+        unmatched[i].lng = adminResults[i].lng;
+      }
+    }
+  }
+
   return castles;
 }
 

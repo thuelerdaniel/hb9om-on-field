@@ -360,10 +360,10 @@ export default function Settings() {
           <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
             <div className="flex-1">
               <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                <Clock className="w-4 h-4" /> Stündliche Automatik
+                <Clock className="w-4 h-4" /> Tägliche Automatik
               </label>
               <p className="text-xs text-gray-500 mt-0.5">
-                {autoUpdateEnabled ? "Referenzdaten werden stündlich automatisch aktualisiert" : "Nur manuelle Aktualisierung – Automatik deaktiviert"}
+                {autoUpdateEnabled ? "Referenzdaten werden täglich automatisch aktualisiert" : "Nur manuelle Aktualisierung – Automatik deaktiviert"}
               </p>
             </div>
             <button

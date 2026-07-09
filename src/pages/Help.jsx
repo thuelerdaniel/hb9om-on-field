@@ -175,8 +175,8 @@ const SECTIONS = [
         example: "HB9XYZ – Erfolg – 14:32 Uhr"
       },
       {
-        title: "Stündliche Automatik",
-        body: "Mit dem Schalter «Stündliche Automatik» können Administratoren die automatische stündliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, HBFF etc. automatisch aktualisiert. Wenn deaktiviert, müssen die Daten manuell über «Jetzt aktualisieren» neu geladen werden. Diese Funktion ist nur für Administratoren verfügbar.",
+        title: "Tägliche Automatik",
+        body: "Mit dem Schalter «Tägliche Automatik» können Administratoren die automatische tägliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, HBFF etc. einmal pro Tag (nachts) automatisch aktualisiert. Wenn deaktiviert, müssen die Daten manuell über «Jetzt aktualisieren» neu geladen werden. Diese Funktion ist nur für Administratoren verfügbar.",
         example: "Automatik ausschalten → Daten werden nur bei manueller Aktualisierung erneuert."
       },
       {
