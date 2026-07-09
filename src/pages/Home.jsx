@@ -819,6 +819,7 @@ export default function Home() {
               <Move className="w-4 h-4" />
             </button>
           )}
+
         </div>
 
         {pickingPosition && (
