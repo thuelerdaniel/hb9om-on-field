@@ -6,7 +6,7 @@ import LogEntryForm from "@/components/map/LogEntryForm";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
 import LogStats from "@/components/log/LogStats";
-import { loadLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync } from "@/lib/localLogStore";
+import { loadLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync, syncPending, getPendingCount } from "@/lib/localLogStore";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -27,6 +27,7 @@ export default function Log() {
   const [editEntry, setEditEntry] = useState(null);
   const [view, setView] = useState("list");
   const [lastSync, setLastSync] = useState(getLastSync());
+  const [pendingCount, setPendingCount] = useState(getPendingCount());
 
   useEffect(() => {
     loadEntries();
@@ -38,9 +39,11 @@ export default function Log() {
       setEntries(local);
       setLoading(false);
     }
+    await syncPending();
     const data = await syncFromServer();
     setEntries(data || []);
     setLastSync(getLastSync());
+    setPendingCount(getPendingCount());
     setLoading(false);
   };
 
@@ -155,7 +158,11 @@ export default function Log() {
               <h1 className="text-sm font-bold text-gray-900">QSO-Logbuch</h1>
               <div className="flex items-center gap-1.5">
                 <p className="text-[10px] text-gray-400">{entries.length} Einträge</p>
-                {lastSync ? (
+                {pendingCount > 0 ? (
+                  <span className="flex items-center gap-0.5 text-[10px] text-amber-500" title={`${pendingCount} Eintrag${pendingCount !== 1 ? 'en' : ''} wartet auf Synchronisation`}>
+                    <CloudOff className="w-2.5 h-2.5" /> {pendingCount} ausstehend
+                  </span>
+                ) : lastSync ? (
                   <span className="flex items-center gap-0.5 text-[10px] text-green-500" title={`Zuletzt synchronisiert: ${new Date(lastSync).toLocaleString('de-CH')}`}>
                     <Cloud className="w-2.5 h-2.5" /> synchronisiert
                   </span>

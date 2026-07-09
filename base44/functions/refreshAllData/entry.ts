@@ -814,6 +814,32 @@ Deno.serve(async (req) => {
       trigger: user ? 'manual' : 'scheduled'
     });
 
+    // Send db-update notification emails to admins who opted in
+    try {
+      const users = await base44.asServiceRole.entities.User.list();
+      const admins = users.filter(u => u.role === 'admin');
+      const notifySettings = await base44.asServiceRole.entities.AppSetting.filter({ key: "notify_db_update" });
+      const notifyByUser = {};
+      for (const s of notifySettings) {
+        notifyByUser[s.created_by_id] = s.enabled !== false;
+      }
+
+      const successCount = results.filter(r => r.status === 'success').length;
+      const summary = results.map(r => `${r.type}: ${r.status} (${r.count})`).join('\n');
+
+      for (const admin of admins) {
+        if (!admin.email) continue;
+        if (notifyByUser[admin.id] === false) continue;
+        try {
+          await base44.asServiceRole.integrations.Core.SendEmail({
+            to: admin.email,
+            subject: `Datenbank-Update - HB9OM On Field - ${overallStatus}`,
+            body: `Hallo,\n\ndie Referenzdatenbank wurde aktualisiert:\n\nStatus: ${overallStatus}\nDauer: ${(totalDuration / 1000).toFixed(1)}s\nErfolgreich: ${successCount}/${results.length}\n\nDetails:\n${summary}\n\n73,\nHB9OM On Field`
+          });
+        } catch (e) {}
+      }
+    } catch (e) {}
+
     return Response.json({ overall_status: overallStatus, total_duration_ms: totalDuration, results: results });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

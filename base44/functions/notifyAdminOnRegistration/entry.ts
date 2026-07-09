@@ -31,23 +31,35 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, notified: 0, reason: 'no admins found' });
     }
 
+    // Check which admins opted in to new-user notifications
+    const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: "notify_new_user" });
+    const settingsByUser = {};
+    for (const s of settings) {
+      settingsByUser[s.created_by_id] = s.enabled !== false;
+    }
+
     let sent = 0;
+    let skipped = 0;
     for (const admin of admins) {
-      if (admin.email) {
-        try {
-          await base44.asServiceRole.integrations.Core.SendEmail({
-            to: admin.email,
-            subject: "Neue Benutzerregistrierung - HB9OM On Field",
-            body: `Hallo,\n\nein neuer Benutzer hat sich auf HB9OM On Field registriert:\n\nE-Mail: ${userEmail}\nName: ${userName}\nDatum: ${timestamp}\n\nDie Benutzerdetails koennen in der App unter Einstellungen > Benutzerverwaltung eingesehen werden.\n\n73,\nHB9OM On Field`
-          });
-          sent++;
-        } catch (e) {
-          // Continue with other admins
-        }
+      if (!admin.email) continue;
+      // Skip admins who disabled new-user notifications
+      if (settingsByUser[admin.id] === false) {
+        skipped++;
+        continue;
+      }
+      try {
+        await base44.asServiceRole.integrations.Core.SendEmail({
+          to: admin.email,
+          subject: "Neue Benutzerregistrierung - HB9OM On Field",
+          body: `Hallo,\n\nein neuer Benutzer hat sich auf HB9OM On Field registriert:\n\nE-Mail: ${userEmail}\nName: ${userName}\nDatum: ${timestamp}\n\nDie Benutzerdetails koennen in der App unter Einstellungen > Benutzerverwaltung eingesehen werden.\n\n73,\nHB9OM On Field`
+        });
+        sent++;
+      } catch (e) {
+        // Continue with other admins
       }
     }
 
-    return Response.json({ success: true, notified: sent, totalAdmins: admins.length });
+    return Response.json({ success: true, notified: sent, skipped, totalAdmins: admins.length });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

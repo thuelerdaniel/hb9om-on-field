@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 
@@ -31,6 +31,10 @@ export default function Settings() {
   const [deleteAccountError, setDeleteAccountError] = useState("");
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
   const [autoUpdateLoading, setAutoUpdateLoading] = useState(false);
+  const [notifyNewUser, setNotifyNewUser] = useState(true);
+  const [notifyDbUpdate, setNotifyDbUpdate] = useState(true);
+  const [notifyAppErrors, setNotifyAppErrors] = useState(true);
+  const [notifyLoading, setNotifyLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [demoSettingUp, setDemoSettingUp] = useState(false);
@@ -56,6 +60,15 @@ export default function Settings() {
       if (settingsData && settingsData.length > 0) {
         setAutoUpdateEnabled(settingsData[0].enabled !== false);
       }
+      // Load notification preferences
+      const [newUserSettings, dbUpdateSettings, errorSettings] = await Promise.all([
+        base44.entities.AppSetting.filter({ key: "notify_new_user" }),
+        base44.entities.AppSetting.filter({ key: "notify_db_update" }),
+        base44.entities.AppSetting.filter({ key: "notify_app_errors" })
+      ]);
+      if (newUserSettings?.length > 0) setNotifyNewUser(newUserSettings[0].enabled !== false);
+      if (dbUpdateSettings?.length > 0) setNotifyDbUpdate(dbUpdateSettings[0].enabled !== false);
+      if (errorSettings?.length > 0) setNotifyAppErrors(errorSettings[0].enabled !== false);
     } catch (e) {
       setLogs([]);
       setCacheStatus([]);
@@ -164,6 +177,23 @@ export default function Settings() {
       setDemoSetupResult({ error: e?.response?.data?.error || e?.message || "Fehler" });
     } finally {
       setDemoSettingUp(false);
+    }
+  };
+
+  const handleToggleNotification = async (key, enabled, setter) => {
+    setNotifyLoading(true);
+    try {
+      const existing = await base44.entities.AppSetting.filter({ key });
+      if (existing.length > 0) {
+        await base44.entities.AppSetting.update(existing[0].id, { enabled, value: String(enabled) });
+      } else {
+        await base44.entities.AppSetting.create({ key, enabled, value: String(enabled) });
+      }
+      setter(enabled);
+    } catch (e) {
+      setter(!enabled);
+    } finally {
+      setNotifyLoading(false);
     }
   };
 
@@ -436,6 +466,61 @@ export default function Settings() {
               }
             </div>
           )}
+        </section>
+
+        {/* Admin: Notification Settings */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-1.5">
+            <Bell className="w-4 h-4" /> E-Mail-Benachrichtigungen
+          </h3>
+          <p className="text-xs text-gray-500 mb-3">Wählen Sie, über welche Ereignisse Sie per E-Mail informiert werden möchten.</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <UserPlus className="w-3.5 h-3.5" /> Neue Benutzer
+                </label>
+                <p className="text-xs text-gray-500 mt-0.5">Bei neuer Registrierung</p>
+              </div>
+              <button
+                onClick={() => handleToggleNotification("notify_new_user", !notifyNewUser, setNotifyNewUser)}
+                disabled={notifyLoading}
+                className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${notifyNewUser ? 'bg-gray-900' : 'bg-gray-300'} ${notifyLoading ? 'opacity-40' : ''}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyNewUser ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5" /> Datenbank-Updates
+                </label>
+                <p className="text-xs text-gray-500 mt-0.5">Nach Aktualisierung der Referenzdaten</p>
+              </div>
+              <button
+                onClick={() => handleToggleNotification("notify_db_update", !notifyDbUpdate, setNotifyDbUpdate)}
+                disabled={notifyLoading}
+                className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${notifyDbUpdate ? 'bg-gray-900' : 'bg-gray-300'} ${notifyLoading ? 'opacity-40' : ''}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyDbUpdate ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" /> App-Fehler & Abstürze
+                </label>
+                <p className="text-xs text-gray-500 mt-0.5">Bei Laufzeitfehlern in der App</p>
+              </div>
+              <button
+                onClick={() => handleToggleNotification("notify_app_errors", !notifyAppErrors, setNotifyAppErrors)}
+                disabled={notifyLoading}
+                className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${notifyAppErrors ? 'bg-gray-900' : 'bg-gray-300'} ${notifyLoading ? 'opacity-40' : ''}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyAppErrors ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>
+          </div>
         </section>
 
         {/* Sync Log */}
