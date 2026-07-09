@@ -540,31 +540,10 @@ async function fetchCastleData(castleOverrides) {
     }
   }
 
-  const afterLocator = [];
-
-  // Step 1: Maidenhead locator (6+ chars only for ~5km precision)
-  for (const wca of afterOverrides) {
-    if (wca.locator && wca.locator.length >= 6) {
-      const coords = maidenheadToLatLng(wca.locator);
-      if (coords) {
-        castles.push({
-          code: wca.wca,
-          name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
-          lat: coords.lat, lng: coords.lng,
-          canton: wca.location,
-          link: 'https://wcagroup.org/?page_id=207',
-          wcaName: wca.name, wcaLocation: wca.location,
-          matchSource: 'locator'
-        });
-        continue;
-      }
-    }
-    afterLocator.push(wca);
-  }
-
-  // Step 2: OSM/Wikidata name matching (accurate, takes priority over map.admin.ch)
+  // Step 1: OSM/Wikidata name matching (exact building-level coordinates — highest priority)
+  // Maidenhead locator deferred to last resort (imprecise ~5km, causes 5km errors)
   const afterOSM = [];
-  for (const wca of afterLocator) {
+  for (const wca of afterOverrides) {
     const wcaNameNorm = normalizeName(wca.name);
     const wcaLoc = wca.location;
     const isGeneric = GENERIC_NAMES.has(wca.name.trim()) || wcaNameNorm.length === 0;
@@ -660,31 +639,10 @@ async function fetchCastleData(castleOverrides) {
     afterAdmin.push(...afterOSM);
   }
 
-  // Step 4: 4-char locator fallback (imprecise ~100km, last resort before Nominatim)
-  const afterShortLoc = [];
-  for (const wca of afterAdmin) {
-    if (wca.locator && wca.locator.length >= 4) {
-      const coords = maidenheadToLatLng(wca.locator);
-      if (coords) {
-        castles.push({
-          code: wca.wca,
-          name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
-          lat: coords.lat, lng: coords.lng,
-          canton: wca.location,
-          link: 'https://wcagroup.org/?page_id=207',
-          wcaName: wca.name, wcaLocation: wca.location,
-          matchSource: 'locator-4char'
-        });
-        continue;
-      }
-    }
-    afterShortLoc.push(wca);
-  }
-
-  // Step 5: Wikipedia article coordinates (search by name, extract geo coords)
+  // Step 3: Wikipedia article coordinates (search by name, extract geo coords)
   const afterWiki = [];
   let wikiCount = 0;
-  for (const wca of afterShortLoc) {
+  for (const wca of afterAdmin) {
     if (GENERIC_NAMES.has(wca.name.trim())) {
       castles.push({
         code: wca.wca, name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
@@ -730,6 +688,20 @@ async function fetchCastleData(castleOverrides) {
       matchSource: coords ? 'geocoding' : null
     });
     await new Promise(r => setTimeout(r, 1000));
+  }
+
+  // Step 5: 6-char Maidenhead locator as last resort (imprecise ~5km, only if ALL precise methods failed)
+  for (const c of castles) {
+    if (c.lat !== null) continue;
+    const wca = wcaEntries.find(w => w.wca === c.code);
+    if (wca && wca.locator && wca.locator.length >= 6) {
+      const coords = maidenheadToLatLng(wca.locator);
+      if (coords) {
+        c.lat = coords.lat;
+        c.lng = coords.lng;
+        c.matchSource = 'locator-fallback';
+      }
+    }
   }
 
   // Apply non-coordinate overrides to all castles

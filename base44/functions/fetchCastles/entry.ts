@@ -395,24 +395,7 @@ function matchWcaToGeo(wcaEntries, geoSources, places) {
   const castles = [];
 
   for (const wca of wcaEntries) {
-    // Priority 1: Use Maidenhead locator from WCA data if available
-    if (wca.locator) {
-      const coords = maidenheadToLatLng(wca.locator);
-      if (coords) {
-        castles.push({
-          code: wca.wca,
-          name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
-          lat: coords.lat,
-          lng: coords.lng,
-          canton: wca.location,
-          link: 'https://wcagroup.org/?page_id=207',
-          wcaName: wca.name,
-          wcaLocation: wca.location
-        });
-        continue;
-      }
-    }
-
+    // Maidenhead locator deferred to last resort (imprecise ~5km, causes position errors)
     const wcaNameNorm = normalizeName(wca.name);
     const wcaLoc = wca.location;
     const isGeneric = GENERIC_NAMES.has(wca.name.trim()) || wcaNameNorm.length === 0;
@@ -558,6 +541,20 @@ Deno.serve(async (req) => {
         c.matchSource = 'geocoding';
       }
       await new Promise(r => setTimeout(r, 1000));
+    }
+
+    // Final fallback: 6-char Maidenhead locator (imprecise ~5km, last resort only)
+    for (const c of castles) {
+      if (c.lat !== null) continue;
+      const wca = wcaEntries.find(w => w.wca === c.code);
+      if (wca && wca.locator && wca.locator.length >= 6) {
+        const coords = maidenheadToLatLng(wca.locator);
+        if (coords) {
+          c.lat = coords.lat;
+          c.lng = coords.lng;
+          c.matchSource = 'locator-fallback';
+        }
+      }
     }
 
     const withCoords = castles.filter(c => c.lat !== null).length;
