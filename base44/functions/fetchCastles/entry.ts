@@ -222,21 +222,28 @@ function normalizeForCompare(text) {
   return normalizeText(text).replace(/\s+/g, '');
 }
 
-function enrichGeoLocations(geoSources, places) {
-  // For each geo source without a location, find nearest place within 10km
-  for (const geo of geoSources) {
-    if (geo.location) continue;
-    let nearestPlace = null;
-    let nearestDist = 10000; // 10km max
-    for (const p of places) {
-      const dist = haversine(geo.lat, geo.lng, p.lat, p.lng);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestPlace = p;
+// Suffixes that form compound words: "Pulverturm" → "Pulver Turm", "Obertor" → "Ober Tor"
+const COMPOUND_SUFFIXES = ['TURM', 'TOR', 'TURN', 'TOUR', 'TORRE', 'GATE', 'HAUS',
+  'SCHLOSS', 'BURG', 'FESTUNG', 'RUINE', 'HOF', 'BERG', 'BACH', 'FELD', 'WALD',
+  'STEIN', 'MAUER', 'PLATZ', 'BRUCKE', 'BRUECKE', 'GRABEN', 'TAL', 'SEE', 'BACH'];
+
+function generateCompoundVariations(name) {
+  const norm = normalizeText(name);
+  const variations = [norm];
+  for (const suffix of COMPOUND_SUFFIXES) {
+    if (norm.endsWith(suffix) && norm.length > suffix.length + 2) {
+      const prefix = norm.slice(0, -suffix.length);
+      variations.push(prefix + ' ' + suffix);
+    }
+    if (norm.includes(suffix) && norm.length > suffix.length + 2) {
+      const idx = norm.indexOf(suffix);
+      if (idx > 2 && idx + suffix.length < norm.length) {
+        // Also try splitting in the middle: "HALBTURM" → "HALB TURM"
+        // Only if the part before and after are both > 2 chars
       }
     }
-    if (nearestPlace) geo.location = nearestPlace.name;
   }
+  return variations;
 }
 
 function matchWcaToGeo(wcaEntries, geoSources, places) {
@@ -247,56 +254,91 @@ function matchWcaToGeo(wcaEntries, geoSources, places) {
     if (!placeMap.has(key)) placeMap.set(key, [p.lat, p.lng]);
   }
 
+  // Build name index: normalized name → geo sources (O(1) lookup)
+  // Also index compound variations: "Pulver Turm" → also index "Pulverturm"
+  const nameIndex = new Map();
+  const addToIndex = (key, geo) => {
+    if (!key) return;
+    if (!nameIndex.has(key)) nameIndex.set(key, []);
+    if (!nameIndex.get(key).includes(geo)) nameIndex.get(key).push(geo);
+  };
+  for (const geo of geoSources) {
+    const key = normalizeName(geo.name);
+    addToIndex(key, geo);
+    // Add compound variations: "Pulver Turm" → "PULVERTURM" (spaceless)
+    if (key && key.includes(' ')) {
+      addToIndex(key.replace(/\s+/g, ''), geo);
+    }
+    // Add suffix-split variations: "Pulverturm" → "PULVER TURM"
+    for (const v of generateCompoundVariations(geo.name)) {
+      if (v !== key) addToIndex(v, geo);
+    }
+  }
+
+  // Pre-normalize geo locations for text matching
+  for (const geo of geoSources) {
+    geo._locNorm = geo.location ? normalizeText(geo.location) : '';
+  }
+
   const castles = [];
 
   for (const wca of wcaEntries) {
     const wcaNameNorm = normalizeName(wca.name);
     const wcaLoc = wca.location;
     const isGeneric = GENERIC_NAMES.has(wca.name.trim()) || wcaNameNorm.length === 0;
-
-    // Get expected coordinates from WCA location
     const wcaLocNorm = normalizeText(wcaLoc);
     const placeCoords = placeMap.get(wcaLocNorm);
+
+    // Find candidates via name index (avoids scanning all geoSources)
+    let candidates = [];
+    if (wcaNameNorm && nameIndex.has(wcaNameNorm)) {
+      candidates = nameIndex.get(wcaNameNorm);
+    } else if (!isGeneric) {
+      // Try compound variations: "Pulverturm" → "PULVER TURM", "PULVERTURM"
+      const variations = generateCompoundVariations(wca.name);
+      for (const v of variations) {
+        if (nameIndex.has(v)) {
+          candidates = candidates.concat(nameIndex.get(v));
+        }
+      }
+      // Try spaceless match for concatenated names
+      if (candidates.length === 0) {
+        const wcaFlat = normalizeForCompare(wca.name);
+        if (wcaFlat.length > 4) {
+          for (const [key, sources] of nameIndex) {
+            const keyFlat = key.replace(/\s+/g, '');
+            if (keyFlat === wcaFlat || (keyFlat.length > 4 && keyFlat.includes(wcaFlat)) || (keyFlat.length > 4 && wcaFlat.includes(keyFlat))) {
+              candidates = candidates.concat(sources);
+            }
+          }
+        }
+      }
+    }
+
+    // For generic names, filter geo sources by location text
+    if (isGeneric) {
+      candidates = geoSources.filter(g => g._locNorm && (g._locNorm.includes(wcaLocNorm) || wcaLocNorm.includes(g._locNorm)));
+    }
 
     let bestMatch = null;
     let bestDist = Infinity;
 
-    for (const geo of geoSources) {
-      const geoNameNorm = normalizeName(geo.name);
-
-      // Name matching
-      let nameMatch = false;
-      if (geoNameNorm && wcaNameNorm) {
-        if (geoNameNorm === wcaNameNorm) nameMatch = true;
-        else if (wcaNameNorm.length > 3 && geoNameNorm.includes(wcaNameNorm)) nameMatch = true;
-        else if (geoNameNorm.length > 3 && wcaNameNorm.includes(geoNameNorm)) nameMatch = true;
-        else {
-          // Try spaceless comparison for concatenated names (BEFESTIGTEBRUCKE vs BEFESTIGTE BRUCKE)
-          const wcaFlat = normalizeForCompare(wca.name);
-          const geoFlat = normalizeForCompare(geo.name);
-          if (wcaFlat.length > 4 && (wcaFlat === geoFlat || geoFlat.includes(wcaFlat) || wcaFlat.includes(geoFlat))) nameMatch = true;
-        }
-      }
-
-      // For generic names, skip name matching - rely on location + proximity
-      // Text-based location match with umlaut normalization
-      const geoLocNorm = geo.location ? normalizeText(geo.location) : '';
-      const locTextMatch = geoLocNorm && (geoLocNorm.includes(wcaLocNorm) || wcaLocNorm.includes(geoLocNorm));
+    for (const geo of candidates) {
+      const locTextMatch = geo._locNorm && (geo._locNorm.includes(wcaLocNorm) || wcaLocNorm.includes(geo._locNorm));
 
       if (isGeneric) {
-        // Generic names: match by location only
-        if (locTextMatch) {
-          let dist = 0;
-          if (placeCoords) dist = haversine(geo.lat, geo.lng, placeCoords[0], placeCoords[1]);
+        if (placeCoords) {
+          const dist = haversine(geo.lat, geo.lng, placeCoords[0], placeCoords[1]);
           if (dist < bestDist) { bestMatch = geo; bestDist = dist; }
+        } else if (locTextMatch && bestDist === Infinity) {
+          bestMatch = geo; bestDist = 0;
         }
-      } else if (nameMatch) {
-        // Distinctive names: require location verification
+      } else {
         if (placeCoords) {
           const dist = haversine(geo.lat, geo.lng, placeCoords[0], placeCoords[1]);
           if (dist < 15000 && dist < bestDist) { bestMatch = geo; bestDist = dist; }
-        } else if (locTextMatch) {
-          if (bestDist === Infinity) { bestMatch = geo; bestDist = 0; }
+        } else if (locTextMatch && bestDist === Infinity) {
+          bestMatch = geo; bestDist = 0;
         }
       }
     }
@@ -340,10 +382,7 @@ Deno.serve(async (req) => {
     const wdCastles = wdResult.status === 'fulfilled' ? wdResult.value : [];
     const geoSources = [...osmCastles, ...wdCastles];
 
-    // 4. Enrich geo sources with nearest place names
-    enrichGeoLocations(geoSources, osmPlaces);
-
-    // 5. Match WCA entries to geo sources
+    // 4. Match WCA entries to geo sources
     const castles = matchWcaToGeo(wcaEntries, geoSources, osmPlaces);
     const withCoords = castles.filter(c => c.lat !== null).length;
 
