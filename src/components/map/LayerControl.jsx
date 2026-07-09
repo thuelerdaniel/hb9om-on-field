@@ -73,7 +73,7 @@ const MAP_SCALES = [
   { id: "100000", label: "1:100'000" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale }) {
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -142,6 +142,26 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             <p className="text-[10px] text-gray-400 mt-1.5">Massstab wird gesperrt und beim Verschieben automatisch gehalten. Zum Aufheben "Dynamisch" wählen.</p>
           </div>
           )}
+
+          {/* Karten-Transparenz */}
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+              <Eye className="w-4 h-4" /> Karten-Transparenz
+            </h3>
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                type="range"
+                min="0.2"
+                max="1"
+                step="0.1"
+                value={mapOpacity}
+                onChange={e => onChangeOpacity(parseFloat(e.target.value))}
+                className="flex-1 accent-gray-900"
+              />
+              <span className="text-xs font-mono text-gray-600 w-10 text-right">{Math.round(mapOpacity * 100)}%</span>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1.5">Verringern Sie die Deckkraft, damit Referenzpunkte besser sichtbar werden.</p>
+          </div>
 
           {/* Overlay-Ebenen */}
           <div className="p-4">

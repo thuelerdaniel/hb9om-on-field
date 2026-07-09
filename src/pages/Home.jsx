@@ -135,6 +135,10 @@ export default function Home() {
     } catch { return ["sota"]; }
   });
   const [baseLayer, setBaseLayer] = useState(() => localStorage.getItem("hb9om_map_base_layer") || "osm");
+  const [mapOpacity, setMapOpacity] = useState(() => {
+    const saved = localStorage.getItem("hb9om_map_opacity");
+    return saved ? parseFloat(saved) : 1;
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [flyTo, setFlyTo] = useState(null);
@@ -211,6 +215,9 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_map_base_layer", baseLayer);
   }, [baseLayer]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_map_opacity", String(mapOpacity));
+  }, [mapOpacity]);
   useEffect(() => {
     localStorage.setItem("hb9om_map_center", JSON.stringify(mapCenter));
   }, [mapCenter]);
@@ -451,6 +458,10 @@ export default function Home() {
     }
   }, []);
 
+  const handleChangeOpacity = useCallback((opacity) => {
+    setMapOpacity(opacity);
+  }, []);
+
   const handleSelectScale = useCallback((scaleId) => {
     if (scaleId === "auto") {
       setLockedScale(null);
@@ -601,7 +612,7 @@ export default function Home() {
           className="h-full w-full"
           zoomControl={false}
         >
-          <TileLayer key={swisstopoConfig.layer} url={baseTileUrl} attribution={baseAttrib} maxZoom={baseLayer === "swisstopo" ? 22 : 19} />
+          <TileLayer key={swisstopoConfig.layer} url={baseTileUrl} attribution={baseAttrib} maxZoom={baseLayer === "swisstopo" ? 22 : 19} opacity={mapOpacity} />
           <MapEventHandler
             onMove={setMapCenter}
             onZoom={setMapZoom}
@@ -708,6 +719,8 @@ export default function Home() {
           onChangeBaseLayer={handleChangeBaseLayer}
           onSelectScale={handleSelectScale}
           lockedScale={lockedScale}
+          mapOpacity={mapOpacity}
+          onChangeOpacity={handleChangeOpacity}
         />
 
         <MapControls
