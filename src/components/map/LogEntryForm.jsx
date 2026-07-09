@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock } from "lucide-react";
+import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock, Sun } from "lucide-react";
 import MobileSelect from "@/components/ui/MobileSelect";
 
 function haversine(lat1, lon1, lat2, lon2) {
@@ -101,6 +101,13 @@ function bandToCenterFreq(band) {
 export default function LogEntryForm({ mapCenter, myPosition, allMarkers, activeLayers, onClose, onSaved, editEntry }) {
   const isEditing = !!editEntry;
   const [justSaved, setJustSaved] = useState(false);
+  const [highContrast, setHighContrast] = useState(localStorage.getItem("hb9om_hc_mode") === "true");
+
+  const toggleHighContrast = () => {
+    const newVal = !highContrast;
+    setHighContrast(newVal);
+    localStorage.setItem("hb9om_hc_mode", String(newVal));
+  };
 
   const [callsign, setCallsign] = useState(editEntry?.callsign || "");
   const [callsignSuffix, setCallsignSuffix] = useState(editEntry?.callsign_suffix ?? (localStorage.getItem(PERSIST_KEYS.callsignSuffix) || ""));
@@ -392,7 +399,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   return (
     <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-3 pb-20">
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100vh-6rem)] overflow-y-auto"
+        className={`bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100vh-6rem)] overflow-y-auto ${highContrast ? 'hc-mode' : ''}`}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
@@ -400,9 +407,18 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
             {isEditing ? <Pencil className="w-5 h-5 text-gray-700" /> : <Radio className="w-5 h-5 text-gray-700" />}
             <h2 className="font-bold text-gray-900">{isEditing ? "QSO bearbeiten" : "Neues QSO-Log"}</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleHighContrast}
+              className={`p-1.5 rounded-lg ${highContrast ? 'hc-primary' : 'hover:bg-gray-100'}`}
+              title={highContrast ? "Normaler Modus" : "Hoher Kontrast (Sonnenmodus)"}
+            >
+              <Sun className="w-5 h-5" />
+            </button>
+            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
         </div>
 
         <div className="p-4 space-y-2">
@@ -674,7 +690,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
           <button
             onClick={handleSave}
             disabled={saving || !callsign || !frequency}
-            className="w-full px-3 py-2.5 text-xs sm:text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
+            className={`w-full px-3 py-2.5 text-xs sm:text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5 ${highContrast ? 'hc-primary' : ''}`}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : justSaved ? <Check className="w-4 h-4" /> : isEditing ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {isEditing ? "Aktualisieren" : justSaved ? "Gespeichert!" : "QSO speichern & weiter"}
@@ -685,7 +701,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       {/* Clubstation Popup */}
       {showClubPopup && (
         <div className="fixed inset-0 z-[10002] bg-black/50 flex items-center justify-center p-4 pb-20" onClick={handleClubPopupClose}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[calc(100vh-6rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[calc(100vh-6rem)] overflow-y-auto ${highContrast ? 'hc-mode' : ''}`} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">

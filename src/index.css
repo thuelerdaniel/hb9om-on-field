@@ -146,3 +146,41 @@
     user-select: none;
   }
 }
+
+/* High-contrast / sunlight mode for QSO form */
+.hc-mode,
+.hc-mode div {
+  background-color: #000000 !important;
+}
+.hc-mode * {
+  color: #ffffff !important;
+  border-color: #ffe600 !important;
+}
+.hc-mode label,
+.hc-mode h2,
+.hc-mode h3 {
+  color: #ffe600 !important;
+  font-weight: 600 !important;
+}
+.hc-mode input:not([type="checkbox"]),
+.hc-mode textarea,
+.hc-mode [role="combobox"] {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border: 2px solid #ffe600 !important;
+  font-size: 16px !important;
+}
+.hc-mode input[type="checkbox"] {
+  accent-color: #ffe600 !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+.hc-mode button {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border: 2px solid #ffe600 !important;
+}
+.hc-mode .hc-primary {
+  background-color: #ffe600 !important;
+  color: #000000 !important;
+}
