@@ -466,8 +466,19 @@ export default function Home() {
 
   const isLoading = Object.values(loading).some(v => v);
 
+  const SWISSTOPO_SCALE_LAYERS = {
+    10000: "ch.swisstopo.landeskarte-farbe-10",
+    25000: "ch.swisstopo.pixelkarte-farbe-pk25.noscale",
+    50000: "ch.swisstopo.pixelkarte-farbe-pk50.noscale",
+    100000: "ch.swisstopo.pixelkarte-farbe-pk100.noscale",
+  };
+
+  const swisstopoLayer = (baseLayer === "swisstopo" && lockedScale && SWISSTOPO_SCALE_LAYERS[lockedScale])
+    ? SWISSTOPO_SCALE_LAYERS[lockedScale]
+    : "ch.swisstopo.pixelkarte-farbe";
+
   const baseTileUrl = baseLayer === "swisstopo"
-    ? "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg"
+    ? `https://wmts.geo.admin.ch/1.0.0/${swisstopoLayer}/default/current/3857/{z}/{x}/{y}.jpeg`
     : baseLayer === "satellite"
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -511,7 +522,7 @@ export default function Home() {
           className="h-full w-full"
           zoomControl={false}
         >
-          <TileLayer url={baseTileUrl} attribution={baseAttrib} maxZoom={baseLayer === "swisstopo" ? 22 : 19} />
+          <TileLayer key={swisstopoLayer} url={baseTileUrl} attribution={baseAttrib} maxZoom={baseLayer === "swisstopo" ? 22 : 19} />
           <MapEventHandler
             onMove={setMapCenter}
             onZoom={setMapZoom}

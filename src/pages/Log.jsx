@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
 import LogStats from "@/components/log/LogStats";
+import { loadLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync } from "@/lib/localLogStore";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -25,21 +26,22 @@ export default function Log() {
   const [showQsoForm, setShowQsoForm] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [view, setView] = useState("list");
+  const [lastSync, setLastSync] = useState(getLastSync());
 
   useEffect(() => {
     loadEntries();
   }, []);
 
   const loadEntries = async () => {
-    setLoading(true);
-    try {
-      const data = await base44.entities.Log.list("-qso_date", 500);
-      setEntries(data || []);
-    } catch (e) {
-      setEntries([]);
-    } finally {
+    const local = loadLocal();
+    if (local.length > 0) {
+      setEntries(local);
       setLoading(false);
     }
+    const data = await syncFromServer();
+    setEntries(data || []);
+    setLastSync(getLastSync());
+    setLoading(false);
   };
 
   const filtered = useMemo(() => {
@@ -89,7 +91,7 @@ export default function Log() {
 
   const handleArchive = async (id) => {
     try {
-      await base44.entities.Log.update(id, { status: "archived" });
+      await updateEntry(id, { status: "archived" });
       setShowConfirmArchive(null);
       loadEntries();
     } catch (e) { }
@@ -98,9 +100,7 @@ export default function Log() {
   const handleDeleteAll = async () => {
     try {
       const toDelete = filtered.map(e => e.id);
-      for (const id of toDelete) {
-        await base44.entities.Log.delete(id);
-      }
+      await deleteMany(toDelete);
       setShowConfirmDelete(false);
       loadEntries();
     } catch (e) { }
@@ -108,14 +108,14 @@ export default function Log() {
 
   const handleDeleteSingle = async (id) => {
     try {
-      await base44.entities.Log.delete(id);
+      await deleteEntry(id);
       loadEntries();
     } catch (e) { }
   };
 
   const handleUnarchive = async (id) => {
     try {
-      await base44.entities.Log.update(id, { status: "active" });
+      await updateEntry(id, { status: "active" });
       loadEntries();
     } catch (e) { }
   };
@@ -153,7 +153,18 @@ export default function Log() {
             </div>
             <div>
               <h1 className="text-sm font-bold text-gray-900">QSO-Logbuch</h1>
-              <p className="text-[10px] text-gray-400">{entries.length} Einträge gesamt</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] text-gray-400">{entries.length} Einträge</p>
+                {lastSync ? (
+                  <span className="flex items-center gap-0.5 text-[10px] text-green-500" title={`Zuletzt synchronisiert: ${new Date(lastSync).toLocaleString('de-CH')}`}>
+                    <Cloud className="w-2.5 h-2.5" /> synchronisiert
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                    <CloudOff className="w-2.5 h-2.5" /> lokal
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <button

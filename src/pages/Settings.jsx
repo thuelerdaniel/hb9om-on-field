@@ -447,14 +447,27 @@ export default function Settings() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
                     {log.results?.map((r, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-xs">
-                        {r.status === 'success'
-                          ? <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
-                          : <XCircle className="w-3 h-3 text-red-500 flex-shrink-0" />
-                        }
-                        <span className="text-gray-600">{TYPE_LABELS[r.type] || r.type}</span>
-                        <span className="text-gray-400 font-medium">{r.count}</span>
-                        {r.error && <span className="text-red-400 truncate" title={r.error}>({r.error.slice(0, 30)})</span>}
+                      <div key={i} className="flex flex-col gap-0.5 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          {r.status === 'success'
+                            ? <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
+                            : <XCircle className="w-3 h-3 text-red-500 flex-shrink-0" />
+                          }
+                          <span className="text-gray-600">{TYPE_LABELS[r.type] || r.type}</span>
+                          <span className="text-gray-400 font-medium">{r.count}</span>
+                          {r.error && <span className="text-red-400 truncate" title={r.error}>({r.error.slice(0, 30)})</span>}
+                        </div>
+                        {r.castleStats && (
+                          <div className="ml-5 flex items-center gap-2 text-[10px] text-gray-400">
+                            <span className="text-green-600">{r.castleStats.matched} zugeordnet</span>
+                            <span className="text-red-400">{r.castleStats.unmatched} offen</span>
+                            {r.castleStats.bySource && Object.entries(r.castleStats.bySource).filter(([k]) => k !== 'unmatched' && k !== 'null').length > 0 && (
+                              <span className="text-gray-400">
+                                ({Object.entries(r.castleStats.bySource).filter(([k]) => k !== 'unmatched' && k !== 'null').map(([k, v]) => `${k}: ${v}`).join(', ')})
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

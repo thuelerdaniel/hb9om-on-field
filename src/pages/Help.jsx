@@ -30,8 +30,8 @@ const SECTIONS = [
       },
       {
         title: "Kartenmassstab wählen",
-        body: "Im Ebenen-Menü unter «Kartenmassstab» können Sie einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000. Die Karte zoomt automatisch auf die entsprechende Stufe. Der Zoom wird anhand der aktuellen Breitenkoordinate und der Bildschirmauflösung (96 DPI Standard) berechnet, damit der Massstab korrekt ist. Diese Funktion ist für die SwissTopo-Karte (pixelkarte-farbe) kalibriert und entspricht den offiziellen Kartenmassstäben. Die SwissTopo-Karte unterstützt Zoomstufen bis 22 für maximale Detailgenauigkeit.",
-        example: "1:25'000 wählen → Karte zoomt auf Massstab 1:25'000 (ca. Zoomstufe 14 in der Schweiz)."
+        body: "Im Ebenen-Menü unter «Kartenmassstab» können Sie einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000. Bei SwissTopo-Karte wird automatisch die entsprechende offizielle Landeskarte verwendet: 1:10'000 = Landeskarte 10 (LK10), 1:25'000 = Pixelkarte PK25, 1:50'000 = Pixelkarte PK50, 1:100'000 = Pixelkarte PK100. Bei «Dynamisch (Auto)» wird die Standard-Pixelkarte verwendet, die sich je nach Zoomstufe anpasst. Der Massstab wird anhand der aktuellen Breitenkoordinate und der Bildschirmauflösung (96 DPI Standard) berechnet.",
+        example: "1:25'000 wählen → offizielle SwissTopo-Karte 1:25'000 (PK25) wird geladen."
       },
       {
         title: "Legende ein-/ausblenden",
@@ -71,6 +71,11 @@ const SECTIONS = [
         title: "Burgen & Schlösser – Wikipedia",
         body: "In der Detailansicht einer Burg oder eines Schlosses (Marker anklicken) finden Sie einen Wikipedia-Link. Die Suche verwendet den Burgnamen zusammen mit dem Ort/Kanton. Bei Swisstopo-Karten sind viele Burgnamen als Flurnamen auf der Karte sichtbar – diese Namen können im Suchfeld oben gesucht und für die Wikipedia-Recherche genutzt werden.",
         example: "Burgmarker anklicken → «Wikipedia»-Link → Wikipedia öffnet sich mit Suchergebnis für Burgname + Ort."
+      },
+      {
+        title: "Burgen-Statistik in der Legende",
+        body: "Wenn der Burgen-Layer aktiv ist, zeigt die Legende unten links eine Statistik an: «Burgen X/Y» – dabei ist X die Anzahl der erfolgreich georeferenzierten Burgen und Y die Gesamtzahl. Die Statistik erscheint nur, wenn der Burgen-Layer eingeschaltet ist.",
+        example: "Burgen-Layer aktivieren → Legende zeigt «Burgen 180/256»."
       }
     ]
   },
@@ -137,6 +142,11 @@ const SECTIONS = [
         example: "Alle QSOs von 2026 exportieren: Nach Datum sortieren → Export klicken → .adi-Datei wird heruntergeladen."
       },
       {
+        title: "Lokale Speicherung & Synchronisation",
+        body: "Ihre QSO-Logeinträge werden lokal im Browser gespeichert (localStorage). Das bedeutet: Die Daten sind sofort verfügbar, auch ohne Internetverbindung. Beim Öffnen des Logbuchs werden zuerst die lokalen Daten angezeigt (sofort), dann wird im Hintergrund mit dem Server synchronisiert. Ein Cloud-Icon neben der Eintragsanzahl zeigt den Synchronisationsstatus an. So haben Sie Ihre Daten immer auf jedem Gerät – lokal zwischengespeichert und online synchronisiert.",
+        example: "Logbuch öffnen → lokale Daten erscheinen sofort → Cloud-Icon = synchronisiert."
+      },
+      {
         title: "Statistik-Ansicht",
         body: "Über das Balken-Diagramm-Icon oben rechts im Logbuch können Sie zwischen Listen- und Statistik-Ansicht wechseln. Die Statistik zeigt übersichtliche Diagramme zu QSOs pro Band, Mode, Referenz-Typ und Monat sowie weitere Kennzahlen.",
         example: "Balken-Icon klicken → Statistik mit Diagrammen zu Bändern, Modes und Referenz-Typen."
@@ -167,7 +177,7 @@ const SECTIONS = [
       },
       {
         title: "Daten aktualisieren",
-        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt. Diese Funktion ist nur für Administratoren verfügbar.",
+        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt. Bei den Burgen wird zusätzlich angezeigt, wie viele erfolgreich georeferenziert wurden und über welche Methode (OSM/Wikidata, map.admin.ch, Locator, Nominatim). Diese Funktion ist nur für Administratoren verfügbar.",
         example: "Neue SOTA-Gipfel verfügbar: «Alle Daten aktualisieren» klicken → warten bis Status «Erfolgreich»."
       },
       {
@@ -414,7 +424,7 @@ export default function Help() {
         ))}
 
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
-          <p>HB9OM On Field v0.6 · Amateurfunk Referenzkarte & QSO-Logbuch</p>
+          <p>HB9OM On Field v0.7 · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
             Bei Fragen oder Problemen wenden Sie sich an den Club HB9OM:{" "}
             <a href="mailto:hb9om@hb9om.ch" className="text-blue-600 font-medium hover:underline">hb9om@hb9om.ch</a>

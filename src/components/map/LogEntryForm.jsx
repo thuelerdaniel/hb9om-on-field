@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { createEntry, updateEntry } from "@/lib/localLogStore";
 import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock, Sun } from "lucide-react";
 import MobileSelect from "@/components/ui/MobileSelect";
 
@@ -355,11 +356,11 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       };
 
       if (isEditing) {
-        await base44.entities.Log.update(editEntry.id, payload);
+        await updateEntry(editEntry.id, payload);
         if (onSaved) onSaved();
         if (onClose) onClose();
       } else {
-        await base44.entities.Log.create(payload);
+        await createEntry(payload);
         persistFormValues();
         if (onSaved) onSaved();
         // Reset for next QSO but keep persistent values (freq, band, mode, etc.)

@@ -33,7 +33,7 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
       >
         <span className="font-semibold text-gray-900">{markerCount}</span>
         <span>Referenzen</span>
-        {castleStats && (
+        {castleStats && activeLayers.includes("castle") && (
           <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-orange-50 text-orange-700 rounded-full font-medium">
             Burgen {castleStats.matched}/{castleStats.total}
           </span>

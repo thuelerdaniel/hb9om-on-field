@@ -518,9 +518,9 @@ async function fetchCastleData(castleOverrides) {
 
   const afterLocator = [];
 
-  // Step 1: Maidenhead locator from WCA Excel
+  // Step 1: Maidenhead locator (6+ chars only for ~5km precision)
   for (const wca of afterOverrides) {
-    if (wca.locator) {
+    if (wca.locator && wca.locator.length >= 6) {
       const coords = maidenheadToLatLng(wca.locator);
       if (coords) {
         castles.push({
@@ -538,32 +538,9 @@ async function fetchCastleData(castleOverrides) {
     afterLocator.push(wca);
   }
 
-  // Step 2: map.admin.ch search for unmatched
-  const afterAdmin = [];
-  if (afterLocator.length > 0) {
-    const adminResults = await batchSearchMapAdminCh(
-      afterLocator.map(w => ({ name: w.name, location: w.location }))
-    );
-    for (let i = 0; i < afterLocator.length; i++) {
-      if (adminResults[i]) {
-        castles.push({
-          code: afterLocator[i].wca,
-          name: afterLocator[i].name.charAt(0) + afterLocator[i].name.slice(1).toLowerCase(),
-          lat: adminResults[i].lat, lng: adminResults[i].lng,
-          canton: afterLocator[i].location,
-          link: 'https://wcagroup.org/?page_id=207',
-          wcaName: afterLocator[i].name, wcaLocation: afterLocator[i].location,
-          matchSource: 'map.admin.ch'
-        });
-      } else {
-        afterAdmin.push(afterLocator[i]);
-      }
-    }
-  }
-
-  // Step 3: OSM/Wikidata name matching on map
-  const afterName = [];
-  for (const wca of afterAdmin) {
+  // Step 2: OSM/Wikidata name matching (accurate, takes priority over map.admin.ch)
+  const afterOSM = [];
+  for (const wca of afterLocator) {
     const wcaNameNorm = normalizeName(wca.name);
     const wcaLoc = wca.location;
     const isGeneric = GENERIC_NAMES.has(wca.name.trim()) || wcaNameNorm.length === 0;
@@ -630,13 +607,59 @@ async function fetchCastleData(castleOverrides) {
         matchSource: 'osm-wikidata'
       });
     } else {
-      afterName.push(wca);
+      afterOSM.push(wca);
     }
   }
 
-  // Step 4: Nominatim internet geocoding (rate-limited: 1.1s per request, max 40 lookups)
+  // Step 3: map.admin.ch fallback for remaining unmatched
+  const afterAdmin = [];
+  if (afterOSM.length > 0) {
+    const adminResults = await batchSearchMapAdminCh(
+      afterOSM.map(w => ({ name: w.name, location: w.location }))
+    );
+    for (let i = 0; i < afterOSM.length; i++) {
+      if (adminResults[i]) {
+        castles.push({
+          code: afterOSM[i].wca,
+          name: afterOSM[i].name.charAt(0) + afterOSM[i].name.slice(1).toLowerCase(),
+          lat: adminResults[i].lat, lng: adminResults[i].lng,
+          canton: afterOSM[i].location,
+          link: 'https://wcagroup.org/?page_id=207',
+          wcaName: afterOSM[i].name, wcaLocation: afterOSM[i].location,
+          matchSource: 'map.admin.ch'
+        });
+      } else {
+        afterAdmin.push(afterOSM[i]);
+      }
+    }
+  } else {
+    afterAdmin.push(...afterOSM);
+  }
+
+  // Step 4: 4-char locator fallback (imprecise ~100km, last resort before Nominatim)
+  const afterShortLoc = [];
+  for (const wca of afterAdmin) {
+    if (wca.locator && wca.locator.length >= 4) {
+      const coords = maidenheadToLatLng(wca.locator);
+      if (coords) {
+        castles.push({
+          code: wca.wca,
+          name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+          lat: coords.lat, lng: coords.lng,
+          canton: wca.location,
+          link: 'https://wcagroup.org/?page_id=207',
+          wcaName: wca.name, wcaLocation: wca.location,
+          matchSource: 'locator-4char'
+        });
+        continue;
+      }
+    }
+    afterShortLoc.push(wca);
+  }
+
+  // Step 5: Nominatim internet geocoding (rate-limited: 1.1s per request, max 40 lookups)
   let nominatimCount = 0;
-  for (const wca of afterName) {
+  for (const wca of afterShortLoc) {
     if (GENERIC_NAMES.has(wca.name.trim())) {
       castles.push({
         code: wca.wca,
@@ -649,7 +672,7 @@ async function fetchCastleData(castleOverrides) {
       });
       continue;
     }
-    if (nominatimCount >= 40) {
+    if (nominatimCount >= 25) {
       castles.push({
         code: wca.wca,
         name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
@@ -673,7 +696,7 @@ async function fetchCastleData(castleOverrides) {
       wcaName: wca.name, wcaLocation: wca.location,
       matchSource: coords ? 'geocoding' : null
     });
-    await new Promise(r => setTimeout(r, 1100));
+    await new Promise(r => setTimeout(r, 1000));
   }
 
   // Apply non-coordinate overrides to all castles
@@ -754,7 +777,17 @@ Deno.serve(async (req) => {
         });
       }
 
-      return { type: t.type, status: 'success', count: items.length, duration_ms: Date.now() - taskStart };
+      const result = { type: t.type, status: 'success', count: items.length, duration_ms: Date.now() - taskStart };
+      if (t.type === 'castle') {
+        const matched = items.filter(c => c.lat !== null).length;
+        const bySource = {};
+        for (const c of items) {
+          const src = c.matchSource || 'unmatched';
+          bySource[src] = (bySource[src] || 0) + 1;
+        }
+        result.castleStats = { matched, total: items.length, unmatched: items.length - matched, bySource };
+      }
+      return result;
     }));
 
     const results = taskDefs.map((t, i) => {
