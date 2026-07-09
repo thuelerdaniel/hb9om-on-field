@@ -10,7 +10,7 @@ import LogStats from "@/components/log/LogStats";
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
   castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm",
-  swiss_protected: "Bundesinventar", generell: "Generell", custom: "Eigenes"
+  swiss_protected: "Bundesinventar", generell: "Generell",   custom: "Eigene"
 };
 
 export default function Log() {
@@ -335,16 +335,6 @@ export default function Log() {
           </div>
         )}
       </div>
-
-      {/* New QSO floating button */}
-      <button
-        onClick={() => { setEditEntry(null); setShowQsoForm(true); }}
-        className="fixed bottom-20 right-3 z-[1000] bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-2 hover:bg-gray-800 transition-all hover:scale-105"
-        title="Neues QSO erfassen"
-      >
-        <Plus className="w-5 h-5" />
-        <span className="text-sm font-medium">Neues QSO</span>
-      </button>
 
       {showQsoForm && (
         <LogEntryForm

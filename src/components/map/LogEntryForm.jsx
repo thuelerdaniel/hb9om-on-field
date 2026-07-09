@@ -39,7 +39,7 @@ const REF_TYPES = [
   { value: "lighthouse", label: "Leuchtturm" },
   { value: "swiss_protected", label: "Bundesinventar" },
   { value: "generell", label: "Generell (nur Locator)" },
-  { value: "custom", label: "Eigenes Referenz" },
+  { value: "custom", label: "Eigene Referenz" },
 ];
 
 const BANDS = ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "4m", "2m", "70cm", "23cm", "Other"];
@@ -390,7 +390,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   };
 
   return (
-    <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-3 pb-20" onClick={onClose}>
+    <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-3 pb-20">
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100vh-6rem)] overflow-y-auto"
         onClick={e => e.stopPropagation()}
@@ -672,15 +672,9 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
 
         <div className="flex gap-2 px-4 py-3 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
           <button
-            onClick={onClose}
-            className="flex-1 px-3 py-2.5 text-xs sm:text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            Abbrechen
-          </button>
-          <button
             onClick={handleSave}
             disabled={saving || !callsign || !frequency}
-            className="flex-1 px-3 py-2.5 text-xs sm:text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
+            className="w-full px-3 py-2.5 text-xs sm:text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : justSaved ? <Check className="w-4 h-4" /> : isEditing ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {isEditing ? "Aktualisieren" : justSaved ? "Gespeichert!" : "QSO speichern & weiter"}

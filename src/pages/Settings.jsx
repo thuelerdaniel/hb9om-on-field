@@ -42,7 +42,7 @@ export default function Settings() {
     setLoading(true);
     try {
       const [logsData, cacheData, qrzData, settingsData] = await Promise.all([
-        base44.entities.SyncLog.list("-created_date", 50),
+        base44.entities.SyncLog.list("-created_date", 10),
         base44.entities.ReferenceData.list(),
         base44.entities.QrzLookup.list("-created_date", 10),
         base44.entities.AppSetting.filter({ key: "auto_update" })
@@ -323,6 +323,8 @@ export default function Settings() {
           )}
         </section>
 
+        {isAdmin && (
+        <>
         {/* Cache Status */}
         <section>
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -446,6 +448,8 @@ export default function Settings() {
           )}
         </section>
 
+        </>
+        )}
         {/* Admin: User Management */}
         {isAdmin && (
          <section className="bg-white rounded-xl border border-gray-200 p-4">

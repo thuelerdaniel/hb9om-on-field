@@ -77,7 +77,7 @@ const SECTIONS = [
     items: [
       {
         title: "Neues QSO erfassen",
-        body: "Klicken Sie auf den schwarzen Button «Neues QSO» unten rechts. Im Formular geben Sie Rufzeichen, Datum, Zeit, Frequenz, Band, Mode und RST-Werte ein. Optionale Felder: Notizen, Standort/Referenz, Suffix. Nach dem Speichern bleibt das Formular offen, damit Sie direkt das nächste QSO erfassen können. Rufzeichen, Operator-Daten und Notizen werden zurückgesetzt, häufige Werte (Frequenz, Band, Mode, RST, Referenz) bleiben erhalten. Schliessen Sie das Formular mit «Abbrechen» oder dem X-Icon, wenn Sie fertig sind.",
+        body: "Klicken Sie auf der Karte auf den schwarzen Button «Neues QSO» unten rechts. Im Formular geben Sie Rufzeichen, Datum, Zeit, Frequenz, Band, Mode und RST-Werte ein. Optionale Felder: Notizen, Standort/Referenz, Suffix. Nach dem Speichern bleibt das Formular offen, damit Sie direkt das nächste QSO erfassen können. Rufzeichen, Operator-Daten und Notizen werden zurückgesetzt, häufige Werte (Frequenz, Band, Mode, RST, Referenz) bleiben erhalten. Das Formular kann nur über das X-Icon oben rechts geschlossen werden – ein Klick auf die Karte oder ausserhalb des Formulars schliesst es nicht.",
         example: "Rufzeichen HB9XYZ eingeben → QRZ-Abfrage füllt Name, Adresse und Grid aus → «QSO speichern & weiter» → Formular bleibt offen für das nächste QSO."
       },
       {
@@ -161,12 +161,12 @@ const SECTIONS = [
       },
       {
         title: "Daten aktualisieren",
-        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Sync-Protokoll angezeigt.",
+        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt. Diese Funktion ist nur für Administratoren verfügbar.",
         example: "Neue SOTA-Gipfel verfügbar: «Alle Daten aktualisieren» klicken → warten bis Status «Erfolgreich»."
       },
       {
         title: "Cache-Status",
-        body: "Zeigt, wie viele Referenzen pro Typ zwischengespeichert sind und wann die letzte Aktualisierung stattfand.",
+        body: "Zeigt, wie viele Referenzen pro Typ zwischengespeichert sind und wann die letzte Aktualisierung stattfand. Nur für Administratoren sichtbar.",
         example: "SOTA: 542 Referenzen, zuletzt aktualisiert 03.07.2026."
       },
       {
@@ -176,7 +176,7 @@ const SECTIONS = [
       },
       {
         title: "Stündliche Automatik",
-        body: "Mit dem Schalter «Stündliche Automatik» können Sie die automatische stündliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, HBFF etc. automatisch aktualisiert. Wenn deaktiviert, müssen Sie die Daten manuell über «Jetzt aktualisieren» neu laden.",
+        body: "Mit dem Schalter «Stündliche Automatik» können Administratoren die automatische stündliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, HBFF etc. automatisch aktualisiert. Wenn deaktiviert, müssen die Daten manuell über «Jetzt aktualisieren» neu geladen werden. Diese Funktion ist nur für Administratoren verfügbar.",
         example: "Automatik ausschalten → Daten werden nur bei manueller Aktualisierung erneuert."
       },
       {
@@ -355,7 +355,7 @@ export default function Help() {
         ))}
 
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
-          <p>HB9OM On Field · Amateurfunk Referenzkarte & QSO-Logbuch</p>
+          <p>HB9OM On Field v0.6 · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
             Bei Fragen oder Problemen wenden Sie sich an den Club HB9OM:{" "}
             <a href="mailto:hb9om@hb9om.ch" className="text-blue-600 font-medium hover:underline">hb9om@hb9om.ch</a>
