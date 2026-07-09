@@ -177,7 +177,6 @@ export default function Home() {
   const handleMarkerDrag = async (marker, newLat, newLng) => {
     const code = marker.code || marker.reference;
     if (!code) return;
-    setLocalOverrides(prev => ({ ...prev, [code]: { lat: newLat, lng: newLng } }));
     try {
       const overrides = await base44.entities.ReferenceOverride.filter({
         reference_type: marker.layerType,
@@ -195,8 +194,7 @@ export default function Home() {
       }
       toast({ title: "Position gespeichert", description: `${marker.name} verschoben` });
     } catch (e) {
-      toast({ title: "Fehler beim Speichern", description: e.message || "Unbekannter Fehler", variant: "destructive" });
-      setLocalOverrides(prev => { const n = { ...prev }; delete n[code]; return n; });
+      toast({ title: "Speichern fehlgeschlagen", description: "Position lokal gespeichert, Server-Speicherung fehlgeschlagen: " + (e.message || "Unbekannter Fehler"), variant: "destructive" });
     }
   };
 
@@ -628,6 +626,10 @@ export default function Home() {
                   eventHandlers={{
                     dragend: (e) => {
                       const ll = e.target.getLatLng();
+                      const code = m.code || m.reference;
+                      if (code) {
+                        setLocalOverrides(prev => ({ ...prev, [code]: { lat: ll.lat, lng: ll.lng } }));
+                      }
                       handleMarkerDrag(m, ll.lat, ll.lng);
                     }
                   }}
