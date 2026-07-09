@@ -50,7 +50,21 @@ export default function AdminChangeRequests() {
     }
   };
 
-  useEffect(() => { loadRequests(); }, []);
+  useEffect(() => {
+    loadRequests();
+    // Realtime subscription — fires on entity changes
+    const unsubscribe = base44.entities.ReferenceChangeRequest.subscribe(() => {
+      loadRequests();
+    });
+    // Polling fallback every 30s (RLS may block subscription for other users' requests)
+    const pollInterval = setInterval(() => {
+      loadRequests();
+    }, 30000);
+    return () => {
+      if (unsubscribe) unsubscribe();
+      clearInterval(pollInterval);
+    };
+  }, []);
 
   const handleApprove = async (id) => {
     setActionId(id);

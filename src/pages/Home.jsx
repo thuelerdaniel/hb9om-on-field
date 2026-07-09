@@ -292,17 +292,30 @@ export default function Home() {
   useEffect(() => {
     const loadPendingCount = async () => {
       try {
-        const requests = await base44.entities.ReferenceChangeRequest.list("-created_date", 100);
-        const pending = (requests || []).filter(r => r.status === "pending").length;
-        setPendingRequestCount(pending);
+        if (isAdmin) {
+          // Admin: fetch ALL pending requests via backend function (bypasses RLS)
+          const res = await base44.functions.invoke("manageChangeRequests", { action: "listAll" });
+          const pending = (res.data?.requests || []).filter(r => r.status === "pending").length;
+          setPendingRequestCount(pending);
+        } else {
+          // Regular user: only own requests (RLS-scoped)
+          const requests = await base44.entities.ReferenceChangeRequest.list("-created_date", 100);
+          const pending = (requests || []).filter(r => r.status === "pending").length;
+          setPendingRequestCount(pending);
+        }
       } catch (e) { }
     };
     loadPendingCount();
     const unsubscribe = base44.entities.ReferenceChangeRequest.subscribe(() => {
       loadPendingCount();
     });
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, []);
+    // Polling fallback for admins (RLS may block realtime for other users' requests)
+    const pollInterval = isAdmin ? setInterval(loadPendingCount, 30000) : null;
+    return () => {
+      if (unsubscribe) unsubscribe();
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [isAdmin]);
 
   // Offline detection and area loading
   useEffect(() => {

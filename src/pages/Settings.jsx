@@ -43,6 +43,7 @@ export default function Settings() {
   const [storageInfo, setStorageInfo] = useState({ areas: 0, tiles: 0 });
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
   const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
+  const [adminPendingRequests, setAdminPendingRequests] = useState(0);
   const [demoSetupResult, setDemoSetupResult] = useState(null);
 
   useEffect(() => {
@@ -66,6 +67,21 @@ export default function Settings() {
       getStorageEstimate().then(info => setStorageInfo(info)).catch(() => {});
       base44.entities.ReferenceChangeRequest.filter({ status: "pending" })
         .then(data => setPendingChangeRequests(data?.length || 0))
+        .catch(() => {});
+      // Admin: fetch ALL pending requests via backend function (bypasses RLS)
+      base44.functions.invoke("adminManageUsers", { action: "checkStatus" })
+        .then(res => {
+          if (res.data?.isAdmin) {
+            return base44.functions.invoke("manageChangeRequests", { action: "listAll" });
+          }
+          return null;
+        })
+        .then(res => {
+          if (res?.data?.requests) {
+            const pending = res.data.requests.filter(r => r.status === "pending").length;
+            setAdminPendingRequests(pending);
+          }
+        })
         .catch(() => {});
       if (settingsData && settingsData.length > 0) {
         setAutoUpdateEnabled(settingsData[0].enabled !== false);
@@ -500,13 +516,23 @@ export default function Settings() {
               <p className="text-xs text-gray-600 mt-0.5">
                 Benutzer eingereichte Positions-Korrekturen genehmigen oder ablehnen
               </p>
+              {adminPendingRequests > 0 && (
+                <p className="text-xs text-amber-700 mt-1 font-medium flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {adminPendingRequests} Antrag{adminPendingRequests !== 1 ? 'äge' : ''} wartet{adminPendingRequests !== 1 ? 'en' : ''} auf Prüfung
+                </p>
+              )}
             </div>
             <Link
               to="/admin/change-requests"
-              className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 flex items-center gap-2"
+              className="relative px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 flex items-center gap-2"
             >
               <ClipboardList className="w-4 h-4" />
               Prüfen
+              {adminPendingRequests > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-[20px] h-[20px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {adminPendingRequests}
+                </span>
+              )}
             </Link>
           </div>
         </section>
