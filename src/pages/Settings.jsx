@@ -72,13 +72,18 @@ export default function Settings() {
       base44.functions.invoke("adminManageUsers", { action: "checkStatus" })
         .then(res => {
           if (res.data?.isAdmin) {
-            return base44.functions.invoke("manageChangeRequests", { action: "listAll" });
+            return Promise.all([
+              base44.functions.invoke("manageChangeRequests", { action: "listAll" }),
+              base44.auth.me()
+            ]);
           }
           return null;
         })
         .then(res => {
-          if (res?.data?.requests) {
-            const pending = res.data.requests.filter(r => r.status === "pending").length;
+          if (res) {
+            const [reqRes, me] = res;
+            const myId = me?.id;
+            const pending = (reqRes?.data?.requests || []).filter(r => r.status === "pending" && r.created_by_id !== myId).length;
             setAdminPendingRequests(pending);
           }
         })

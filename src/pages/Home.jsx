@@ -152,6 +152,7 @@ export default function Home() {
   });
   const [showQsoForm, setShowQsoForm] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [lockedScale, setLockedScale] = useState(() => {
     const saved = localStorage.getItem("hb9om_map_locked_scale");
@@ -259,6 +260,9 @@ export default function Home() {
     base44.functions.invoke("adminManageUsers", { action: "checkStatus" })
       .then(res => setIsAdmin(res.data?.isAdmin === true))
       .catch(() => setIsAdmin(false));
+    base44.auth.me()
+      .then(user => { if (user) setCurrentUserId(user.id); })
+      .catch(() => {});
   }, []);
 
   // Load server-side reference overrides (adjusted names, manual coordinates)
@@ -283,7 +287,7 @@ export default function Home() {
         if (isAdmin) {
           // Admin: fetch ALL pending requests via backend function (bypasses RLS)
           const res = await base44.functions.invoke("manageChangeRequests", { action: "listAll" });
-          const pending = (res.data?.requests || []).filter(r => r.status === "pending").length;
+          const pending = (res.data?.requests || []).filter(r => r.status === "pending" && r.created_by_id !== currentUserId).length;
           setPendingRequestCount(pending);
         } else {
           // Regular user: only own requests (RLS-scoped)
@@ -303,7 +307,7 @@ export default function Home() {
       if (unsubscribe) unsubscribe();
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [isAdmin]);
+  }, [isAdmin, currentUserId]);
 
   // Offline detection and area loading
   useEffect(() => {
