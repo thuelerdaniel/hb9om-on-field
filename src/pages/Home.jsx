@@ -835,13 +835,13 @@ export default function Home() {
             <Move className="w-4 h-4" />
           </button>
           <Link
-            to="/change-requests"
+            to={isAdmin ? "/admin/change-requests" : "/change-requests"}
             className={`relative w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
               pendingRequestCount > 0
                 ? "border-amber-400 text-amber-600"
                 : "border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
-            title="Meine Änderungsanträge"
+            title={isAdmin ? "Anträge prüfen" : "Meine Änderungsanträge"}
           >
             <ClipboardList className="w-4 h-4" />
             {pendingRequestCount > 0 && (
