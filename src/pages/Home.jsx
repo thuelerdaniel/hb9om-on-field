@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { MapContainer, TileLayer, Popup, useMap, CircleMarker, WMSTileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Popup, useMap, CircleMarker, Marker, WMSTileLayer, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl, { LAYER_GROUPS } from "@/components/map/LayerControl";
@@ -12,7 +14,7 @@ import MapControls from "@/components/map/MapControls";
 import PositionMarker from "@/components/map/PositionMarker";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
-import { Loader2, Radio, Plus, LocateFixed, MapPin } from "lucide-react";
+import { Loader2, Radio, Plus, LocateFixed, MapPin, Move } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import ReferenceEditDialog from "@/components/admin/ReferenceEditDialog";
 
@@ -67,6 +69,15 @@ const LAYER_COLORS = {
   lighthouse: "#f39c12",
   swiss_protected: "#16a085"
 };
+
+function createDraggableIcon(color) {
+  return L.divIcon({
+    html: `<div style="width: 18px; height: 18px; border-radius: 50%; background: ${color}; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.5); cursor: move;"></div>`,
+    className: "draggable-marker-icon",
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+}
 
 function MapBounds({ center, zoom }) {
   const map = useMap();
@@ -159,6 +170,35 @@ export default function Home() {
     const saved = localStorage.getItem("hb9om_position_radius");
     return saved ? parseInt(saved) : 5000;
   });
+  const [dragMode, setDragMode] = useState(false);
+  const [localOverrides, setLocalOverrides] = useState({});
+  const { toast } = useToast();
+
+  const handleMarkerDrag = async (marker, newLat, newLng) => {
+    const code = marker.code || marker.reference;
+    if (!code) return;
+    setLocalOverrides(prev => ({ ...prev, [code]: { lat: newLat, lng: newLng } }));
+    try {
+      const overrides = await base44.entities.ReferenceOverride.filter({
+        reference_type: marker.layerType,
+        original_code: code
+      });
+      if (overrides && overrides.length > 0) {
+        await base44.entities.ReferenceOverride.update(overrides[0].id, {
+          manual_lat: newLat, manual_lng: newLng, original_name: marker.name
+        });
+      } else {
+        await base44.entities.ReferenceOverride.create({
+          reference_type: marker.layerType, original_code: code,
+          original_name: marker.name, manual_lat: newLat, manual_lng: newLng
+        });
+      }
+      toast({ title: "Position gespeichert", description: `${marker.name} verschoben` });
+    } catch (e) {
+      toast({ title: "Fehler beim Speichern", description: e.message || "Unbekannter Fehler", variant: "destructive" });
+      setLocalOverrides(prev => { const n = { ...prev }; delete n[code]; return n; });
+    }
+  };
 
   // Persist map settings to localStorage
   useEffect(() => {
@@ -311,8 +351,14 @@ export default function Home() {
       LIGHTHOUSE_DATA.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
     }
 
-    return markers;
-  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData]);
+    return markers.map(m => {
+      const code = m.code || m.reference;
+      if (code && localOverrides[code]) {
+        return { ...m, lat: localOverrides[code].lat, lng: localOverrides[code].lng };
+      }
+      return m;
+    });
+  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides]);
 
   // Castle match statistics for legend
   const castleStats = useMemo(() => {
@@ -467,18 +513,18 @@ export default function Home() {
   const isLoading = Object.values(loading).some(v => v);
 
   const SWISSTOPO_SCALE_LAYERS = {
-    10000: "ch.swisstopo.landeskarte-farbe-10",
-    25000: "ch.swisstopo.pixelkarte-farbe-pk25.noscale",
-    50000: "ch.swisstopo.pixelkarte-farbe-pk50.noscale",
-    100000: "ch.swisstopo.pixelkarte-farbe-pk100.noscale",
+    10000: { layer: "ch.swisstopo.landeskarte-farbe-10", format: "png" },
+    25000: { layer: "ch.swisstopo.pixelkarte-farbe-pk25.noscale", format: "jpeg" },
+    50000: { layer: "ch.swisstopo.pixelkarte-farbe-pk50.noscale", format: "jpeg" },
+    100000: { layer: "ch.swisstopo.pixelkarte-farbe-pk100.noscale", format: "jpeg" },
   };
 
-  const swisstopoLayer = (baseLayer === "swisstopo" && lockedScale && SWISSTOPO_SCALE_LAYERS[lockedScale])
+  const swisstopoConfig = (baseLayer === "swisstopo" && lockedScale && SWISSTOPO_SCALE_LAYERS[lockedScale])
     ? SWISSTOPO_SCALE_LAYERS[lockedScale]
-    : "ch.swisstopo.pixelkarte-farbe";
+    : { layer: "ch.swisstopo.pixelkarte-farbe", format: "jpeg" };
 
   const baseTileUrl = baseLayer === "swisstopo"
-    ? `https://wmts.geo.admin.ch/1.0.0/${swisstopoLayer}/default/current/3857/{z}/{x}/{y}.jpeg`
+    ? `https://wmts.geo.admin.ch/1.0.0/${swisstopoConfig.layer}/default/current/3857/{z}/{x}/{y}.${swisstopoConfig.format}`
     : baseLayer === "satellite"
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -522,7 +568,7 @@ export default function Home() {
           className="h-full w-full"
           zoomControl={false}
         >
-          <TileLayer key={swisstopoLayer} url={baseTileUrl} attribution={baseAttrib} maxZoom={baseLayer === "swisstopo" ? 22 : 19} />
+          <TileLayer key={swisstopoConfig.layer} url={baseTileUrl} attribution={baseAttrib} maxZoom={baseLayer === "swisstopo" ? 22 : 19} />
           <MapEventHandler
             onMove={setMapCenter}
             onZoom={setMapZoom}
@@ -570,31 +616,50 @@ export default function Home() {
             </>
           )}
 
-          {allMarkers.map((m, idx) => (
-            <CircleMarker
-              key={`${m.layerType}-${m.code || m.reference || idx}`}
-              center={[m.lat, m.lng]}
-              radius={7}
-              pathOptions={{
-                color: m.color,
-                fillColor: m.color,
-                fillOpacity: 0.85,
-                weight: 2
-              }}
-              eventHandlers={{
-                click: (e) => {
-                  const map = e.target._map;
-                  if (map) {
-                    map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 13), { duration: 0.5 });
+          {allMarkers.map((m, idx) => {
+            const key = `${m.layerType}-${m.code || m.reference || idx}`;
+            if (dragMode && isAdmin) {
+              return (
+                <Marker
+                  key={key}
+                  position={[m.lat, m.lng]}
+                  icon={createDraggableIcon(m.color)}
+                  draggable={true}
+                  eventHandlers={{
+                    dragend: (e) => {
+                      const ll = e.target.getLatLng();
+                      handleMarkerDrag(m, ll.lat, ll.lng);
+                    }
+                  }}
+                />
+              );
+            }
+            return (
+              <CircleMarker
+                key={key}
+                center={[m.lat, m.lng]}
+                radius={7}
+                pathOptions={{
+                  color: m.color,
+                  fillColor: m.color,
+                  fillOpacity: 0.85,
+                  weight: 2
+                }}
+                eventHandlers={{
+                  click: (e) => {
+                    const map = e.target._map;
+                    if (map) {
+                      map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 13), { duration: 0.5 });
+                    }
                   }
-                }
-              }}
-            >
-              <Popup>
-                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => setEditTarget({ data, layerType: m.layerType })} />
-              </Popup>
-            </CircleMarker>
-          ))}
+                }}
+              >
+                <Popup>
+                  <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => setEditTarget({ data, layerType: m.layerType })} />
+                </Popup>
+              </CircleMarker>
+            );
+          })}
 
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}
         </MapContainer>
@@ -640,11 +705,28 @@ export default function Home() {
           >
             <MapPin className="w-4 h-4" />
           </button>
+          {isAdmin && (
+            <button
+              onClick={() => setDragMode(!dragMode)}
+              className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+                dragMode ? "border-purple-400 text-purple-500 animate-pulse" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+              }`}
+              title="Punkte verschieben (Drag & Drop)"
+            >
+              <Move className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {pickingPosition && (
           <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[10001] bg-gray-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
             📍 Auf Karte tippen um Position zu setzen
+          </div>
+        )}
+
+        {dragMode && (
+          <div className="absolute top-32 left-1/2 -translate-x-1/2 z-[10001] bg-purple-900 text-white text-xs px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
+            ✋ Marker festhalten und ziehen
           </div>
         )}
 

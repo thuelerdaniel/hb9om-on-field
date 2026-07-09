@@ -409,6 +409,30 @@ async function fetchCastleData(castleOverrides) {
     } catch { return null; }
   }
 
+  // Helper: Wikipedia article coordinates lookup
+  async function searchWikipedia(name, location) {
+    try {
+      const searchQuery = (location ? `${name} ${location}` : name) + ' Burg Schloss Schweiz';
+      const resp = await fetch(
+        `https://de.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(searchQuery)}&gsrnamespace=0&gsrlimit=3&prop=coordinates&format=json&origin=*`,
+        { headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' } }
+      );
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      const pages = data.query?.pages || {};
+      const sorted = Object.values(pages).sort((a, b) => (a.index || 999) - (b.index || 999));
+      for (const page of sorted) {
+        if (page.coordinates?.length > 0) {
+          const c = page.coordinates[0];
+          if (isNaN(c.lat) || isNaN(c.lon)) continue;
+          if (c.lat < 45.5 || c.lat > 48.0 || c.lon < 5.8 || c.lon > 10.7) continue;
+          return { lat: c.lat, lng: c.lon };
+        }
+      }
+      return null;
+    } catch { return null; }
+  }
+
   // 4. Match WCA entries to geo sources using name + proximity
   const SKIP_WORDS = new Set(['SCHLOSS', 'BURG', 'CHATEAU', 'CHÂTEAU', 'CASTEL', 'CASTELLO', 'FESTUNG', 'RUINE', 'BURGRUINE', 'SCHLOSSE', 'RUIN', 'OF', 'DE', 'LA', 'LE', 'THE', 'ALT', 'NEU', 'ALTES', 'NEUES', 'GROSSES', 'KLEINES', 'MIT', 'UND', 'ST', 'SANKT', 'DER', 'DIE', 'DAS', 'EIN', 'EINE']);
   const GENERIC_NAMES = new Set(['SCHLOSS', 'BURG', 'CHATEAU', 'CHÂTEAU', 'CASTEL', 'CASTELLO', 'FESTUNG', 'RUINE', 'TURM', 'TURN', 'TOUR', 'TORRE', 'GATE', 'TOR', 'HAUS', 'SCHLOSSLI', 'BURGLI', 'TURMLI']);
@@ -657,42 +681,51 @@ async function fetchCastleData(castleOverrides) {
     afterShortLoc.push(wca);
   }
 
-  // Step 5: Nominatim internet geocoding (rate-limited: 1.1s per request, max 40 lookups)
-  let nominatimCount = 0;
+  // Step 5: Wikipedia article coordinates (search by name, extract geo coords)
+  const afterWiki = [];
+  let wikiCount = 0;
   for (const wca of afterShortLoc) {
     if (GENERIC_NAMES.has(wca.name.trim())) {
       castles.push({
-        code: wca.wca,
-        name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
-        lat: null, lng: null,
-        canton: wca.location,
+        code: wca.wca, name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+        lat: null, lng: null, canton: wca.location,
         link: 'https://wcagroup.org/?page_id=207',
-        wcaName: wca.name, wcaLocation: wca.location,
-        matchSource: null
+        wcaName: wca.name, wcaLocation: wca.location, matchSource: null
       });
       continue;
     }
+    if (wikiCount >= 50) { afterWiki.push(wca); continue; }
+    const coords = await searchWikipedia(wca.name, wca.location);
+    wikiCount++;
+    if (coords) {
+      castles.push({
+        code: wca.wca, name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+        lat: coords.lat, lng: coords.lng, canton: wca.location,
+        link: 'https://wcagroup.org/?page_id=207',
+        wcaName: wca.name, wcaLocation: wca.location, matchSource: 'wikipedia'
+      });
+    } else { afterWiki.push(wca); }
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  // Step 6: Nominatim internet geocoding (rate-limited, max 25 lookups)
+  let nominatimCount = 0;
+  for (const wca of afterWiki) {
     if (nominatimCount >= 25) {
       castles.push({
-        code: wca.wca,
-        name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
-        lat: null, lng: null,
-        canton: wca.location,
+        code: wca.wca, name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+        lat: null, lng: null, canton: wca.location,
         link: 'https://wcagroup.org/?page_id=207',
-        wcaName: wca.name, wcaLocation: wca.location,
-        matchSource: null
+        wcaName: wca.name, wcaLocation: wca.location, matchSource: null
       });
       continue;
     }
     const coords = await searchNominatim(wca.name, wca.location);
     nominatimCount++;
     castles.push({
-      code: wca.wca,
-      name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
-      lat: coords ? coords.lat : null,
-      lng: coords ? coords.lng : null,
-      canton: wca.location,
-      link: 'https://wcagroup.org/?page_id=207',
+      code: wca.wca, name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+      lat: coords ? coords.lat : null, lng: coords ? coords.lng : null,
+      canton: wca.location, link: 'https://wcagroup.org/?page_id=207',
       wcaName: wca.name, wcaLocation: wca.location,
       matchSource: coords ? 'geocoding' : null
     });

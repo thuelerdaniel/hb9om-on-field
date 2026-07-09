@@ -262,6 +262,30 @@ async function searchNominatim(name, location) {
   } catch { return null; }
 }
 
+// --- Wikipedia article coordinates lookup ---
+async function searchWikipedia(name, location) {
+  try {
+    const searchQuery = (location ? `${name} ${location}` : name) + ' Burg Schloss Schweiz';
+    const resp = await fetch(
+      `https://de.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(searchQuery)}&gsrnamespace=0&gsrlimit=3&prop=coordinates&format=json&origin=*`,
+      { headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' } }
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const pages = data.query?.pages || {};
+    const sorted = Object.values(pages).sort((a, b) => (a.index || 999) - (b.index || 999));
+    for (const page of sorted) {
+      if (page.coordinates?.length > 0) {
+        const c = page.coordinates[0];
+        if (isNaN(c.lat) || isNaN(c.lon)) continue;
+        if (c.lat < 45.5 || c.lat > 48.0 || c.lon < 5.8 || c.lon > 10.7) continue;
+        return { lat: c.lat, lng: c.lon };
+      }
+    }
+    return null;
+  } catch { return null; }
+}
+
 async function batchSearchMapAdminCh(entries) {
   const CONCURRENCY = 8;
   const results = new Array(entries.length).fill(null);
@@ -504,19 +528,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6. Final fallback: Nominatim internet geocoding (rate-limited, max 40)
+    // 5b. Wikipedia article coordinates (search by name, extract geo coords)
+    const wikiUnmatched = castles
+      .filter(c => c.lat === null && !GENERIC_NAMES.has((c.wcaName || '').trim()));
+    let wikiCount = 0;
+    for (const c of wikiUnmatched) {
+      if (wikiCount >= 50) break;
+      const coords = await searchWikipedia(c.wcaName, c.wcaLocation);
+      wikiCount++;
+      if (coords) {
+        c.lat = coords.lat;
+        c.lng = coords.lng;
+        c.matchSource = 'wikipedia';
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // 6. Final fallback: Nominatim internet geocoding (rate-limited, max 25)
     const stillUnmatched = castles
       .filter(c => c.lat === null && !GENERIC_NAMES.has((c.wcaName || '').trim()));
     let nominatimCount = 0;
     for (const c of stillUnmatched) {
-      if (nominatimCount >= 40) break;
+      if (nominatimCount >= 25) break;
       const coords = await searchNominatim(c.wcaName, c.wcaLocation);
       nominatimCount++;
       if (coords) {
         c.lat = coords.lat;
         c.lng = coords.lng;
+        c.matchSource = 'geocoding';
       }
-      await new Promise(r => setTimeout(r, 1100));
+      await new Promise(r => setTimeout(r, 1000));
     }
 
     const withCoords = castles.filter(c => c.lat !== null).length;
