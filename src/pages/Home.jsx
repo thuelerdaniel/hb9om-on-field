@@ -172,6 +172,7 @@ export default function Home() {
   });
   const [dragMode, setDragMode] = useState(false);
   const [localOverrides, setLocalOverrides] = useState({});
+  const [serverOverrides, setServerOverrides] = useState({});
   const { toast } = useToast();
 
   const handleMarkerDrag = async (marker, newLat, newLng) => {
@@ -193,6 +194,11 @@ export default function Home() {
         });
       }
       toast({ title: "Position gespeichert", description: `${marker.name} verschoben` });
+      const ovKey = `${marker.layerType}:${code}`;
+      setServerOverrides(prev => ({
+        ...prev,
+        [ovKey]: { ...(prev[ovKey] || {}), reference_type: marker.layerType, original_code: code, manual_lat: newLat, manual_lng: newLng }
+      }));
     } catch (e) {
       toast({ title: "Speichern fehlgeschlagen", description: "Position lokal gespeichert, Server-Speicherung fehlgeschlagen: " + (e.message || "Unbekannter Fehler"), variant: "destructive" });
     }
@@ -237,6 +243,21 @@ export default function Home() {
       .then(res => setIsAdmin(res.data?.isAdmin === true))
       .catch(() => setIsAdmin(false));
   }, []);
+
+  // Load server-side reference overrides (adjusted names, manual coordinates)
+  const loadServerOverrides = useCallback(async () => {
+    try {
+      const overrides = await base44.entities.ReferenceOverride.list();
+      const map = {};
+      (overrides || []).forEach(o => {
+        const key = `${o.reference_type}:${o.original_code}`;
+        map[key] = o;
+      });
+      setServerOverrides(map);
+    } catch (e) { }
+  }, []);
+
+  useEffect(() => { loadServerOverrides(); }, [loadServerOverrides]);
 
   // Load all cached reference data on mount
   useEffect(() => {
@@ -351,12 +372,16 @@ export default function Home() {
 
     return markers.map(m => {
       const code = m.code || m.reference;
-      if (code && localOverrides[code]) {
-        return { ...m, lat: localOverrides[code].lat, lng: localOverrides[code].lng };
-      }
-      return m;
+      const ovKey = `${m.layerType}:${code}`;
+      const ov = serverOverrides[ovKey];
+      return {
+        ...m,
+        name: ov?.adjusted_name || m.name,
+        lat: ov?.manual_lat != null ? ov.manual_lat : (localOverrides[code]?.lat ?? m.lat),
+        lng: ov?.manual_lng != null ? ov.manual_lng : (localOverrides[code]?.lng ?? m.lng),
+      };
     });
-  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides]);
+  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides, serverOverrides]);
 
   // Castle match statistics for legend
   const castleStats = useMemo(() => {
@@ -384,8 +409,18 @@ export default function Home() {
     castles.forEach(c => { if (c.lat && c.lng) markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }); });
     IOTA_DATA.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
     LIGHTHOUSE_DATA.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
-    return markers;
-  }, [sotaData, potaData, hbffData, wwbotaData, castleData]);
+    return markers.map(m => {
+      const code = m.code || m.reference;
+      const ovKey = `${m.layerType}:${code}`;
+      const ov = serverOverrides[ovKey];
+      return {
+        ...m,
+        name: ov?.adjusted_name || m.name,
+        lat: ov?.manual_lat != null ? ov.manual_lat : m.lat,
+        lng: ov?.manual_lng != null ? ov.manual_lng : m.lng,
+      };
+    });
+  }, [sotaData, potaData, hbffData, wwbotaData, castleData, serverOverrides]);
 
   // Search
   useEffect(() => {
@@ -752,7 +787,7 @@ export default function Home() {
           originalName={editTarget.data.name || ""}
           originalLocation={editTarget.data.canton || editTarget.data.wcaLocation || editTarget.data.region || ""}
           onClose={() => setEditTarget(null)}
-          onSaved={() => setEditTarget(null)}
+          onSaved={() => { loadServerOverrides(); setEditTarget(null); }}
         />
       )}
 

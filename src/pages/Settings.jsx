@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 
@@ -352,20 +352,43 @@ export default function Settings() {
                 Keine zwischengespeicherten Daten vorhanden
               </div>
             ) : (
-              cacheStatus.map(entry => (
-                <div key={entry.id} className="bg-white rounded-xl border border-gray-200 p-3 overflow-hidden">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-gray-900 truncate">{TYPE_LABELS[entry.type] || entry.type}</span>
-                    <span className="text-lg font-bold text-gray-900 flex-shrink-0">{entry.total_count}</span>
+              cacheStatus.map(entry => {
+                const refs = entry.references || [];
+                const withCoords = refs.filter(r => r.lat && r.lng).length;
+                const total = entry.total_count || refs.length;
+                const withoutCoords = total - withCoords;
+                const lastUpdated = entry.last_updated ? new Date(entry.last_updated) : null;
+                const isStale = lastUpdated && (Date.now() - lastUpdated.getTime()) > 7 * 24 * 60 * 60 * 1000;
+                return (
+                  <div key={entry.id} className="bg-white rounded-xl border border-gray-200 p-3 overflow-hidden">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-gray-900 truncate">{TYPE_LABELS[entry.type] || entry.type}</span>
+                      <span className="text-lg font-bold text-gray-900 flex-shrink-0">{total}</span>
+                    </div>
+                    {refs.length > 0 ? (
+                      <div className="flex items-center gap-2 mt-1 text-[10px]">
+                        <span className="text-green-600 flex items-center gap-0.5">
+                          <MapPin className="w-2.5 h-2.5" /> {withCoords} geo
+                        </span>
+                        {withoutCoords > 0 && (
+                          <span className="text-amber-600 flex items-center gap-0.5">
+                            <AlertCircle className="w-2.5 h-2.5" /> {withoutCoords} offen
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-gray-300 mt-1">Keine Referenzdetails</p>
+                    )}
+                    <p className={`text-[10px] mt-1 truncate ${isStale ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                      {lastUpdated ? lastUpdated.toLocaleString('de-CH') : 'Nie'}
+                      {isStale ? ' ⚠ veraltet' : ''}
+                    </p>
+                    {entry.source && (
+                      <p className="text-[10px] text-gray-400 truncate" title={entry.source}>Quelle: {entry.source}</p>
+                    )}
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1 truncate">
-                    {entry.last_updated ? new Date(entry.last_updated).toLocaleString('de-CH') : 'Nie'}
-                  </p>
-                  {entry.source && (
-                    <p className="text-[10px] text-gray-400 truncate" title={entry.source}>Quelle: {entry.source}</p>
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>

@@ -54,6 +54,11 @@ const SECTIONS = [
         example: "Klick auf einen SOTA-Gipfel → Popup zeigt Name, Höhe, Punkte und Link zu sotl.as."
       },
       {
+        title: "Marker verschieben (Admin)",
+        body: "Administratoren können den Drag & Drop-Modus aktivieren (Move-Icon links neben der Karte), um Marker an die korrekte Position zu verschieben. Die neuen Koordinaten werden sofort gespeichert und sind für alle Administratoren sichtbar. Angepasste Namen über den «Referenz bearbeiten»-Button erscheinen ebenfalls sofort.",
+        example: "Move-Button aktivieren → Marker festhalten und verschieben → Position wird automatisch gespeichert."
+      },
+      {
         title: "Referenz-Typen",
         body: "Folgende Referenz-Typen werden unterstützt. Klicken Sie auf den Namen, um die aktuelle Referenzliste zu öffnen:",
         list: [
@@ -182,8 +187,8 @@ const SECTIONS = [
       },
       {
         title: "Cache-Status",
-        body: "Zeigt, wie viele Referenzen pro Typ zwischengespeichert sind und wann die letzte Aktualisierung stattfand. Nur für Administratoren sichtbar.",
-        example: "SOTA: 542 Referenzen, zuletzt aktualisiert 03.07.2026."
+        body: "Zeigt, wie viele Referenzen pro Typ zwischengespeichert sind und wann die letzte Aktualisierung stattfand. Zusätzlich wird angezeigt, wie viele Referenzen erfolgreich georeferenziert wurden (mit Koordinaten) und wie viele noch offen sind. Bei veralteten Daten (>7 Tage) erscheint ein Warnhinweis. Nur für Administratoren sichtbar.",
+        example: "SOTA: 1341 total, 1341 geo, zuletzt aktualisiert 09.07.2026."
       },
       {
         title: "QRZ-Abfrageverlauf",
@@ -248,8 +253,13 @@ const ADMIN_SECTIONS = [
     items: [
       {
         title: "Referenz auf der Karte bearbeiten",
-        body: "Klicken Sie als Administrator auf einen beliebigen Marker auf der Karte. Im Popup-Fenster finden Sie unten einen «Referenz bearbeiten»-Button. Damit können Sie den Namen, den Ort, manuelle Koordinaten und eine Web-Referenz anpassen.",
-        example: "Burg anklicken → «Referenz bearbeiten» → neuen Namen eingeben → Speichern."
+        body: "Klicken Sie als Administrator auf einen beliebigen Marker auf der Karte. Im Popup-Fenster finden Sie unten einen «Referenz bearbeiten»-Button. Damit können Sie den Namen, den Ort, manuelle Koordinaten und eine Web-Referenz anpassen. Angepasste Namen und Koordinaten werden sofort auf der Karte angezeigt – keine Datenaktualisierung nötig.",
+        example: "Burg anklicken → «Referenz bearbeiten» → neuen Namen eingeben → Speichern → Name erscheint sofort auf der Karte."
+      },
+      {
+        title: "Marker per Drag & Drop verschieben",
+        body: "Als Administrator können Sie den Drag & Drop-Modus aktivieren (Move-Icon links neben der Karte). Ziehen Sie Marker an die korrekte Position – die Koordinaten werden sofort gespeichert und sind für alle Administratoren sichtbar. Die neue Position erscheint sofort auf der Karte.",
+        example: "Move-Button aktivieren → Marker festhalten und verschieben → Position wird automatisch gespeichert."
       },
       {
         title: "Nicht georeferenzierte Burgen",
@@ -258,8 +268,18 @@ const ADMIN_SECTIONS = [
       },
       {
         title: "Wie Overrides funktionieren",
-        body: "Wenn Sie eine Referenz anpassen, wird ein Override gespeichert. Bei der nächsten Datenaktualisierung werden diese verwendet: Manuelle Koordinaten werden direkt übernommen, angepasste Namen/Orte werden für das automatische Matching verwendet, und Web-Referenzen ersetzen den Standard-Link.",
-        example: "Override mit manuellen Koordinaten → Burg erscheint nach dem nächsten Update auf der Karte."
+        body: "Wenn Sie eine Referenz anpassen (Name, Ort, Koordinaten, Web-Referenz), wird ein Override gespeichert. Diese Overrides werden sofort auf der Karte angewendet: Angepasste Namen ersetzen den Originalnamen, manuelle Koordinaten überschreiben die automatischen Positionen. Bei der nächsten Datenaktualisierung werden die Overrides zusätzlich für das automatische Matching verwendet. Overrides können im Bearbeitungsdialog über «Zurücksetzen» gelöscht werden.",
+        example: "Override mit neuem Namen → Marker zeigt sofort den neuen Namen, kein Update nötig."
+      },
+      {
+        title: "Daten-Cache mit Qualitätsanzeige",
+        body: "Im Daten-Cache in den Einstellungen wird für jeden Referenz-Typ angezeigt, wie viele Referenzen insgesamt gespeichert sind und wie viele davon erfolgreich georeferenziert wurden (mit Koordinaten). Referenzen ohne Koordinaten werden als «offen» markiert. Bei veralteten Daten (>7 Tage) erscheint ein Warnhinweis. So sehen Administratoren auf einen Blick, welche Daten qualitativ hochwertig sind und wo Nacharbeit nötig ist.",
+        example: "Burgen: 938 total, 646 geo, 292 offen → 292 Burgen haben keine Koordinaten und erscheinen nicht auf der Karte."
+      },
+      {
+        title: "Admin-Benachrichtigung bei Registrierung",
+        body: "Wenn sich ein neuer Benutzer registriert, erhalten alle Administratoren automatisch eine E-Mail-Benachrichtigung mit der E-Mail-Adresse des neuen Benutzers und dem Registrierungszeitpunkt. So bleiben Administratoren über neue Benutzer auf dem Laufenden.",
+        example: "Neuer Benutzer registriert → Admins erhalten E-Mail → Benutzer in der Benutzerverwaltung sichtbar."
       },
       {
         title: "Demo-Benutzer",
