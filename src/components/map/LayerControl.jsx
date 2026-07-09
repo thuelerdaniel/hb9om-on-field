@@ -77,7 +77,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="absolute top-3 right-3 z-[1000]">
+    <div className="absolute top-3 right-3 z-[1005]">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-white shadow-lg rounded-lg p-2.5 hover:bg-gray-50 transition-colors border border-gray-200"
@@ -87,7 +87,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
       </button>
 
       {isOpen && (
-        <div className="absolute top-12 right-0 bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
+        <div className="absolute top-12 right-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
           {/* Hintergrundkarte */}
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide">Hintergrundkarte</h3>

@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { MapContainer, TileLayer, Popup, useMap, CircleMarker, Marker, WMSTileLayer, useMapEvents } from "react-leaflet";
-import L from "leaflet";
+import { MapContainer, useMap, WMSTileLayer, useMapEvents } from "react-leaflet";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl, { LAYER_GROUPS } from "@/components/map/LayerControl";
 import MapLegend from "@/components/map/MapLegend";
-import MarkerPopup from "@/components/map/MarkerPopup";
 import SearchResults from "@/components/map/SearchResults";
 import SplashScreen from "@/components/map/SplashScreen";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import MapControls from "@/components/map/MapControls";
+import MapMarkers from "@/components/map/MapMarkers";
 import PositionMarker from "@/components/map/PositionMarker";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
@@ -74,17 +73,6 @@ const LAYER_COLORS = {
   lighthouse: "#f39c12",
   swiss_protected: "#16a085"
 };
-
-function createDraggableIcon(color) {
-  return L.divIcon({
-    html: `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${color}; border: 4px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.6); cursor: grab; display: flex; align-items: center; justify-content: center; touch-action: none;">
-      <div style="width: 10px; height: 10px; border-radius: 50%; background: white; opacity: 0.7;"></div>
-    </div>`,
-    className: "draggable-marker-icon",
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
-  });
-}
 
 function MapBounds({ center, zoom }) {
   const map = useMap();
@@ -193,7 +181,7 @@ export default function Home() {
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const { toast } = useToast();
 
-  const handleMarkerDrag = async (marker, newLat, newLng) => {
+  const handleMarkerDrag = useCallback(async (marker, newLat, newLng) => {
     const code = marker.code || marker.reference;
     if (!code) return;
 
@@ -228,7 +216,7 @@ export default function Home() {
     } catch (e) {
       toast({ title: "Speichern fehlgeschlagen", description: "Position lokal gespeichert, Server-Speicherung fehlgeschlagen: " + (e.message || "Unbekannter Fehler"), variant: "destructive" });
     }
-  };
+  }, [isAdmin, toast]);
 
   // Persist map settings to localStorage
   useEffect(() => {
@@ -698,6 +686,7 @@ export default function Home() {
           zoom={mapZoom}
           className="h-full w-full"
           zoomControl={false}
+          preferCanvas={true}
         >
           <MapTileLayer
             url={baseTileUrl}
@@ -755,50 +744,13 @@ export default function Home() {
             </>
           )}
 
-          {allMarkers.map((m, idx) => {
-            const key = `${m.layerType}-${m.code || m.reference || idx}`;
-            if (dragMode) {
-              return (
-                <Marker
-                  key={key}
-                  position={[m.lat, m.lng]}
-                  icon={createDraggableIcon(m.color)}
-                  draggable={true}
-                  eventHandlers={{
-                    dragend: (e) => {
-                      const ll = e.target.getLatLng();
-                      handleMarkerDrag(m, ll.lat, ll.lng);
-                    }
-                  }}
-                />
-              );
-            }
-            return (
-              <CircleMarker
-                key={key}
-                center={[m.lat, m.lng]}
-                radius={7}
-                pathOptions={{
-                  color: m.color,
-                  fillColor: m.color,
-                  fillOpacity: 0.85,
-                  weight: 2
-                }}
-                eventHandlers={{
-                  click: (e) => {
-                    const map = e.target._map;
-                    if (map) {
-                      map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 13), { duration: 0.5 });
-                    }
-                  }
-                }}
-              >
-                <Popup>
-                  <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => setEditTarget({ data, layerType: m.layerType })} />
-                </Popup>
-              </CircleMarker>
-            );
-          })}
+          <MapMarkers
+            markers={allMarkers}
+            dragMode={dragMode}
+            isAdmin={isAdmin}
+            onMarkerDrag={handleMarkerDrag}
+            onEdit={(data, layerType) => setEditTarget({ data, layerType })}
+          />
 
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}
         </MapContainer>
