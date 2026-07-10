@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
@@ -51,6 +51,7 @@ export default function Settings() {
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [storageInfo, setStorageInfo] = useState({ areas: 0, tiles: 0 });
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
+  const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("hb9om_performance_mode") === "true");
   const [offlineReady, setOfflineReady] = useState(() => isOfflineReady());
   const [offlineCachedAt, setOfflineCachedAt] = useState(() => getCachedAt());
   const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
@@ -308,6 +309,11 @@ export default function Settings() {
     setStorageInfo({ areas: 0, tiles: 0 });
   };
 
+  const handleTogglePerformanceMode = (enabled) => {
+    setPerformanceMode(enabled);
+    localStorage.setItem("hb9om_performance_mode", String(enabled));
+  };
+
   const handleToggleForceOffline = async (enabled) => {
     setForceOffline(enabled);
     localStorage.setItem("hb9om_force_offline", String(enabled));
@@ -530,6 +536,35 @@ export default function Settings() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* Performance Mode */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                {performanceMode ? <Gauge className="w-4 h-4 text-amber-500" /> : <Zap className="w-4 h-4 text-green-500" />} 
+                {performanceMode ? "Energiesparmodus" : "Performance-Modus"}
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {performanceMode
+                  ? "Einfache Kreise statt Symbole – schneller auf langsamen Geräten und Verbindungen"
+                  : "Symbole in voller Qualität – aktiviere Energiesparmodus bei träger Karte"}
+              </p>
+            </div>
+            <button
+              onClick={() => handleTogglePerformanceMode(!performanceMode)}
+              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${performanceMode ? 'bg-amber-500' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${performanceMode ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+          {performanceMode && (
+            <div className="mt-2 p-2.5 bg-amber-50 rounded-lg text-xs text-amber-700 flex items-start gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <span>Marker werden als einfache farbige Punkte dargestellt. Tippe auf einen Punkt für Details. Die Kartenverschiebung ist dadurch deutlich flüssiger.</span>
             </div>
           )}
         </section>

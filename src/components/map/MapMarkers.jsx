@@ -41,11 +41,7 @@ function getDraggableIcon(color) {
   return icon;
 }
 
-// Below this zoom: render canvas dots (extremely fast, single canvas element).
-// Above this zoom: render SVG divIcon markers (shapes visible, few in viewport).
-const LOW_ZOOM_THRESHOLD = 12;
-
-function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
+function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
@@ -89,8 +85,8 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
     );
   }
 
-  // Low zoom: canvas CircleMarker — drawn as pixels on a single canvas, not DOM elements
-  if (zoom < LOW_ZOOM_THRESHOLD) {
+  // Performance mode: simple colored dots (Canvas) — for slow devices/connections
+  if (performanceMode) {
     return (
       <>
         {visibleMarkers.map((m, idx) => {
@@ -117,7 +113,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
     );
   }
 
-  // High zoom: SVG divIcon markers with shapes
+  // Normal mode: SVG divIcon markers with shapes (original symbols)
   return (
     <>
       {visibleMarkers.map((m, idx) => {
@@ -144,7 +140,8 @@ function arePropsEqual(prev, next) {
     prev.dragMode === next.dragMode &&
     prev.isAdmin === next.isAdmin &&
     prev.onMarkerDrag === next.onMarkerDrag &&
-    prev.onEdit === next.onEdit
+    prev.onEdit === next.onEdit &&
+    prev.performanceMode === next.performanceMode
   );
 }
 

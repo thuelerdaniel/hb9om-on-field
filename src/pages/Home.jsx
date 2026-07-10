@@ -176,6 +176,7 @@ export default function Home() {
   const [localOverrides, setLocalOverrides] = useState({});
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
+  const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("hb9om_performance_mode") === "true");
   const isOffline = !isOnline || forceOffline;
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
@@ -838,6 +839,7 @@ export default function Home() {
             isAdmin={isAdmin}
             onMarkerDrag={handleMarkerDrag}
             onEdit={(data, layerType) => setEditTarget({ data, layerType })}
+            performanceMode={performanceMode}
           />
 
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}
