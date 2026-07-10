@@ -16,9 +16,8 @@ Deno.serve(async (req) => {
       try {
         await base44.auth.register({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
       } catch (e) {
-        // ignore — user may have been created race-conditionally
+        // ignore — may exist already
       }
-      // Re-fetch
       const users2 = await base44.asServiceRole.entities.User.list("-created_date", 500);
       demoUser = users2.find(u => u.email === DEMO_EMAIL);
     }
@@ -27,12 +26,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Demo-Benutzer konnte nicht erstellt werden' }, { status: 500 });
     }
 
-    // Ensure demo user is verified — loginViaEmailPassword fails for unverified users
-    if (!demoUser.is_verified) {
-      await base44.asServiceRole.entities.User.update(demoUser.id, { is_verified: true });
-    }
+    // Generate an SSO access token for the demo user — bypasses email verification
+    const { access_token } = await base44.asServiceRole.sso.getAccessToken(demoUser.id);
 
-    return Response.json({ success: true });
+    return Response.json({ success: true, access_token });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
