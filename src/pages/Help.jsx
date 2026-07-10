@@ -133,8 +133,8 @@ const SECTIONS = [
       },
       {
         title: "Standort-Info bei Gefahren & Naturzonen",
-        body: "Wenn Sie die Layer «Gefahren & Störquellen» oder «Natur Zonen» aktiviert haben, können Sie auf die Karte tippen, um detaillierte Informationen zu den Objekten an diesem Standort abzufragen. Es erscheint ein Popup mit allen verfügbaren Details wie Bezeichnung, Eigentümer, Spannung, Fläche oder Datenblatt-Links. Wenn sich an einem Standort keine Gefahrenquelle oder Naturzone befindet, erscheint auch kein Popup. Die Daten stammen von der geo.admin.ch-Identify-API.",
-        example: "Layer «Gefahren» aktivieren → auf Hochspannungsleitung tippen → Popup zeigt Bezeichnung, Eigentümer und Spannung."
+        body: "Wenn Sie die Layer «Gefahren & Störquellen» oder «Natur Zonen» aktiviert haben, können Sie auf die Karte tippen, um detaillierte Informationen zu den Objekten an diesem Standort abzufragen. Es erscheint ein Popup mit allen verfügbaren Details wie Bezeichnung, Eigentümer, Spannung, Frequenz, Antennenhöhe, Azimut, Polarisation und weiteren technischen Daten. Bei Richtfunkstrecken und Sendemasten werden zusätzlich Frequenzbereich, Kanal, Bandbreite, Programm, Dienstart, System, Sektor, Tilt und Gain angezeigt. Wenn keine Detaildaten zu einem Objekt verfügbar sind, wird kein Hinweis angezeigt – stattdessen erscheint direkt der Link zu map.geo.admin.ch. Jeder Layer-Abschnitt im Popup hat einen eigenen «In map.geo.admin.ch öffnen»-Link, der die Karte genau an der geklickten Position mit dem richtigen Zoom, dem aktiven Layer und einem Fadenkreuz-Marker öffnet. Die Koordinaten werden automatisch in das Schweizer LV95-Koordinatensystem umgerechnet. Wenn sich an einem Standort keine Gefahrenquelle oder Naturzone befindet, erscheint auch kein Popup.",
+        example: "Layer «Gefahren» aktivieren → auf Hochspannungsleitung tippen → Popup zeigt Bezeichnung, Eigentümer und Spannung → «In map.geo.admin.ch öffnen» öffnet die Karte genau an dieser Position mit dem richtigen Layer und Fadenkreuz-Marker."
       },
       {
         title: "Funktionsvorschläge einreichen",
@@ -313,6 +313,11 @@ const SECTIONS = [
     color: "#8b5cf6",
     description: "Nützliche Hinweise für den Alltag.",
     items: [
+      {
+        title: "Energiesparmodus (Performance)",
+        body: "In den Einstellungen können Sie den Energiesparmodus (Performance-Modus) aktivieren. Dieser Modus ist ideal für langsame Geräte oder instabile Internetverbindungen. Wenn aktiviert: Marker werden als einfache farbige Kreise statt komplexe SVG-Symbole gerendert (schnellerer Aufbau). Beim Antippen eines Markers zeigt das Popup nur die wichtigsten Infos (Name, Referenz-Code, Koordinaten) – ein «Mehr Infos»-Button lädt die vollständigen Details (Höhe, Punkte, externe Links etc.) erst auf Wunsch nach. Mit «Weniger Infos» können die Details wieder ausgeblendet werden. Beim Gefahren-Layer werden im Sparmodus nur die wichtigsten Layer (Starkstromanlagen) abgefragt, BAKOM-Details (Mobilfunk, Richtfunk) werden übersprungen. Ausserdem werden nur sichtbare Marker im aktuellen Kartenausschnitt gerendert (Viewport-Culling) und die Kartenkacheln mit Hardware-Beschleunigung geladen.",
+        example: "Einstellungen → Energiesparmodus aktivieren → Marker erscheinen als einfache Kreise → Marker antippen → «Mehr Infos» für volle Details."
+      },
       {
         title: "Wake-Lock (Bildschirm an)",
         body: "Beim Erfassen eines QSOs bleibt der Bildschirm aktiviert (Wake-Lock), damit der Bildschirm nicht während des Funkens ausgeht. Schliessen Sie das Formular, um den Bildschirm wieder normal zu nutzen.",

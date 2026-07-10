@@ -13,7 +13,7 @@ const LAYER_META = {
 };
 
 export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode }) {
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetails, setShowDetails] = useState(!performanceMode);
   const meta = LAYER_META[layerType] || {};
   const Icon = meta.icon || MapPin;
 
@@ -28,40 +28,6 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
     return null;
   })();
 
-  // Performance mode: show only essential info, load details on demand
-  if (performanceMode && !showDetails) {
-    return (
-      <div className="min-w-[180px] max-w-[240px]">
-        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: meta.color + '20' }}>
-            <Icon className="w-4 h-4" style={{ color: meta.color }} />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: meta.color }}>
-              {meta.label}
-            </span>
-          </div>
-        </div>
-
-        <h3 className="font-bold text-sm text-gray-900 mb-1">{data.name || data.reference || data.code}</h3>
-
-        {data.code && <p className="text-xs text-gray-500 mb-1">Referenz: <span className="font-mono font-semibold">{data.code}</span></p>}
-        {data.reference && !data.code && <p className="text-xs text-gray-500 mb-1">Referenz: <span className="font-mono font-semibold">{data.reference}</span></p>}
-
-        <div className="mt-1 mb-2 text-[10px] text-gray-400">
-          {data.lat?.toFixed(5)}, {data.lng?.toFixed(5)}
-        </div>
-
-        <button
-          onClick={() => setShowDetails(true)}
-          className="w-full px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
-        >
-          <ChevronDown className="w-3 h-3" /> Mehr Infos
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="min-w-[220px] max-w-[300px]">
       <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
@@ -72,7 +38,7 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
           <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: meta.color }}>
             {meta.label}
           </span>
-          <p className="text-xs text-gray-400">{meta.program}</p>
+          {showDetails && <p className="text-xs text-gray-400">{meta.program}</p>}
         </div>
       </div>
 
@@ -81,64 +47,70 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
       {data.code && <p className="text-xs text-gray-500 mb-1">Referenz: <span className="font-mono font-semibold">{data.code}</span></p>}
       {data.reference && !data.code && <p className="text-xs text-gray-500 mb-1">Referenz: <span className="font-mono font-semibold">{data.reference}</span></p>}
 
-      {data.alt && <p className="text-xs text-gray-500">Höhe: {data.alt} m ü.M.</p>}
-      {data.points && <p className="text-xs text-gray-500">Punkte: {data.points}</p>}
-      {data.region && <p className="text-xs text-gray-500">Region: {data.region}</p>}
-      {data.locationDesc && <p className="text-xs text-gray-500">Ort: {data.locationDesc}</p>}
-      {data.parkType && <p className="text-xs text-gray-500">Typ: {data.parkType}</p>}
-      {data.canton && <p className="text-xs text-gray-500">{layerType === "castle" ? "Ort" : "Kanton"}: {data.canton}</p>}
-      {data.country && <p className="text-xs text-gray-500">Land: {data.country}</p>}
-      {data.activationCount !== undefined && <p className="text-xs text-gray-500">Aktivierungen: {data.activationCount}</p>}
+      {showDetails && (
+        <>
+          {data.alt && <p className="text-xs text-gray-500">Höhe: {data.alt} m ü.M.</p>}
+          {data.points && <p className="text-xs text-gray-500">Punkte: {data.points}</p>}
+          {data.region && <p className="text-xs text-gray-500">Region: {data.region}</p>}
+          {data.locationDesc && <p className="text-xs text-gray-500">Ort: {data.locationDesc}</p>}
+          {data.parkType && <p className="text-xs text-gray-500">Typ: {data.parkType}</p>}
+          {data.canton && <p className="text-xs text-gray-500">{layerType === "castle" ? "Ort" : "Kanton"}: {data.canton}</p>}
+          {data.country && <p className="text-xs text-gray-500">Land: {data.country}</p>}
+          {data.activationCount !== undefined && <p className="text-xs text-gray-500">Aktivierungen: {data.activationCount}</p>}
 
-      {externalLink && (
-        <a href={externalLink} target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:underline">
-          Mehr Infos <ExternalLink className="w-3 h-3" />
-        </a>
+          {externalLink && (
+            <a href={externalLink} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:underline">
+              Mehr Infos <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+
+          {layerType === "castle" && data.name && (() => {
+            const loc = data.canton || data.wcaLocation || '';
+            const wikiQuery = loc ? `${data.name} ${loc}` : data.name;
+            return (
+              <a
+                href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(wikiQuery)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+              >
+                Wikipedia <ExternalLink className="w-3 h-3" />
+              </a>
+            );
+          })()}
+
+          {layerType === "wwbota" && data.name && (() => {
+            const wikiQuery = `${data.name} Bunker Schweiz`;
+            return (
+              <a
+                href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(wikiQuery)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+              >
+                Wikipedia <ExternalLink className="w-3 h-3" />
+              </a>
+            );
+          })()}
+
+          {isAdmin && onEdit && (
+            <button
+              onClick={() => onEdit(data)}
+              className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
+            >
+              <Pencil className="w-3 h-3" /> Referenz bearbeiten
+            </button>
+          )}
+        </>
       )}
 
-      {layerType === "castle" && data.name && (() => {
-        const loc = data.canton || data.wcaLocation || '';
-        const wikiQuery = loc ? `${data.name} ${loc}` : data.name;
-        return (
-          <a
-            href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(wikiQuery)}`}
-            target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
-          >
-            Wikipedia <ExternalLink className="w-3 h-3" />
-          </a>
-        );
-      })()}
-
-      {layerType === "wwbota" && data.name && (() => {
-        const wikiQuery = `${data.name} Bunker Schweiz`;
-        return (
-          <a
-            href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(wikiQuery)}`}
-            target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
-          >
-            Wikipedia <ExternalLink className="w-3 h-3" />
-          </a>
-        );
-      })()}
-
-      {isAdmin && onEdit && (
+      {performanceMode && (
         <button
-          onClick={() => onEdit(data)}
-          className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
+          onClick={() => setShowDetails(prev => !prev)}
+          className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
         >
-          <Pencil className="w-3 h-3" /> Referenz bearbeiten
-        </button>
-      )}
-
-      {performanceMode && showDetails && (
-        <button
-          onClick={() => setShowDetails(false)}
-          className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
-        >
-          <ChevronUp className="w-3 h-3" /> Weniger Infos
+          {showDetails
+            ? <><ChevronUp className="w-3 h-3" /> Weniger Infos</>
+            : <><ChevronDown className="w-3 h-3" /> Mehr Infos</>}
         </button>
       )}
 

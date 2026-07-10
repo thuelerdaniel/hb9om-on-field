@@ -199,14 +199,28 @@ export const SECTIONS = [
       },
       {
         title: "Gefahren und Störquellen",
-        body: "Der Layer «Gefahren und Störquellen» zeigt Hochspannungsleitungen und Starkstromanlagen (über 36 kV) von map.geo.admin.ch. Diese Informationen sind für Amateurfunker wichtig, da Hochspannungsleitungen Störungen verursachen können.",
+        body: "Der Layer «Gefahren und Störquellen» zeigt Hochspannungsleitungen, Starkstromanlagen, Mobilfunkantennen, Richtfunkstrecken und Radio-/Fernsehsender von map.geo.admin.ch. Diese Informationen sind für Amateurfunker wichtig, da elektrische Anlagen und Sendeanlagen Störungen verursachen können.",
         steps: [
           { icon: "layers", text: "Layer-Menü öffnen" },
           { icon: "zap", text: "«Gefahren und Störquellen» aktivieren" },
           { icon: "zap", text: "Rote Linien zeigen Hochspannungsleitungen" },
-          { icon: "eye", text: "Auf Leitung tippen für Detail-Popup (Bezeichnung, Eigentümer, Spannung)" }
+          { icon: "eye", text: "Auf Objekt tippen für Detail-Popup" },
+          { icon: "zap", text: "Details: Bezeichnung, Eigentümer, Spannung, Frequenz, Antennenhöhe" },
+          { icon: "globe", text: "«In map.geo.admin.ch öffnen» öffnet Karte an exakter Position mit Fadenkreuz" }
         ],
+        tip: "Tipp: Der map.geo.admin.ch-Link öffnet die Karte mit den korrekten LV95-Koordinaten, dem richtigen Zoom-Level und dem aktiven Layer – Sie landen genau am geklickten Punkt.",
         links: [{ label: "geo.admin.ch Karte", url: LINKS.geoAdmin }]
+      },
+      {
+        title: "Standort-Info bei Gefahren und Naturzonen",
+        body: "Wenn Sie die Layer «Gefahren und Störquellen» oder «Natur Zonen» aktiviert haben, können Sie auf die Karte tippen, um detaillierte Informationen zu den Objekten an diesem Standort abzufragen. Bei Richtfunkstrecken und Sendemasten werden zusätzlich Frequenzbereich, Kanal, Bandbreite, Programm, Dienstart, System, Sektor, Tilt und Gain angezeigt. Wenn keine Detaildaten verfügbar sind, erscheint direkt der Link zu map.geo.admin.ch. Jeder Layer-Abschnitt hat einen eigenen Deep-Link, der die Karte mit LV95-Koordinaten, richtigem Zoom, aktivem Layer und Fadenkreuz-Marker öffnet.",
+        steps: [
+          { icon: "layers", text: "Layer «Gefahren» oder «Natur Zonen» aktivieren" },
+          { icon: "mapPin", text: "Auf Karte tippen – Popup erscheint bei Treffer" },
+          { icon: "eye", text: "Details wie Eigentümer, Spannung, Frequenz etc." },
+          { icon: "globe", text: "«In map.geo.admin.ch öffnen» – exakte Position mit Fadenkreuz" }
+        ],
+        tip: "Tipp: Im Energiesparmodus werden nur die wichtigsten Layer abgefragt (Starkstromanlagen). BAKOM-Details werden übersprungen."
       },
       {
         title: "Referenz-Typen Übersicht",
@@ -484,6 +498,18 @@ export const SECTIONS = [
     letter: "T",
     description: "Praktische Hinweise für den Alltag: Wake-Lock, Formulardaten-Erhaltung, Sonnenmodus für starke Sonneneinstrahlung, Maidenhead-Locator und lokale Speicherung mit Synchronisation.",
     items: [
+      {
+        title: "Energiesparmodus (Performance)",
+        body: "In den Einstellungen können Sie den Energiesparmodus aktivieren – ideal für langsame Geräte oder instabile Internetverbindungen. Marker werden als einfache farbige Kreise gerendert. Beim Antippen eines Markers zeigt das Popup nur die wichtigsten Infos (Name, Referenz-Code, Koordinaten). Ein «Mehr Infos»-Button lädt die vollständigen Details erst auf Wunsch nach. Beim Gefahren-Layer werden nur die wichtigsten Layer abgefragt.",
+        steps: [
+          { icon: "settings", text: "Einstellungen öffnen" },
+          { icon: "zap", text: "Energiesparmodus aktivieren" },
+          { icon: "mapPin", text: "Marker erscheinen als einfache Kreise" },
+          { icon: "chevronDown", text: "Marker antippen – «Mehr Infos» für volle Details" },
+          { icon: "chevronUp", text: "«Weniger Infos» blendet Details wieder aus" }
+        ],
+        tip: "Tipp: Im Sparmodus werden nur sichtbare Marker gerendert (Viewport-Culling) und die Kartenkacheln mit Hardware-Beschleunigung geladen."
+      },
       {
         title: "Wake-Lock (Bildschirm an)",
         body: "Beim Erfassen eines QSOs bleibt der Bildschirm aktiviert (Wake-Lock), damit der Bildschirm nicht während des Funkens ausgeht. Schliessen Sie das Formular, um den Bildschirm wieder normal zu nutzen.",
