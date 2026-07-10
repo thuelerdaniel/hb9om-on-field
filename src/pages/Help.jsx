@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
@@ -479,6 +478,7 @@ function HelpSection({ section }) {
 }
 
 export default function Help() {
+  const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [flyerLoading, setFlyerLoading] = useState(false);
   const [helpPdfLoading, setHelpPdfLoading] = useState(false);
@@ -525,14 +525,22 @@ export default function Help() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="Hilfe & Anleitung"
-        subtitle="Alle Funktionen im Überblick"
-        icon={HelpCircle}
-        iconBg="bg-blue-50"
-        iconColor="text-blue-600"
-        maxWidth="max-w-3xl"
-      />
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+          <button onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate("/")} className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div className="flex items-center gap-2 flex-1">
+            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+              <HelpCircle className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-gray-900">Hilfe & Anleitung</h1>
+              <p className="text-[10px] text-gray-400">Alle Funktionen im Überblick</p>
+            </div>
+          </div>
+        </div>
+      </header>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 pb-24">
         {/* Werbe-Flyer Download */}

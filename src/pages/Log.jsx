@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, ArrowLeft, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
-import PullToRefresh from "@/components/PullToRefresh";
-import PageHeader from "@/components/PageHeader";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
 import LogStats from "@/components/log/LogStats";
@@ -17,6 +15,7 @@ const REF_TYPE_LABELS = {
 };
 
 export default function Log() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("all");
@@ -144,43 +143,50 @@ export default function Log() {
   }, [entries]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      <PageHeader
-        title="QSO-Logbuch"
-        icon={Radio}
-        iconBg="bg-gray-900"
-        subtitle={
-          <div className="flex items-center gap-1.5">
-            <span className="text-gray-400">{entries.length} Einträge</span>
-            {pendingCount > 0 ? (
-              <span className="flex items-center gap-0.5 text-amber-500" title={`${pendingCount} Eintrag${pendingCount !== 1 ? 'en' : ''} wartet auf Synchronisation`}>
-                <CloudOff className="w-2.5 h-2.5" /> {pendingCount} ausstehend
-              </span>
-            ) : lastSync ? (
-              <span className="flex items-center gap-0.5 text-green-500" title={`Zuletzt synchronisiert: ${new Date(lastSync).toLocaleString('de-CH')}`}>
-                <Cloud className="w-2.5 h-2.5" /> synchronisiert
-              </span>
-            ) : (
-              <span className="flex items-center gap-0.5 text-gray-400">
-                <CloudOff className="w-2.5 h-2.5" /> lokal
-              </span>
-            )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+          <button onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate("/")} className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div className="flex items-center gap-2 flex-1">
+            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
+              <Radio className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-gray-900">QSO-Logbuch</h1>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] text-gray-400">{entries.length} Einträge</p>
+                {pendingCount > 0 ? (
+                  <span className="flex items-center gap-0.5 text-[10px] text-amber-500" title={`${pendingCount} Eintrag${pendingCount !== 1 ? 'en' : ''} wartet auf Synchronisation`}>
+                    <CloudOff className="w-2.5 h-2.5" /> {pendingCount} ausstehend
+                  </span>
+                ) : lastSync ? (
+                  <span className="flex items-center gap-0.5 text-[10px] text-green-500" title={`Zuletzt synchronisiert: ${new Date(lastSync).toLocaleString('de-CH')}`}>
+                    <Cloud className="w-2.5 h-2.5" /> synchronisiert
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                    <CloudOff className="w-2.5 h-2.5" /> lokal
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        }
-      >
-        <button
-          onClick={() => setView(view === "list" ? "stats" : "list")}
-          className={`p-1.5 rounded-lg ${view === "stats" ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}
-          title={view === "list" ? "Statistik anzeigen" : "Liste anzeigen"}
-        >
-          {view === "list" ? <BarChart3 className="w-5 h-5" /> : <List className="w-5 h-5" />}
-        </button>
-        <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
-          <HelpCircle className="w-5 h-5" />
-        </Link>
-      </PageHeader>
+          <button
+            onClick={() => setView(view === "list" ? "stats" : "list")}
+            className={`p-1.5 rounded-lg ${view === "stats" ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}
+            title={view === "list" ? "Statistik anzeigen" : "Liste anzeigen"}
+          >
+            {view === "list" ? <BarChart3 className="w-5 h-5" /> : <List className="w-5 h-5" />}
+          </button>
+          <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
+            <HelpCircle className="w-5 h-5" />
+          </Link>
+        </div>
+      </header>
 
-      <PullToRefresh onRefresh={loadEntries} className="flex-1 overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 py-4 pb-24">
         {view === "stats" && <LogStats entries={entries} />}
         {/* Toolbar */}
@@ -347,7 +353,6 @@ export default function Log() {
           </div>
         )}
       </div>
-      </PullToRefresh>
 
       {showQsoForm && (
         <LogEntryForm

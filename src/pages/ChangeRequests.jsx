@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { MapPin, Clock, Check, X, Trash2, Loader2, MessageSquare, ArrowRight } from "lucide-react";
-import PullToRefresh from "@/components/PullToRefresh";
-import PageHeader from "@/components/PageHeader";
+import { ArrowLeft, MapPin, Clock, Check, X, Trash2, Loader2, MessageSquare, ArrowRight } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -24,6 +23,7 @@ const STATUS_CONFIG = {
 };
 
 export default function ChangeRequests() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,34 +75,27 @@ export default function ChangeRequests() {
     }
   };
 
-  const handlePullRefresh = async () => {
-    try {
-      const data = await base44.entities.ReferenceChangeRequest.list("-created_date", 100);
-      setRequests(data || []);
-    } catch (e) {
-      // ignore
-    }
-  };
-
   const pendingCount = requests.filter(r => r.status === "pending").length;
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      <PageHeader
-        title="Meine Anträge"
-        icon={MapPin}
-        iconBg="bg-gray-100"
-        iconColor="text-gray-700"
-        maxWidth="max-w-4xl"
-      >
-        {pendingCount > 0 && (
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-            {pendingCount} offen
-          </span>
-        )}
-      </PageHeader>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+          <button onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate("/")} className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div className="flex items-center gap-2 flex-1">
+            <MapPin className="w-5 h-5 text-gray-700" />
+            <h1 className="text-sm font-bold text-gray-900">Meine Anträge</h1>
+            {pendingCount > 0 && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                {pendingCount} offen
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
 
-      <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
         {loading ? (
           <div className="flex justify-center py-12">
@@ -199,7 +192,6 @@ export default function ChangeRequests() {
           </div>
         )}
       </div>
-      </PullToRefresh>
 
       <BottomNavigation />
     </div>
