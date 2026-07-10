@@ -17,6 +17,11 @@ const SECTIONS = [
     description: "Die interaktive Karte zeigt Amateurfunk-Referenzpunkte in der ganzen Schweiz und Umgebung.",
     items: [
       {
+        title: "Bildschirm-Aufbau der Karte",
+        body: "Die Kartenansicht ist der Hauptbildschirm der App. Oben in der Mitte befindet sich das Suchfeld für Referenzen. An der linken Seite sind die Werkzeug-Buttons vertikal angeordnet: GPS-Position (blau), Position fixieren (blau), Marker verschieben (navy), Offline-Modus (gelb), Karten herunterladen (navy) und Ebenen-Menü (navy). Der schwarze Button «Neues QSO» unten rechts öffnet das QSO-Formular. Ganz unten befindet sich die Navigation mit den Tabs Karte, Logbuch, Einstellungen und Abmelden.",
+        example: "Suchfeld oben → Werkzeug-Buttons links → Marker in der Mitte → «Neues QSO» unten rechts → Navigation ganz unten."
+      },
+      {
         title: "Karte navigieren",
         body: "Verschieben Sie die Karte per Drag-and-Drop, zoomen Sie mit dem Mausrad oder mit zwei Fingern auf dem Handy. Die Karte merkt sich die letzte Position.",
         example: "Tipp: Auf dem Handy nach oben wischen, um die Karte unter der Kopfleiste zu sehen."
@@ -221,8 +226,8 @@ const SECTIONS = [
       },
       {
         title: "Einträge löschen",
-        body: "Einzelne Einträge können über das Mülleimer-Symbol gelöscht werden. Über den Button «Löschen» oben können alle aktuell gefilterten Einträge auf einmal gelöscht werden (mit Bestätigungsdialog).",
-        example: "Vorsicht: Das Löschen ist unwiderruflich – besser zuerst archivieren."
+        body: "Einzelne Einträge können über das Mülleimer-Symbol gelöscht werden. Über den Button «Löschen» oben können alle aktuell gefilterten Einträge auf einmal gelöscht werden (mit Bestätigungsdialog). ACHTUNG: Das Löschen ist unwiderruflich! Gelöschte QSOs können nicht wiederhergestellt werden. Verwenden Sie stattdessen die Archiv-Funktion, wenn Sie sich nicht sicher sind.",
+        example: "Vorsicht: Das Löschen ist unwiderruflich – besser zuerst archivieren, dann können Einträge jederzeit wiederhergestellt werden."
       }
     ]
   },
@@ -275,8 +280,8 @@ const SECTIONS = [
       },
       {
         title: "Konto löschen",
-        body: "Über «Konto löschen» können Sie Ihr Konto inklusive aller QSO-Logs und Einstellungen unwiderruflich löschen. Diese Aktion kann nicht rückgängig gemacht werden.",
-        example: "Konto löschen → Bestätigungsdialog → Endgültig löschen."
+        body: "Über «Konto löschen» können Sie Ihr Konto inklusive aller QSO-Logs und Einstellungen unwiderruflich löschen. ACHTUNG: Diese Aktion kann nicht rückgängig gemacht werden! Alle Ihre Daten (QSO-Logs, Einstellungen, QRZ-Abfragen, Anträge) werden dauerhaft gelöscht. Erstellen Sie vorher ein Backup, wenn Sie Ihre Daten behalten möchten.",
+        example: "Konto löschen → Bestätigungsdialog → Endgültig löschen. Vorher Backup erstellen!"
       },
       {
         title: "Datensicherung (Backup & Restore)",
@@ -290,7 +295,7 @@ const SECTIONS = [
       },
       {
         title: "Cloud-Daten löschen",
-        body: "In der Datei-Liste Ihres WebDAV-Servers können Sie einzelne Backups mit dem Mülleimer-Symbol dauerhaft löschen. Tippen Sie auf «Dateien», um alle in der Cloud gespeicherten Backups anzuzeigen, und entfernen Sie nicht mehr benötigte Dateien.",
+        body: "In der Datei-Liste Ihres WebDAV-Servers können Sie einzelne Backups mit dem Mülleimer-Symbol dauerhaft löschen. Tippen Sie auf «Dateien», um alle in der Cloud gespeicherten Backups anzuzeigen, und entfernen Sie nicht mehr benötigte Dateien. Achtung: Das Löschen von Cloud-Backups ist unwiderruflich! Gelöschte Dateien können nicht wiederhergestellt werden.",
         example: "«Dateien» klicken → Backup-Liste wird angezeigt → Mülleimer-Symbol neben dem Backup klicken → bestätigen → Datei wird gelöscht."
       },
       {
