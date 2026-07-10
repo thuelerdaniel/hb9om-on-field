@@ -1,165 +1,49 @@
 import React, { useState, useEffect } from "react";
-import { Download, Upload, Loader2, CheckCircle2, AlertCircle, Cloud, CloudUpload, Settings2, Link2, RefreshCw, FileJson, Trash2 } from "lucide-react";
+import { Download, Upload, Loader2, CheckCircle2, Cloud, FileJson, Settings2, Link2, RefreshCw, AlertCircle } from "lucide-react";
 import { createBackup, downloadBackup, restoreBackup, readBackupFile } from "@/lib/dataBackup";
-import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import CloudProviderCard from "@/components/settings/CloudProviderCard";
+
+const GOOGLE_DRIVE_CONNECTOR_ID = "6a513a8f2e9f3bb9dadc9564";
+const ONEDRIVE_CONNECTOR_ID = "6a513adebee7a531c23b3e6a";
 
 export default function BackupSection() {
   const { toast } = useToast();
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [lastBackup, setLastBackup] = useState(() => localStorage.getItem("hb9om_last_backup"));
-  const [showCloudSettings, setShowCloudSettings] = useState(false);
 
-  // Cloud backup state
+  // WebDAV state
+  const [showWebdav, setShowWebdav] = useState(false);
   const [webdavUrl, setWebdavUrl] = useState("");
   const [webdavUser, setWebdavUser] = useState("");
   const [webdavPass, setWebdavPass] = useState("");
-  const [autoCloudBackup, setAutoCloudBackup] = useState(false);
-  const [cloudConfigured, setCloudConfigured] = useState(false);
-  const [cloudTesting, setCloudTesting] = useState(false);
-  const [cloudUploading, setCloudUploading] = useState(false);
-  const [lastCloudBackup, setLastCloudBackup] = useState(() => localStorage.getItem("hb9om_last_cloud_backup"));
-  const [cloudFiles, setCloudFiles] = useState([]);
-  const [loadingFiles, setLoadingFiles] = useState(false);
-  const [cloudRestoring, setCloudRestoring] = useState(false);
+  const [webdavConfigured, setWebdavConfigured] = useState(false);
+  const [webdavTesting, setWebdavTesting] = useState(false);
+  const [webdavUploading, setWebdavUploading] = useState(false);
+  const [webdavFiles, setWebdavFiles] = useState([]);
+  const [webdavLoadingFiles, setWebdavLoadingFiles] = useState(false);
+  const [webdavRestoring, setWebdavRestoring] = useState(false);
+  const [webdavLastBackup, setWebdavLastBackup] = useState(() => localStorage.getItem("hb9om_last_cloud_backup"));
+  const [webdavAuto, setWebdavAuto] = useState(() => localStorage.getItem("hb9om_auto_cloud_backup") === "true" && localStorage.getItem("hb9om_cloud_provider") === "webdav");
 
   useEffect(() => {
-    loadCloudConfig();
+    (async () => {
+      try {
+        const { base44 } = await import("@/api/base44Client");
+        const me = await base44.auth.me();
+        if (me) {
+          const url = me.webdav_url || "";
+          const user = me.webdav_username || "";
+          const pass = me.webdav_password || "";
+          setWebdavUrl(url);
+          setWebdavUser(user);
+          setWebdavPass(pass);
+          setWebdavConfigured(!!url && !!user && !!pass);
+        }
+      } catch {}
+    })();
   }, []);
-
-  const loadCloudConfig = async () => {
-    try {
-      const me = await base44.auth.me();
-      if (me) {
-        const url = me.webdav_url || "";
-        const user = me.webdav_username || "";
-        const pass = me.webdav_password || "";
-        setWebdavUrl(url);
-        setWebdavUser(user);
-        setWebdavPass(pass);
-        setCloudConfigured(!!url && !!user && !!pass);
-        setAutoCloudBackup(localStorage.getItem("hb9om_auto_cloud_backup") === "true");
-      }
-    } catch {}
-  };
-
-  const handleSaveCloudConfig = async () => {
-    try {
-      await base44.auth.updateMe({
-        webdav_url: webdavUrl.trim(),
-        webdav_username: webdavUser.trim(),
-        webdav_password: webdavPass
-      });
-      setCloudConfigured(!!webdavUrl.trim() && !!webdavUser.trim() && !!webdavPass);
-      toast({ title: "Cloud-Zugangsdaten gespeichert" });
-    } catch (e) {
-      toast({ title: "Speichern fehlgeschlagen", description: e.message, variant: "destructive" });
-    }
-  };
-
-  const handleTestCloud = async () => {
-    setCloudTesting(true);
-    try {
-      const res = await base44.functions.invoke("cloudBackup", {
-        action: "test",
-        webdav_url: webdavUrl.trim(),
-        webdav_username: webdavUser.trim(),
-        webdav_password: webdavPass
-      });
-      if (res.data?.success) {
-        toast({ title: "Verbindung erfolgreich", description: "WebDAV-Server erreichbar" });
-      } else {
-        toast({ title: "Verbindung fehlgeschlagen", description: res.data?.error || "Unbekannt", variant: "destructive" });
-      }
-    } catch (e) {
-      toast({ title: "Verbindung fehlgeschlagen", description: e?.response?.data?.error || e?.message, variant: "destructive" });
-    } finally {
-      setCloudTesting(false);
-    }
-  };
-
-  const handleCloudBackup = async () => {
-    setCloudUploading(true);
-    try {
-      const backup = await createBackup();
-      const callsign = backup.settings?.hb9om_my_callsign || "hb9om";
-      const filename = `hb9om_backup_${callsign}_${new Date().toISOString().slice(0, 10)}.json`;
-      const res = await base44.functions.invoke("cloudBackup", {
-        action: "upload",
-        webdav_url: webdavUrl.trim(),
-        webdav_username: webdavUser.trim(),
-        webdav_password: webdavPass,
-        backup_data: backup,
-        backup_filename: filename
-      });
-      if (res.data?.success) {
-        const now = new Date().toISOString();
-        localStorage.setItem("hb9om_last_cloud_backup", now);
-        setLastCloudBackup(now);
-        toast({ title: "Cloud-Backup erstellt", description: `${backup.logs.length} Einträge in die Cloud hochgeladen` });
-      } else {
-        toast({ title: "Cloud-Backup fehlgeschlagen", description: res.data?.error, variant: "destructive" });
-      }
-    } catch (e) {
-      toast({ title: "Cloud-Backup fehlgeschlagen", description: e?.response?.data?.error || e?.message, variant: "destructive" });
-    } finally {
-      setCloudUploading(false);
-    }
-  };
-
-  const handleListCloudBackups = async () => {
-    setLoadingFiles(true);
-    try {
-      const res = await base44.functions.invoke("cloudBackup", {
-        action: "list",
-        webdav_url: webdavUrl.trim(),
-        webdav_username: webdavUser.trim(),
-        webdav_password: webdavPass
-      });
-      setCloudFiles(res.data?.files || []);
-    } catch (e) {
-      toast({ title: "Fehler beim Auflisten", description: e?.response?.data?.error || e?.message, variant: "destructive" });
-    } finally {
-      setLoadingFiles(false);
-    }
-  };
-
-  const handleRestoreFromCloud = async (file) => {
-    if (!confirm(`Backup "${file.name}" aus der Cloud wiederherstellen? Aktuelle Daten werden überschrieben.`)) return;
-    setCloudRestoring(true);
-    try {
-      const res = await base44.functions.invoke("cloudBackup", {
-        action: "download",
-        webdav_url: webdavUrl.trim(),
-        webdav_username: webdavUser.trim(),
-        webdav_password: webdavPass,
-        file_url: file.url
-      });
-      if (res.data?.backup) {
-        const result = await restoreBackup(res.data.backup);
-        toast({
-          title: "Aus Cloud wiederhergestellt",
-          description: `${result.logsRestored} Logs, ${result.settingsRestored} Einstellungen`
-        });
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        toast({ title: "Wiederherstellung fehlgeschlagen", description: "Backup konnte nicht geladen werden", variant: "destructive" });
-      }
-    } catch (e) {
-      toast({ title: "Wiederherstellung fehlgeschlagen", description: e?.response?.data?.error || e?.message, variant: "destructive" });
-    } finally {
-      setCloudRestoring(false);
-    }
-  };
-
-  const handleToggleAutoBackup = (enabled) => {
-    setAutoCloudBackup(enabled);
-    localStorage.setItem("hb9om_auto_cloud_backup", String(enabled));
-    if (enabled && cloudConfigured) {
-      toast({ title: "Automatisches Backup aktiviert", description: "Backup wird bei jedem neuen QSO erstellt" });
-    }
-  };
 
   const handleBackup = async () => {
     setBackingUp(true);
@@ -169,9 +53,9 @@ export default function BackupSection() {
       const now = new Date().toISOString();
       localStorage.setItem("hb9om_last_backup", now);
       setLastBackup(now);
-      toast({ title: "Backup erstellt", description: `${backup.logs.length} Logeinträge, ${Object.keys(backup.settings).length} Einstellungen gesichert` });
+      toast({ title: "Backup erstellt", description: `${backup.logs.length} Logeinträge gesichert` });
     } catch (e) {
-      toast({ title: "Backup fehlgeschlagen", description: e.message || "Unbekannter Fehler", variant: "destructive" });
+      toast({ title: "Backup fehlgeschlagen", description: e.message, variant: "destructive" });
     } finally {
       setBackingUp(false);
     }
@@ -186,12 +70,135 @@ export default function BackupSection() {
     try {
       const backup = await readBackupFile(file);
       const result = await restoreBackup(backup);
-      toast({ title: "Wiederherstellung abgeschlossen", description: `${result.logsRestored} Logs, ${result.settingsRestored} Einstellungen, ${result.qrzRestored} QRZ-Einträge` });
+      toast({ title: "Wiederherstellung abgeschlossen", description: `${result.logsRestored} Logs, ${result.settingsRestored} Einstellungen` });
       setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
       toast({ title: "Wiederherstellung fehlgeschlagen", description: err.message, variant: "destructive" });
     } finally {
       setRestoring(false);
+    }
+  };
+
+  // ─── WebDAV handlers ───
+  const handleSaveWebdav = async () => {
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      await base44.auth.updateMe({
+        webdav_url: webdavUrl.trim(),
+        webdav_username: webdavUser.trim(),
+        webdav_password: webdavPass
+      });
+      setWebdavConfigured(!!webdavUrl.trim() && !!webdavUser.trim() && !!webdavPass);
+      toast({ title: "WebDAV-Zugangsdaten gespeichert" });
+    } catch (e) {
+      toast({ title: "Speichern fehlgeschlagen", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleTestWebdav = async () => {
+    setWebdavTesting(true);
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      const res = await base44.functions.invoke("cloudBackup", {
+        action: "test",
+        webdav_url: webdavUrl.trim(),
+        webdav_username: webdavUser.trim(),
+        webdav_password: webdavPass
+      });
+      if (res.data?.success) {
+        toast({ title: "Verbindung erfolgreich", description: "WebDAV-Server erreichbar" });
+      } else {
+        toast({ title: "Verbindung fehlgeschlagen", description: res.data?.error, variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Verbindung fehlgeschlagen", description: e?.response?.data?.error || e?.message, variant: "destructive" });
+    } finally {
+      setWebdavTesting(false);
+    }
+  };
+
+  const handleWebdavBackup = async () => {
+    setWebdavUploading(true);
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      const backup = await createBackup();
+      const callsign = backup.settings?.hb9om_my_callsign || "hb9om";
+      const filename = `hb9om_backup_${callsign}_${new Date().toISOString().slice(0, 10)}.json`;
+      const res = await base44.functions.invoke("cloudBackup", {
+        action: "upload",
+        webdav_url: webdavUrl.trim(),
+        webdav_username: webdavUser.trim(),
+        webdav_password: webdavPass,
+        backup_data: backup,
+        backup_filename: filename
+      });
+      if (res.data?.success) {
+        const now = new Date().toISOString();
+        localStorage.setItem("hb9om_last_cloud_backup", now);
+        setWebdavLastBackup(now);
+        toast({ title: "Cloud-Backup erstellt", description: `${backup.logs.length} Einträge hochgeladen` });
+      } else {
+        toast({ title: "Backup fehlgeschlagen", description: res.data?.error, variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Backup fehlgeschlagen", description: e?.response?.data?.error || e?.message, variant: "destructive" });
+    } finally {
+      setWebdavUploading(false);
+    }
+  };
+
+  const handleListWebdav = async () => {
+    setWebdavLoadingFiles(true);
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      const res = await base44.functions.invoke("cloudBackup", {
+        action: "list",
+        webdav_url: webdavUrl.trim(),
+        webdav_username: webdavUser.trim(),
+        webdav_password: webdavPass
+      });
+      setWebdavFiles(res.data?.files || []);
+    } catch (e) {
+      toast({ title: "Fehler beim Auflisten", description: e?.response?.data?.error || e?.message, variant: "destructive" });
+    } finally {
+      setWebdavLoadingFiles(false);
+    }
+  };
+
+  const handleRestoreWebdav = async (file) => {
+    if (!confirm(`Backup "${file.name}" wiederherstellen? Aktuelle Daten werden überschrieben.`)) return;
+    setWebdavRestoring(true);
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      const res = await base44.functions.invoke("cloudBackup", {
+        action: "download",
+        webdav_url: webdavUrl.trim(),
+        webdav_username: webdavUser.trim(),
+        webdav_password: webdavPass,
+        file_url: file.url
+      });
+      if (res.data?.backup) {
+        const result = await restoreBackup(res.data.backup);
+        toast({ title: "Wiederhergestellt", description: `${result.logsRestored} Logs, ${result.settingsRestored} Einstellungen` });
+        setTimeout(() => window.location.reload(), 1500);
+      }
+    } catch (e) {
+      toast({ title: "Fehler", description: e?.response?.data?.error || e?.message, variant: "destructive" });
+    } finally {
+      setWebdavRestoring(false);
+    }
+  };
+
+  const handleToggleWebdavAuto = (enabled) => {
+    setWebdavAuto(enabled);
+    if (enabled) {
+      localStorage.setItem("hb9om_auto_cloud_backup", "true");
+      localStorage.setItem("hb9om_cloud_provider", "webdav");
+    } else {
+      localStorage.setItem("hb9om_auto_cloud_backup", "false");
+      if (localStorage.getItem("hb9om_cloud_provider") === "webdav") {
+        localStorage.removeItem("hb9om_cloud_provider");
+      }
     }
   };
 
@@ -201,10 +208,10 @@ export default function BackupSection() {
         <Cloud className="w-4 h-4" /> Datensicherung
       </h2>
       <p className="text-xs text-gray-500 mb-3">
-        Sichern Sie Ihr Logbuch und Einstellungen lokal als Datei oder automatisch in Ihre Cloud (WebDAV).
+        Sichern Sie Ihr Logbuch und Einstellungen – lokal als Datei oder direkt in Ihre Cloud.
       </p>
 
-      {/* Manual backup */}
+      {/* Local backup */}
       <div className="mb-4">
         <h3 className="text-xs font-semibold text-gray-600 uppercase mb-2 flex items-center gap-1">
           <FileJson className="w-3.5 h-3.5" /> Lokales Backup (Datei)
@@ -235,90 +242,50 @@ export default function BackupSection() {
       {/* Divider */}
       <div className="border-t border-gray-100 my-3" />
 
-      {/* Cloud backup */}
+      {/* Cloud backup providers */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold text-gray-600 uppercase flex items-center gap-1">
-            <CloudUpload className="w-3.5 h-3.5" /> Cloud-Backup (WebDAV)
-          </h3>
-          <button
-            onClick={() => setShowCloudSettings(!showCloudSettings)}
-            className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"
-          >
-            <Settings2 className="w-3 h-3" />
-            {showCloudSettings ? "Schliessen" : "Einrichten"}
-          </button>
+        <h3 className="text-xs font-semibold text-gray-600 uppercase mb-2 flex items-center gap-1">
+          <Cloud className="w-3.5 h-3.5" /> Cloud-Backup
+        </h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Verbinden Sie Ihr Google Drive oder OneDrive – Backups werden automatisch erstellt. Mit einem Klick verbinden, fertig.
+        </p>
+
+        <div className="space-y-2 mb-3">
+          <CloudProviderCard
+            provider="googledrive"
+            connectorId={GOOGLE_DRIVE_CONNECTOR_ID}
+            displayName="Google Drive"
+            color="#0F9D58"
+            description="Google-Konto verbinden"
+          />
+          <CloudProviderCard
+            provider="one_drive"
+            connectorId={ONEDRIVE_CONNECTOR_ID}
+            displayName="OneDrive"
+            color="#0078D4"
+            description="Microsoft-Konto verbinden"
+          />
         </div>
 
-        {cloudConfigured && !showCloudSettings && (
-          <>
-            {lastCloudBackup && (
-              <div className="mb-2 p-2 bg-green-50 rounded-lg text-xs text-green-700 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Letztes Cloud-Backup: {new Date(lastCloudBackup).toLocaleString('de-CH')}
+        {/* WebDAV (advanced) */}
+        <button
+          onClick={() => setShowWebdav(!showWebdav)}
+          className="w-full px-3 py-2 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+          {showWebdav ? "WebDAV ausblenden" : "WebDAV (erweitert)"}
+        </button>
+
+        {showWebdav && (
+          <div className="mt-2 space-y-2 p-3 bg-gray-50 rounded-lg">
+            {!webdavConfigured && (
+              <div className="p-2 bg-blue-50 rounded text-xs text-blue-700 flex items-start gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span>Geben Sie Ihre WebDAV-Zugangsdaten ein (Nextcloud, ownCloud, Synology, etc.).</span>
               </div>
             )}
 
-            {/* Auto-backup toggle */}
-            <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg mb-2">
-              <div className="flex-1">
-                <label className="text-sm font-semibold text-gray-900">Automatisches Backup</label>
-                <p className="text-xs text-gray-500 mt-0.5">Bei jedem neuen QSO in die Cloud sichern</p>
-              </div>
-              <button
-                onClick={() => handleToggleAutoBackup(!autoCloudBackup)}
-                className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${autoCloudBackup ? 'bg-green-500' : 'bg-gray-300'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autoCloudBackup ? 'translate-x-6' : ''}`} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <button
-                onClick={handleCloudBackup}
-                disabled={cloudUploading}
-                className="px-3 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-1.5"
-              >
-                {cloudUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}
-                Cloud-Backup
-              </button>
-              <button
-                onClick={handleListCloudBackups}
-                disabled={loadingFiles}
-                className="px-3 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
-              >
-                {loadingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Cloud-Dateien
-              </button>
-            </div>
-
-            {/* Cloud files list */}
-            {cloudFiles.length > 0 && (
-              <div className="space-y-1.5 mt-2">
-                <p className="text-xs text-gray-500 font-medium">Backups in der Cloud:</p>
-                {cloudFiles.map((f, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <FileJson className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-                      <span className="text-xs text-gray-700 truncate">{f.name}</span>
-                    </div>
-                    <button
-                      onClick={() => handleRestoreFromCloud(f)}
-                      disabled={cloudRestoring}
-                      className="text-xs text-blue-600 hover:underline flex items-center gap-0.5 flex-shrink-0 ml-2"
-                    >
-                      {cloudRestoring ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                      Wiederherstellen
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {showCloudSettings && (
-          <div className="space-y-2 p-3 bg-blue-50 rounded-lg">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">WebDAV-URL</label>
               <input
@@ -349,33 +316,87 @@ export default function BackupSection() {
                 className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
               />
             </div>
-            <p className="text-[10px] text-gray-400 leading-relaxed">
-              Unterstützt: Nextcloud, ownCloud, Synology, Strato HiDrive und alle WebDAV-kompatiblen Clouds.
-              Verwenden Sie bei Nextcloud/ownCloud ein App-Passwort anstelle Ihres Hauptpassworts.
-            </p>
+
             <div className="flex gap-2">
               <button
-                onClick={handleSaveCloudConfig}
+                onClick={handleSaveWebdav}
                 className="flex-1 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-1.5"
               >
                 <CheckCircle2 className="w-4 h-4" /> Speichern
               </button>
               <button
-                onClick={handleTestCloud}
-                disabled={cloudTesting || !webdavUrl || !webdavUser}
+                onClick={handleTestWebdav}
+                disabled={webdavTesting || !webdavUrl || !webdavUser}
                 className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
               >
-                {cloudTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                {webdavTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
                 Testen
               </button>
             </div>
-          </div>
-        )}
 
-        {!cloudConfigured && !showCloudSettings && (
-          <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-700 flex items-start gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-            <span>Cloud-Backup noch nicht eingerichtet. Klicken Sie auf «Einrichten», um Ihre WebDAV-Zugangsdaten zu hinterlegen.</span>
+            {webdavConfigured && (
+              <>
+                {webdavLastBackup && (
+                  <div className="p-2 bg-green-50 rounded text-xs text-green-700 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Letztes Cloud-Backup: {new Date(webdavLastBackup).toLocaleString('de-CH')}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between p-2 bg-white rounded-lg">
+                  <div className="flex-1">
+                    <label className="text-xs font-semibold text-gray-900">Automatisches Backup</label>
+                    <p className="text-[10px] text-gray-500">Bei jedem neuen QSO sichern</p>
+                  </div>
+                  <button
+                    onClick={() => handleToggleWebdavAuto(!webdavAuto)}
+                    className={`relative w-11 h-5 rounded-full transition-colors flex-shrink-0 ${webdavAuto ? 'bg-green-500' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${webdavAuto ? 'translate-x-6' : ''}`} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={handleWebdavBackup}
+                    disabled={webdavUploading}
+                    className="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                  >
+                    {webdavUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
+                    Backup
+                  </button>
+                  <button
+                    onClick={handleListWebdav}
+                    disabled={webdavLoadingFiles}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                  >
+                    {webdavLoadingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    Dateien
+                  </button>
+                </div>
+
+                {webdavFiles.length > 0 && (
+                  <div className="space-y-1">
+                    {webdavFiles.map((f, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 bg-white rounded-lg">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <FileJson className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                          <span className="text-xs text-gray-700 truncate">{f.name}</span>
+                        </div>
+                        <button
+                          onClick={() => handleRestoreWebdav(f)}
+                          disabled={webdavRestoring}
+                          className="text-xs text-blue-600 hover:underline flex items-center gap-0.5 flex-shrink-0 ml-2"
+                        >
+                          {webdavRestoring ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                          Wiederherstellen
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

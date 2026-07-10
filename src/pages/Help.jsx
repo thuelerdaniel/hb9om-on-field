@@ -280,8 +280,23 @@ const SECTIONS = [
       },
       {
         title: "Datensicherung (Backup & Restore)",
-        body: "In den Einstellungen unter «Datensicherung» können Sie ein vollständiges Backup aller Ihrer Daten erstellen: Logbuch, Einstellungen, QRZ-Abfragen und Anträge. Klicken Sie auf «Backup», um eine JSON-Datei herunterzuladen. Speichern Sie diese Datei an einem sicheren Ort, z.B. in Ihrem OneDrive oder Google Drive. Mit «Wiederherstellen» können Sie eine Backup-Datei hochladen – alle aktuellen Daten werden dabei überschrieben. Ein Hinweis zeigt das Datum des letzten Backups an.",
-        example: "Einstellungen → «Datensicherung» → «Backup» → JSON-Datei wird heruntergeladen → in OneDrive/Google Drive speichern."
+        body: "In den Einstellungen unter «Datensicherung» können Sie ein vollständiges Backup aller Ihrer Daten erstellen: Logbuch, Einstellungen, QRZ-Abfragen und Anträge. Klicken Sie auf «Backup», um eine JSON-Datei herunterzuladen. Speichern Sie diese Datei an einem sicheren Ort. Mit «Wiederherstellen» können Sie eine Backup-Datei hochladen – alle aktuellen Daten werden dabei überschrieben. Ein Hinweis zeigt das Datum des letzten Backups an.",
+        example: "Einstellungen → «Datensicherung» → «Backup» → JSON-Datei wird heruntergeladen → sicher speichern."
+      },
+      {
+        title: "Cloud-Backup mit Google Drive & OneDrive",
+        body: "Verbinden Sie Ihr Google Drive oder Ihr OneDrive direkt mit der App – ganz einfach mit einem Klick. Nach der Verbindung können Sie Backups direkt in Ihre Cloud hochladen, alte Backups auflisten, wiederherstellen oder löschen. Aktivieren Sie «Automatisches Backup», damit bei jedem neuen QSO automatisch ein Backup in Ihre Cloud erstellt wird. Die Verbindung können Sie jederzeit mit «Verbindung trennen» wieder entfernen. Pro QSO wird maximal ein Backup pro Tag erstellt.",
+        example: "Einstellungen → «Datensicherung» → «Mit Google Drive verbinden» → klicken → Google-Konto wählen → verbunden → «Backup» klicken oder Automatik aktivieren."
+      },
+      {
+        title: "Cloud-Backup mit WebDAV",
+        body: "Für fortgeschrittene Benutzer: Klicken Sie auf «WebDAV (erweitert)», um einen WebDAV-Server (Nextcloud, ownCloud, Synology, Strato HiDrive) zu konfigurieren. Geben Sie URL, Benutzername und Passwort ein, testen Sie die Verbindung und sichern Sie Ihre Daten direkt auf Ihrem Server. Auch hier ist ein automatisches Backup bei jedem neuen QSO verfügbar.",
+        example: "Einstellungen → «Datensicherung» → «WebDAV (erweitert)» → URL/Benutzer/Passwort eingeben → «Testen» → «Speichern»."
+      },
+      {
+        title: "Cloud-Daten löschen",
+        body: "In der Datei-Liste jedes Cloud-Anbieters (Google Drive, OneDrive oder WebDAV) können Sie einzelne Backups mit dem Mülleimer-Symbol dauerhaft löschen. Tippen Sie auf «Dateien», um alle in der Cloud gespeicherten Backups anzuzeigen, und entfernen Sie nicht mehr benötigte Dateien.",
+        example: "«Dateien» klicken → Backup-Liste wird angezeigt → Mülleimer-Symbol neben dem Backup klicken → bestätigen → Datei wird gelöscht."
       },
       {
         title: "Benutzerverwaltung (Admin)",

@@ -142,29 +142,42 @@ export async function autoCloudBackup() {
   if (!autoEnabled) return;
   if (!navigator.onLine || localStorage.getItem("hb9om_force_offline") === "true") return;
 
-  try {
-    const me = await base44.auth.me();
-    const url = me?.webdav_url;
-    const user = me?.webdav_username;
-    const pass = me?.webdav_password;
-    if (!url || !user || !pass) return;
+  const provider = localStorage.getItem("hb9om_cloud_provider");
 
+  try {
     const backup = await createBackup();
     const callsign = backup.settings?.hb9om_my_callsign || "hb9om";
     const filename = `hb9om_backup_${callsign}_${new Date().toISOString().slice(0, 10)}.json`;
 
-    const res = await base44.functions.invoke("cloudBackup", {
-      action: "upload",
-      webdav_url: url,
-      webdav_username: user,
-      webdav_password: pass,
-      backup_data: backup,
-      backup_filename: filename
-    });
+    if (provider === "googledrive" || provider === "one_drive") {
+      const res = await base44.functions.invoke("cloudDriveBackup", {
+        action: "upload",
+        provider,
+        backup_data: backup,
+        backup_filename: filename
+      });
+      if (res.data?.success) {
+        localStorage.setItem("hb9om_last_cloud_backup", new Date().toISOString());
+      }
+    } else {
+      // WebDAV fallback
+      const me = await base44.auth.me();
+      const url = me?.webdav_url;
+      const user = me?.webdav_username;
+      const pass = me?.webdav_password;
+      if (!url || !user || !pass) return;
 
-    if (res.data?.success) {
-      const now = new Date().toISOString();
-      localStorage.setItem("hb9om_last_cloud_backup", now);
+      const res = await base44.functions.invoke("cloudBackup", {
+        action: "upload",
+        webdav_url: url,
+        webdav_username: user,
+        webdav_password: pass,
+        backup_data: backup,
+        backup_filename: filename
+      });
+      if (res.data?.success) {
+        localStorage.setItem("hb9om_last_cloud_backup", new Date().toISOString());
+      }
     }
   } catch (e) {
     // Silent failure - don't interrupt QSO flow
