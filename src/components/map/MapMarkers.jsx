@@ -18,11 +18,11 @@ function createDraggableIcon(color) {
 function createShapeIcon(layerType, color) {
   const svg = getMarkerSvg(layerType, color);
   return L.divIcon({
-    html: `<div style="width: 24px; height: 24px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));">${svg}</div>`,
+    html: `<div style="width: 28px; height: 28px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));">${svg}</div>`,
     className: "shape-marker-icon",
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -10]
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -12]
   });
 }
 

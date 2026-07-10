@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Triangle, Diamond, Hexagon } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
@@ -52,16 +52,16 @@ const SECTIONS = [
       },
       {
         title: "Marker-Symbole",
-        body: "Jeder Referenz-Typ hat ein eigenes Symbol auf der Karte, damit Sie ihn auf einen Blick erkennen:",
+        body: "Jeder Referenz-Typ hat ein eigenes, gut erkennbares Symbol auf der Karte. In der Legende unten links und im Ebenen-Menü sehen Sie dieselben Symbole:",
         list: [
-          { icon: Triangle, color: "#e74c3c", name: "SOTA", desc: "Dreieck (Berggipfel)" },
-          { icon: Trees, color: "#27ae60", name: "POTA", desc: "Baum (Park)" },
-          { icon: Trees, color: "#8e44ad", name: "HBFF", desc: "Blume (Flora & Fauna)" },
-          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Kuppel)" },
-          { icon: Castle, color: "#e67e22", name: "Burgen/Schlösser", desc: "Burg mit Zinnen" },
-          { icon: Diamond, color: "#3498db", name: "IOTA", desc: "Raute (Insel)" },
-          { icon: Anchor, color: "#f39c12", name: "Leuchttürme", desc: "Leuchtturm-Turm" },
-          { icon: Hexagon, color: "#16a085", name: "BLN/Moor", desc: "Sechseck (Naturzone)" }
+          { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Berg mit Gipfelkreuz (Dreieck) – Berggipfel ab 150 m Prominenz" },
+          { icon: Trees, color: "#27ae60", name: "POTA", desc: "Baum – Nationalparks und Schutzgebiete" },
+          { icon: Trees, color: "#8e44ad", name: "HBFF", desc: "Blume – Flora & Fauna Naturreservate" },
+          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Halbkuppel mit Schiessscharte) – Militärische Bunker" },
+          { icon: Castle, color: "#e67e22", name: "Burgen/Schlösser", desc: "Burg mit Zinnen und Tor – WCA/COTA Referenzen" },
+          { icon: Diamond, color: "#3498db", name: "IOTA", desc: "Raute mit Welle – Inseln (Schweiz hat keine IOTA-Referenzen)" },
+          { icon: Anchor, color: "#f39c12", name: "Leuchttürme", desc: "Leuchtturm mit Lichtstrahlen – ARLHS WLOL Referenzen" },
+          { icon: Hexagon, color: "#16a085", name: "BLN/Moor", desc: "Sechseck mit Blatt – Bundesinventare / Naturzonen" }
         ]
       },
       {

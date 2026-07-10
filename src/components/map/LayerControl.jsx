@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap } from "lucide-react";
+import { getMarkerSvg } from "@/lib/markerShapes";
 
 const LAYER_GROUPS = [
   {
@@ -188,8 +189,9 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
                       }`}
                     >
                       <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: isActive ? group.color : '#d1d5db' }}
+                        className="w-5 h-5 flex-shrink-0 flex items-center justify-center"
+                        style={{ opacity: isActive ? 1 : 0.4 }}
+                        dangerouslySetInnerHTML={{ __html: getMarkerSvg(group.id, group.color) }}
                       />
                       <Icon className="w-4 h-4 flex-shrink-0" style={{ color: isActive ? group.color : '#9ca3af' }} />
                       <span className={`flex-1 text-left ${isActive ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
