@@ -65,11 +65,6 @@ Deno.serve(async (req) => {
       if (userId === currentUser.id) {
         return Response.json({ error: 'Cannot delete yourself' }, { status: 400 });
       }
-      // Protect demo user from deletion
-      const targetUser = await base44.asServiceRole.entities.User.get(userId);
-      if (targetUser?.email === DEMO_EMAIL) {
-        return Response.json({ error: 'Der Demo-Benutzer kann nicht gelöscht werden' }, { status: 400 });
-      }
       await base44.asServiceRole.entities.User.delete(userId);
       return Response.json({ success: true });
     }

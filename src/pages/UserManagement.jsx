@@ -264,13 +264,13 @@ export default function UserManagement() {
 
                     <button
                       onClick={() => { setDeleteTarget(user); setActionError(""); }}
-                      disabled={isSelf || user.email === DEMO_EMAIL}
+                      disabled={isSelf}
                       className={`px-2.5 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 ${
-                        isSelf || user.email === DEMO_EMAIL
+                        isSelf
                           ? "opacity-30 cursor-not-allowed border-gray-200 text-gray-400"
                           : "text-red-600 border-red-200 hover:bg-red-50"
                       }`}
-                      title={isSelf ? "Du kannst dich nicht selbst löschen" : user.email === DEMO_EMAIL ? "Demo-Benutzer kann nicht gelöscht werden" : ""}
+                      title={isSelf ? "Du kannst dich nicht selbst löschen" : ""}
                     >
                       <Trash2 className="w-3.5 h-3.5" /> Löschen
                     </button>

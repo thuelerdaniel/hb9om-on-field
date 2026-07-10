@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
+import { DEMO_EMAIL } from "@/lib/constants";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
 
 const TYPE_LABELS = {
@@ -873,7 +874,8 @@ export default function Settings() {
           </div>
         </section>
 
-        {/* Delete Account */}
+        {/* Delete Account — hidden for demo user (admins delete via user management) */}
+        {currentUser?.email !== DEMO_EMAIL && (
         <section className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -887,8 +889,9 @@ export default function Settings() {
              <Trash2 className="w-4 h-4" />
              Konto löschen
            </button>
-         </div>
-        </section>
+          </div>
+         </section>
+        )}
         </div>
 
         {showDeleteAccount && (
