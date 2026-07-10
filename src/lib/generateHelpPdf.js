@@ -1173,35 +1173,58 @@ export async function generateHelpPdf(config = {}) {
   y += 12;
 
   // Rechtlicher Hinweis - Eigenverantwortung
-  checkPage(40);
+  const legalText1 = "Du bist lizenzierter Funkamateur und du musst selber wissen, was du machst und was du machen darfst. Darum hast du ja eine Pruefung gemacht. Also heule nicht, wenn du was falsch machst - du bist erwachsen.";
+  const legalText2 = "Diese App und der enthaltene Bandplan dienen ausschliesslich als praktische Orientierungshilfe und stellen keine rechtsverbindliche Grundlage dar. Massgeblich ist stets der offizielle Frequenzplan des BAKOM (Bundesamt fuer Kommunikation). Die USKA hat lediglich eine visuelle Aufbereitung erstellt.";
+
+  // Texte vorab berechnen fuer dynamische Box-Hoehe
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  const legalLines1 = doc.splitTextToSize(legalText1, CONTENT_W - 8);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  const legalLines2 = doc.splitTextToSize(legalText2, CONTENT_W - 8);
+
+  const legalTitleH = 6;
+  const legalBlock1H = legalLines1.length * 3.2 + 2;
+  const legalBlock2H = legalLines2.length * 3.0 + 2;
+  const legalBoxH = legalTitleH + legalBlock1H + legalBlock2H + 4;
+
+  checkPage(legalBoxH + 6);
+
+  // Box zeichnen
   doc.setFillColor(...WARN_BG);
-  doc.roundedRect(MARGIN, y, CONTENT_W, 28, 2, 2, "F");
+  doc.roundedRect(MARGIN, y, CONTENT_W, legalBoxH, 2, 2, "F");
   doc.setDrawColor(...WARN_BORDER);
   doc.setLineWidth(0.5);
-  doc.line(MARGIN, y + 1, MARGIN, y + 27);
+  doc.line(MARGIN, y + 1, MARGIN, y + legalBoxH - 1);
+
+  // Titel
   doc.setTextColor(...WARN_BORDER);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("Keine rechtliche Grundlage - Eigenverantwortung", MARGIN + 3, y + 5);
+  doc.text("Keine rechtliche Grundlage - Eigenverantwortung", MARGIN + 4, y + 5);
+
+  // Text 1 (fett)
+  let legalY = y + legalTitleH + 2;
   doc.setTextColor(120, 20, 20);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  const legalText1 = "Du bist lizenzierter Funkamateur und du musst selber wissen, was du machst und was du machen darfst. Darum hast du ja eine Pruefung gemacht. Also heule nicht, wenn du was falsch machst - du bist erwachsen.";
-  const legalLines1 = doc.splitTextToSize(legalText1, CONTENT_W - 6);
   for (const line of legalLines1) {
-    doc.text(line, MARGIN + 3, y + 10);
-    y += 3.5;
+    doc.text(line, MARGIN + 4, legalY);
+    legalY += 3.2;
   }
-  y -= legalLines1.length * 3.5;
+
+  // Text 2 (normal) - direkt nach Text 1
+  legalY += 2;
+  doc.setTextColor(100, 30, 30);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.setTextColor(100, 30, 30);
-  const legalText2 = "Diese App und der enthaltene Bandplan dienen ausschliesslich als praktische Orientierungshilfe und stellen keine rechtsverbindliche Grundlage dar. Massgeblich ist stets der offizielle Frequenzplan des BAKOM (Bundesamt fuer Kommunikation). Die USKA hat lediglich eine visuelle Aufbereitung erstellt.";
-  const legalLines2 = doc.splitTextToSize(legalText2, CONTENT_W - 6);
-  for (let li = 0; li < legalLines2.length; li++) {
-    doc.text(legalLines2[li], MARGIN + 3, y + 14 + li * 3.2);
+  for (const line of legalLines2) {
+    doc.text(line, MARGIN + 4, legalY);
+    legalY += 3.0;
   }
-  y += 28 + 4;
+
+  y += legalBoxH + 4;
 
   // Haftungsausschluss
   doc.setTextColor(...NAVY);
