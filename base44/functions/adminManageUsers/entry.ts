@@ -76,10 +76,32 @@ Deno.serve(async (req) => {
 
     if (action === 'setupDemoUser') {
       try {
-        await base44.users.inviteUser(DEMO_EMAIL, 'user');
-        return Response.json({ success: true, message: 'Demo-Benutzer eingeladen' });
+        await base44.auth.register({ email: DEMO_EMAIL, password: 'demo1234' });
+        return Response.json({ success: true, message: 'Demo-Benutzer registriert. OTP-Code wurde an demo@hb9om.ch gesendet – bitte unten eingeben.' });
       } catch (e) {
-        return Response.json({ error: e.message || 'Einladung fehlgeschlagen' }, { status: 500 });
+        const msg = e.message || '';
+        if (msg.includes('already') || msg.includes('exists') || msg.includes('Exists')) {
+          try {
+            await base44.auth.resendOtp(DEMO_EMAIL);
+            return Response.json({ success: true, message: 'OTP-Code erneut an demo@hb9om.ch gesendet – bitte unten eingeben.' });
+          } catch (e2) {
+            return Response.json({ error: 'Demo-Benutzer existiert bereits. Bitte OTP-Code eingeben.' }, { status: 500 });
+          }
+        }
+        return Response.json({ error: msg || 'Registrierung fehlgeschlagen' }, { status: 500 });
+      }
+    }
+
+    if (action === 'verifyDemoOtp') {
+      const { otpCode } = body;
+      if (!otpCode) {
+        return Response.json({ error: 'OTP-Code fehlt' }, { status: 400 });
+      }
+      try {
+        await base44.auth.verifyOtp({ email: DEMO_EMAIL, otpCode });
+        return Response.json({ success: true, message: 'Demo-Benutzer verifiziert! Login mit demo@hb9om.ch / demo123 jetzt möglich.' });
+      } catch (e) {
+        return Response.json({ error: e.message || 'Verifizierung fehlgeschlagen' }, { status: 500 });
       }
     }
 

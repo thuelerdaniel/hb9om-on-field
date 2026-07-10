@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
@@ -45,6 +45,9 @@ export default function Settings() {
   const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
   const [adminPendingRequests, setAdminPendingRequests] = useState(0);
   const [demoSetupResult, setDemoSetupResult] = useState(null);
+  const [demoOtpCode, setDemoOtpCode] = useState("");
+  const [demoVerifying, setDemoVerifying] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -208,6 +211,29 @@ export default function Settings() {
       setDemoSetupResult({ error: e?.response?.data?.error || e?.message || "Fehler" });
     } finally {
       setDemoSettingUp(false);
+    }
+  };
+
+  const handleVerifyDemoOtp = async () => {
+    if (!demoOtpCode.trim()) return;
+    setDemoVerifying(true);
+    try {
+      const res = await base44.functions.invoke("adminManageUsers", { action: "verifyDemoOtp", otpCode: demoOtpCode.trim() });
+      setDemoSetupResult({ message: res.data?.message || "Verifiziert" });
+      setDemoOtpCode("");
+    } catch (e) {
+      setDemoSetupResult({ error: e?.response?.data?.error || e?.message || "Fehler" });
+    } finally {
+      setDemoVerifying(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await base44.auth.logout("/login");
+    } catch (e) {
+      window.location.href = "/login";
     }
   };
 
@@ -767,7 +793,7 @@ export default function Settings() {
                 <User className="w-4 h-4" /> Demo-Benutzer
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
-                Login: demo@hb9om.ch / demo123 · Daten werden täglich gelöscht
+                Login: demo@hb9om.ch / demo1234 · Daten werden täglich gelöscht
               </p>
             </div>
             <button
@@ -782,6 +808,26 @@ export default function Settings() {
           {demoSetupResult && (
             <div className={`mt-3 p-3 rounded-lg text-sm ${demoSetupResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
               {demoSetupResult.error || demoSetupResult.message}
+            </div>
+          )}
+
+          {demoSetupResult && !demoSetupResult.error && (
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={demoOtpCode}
+                onChange={e => setDemoOtpCode(e.target.value)}
+                placeholder="OTP-Code aus E-Mail"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono"
+              />
+              <button
+                onClick={handleVerifyDemoOtp}
+                disabled={demoVerifying || !demoOtpCode.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 flex items-center gap-2"
+              >
+                {demoVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                Verifizieren
+              </button>
             </div>
           )}
         </section>
@@ -809,13 +855,31 @@ export default function Settings() {
          </section>
         )}
 
+        {/* Logout */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Abmelden</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Von der App abmelden</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center gap-2"
+            >
+              {loggingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+              Abmelden
+            </button>
+          </div>
+        </section>
+
         {/* Delete Account */}
         <section className="bg-white rounded-xl border border-gray-200 p-4">
-         <div className="flex items-center justify-between">
-           <div>
-             <h3 className="text-sm font-bold text-gray-900">Konto löschen</h3>
-             <p className="text-xs text-gray-500 mt-0.5">Alle Daten werden unwiderruflich gelöscht</p>
-           </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Konto löschen</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Alle Daten werden unwiderruflich gelöscht</p>
+            </div>
            <button
              onClick={() => setShowDeleteAccount(true)}
              className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-2"
