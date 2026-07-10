@@ -1,5 +1,5 @@
-import React, { memo } from "react";
-import { Marker, Popup } from "react-leaflet";
+import React, { memo, useState } from "react";
+import { Marker, Popup, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
@@ -41,12 +41,35 @@ function getDraggableIcon(color) {
   return icon;
 }
 
+// Below this zoom: render canvas dots (extremely fast, single canvas element).
+// Above this zoom: render SVG divIcon markers (shapes visible, few in viewport).
+const LOW_ZOOM_THRESHOLD = 12;
+
 function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
-  return (
-    <>
-      {markers.map((m, idx) => {
-        const key = `${m.layerType}-${m.code || m.reference || idx}`;
-        if (dragMode) {
+  const map = useMap();
+  const [zoom, setZoom] = useState(map.getZoom());
+  const [bounds, setBounds] = useState(map.getBounds());
+
+  useMapEvents({
+    zoomend: () => {
+      setZoom(map.getZoom());
+      setBounds(map.getBounds());
+    },
+    moveend: () => setBounds(map.getBounds()),
+  });
+
+  // Viewport culling: only render markers within current bounds + 30% buffer
+  const paddedBounds = bounds.pad(0.3);
+  const visibleMarkers = markers.filter(m =>
+    m.lat != null && m.lng != null && paddedBounds.contains([m.lat, m.lng])
+  );
+
+  // Drag mode: always use draggable markers
+  if (dragMode) {
+    return (
+      <>
+        {visibleMarkers.map((m, idx) => {
+          const key = `${m.layerType}-${m.code || m.reference || idx}`;
           return (
             <Marker
               key={key}
@@ -61,7 +84,44 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
               }}
             />
           );
-        }
+        })}
+      </>
+    );
+  }
+
+  // Low zoom: canvas CircleMarker — drawn as pixels on a single canvas, not DOM elements
+  if (zoom < LOW_ZOOM_THRESHOLD) {
+    return (
+      <>
+        {visibleMarkers.map((m, idx) => {
+          const key = `${m.layerType}-${m.code || m.reference || idx}`;
+          return (
+            <CircleMarker
+              key={key}
+              center={[m.lat, m.lng]}
+              radius={5}
+              pathOptions={{
+                color: "#ffffff",
+                weight: 1.5,
+                fillColor: m.color,
+                fillOpacity: 0.85,
+              }}
+            >
+              <Popup>
+                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} />
+              </Popup>
+            </CircleMarker>
+          );
+        })}
+      </>
+    );
+  }
+
+  // High zoom: SVG divIcon markers with shapes
+  return (
+    <>
+      {visibleMarkers.map((m, idx) => {
+        const key = `${m.layerType}-${m.code || m.reference || idx}`;
         return (
           <Marker
             key={key}

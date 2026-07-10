@@ -50,6 +50,10 @@ export default function MapTileLayer({
       opacity: opacity != null ? opacity : 1,
       isOffline: !!isOffline,
       tileKeyPrefix: tileKeyPrefix || "",
+      keepBuffer: 4,
+      updateWhenZooming: false,
+      updateWhenIdle: false,
+      crossOrigin: "anonymous",
     });
     layerRef.current = layer;
     layer.addTo(map);

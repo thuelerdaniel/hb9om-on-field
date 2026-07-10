@@ -727,6 +727,9 @@ export default function Home() {
           className="h-full w-full"
           zoomControl={false}
           preferCanvas={true}
+          zoomSnap={0.5}
+          zoomDelta={0.5}
+          updateWhenIdle={false}
         >
           <MapTileLayer
             url={baseTileUrl}

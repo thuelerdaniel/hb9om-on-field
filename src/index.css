@@ -6,6 +6,11 @@
   font-family: inherit;
 }
 
+.leaflet-tile-pane {
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
 .leaflet-interactive {
   cursor: pointer;
   touch-action: manipulation;
