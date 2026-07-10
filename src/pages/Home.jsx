@@ -22,7 +22,7 @@ import MapTileLayer from "@/components/map/MapTileLayer";
 import OfflineAreaDialog from "@/components/map/OfflineAreaDialog";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
-import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides } from "@/lib/offlineDataCache";
+import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -745,7 +745,7 @@ export default function Home() {
             <PositionMarker position={currentPosition} fixed={positionFixed} radius={positionRadius} onRadiusChange={setPositionRadius} onPositionChange={handlePositionChange} />
           )}
 
-          {/* Hazards & Interference Sources WMS overlay (high-voltage power lines) */}
+          {/* Hazards & Interference Sources WMS overlay (high-voltage, mobile antennas, directional radio, broadcast) */}
           {activeLayers.includes("hazards") && (
             <>
               <WMSTileLayer
@@ -762,6 +762,28 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.6}
+              />
+              <WMSTileLayer
+                url="https://wms.geo.admin.ch/"
+                layers="ch.bakom.standorte-mobilfunkanlagen"
+                format="image/png"
+                transparent={true}
+                opacity={0.85}
+                attribution='&copy; BAKOM'
+              />
+              <WMSTileLayer
+                url="https://wms.geo.admin.ch/"
+                layers="ch.bakom.richtfunkverbindungen"
+                format="image/png"
+                transparent={true}
+                opacity={0.8}
+              />
+              <WMSTileLayer
+                url="https://wms.geo.admin.ch/"
+                layers="ch.bakom.radio-fernsehsender"
+                format="image/png"
+                transparent={true}
+                opacity={0.8}
               />
             </>
           )}
@@ -876,6 +898,10 @@ export default function Home() {
                 // Cache all current data for offline use
                 cacheReferenceData({ sota: sotaData, pota: potaData, hbff: hbffData, wwbota: wwbotaData, castle: castleData });
                 cacheOverrides(serverOverrides);
+                // Cache QRZ lookups for offline use
+                base44.entities.QrzLookup.list("-created_date", 200)
+                  .then(qrz => cacheQrzLookups(qrz || []))
+                  .catch(() => {});
                 toast({ title: "Offline-Modus aktiviert", description: "Daten für Offline-Nutzung gespeichert", duration: 3000 });
               } else {
                 toast({ title: "Online-Modus aktiviert", duration: 2000 });

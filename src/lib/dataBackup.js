@@ -135,3 +135,38 @@ export function readBackupFile(file) {
     reader.readAsText(file);
   });
 }
+
+// Auto cloud backup: triggered after QSO save if enabled
+export async function autoCloudBackup() {
+  const autoEnabled = localStorage.getItem("hb9om_auto_cloud_backup") === "true";
+  if (!autoEnabled) return;
+  if (!navigator.onLine || localStorage.getItem("hb9om_force_offline") === "true") return;
+
+  try {
+    const me = await base44.auth.me();
+    const url = me?.webdav_url;
+    const user = me?.webdav_username;
+    const pass = me?.webdav_password;
+    if (!url || !user || !pass) return;
+
+    const backup = await createBackup();
+    const callsign = backup.settings?.hb9om_my_callsign || "hb9om";
+    const filename = `hb9om_backup_${callsign}_${new Date().toISOString().slice(0, 10)}.json`;
+
+    const res = await base44.functions.invoke("cloudBackup", {
+      action: "upload",
+      webdav_url: url,
+      webdav_username: user,
+      webdav_password: pass,
+      backup_data: backup,
+      backup_filename: filename
+    });
+
+    if (res.data?.success) {
+      const now = new Date().toISOString();
+      localStorage.setItem("hb9om_last_cloud_backup", now);
+    }
+  } catch (e) {
+    // Silent failure - don't interrupt QSO flow
+  }
+}

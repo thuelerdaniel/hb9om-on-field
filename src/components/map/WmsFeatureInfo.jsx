@@ -9,7 +9,10 @@ const LAYER_GROUPS = {
     icon: "⚡",
     layers: [
       { id: "ch.bfe.elektrische-anlagen_ueber_36", name: "Elektrische Anlagen (>36 kV)" },
-      { id: "ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb", name: "Projektierungszonen Starkstrom" }
+      { id: "ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb", name: "Projektierungszonen Starkstrom" },
+      { id: "ch.bakom.standorte-mobilfunkanlagen", name: "Mobilfunkantennen" },
+      { id: "ch.bakom.richtfunkverbindungen", name: "Richtfunkstrecken" },
+      { id: "ch.bakom.radio-fernsehsender", name: "Radio- & Fernsehsender" }
     ]
   },
   swiss_protected: {
@@ -40,7 +43,7 @@ const HIDDEN_PROPS = [
 ];
 
 // Only show these key properties for hazards layer (in this order)
-const HAZARD_PROP_WHITELIST = ["bezeichnung", "name", "eigentuemer", "betreiber", "spannung", "leitungtyp", "typ", "type", "status"];
+const HAZARD_PROP_WHITELIST = ["bezeichnung", "name", "eigentuemer", "betreiber", "spannung", "leitungtyp", "typ", "type", "status", "betreibername", "standort", "sendeleistung", "frequenzbereich", "antennentyp", "betriebsstatus", "inbetriebnahme"];
 
 // Only show these key properties for nature zones
 const NATURE_PROP_WHITELIST = ["name", "bln_name", "objekt", "teilobjekt", "typ", "type", "status"];
@@ -51,12 +54,19 @@ const PROP_LABELS = {
   bln_name: "Name",
   eigentuemer: "Eigentümer",
   betreiber: "Betreiber",
+  betreibername: "Betreiber",
   spannung: "Spannung",
   voltage: "Spannung",
   leitungtyp: "Leitungstyp",
   typ: "Typ",
   type: "Typ",
   status: "Status",
+  standort: "Standort",
+  sendeleistung: "Sendeleistung",
+  frequenzbereich: "Frequenzbereich",
+  antennentyp: "Antennentyp",
+  betriebsstatus: "Betriebsstatus",
+  inbetriebnahme: "Inbetriebnahme",
   objekt: "Objekt",
   teilobjekt: "Teilobjekt"
 };

@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Sett
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
+import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
 import BackupSection from "@/components/settings/BackupSection";
 import { DEMO_EMAIL } from "@/lib/constants";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
@@ -908,6 +909,9 @@ export default function Settings() {
             </div>
           )}
         </section>
+
+        {/* Admin: External Data Check */}
+        <ExternalDataCheck />
 
         {/* Admin: Unmatched Castles Editor */}
         <UnmatchedCastles />

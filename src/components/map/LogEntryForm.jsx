@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { createEntry, updateEntry } from "@/lib/localLogStore";
+import { autoCloudBackup } from "@/lib/dataBackup";
 import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock, Sun } from "lucide-react";
 import MobileSelect from "@/components/ui/MobileSelect";
 
@@ -365,6 +366,8 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         await createEntry(payload);
         persistFormValues();
         if (onSaved) onSaved();
+        // Trigger auto cloud backup if enabled
+        autoCloudBackup();
         // Reset for next QSO but keep persistent values (freq, band, mode, etc.)
         setCallsign("");
         setCallsignSuffix(localStorage.getItem(PERSIST_KEYS.callsignSuffix) || "");

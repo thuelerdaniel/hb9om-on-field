@@ -5,6 +5,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
 import { generateFlyer } from "@/lib/generateFlyer";
+import { generateHelpPdf } from "@/lib/generateHelpPdf";
 import { base44 } from "@/api/base44Client";
 
 const SECTIONS = [
@@ -464,6 +465,7 @@ export default function Help() {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [flyerLoading, setFlyerLoading] = useState(false);
+  const [helpPdfLoading, setHelpPdfLoading] = useState(false);
 
   const handleDownloadFlyer = async () => {
     setFlyerLoading(true);
@@ -473,6 +475,17 @@ export default function Help() {
       // ignore
     } finally {
       setFlyerLoading(false);
+    }
+  };
+
+  const handleDownloadHelpPdf = async () => {
+    setHelpPdfLoading(true);
+    try {
+      await generateHelpPdf();
+    } catch (e) {
+      // ignore
+    } finally {
+      setHelpPdfLoading(false);
     }
   };
 
@@ -521,6 +534,27 @@ export default function Help() {
             </p>
           </div>
           <Download className="w-5 h-5 text-slate-400 flex-shrink-0" />
+        </button>
+
+        {/* Help PDF Download */}
+        <button
+          onClick={handleDownloadHelpPdf}
+          disabled={helpPdfLoading}
+          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-5 flex items-center gap-4 hover:from-blue-500 hover:to-blue-600 transition-all disabled:opacity-60 shadow-lg"
+        >
+          <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            {helpPdfLoading ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <FileText className="w-6 h-6 text-white" />}
+          </div>
+          <div className="text-left flex-1">
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              Hilfe als PDF herunterladen
+              <span className="px-2 py-0.5 bg-white/20 text-white text-[10px] font-bold rounded-full">PDF</span>
+            </h3>
+            <p className="text-xs text-blue-100 mt-0.5">
+              Komplette Anleitung mit allen Funktionen offline als PDF
+            </p>
+          </div>
+          <Download className="w-5 h-5 text-blue-200 flex-shrink-0" />
         </button>
 
         {/* PayPal Spende - am Anfang */}

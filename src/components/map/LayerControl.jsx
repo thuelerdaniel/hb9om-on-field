@@ -64,7 +64,7 @@ const LAYER_GROUPS = [
     label: "Gefahren & Störquellen",
     icon: Zap,
     color: "#dc2626",
-    description: "Hochspannungsleitungen, Sendeanlagen (map.geo.admin.ch)"
+    description: "Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender (map.geo.admin.ch)"
   }
 ];
 

@@ -2,6 +2,7 @@ import { base44 } from "@/api/base44Client";
 
 const CACHE_KEY = "hb9om_offline_refs";
 const OVERRIDES_KEY = "hb9om_offline_overrides";
+const QRZ_CACHE_KEY = "hb9om_offline_qrz";
 const TIMESTAMP_KEY = "hb9om_offline_cached_at";
 
 export function cacheReferenceData(data) {
@@ -23,6 +24,21 @@ export function loadCachedReferenceData() {
     return data ? JSON.parse(data) : null;
   } catch {
     return null;
+  }
+}
+
+export function cacheQrzLookups(lookups) {
+  try {
+    localStorage.setItem(QRZ_CACHE_KEY, JSON.stringify(lookups));
+  } catch {}
+}
+
+export function loadCachedQrzLookups() {
+  try {
+    const data = localStorage.getItem(QRZ_CACHE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -51,9 +67,10 @@ export function isOfflineReady() {
 
 export async function cacheFromServer() {
   try {
-    const [cached, overrides] = await Promise.all([
+    const [cached, overrides, qrzLookups] = await Promise.all([
       base44.entities.ReferenceData.list(),
-      base44.entities.ReferenceOverride.list()
+      base44.entities.ReferenceOverride.list(),
+      base44.entities.QrzLookup.list("-created_date", 200)
     ]);
 
     const data = { sota: [], pota: [], hbff: [], wwbota: [], castle: [] };
@@ -73,6 +90,10 @@ export async function cacheFromServer() {
       overrideMap[key] = o;
     });
     cacheOverrides(overrideMap);
+
+    // Cache QRZ lookups for offline use
+    cacheQrzLookups(qrzLookups || []);
+
     return true;
   } catch (e) {
     return false;
