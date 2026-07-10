@@ -1,18 +1,20 @@
 import { jsPDF } from "jspdf";
 
 const HERO_IMAGE_URL = "https://media.base44.com/images/public/6a4a64185561a655062a41bf/b2f8036bf_generated_image.png";
+const SCREEN_MAP = "https://media.base44.com/images/public/6a4a64185561a655062a41bf/51001fde7_generated_image.png";
+const SCREEN_QSO = "https://media.base44.com/images/public/6a4a64185561a655062a41bf/f63bcb32e_generated_image.png";
+const SCREEN_STATS = "https://media.base44.com/images/public/6a4a64185561a655062a41bf/9dd11427e_generated_image.png";
 
 // Colors
-const NAVY = [11, 30, 51];       // #0B1E33
-const GOLD = [217, 119, 6];      // #D97706
-const GREEN = [5, 150, 105];     // #059669
-const RED = [220, 38, 38];       // #DC2626
-const LIGHT = [248, 250, 252];   // #F8FAFC
-const GRAY = [100, 116, 139];    // slate-500
+const NAVY = [11, 30, 51];
+const GOLD = [217, 119, 6];
+const GREEN = [5, 150, 105];
+const RED = [220, 38, 38];
+const GRAY = [100, 116, 139];
 const WHITE = [255, 255, 255];
 
 async function loadImageData(url) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -22,7 +24,7 @@ async function loadImageData(url) {
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0);
       try {
-        resolve(canvas.toDataURL("image/jpeg", 0.85));
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
       } catch (e) {
         resolve(null);
       }
@@ -36,10 +38,14 @@ export async function generateFlyer() {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210, H = 297;
 
-  const heroImg = await loadImageData(HERO_IMAGE_URL);
+  const [heroImg, screenMap, screenQso, screenStats] = await Promise.all([
+    loadImageData(HERO_IMAGE_URL),
+    loadImageData(SCREEN_MAP),
+    loadImageData(SCREEN_QSO),
+    loadImageData(SCREEN_STATS),
+  ]);
 
   // ========== PAGE 1: COVER ==========
-  // Hero image full width at top
   if (heroImg) {
     doc.addImage(heroImg, "JPEG", 0, 0, W, 95);
   } else {
@@ -47,11 +53,9 @@ export async function generateFlyer() {
     doc.rect(0, 0, W, 95, "F");
   }
 
-  // Dark gradient overlay on hero
   doc.setFillColor(...NAVY);
   doc.rect(0, 60, W, 35, "F");
 
-  // App name
   doc.setTextColor(...WHITE);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(36);
@@ -61,12 +65,10 @@ export async function generateFlyer() {
   doc.setTextColor(...GOLD);
   doc.text("On Field", 78, 78);
 
-  // Tagline
   doc.setTextColor(220, 220, 220);
   doc.setFontSize(12);
   doc.text("Die exklusive Amateurfunk-App für Referenzen & QSO-Logbuch", 20, 88);
 
-  // Exklusiv badge
   doc.setFillColor(...GOLD);
   doc.roundedRect(150, 8, 52, 12, 2, 2, "F");
   doc.setTextColor(0, 0, 0);
@@ -90,12 +92,11 @@ export async function generateFlyer() {
   const usps = [
     { icon: "★", color: GOLD, title: "Alle Referenzen vereint", desc: "SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme, IOTA & Bundesinventare – alles in einer App. Kein anderes Tool bietet diese Vollständigkeit." },
     { icon: "◈", color: GREEN, title: "SwissTopo-Kartenintegration", desc: "Offizielle Schweizer Landeskarten in 4 Massstäben (1:10'000 bis 1:100'000) direkt in der App." },
-    { icon: "◉", color: RED, title: "QRZ.com-Integration", desc: "Automatische Operator-Datenabfrage bei der QSO-Erfassung – Name, Adresse, Grid & E-Mail." },
-    { icon: "▼", color: NAVY, title: "Offline-Fähig", desc: "Karten herunterladen und im Feld ohne Empfung nutzen. QSOs werden lokal gespeichert und synchronisiert." },
+    { icon: "◉", color: RED, title: "QRZ.com-Integration", desc: "Jeder Benutzer kann seine eigenen QRZ.com-Zugangsdaten hinterlegen. Admins nutzen die Club-Subscription." },
+    { icon: "▼", color: NAVY, title: "Offline-Fähig", desc: "Karten herunterladen und im Feld ohne Empfang nutzen. QSOs werden lokal gespeichert und synchronisiert." },
   ];
 
   for (const usp of usps) {
-    // Icon circle
     doc.setFillColor(...usp.color);
     doc.circle(24, y + 3, 4, "F");
     doc.setTextColor(...WHITE);
@@ -103,7 +104,6 @@ export async function generateFlyer() {
     doc.setFontSize(10);
     doc.text(usp.icon, 24, y + 4.5, { align: "center" });
 
-    // Title + desc
     doc.setTextColor(...NAVY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11.5);
@@ -117,7 +117,7 @@ export async function generateFlyer() {
     y += 7 + lines.length * 4 + 6;
   }
 
-  // Footer band page 1
+  // Footer
   doc.setFillColor(...NAVY);
   doc.rect(0, H - 18, W, 18, "F");
   doc.setTextColor(180, 180, 180);
@@ -125,10 +125,9 @@ export async function generateFlyer() {
   doc.setFont("helvetica", "normal");
   doc.text("hb9om.ch  ·  Amateurfunk Referenzkarte & QSO-Logbuch  ·  v0.7", W / 2, H - 8, { align: "center" });
 
-  // ========== PAGE 2: FEATURES ==========
+  // ========== PAGE 2: FEATURES + SCREENSHOTS ==========
   doc.addPage();
 
-  // Header band
   doc.setFillColor(...NAVY);
   doc.rect(0, 0, W, 22, "F");
   doc.setTextColor(...WHITE);
@@ -140,7 +139,7 @@ export async function generateFlyer() {
   doc.setFont("helvetica", "normal");
   doc.text("Entwickelt von Funkern, für Funker", 20, 19);
 
-  y = 34;
+  y = 30;
   const sections = [
     {
       title: "KARTE & REFERENZEN",
@@ -151,13 +150,9 @@ export async function generateFlyer() {
         "Bundesinventare: Auengebiete, Moore & weitere Naturzonen",
         "SwissTopo-Karten: Strassenkarte, Satellit & offizielle Landeskarten",
         "GPS-Positionierung mit Radius-Suche (100 m – 10 km)",
-        "Referenzsuche nach Code, Name oder Ort",
         "Layer ein-/ausschalten – nur sehen, was Sie brauchen",
-        "Marker per Drag & Drop korrigieren (mit Änderungsantrag)",
         "Offline-Karten für den Feldeinsatz herunterladen",
         "Gefahren & Störquellen: Hochspannungsleitungen von map.geo.admin.ch",
-        "Wikipedia-Links für Burgen, Schlösser & Bunker",
-        "Standort-Info: Auf Objekte tippen für Details (Eigentümer, Spannung, etc.)",
       ],
     },
     {
@@ -165,15 +160,13 @@ export async function generateFlyer() {
       color: RED,
       items: [
         "Professionelle QSO-Erfassung mit allen ADIF-Feldern",
-        "QRZ.com-Abfrage: Name, Adresse, Land, Grid & E-Mail automatisch",
+        "QRZ.com-Abfrage mit persönlichen Zugangsdaten pro Benutzer",
         "Band & Frequenz werden automatisch synchronisiert",
-        "Clubstation-Modus (z.B. HB9OM) mit Operator-Erfassung",
-        "Suffix-Unterstützung: /P, /M, /AM, /MM",
+        "Clubstation-Modus mit Operator-Erfassung",
         "ADIF-Export für HRDLog, N1MM, Log4OM & Co.",
         "Statistik-Ansicht: QSOs pro Band, Mode, Referenz & Monat",
         "Lokale Speicherung & Cloud-Synchronisation",
         "Wake-Lock: Bildschirm bleibt beim Loggen an",
-        "Formulardaten bleiben für schnelle Folgebuchungen erhalten",
       ],
     },
     {
@@ -182,18 +175,15 @@ export async function generateFlyer() {
       items: [
         "Bandplan-Referenz (IARU Region 1 / USKA) direkt in der App",
         "Maidenhead-Locator-Anzeige (WGS84 & LV95)",
+        "Persönliche QRZ.com-Zugangsdaten sicher hinterlegt",
         "Navigation zu Google Maps mit einem Klick",
         "Funktionsvorschläge einreichen & Status verfolgen",
-        "Persönliches Rufzeichen & Profil speichern",
-        "Benutzerverwaltung für Administratoren",
-        "Automatische tägliche Datenaktualisierung",
         "Demo-Benutzer zum Ausprobieren verfügbar",
       ],
     },
   ];
 
   for (const section of sections) {
-    // Section header
     doc.setFillColor(...section.color);
     doc.roundedRect(20, y - 4, W - 40, 7, 1, 1, "F");
     doc.setTextColor(...WHITE);
@@ -202,8 +192,7 @@ export async function generateFlyer() {
     doc.text(section.title, 22, y + 0.8);
     y += 8;
 
-    // Items
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(50, 50, 50);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     for (const item of section.items) {
@@ -217,7 +206,45 @@ export async function generateFlyer() {
     y += 4;
   }
 
-  // Footer page 2
+  // Screenshots row
+  y += 2;
+  doc.setTextColor(...NAVY);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("App-Eindrücke", 20, y);
+  y += 4;
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.6);
+  doc.line(20, y, 50, y);
+  y += 6;
+
+  const sw = 50, sh = 89;
+  const gap = 7;
+  const startX = (W - 3 * sw - 2 * gap) / 2;
+  const screens = [
+    { img: screenMap, label: "Karte & Referenzen" },
+    { img: screenQso, label: "QSO-Formular" },
+    { img: screenStats, label: "Statistik" },
+  ];
+
+  for (let i = 0; i < screens.length; i++) {
+    const x = startX + i * (sw + gap);
+    // Phone frame
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(x - 1.5, y - 1.5, sw + 3, sh + 8, 2, 2, "F");
+    if (screens[i].img) {
+      doc.addImage(screens[i].img, "JPEG", x, y, sw, sh);
+    } else {
+      doc.setFillColor(240, 240, 240);
+      doc.rect(x, y, sw, sh, "F");
+    }
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.text(screens[i].label, x + sw / 2, y + sh + 4, { align: "center" });
+  }
+
+  // Footer
   doc.setFillColor(...NAVY);
   doc.rect(0, H - 18, W, 18, "F");
   doc.setTextColor(180, 180, 180);
@@ -227,7 +254,6 @@ export async function generateFlyer() {
   // ========== PAGE 3: EXCLUSIVITY & CTA ==========
   doc.addPage();
 
-  // Header
   doc.setFillColor(...NAVY);
   doc.rect(0, 0, W, 22, "F");
   doc.setTextColor(...WHITE);
@@ -236,7 +262,6 @@ export async function generateFlyer() {
   doc.text("Einzigartig. Exklusiv. Schweizerisch.", 20, 14);
 
   y = 36;
-  // Exclusivity highlights
   doc.setTextColor(...NAVY);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
@@ -252,7 +277,7 @@ export async function generateFlyer() {
     "Offizielle ARLHS WLOL Leuchtturm-Referenzen (SWI-001 bis SWI-006) verifiziert",
     "SwissTopo-Karten in 4 offiziellen Massstäben integriert",
     "Gefahren & Störquellen-Layer über map.geo.admin.ch (Bundesamt für Energie)",
-    "QRZ.com XML-Subscription des Clubs HB9OM hinterlegt",
+    "QRZ.com-Integration: jeder Benutzer nutzt seine eigenen Zugangsdaten",
     "Bundesinventare (Auen, Moore) als eigene Referenz-Kategorie",
     "Speziell für Schweizer Amateurfunker entwickelt – von einem Funker",
     "Vollständig offline-fähig für den Einsatz auf dem Gipfel",
@@ -307,13 +332,12 @@ export async function generateFlyer() {
   y += 5;
   doc.text("Web: hb9om.ch", 20, y);
 
-  // Footer page 3
+  // Footer
   doc.setFillColor(...NAVY);
   doc.rect(0, H - 18, W, 18, "F");
   doc.setTextColor(180, 180, 180);
   doc.setFontSize(8);
-  doc.text("HB9OM On Field  ·  Made in Switzerland  🇨🇭", W / 2, H - 8, { align: "center" });
+  doc.text("HB9OM On Field  ·  Made in Switzerland", W / 2, H - 8, { align: "center" });
 
-  // Save
   doc.save("HB9OM_On_Field_Flyer.pdf");
 }

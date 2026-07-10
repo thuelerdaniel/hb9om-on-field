@@ -1,46 +1,65 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { XMLParser } from 'npm:fast-xml-parser@4.5.2';
 
+const DEMO_EMAIL = 'demo@hb9om.ch';
+
 Deno.serve(async (req) => {
   try {
-    createClientFromRequest(req);
+    const base44 = createClientFromRequest(req);
     const { callsign } = await req.json();
     if (!callsign || callsign.length < 3) {
       return Response.json({ error: 'Invalid callsign' }, { status: 400 });
     }
 
+    // Authenticate user
+    const user = await base44.auth.me();
+    if (!user) {
+      return Response.json({ error: 'Nicht angemeldet' }, { status: 401 });
+    }
+
     const xmlParser = new XMLParser({ ignoreAttributes: false });
     const agent = 'hb9om-onfield';
 
-    // Fixed credentials from app-level env vars
-    const envUser = Deno.env.get("QRZ_USERNAME");
-    const envPass = Deno.env.get("QRZ_PASSWORD");
+    // Determine credential source:
+    // - Admins and demo user → use app-level env vars (club subscription)
+    // - Regular users → use their personal QRZ credentials stored on user entity
+    const isAdmin = user.role === 'admin';
+    const isDemo = user.email === DEMO_EMAIL;
 
-    if (!envUser || !envPass) {
-      return Response.json({ error: 'QRZ.com Anmeldedaten nicht konfiguriert' }, { status: 200 });
+    let qrzUser = null;
+    let qrzPass = null;
+    let credentialLabel = 'user';
+
+    if (isAdmin || isDemo) {
+      qrzUser = Deno.env.get('QRZ_USERNAME');
+      qrzPass = Deno.env.get('QRZ_PASSWORD');
+      credentialLabel = 'club';
+    } else {
+      qrzUser = user.qrz_username || null;
+      qrzPass = user.qrz_password || null;
+      credentialLabel = 'personal';
     }
 
-    const credentialSets = [{ user: envUser, pass: envPass, label: 'app' }];
-
-    // Step 1: Get session key — try each credential set until one works
-    let sessionKey = null;
-    let lastError = 'Login fehlgeschlagen';
-    for (const creds of credentialSets) {
-      const loginUrl = `https://xmldata.qrz.com/xml/current/?username=${encodeURIComponent(creds.user)};password=${encodeURIComponent(creds.pass)};agent=${agent}`;
-      const loginResp = await fetch(loginUrl);
-      const loginXml = await loginResp.text();
-      const loginData = xmlParser.parse(loginXml);
-      const session = loginData?.QRZDatabase?.Session;
-      if (session?.Key) {
-        sessionKey = session.Key;
-        break;
+    if (!qrzUser || !qrzPass) {
+      if (isAdmin || isDemo) {
+        return Response.json({ error: 'QRZ.com Club-Anmeldedaten nicht konfiguriert. Bitte wenden Sie sich an den Administrator.' }, { status: 200 });
       }
-      lastError = session?.Message || 'Login fehlgeschlagen';
+      return Response.json({ error: 'Keine QRZ.com Anmeldedaten hinterlegt. Bitte in den Einstellungen Ihren QRZ-Benutzernamen und Ihr Passwort erfassen.' }, { status: 200 });
     }
 
-    if (!sessionKey) {
-      return Response.json({ error: `QRZ.com: ${lastError}` }, { status: 200 });
+    // Step 1: Get session key
+    const loginUrl = `https://xmldata.qrz.com/xml/current/?username=${encodeURIComponent(qrzUser)};password=${encodeURIComponent(qrzPass)};agent=${agent}`;
+    const loginResp = await fetch(loginUrl);
+    const loginXml = await loginResp.text();
+    const loginData = xmlParser.parse(loginXml);
+    const session = loginData?.QRZDatabase?.Session;
+
+    if (!session?.Key) {
+      const errMsg = session?.Message || 'Login fehlgeschlagen';
+      return Response.json({ error: `QRZ.com: ${errMsg}` }, { status: 200 });
     }
+
+    const sessionKey = session.Key;
 
     // Step 2: Look up callsign
     const lookupUrl = `https://xmldata.qrz.com/xml/current/?s=${sessionKey};callsign=${encodeURIComponent(callsign)}`;

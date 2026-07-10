@@ -25,6 +25,10 @@ export default function Settings() {
   // User profile
   const [myCallsign, setMyCallsign] = useState("");
   const [qrzEnabled, setQrzEnabled] = useState(true);
+  const [qrzUsername, setQrzUsername] = useState("");
+  const [qrzPassword, setQrzPassword] = useState("");
+  const [usesClubCredentials, setUsesClubCredentials] = useState(false);
+  const [qrzConfigured, setQrzConfigured] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [qrzTesting, setQrzTesting] = useState(false);
@@ -120,11 +124,28 @@ export default function Settings() {
       const me = await base44.auth.me();
       setCurrentUser(me);
       // Check admin status via backend function with fresh DB lookup
+      let admin = false;
       try {
         const res = await base44.functions.invoke("adminManageUsers", { action: "checkStatus" });
-        setIsAdmin(res.data?.isAdmin === true);
+        admin = res.data?.isAdmin === true;
+        setIsAdmin(admin);
       } catch (e) {
         setIsAdmin(false);
+      }
+      // Determine QRZ credential source
+      const isDemo = me?.email === DEMO_EMAIL;
+      const clubCreds = admin || isDemo;
+      setUsesClubCredentials(clubCreds);
+      if (clubCreds) {
+        setQrzConfigured(true);
+        setQrzUsername("");
+        setQrzPassword("");
+      } else {
+        const u = me?.qrz_username || "";
+        const p = me?.qrz_password || "";
+        setQrzUsername(u);
+        setQrzPassword(p);
+        setQrzConfigured(!!u && !!p);
       }
     } catch (e) { }
   };
@@ -151,11 +172,21 @@ export default function Settings() {
     }
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     setProfileSaving(true);
     localStorage.setItem("hb9om_my_callsign", myCallsign.toUpperCase().trim());
     localStorage.setItem("hb9om_qrz_enabled", String(qrzEnabled));
     localStorage.setItem("hb9om_setup_complete", "true");
+    // Save personal QRZ credentials for non-admin/demo users
+    if (!usesClubCredentials) {
+      try {
+        await base44.auth.updateMe({
+          qrz_username: qrzUsername.trim(),
+          qrz_password: qrzPassword
+        });
+        setQrzConfigured(!!qrzUsername.trim() && !!qrzPassword);
+      } catch (e) { }
+    }
     setTimeout(() => {
       setProfileSaving(false);
       setProfileSaved(true);
@@ -345,24 +376,64 @@ export default function Settings() {
                   <p className="text-xs text-gray-500 mt-0.5">Automatische Rufzeichen-Datenabfrage</p>
                 </div>
                 <button
-                  onClick={() => setQrzEnabled(!qrzEnabled)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${qrzEnabled ? 'bg-gray-900' : 'bg-gray-300'}`}
+                  onClick={() => { if (qrzConfigured) setQrzEnabled(!qrzEnabled); }}
+                  disabled={!qrzConfigured}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${!qrzConfigured ? 'bg-gray-200 cursor-not-allowed opacity-50' : qrzEnabled ? 'bg-gray-900' : 'bg-gray-300'}`}
                 >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${qrzEnabled ? 'translate-x-6' : ''}`} />
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${qrzEnabled && qrzConfigured ? 'translate-x-6' : ''}`} />
                 </button>
               </div>
 
-              {qrzEnabled ? (
+              {!qrzConfigured && !usesClubCredentials && (
+                <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Keine QRZ.com-Anmeldedaten hinterlegt – bitte unten Benutzername &amp; Passwort erfassen
+                </p>
+              )}
+
+              {usesClubCredentials ? (
                 <div className="mt-3 space-y-2">
                   <p className="text-xs text-amber-600 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5" />
-                    QRZ.com XML-Subscription ist hinterlegt und einsatzbereit
+                    QRZ.com XML-Subscription des Clubs ist hinterlegt und einsatzbereit
                   </p>
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase">QRZ-Benutzername</label>
+                    <input
+                      type="text"
+                      value={qrzUsername}
+                      onChange={e => { setQrzUsername(e.target.value); }}
+                      placeholder="Ihr QRZ.com-Benutzername"
+                      autoComplete="off"
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase">QRZ-Passwort</label>
+                    <input
+                      type="password"
+                      value={qrzPassword}
+                      onChange={e => { setQrzPassword(e.target.value); }}
+                      placeholder="Ihr QRZ.com-Passwort"
+                      autoComplete="new-password"
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">
+                    Ihre QRZ.com-Zugangsdaten werden sicher gespeichert und ausschliesslich für Abfragen verwendet. Sie benötigen eine QRZ.com-XML-Subscription.
+                  </p>
+                </div>
+              )}
 
+              {qrzEnabled && qrzConfigured && (
+                <div className="mt-3 space-y-2">
                   <button
                     onClick={handleQrzTest}
                     disabled={qrzTesting}
-                    className="w-full mt-2 px-3 py-2 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    className="w-full px-3 py-2 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
                   >
                     {qrzTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
                     QRZ-Verbindung testen
@@ -376,9 +447,11 @@ export default function Settings() {
                     </div>
                   )}
                 </div>
-              ) : (
+              )}
+
+              {(!qrzEnabled || !qrzConfigured) && (
                 <p className="text-xs text-gray-500 mt-2">
-                  QRZ-Abfrage deaktiviert. Rufzeichen-Daten manuell im QSO-Formular eingeben.
+                  QRZ-Abfrage {!qrzConfigured ? 'nicht konfiguriert' : 'deaktiviert'}. Rufzeichen-Daten manuell im QSO-Formular eingeben.
                 </p>
               )}
             </div>

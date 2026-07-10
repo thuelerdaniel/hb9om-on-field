@@ -215,8 +215,8 @@ const SECTIONS = [
       },
       {
         title: "QRZ.com Abfrage",
-        body: "Die QRZ.com-Abfrage ist mit einer XML-Subscription des Clubs vorkonfiguriert. Aktivieren oder deaktivieren Sie die Abfrage mit dem Schalter. Klicken Sie auf «QRZ-Verbindung testen», um zu prüfen, ob die Anmeldung funktioniert. Beim Erfassen eines QSOs werden Name, Adresse, Land, Grid-Locator und E-Mail des Operators automatisch von QRZ.com geladen.",
-        example: "QRZ aktivieren → «Verbindung testen» → grünes Häkchen = funktioniert."
+        body: "Jeder Benutzer kann seine eigenen QRZ.com-Zugangsdaten in den Einstellungen hinterlegen (Benutzername & Passwort). Geben Sie Ihre Daten ein und speichern Sie das Profil. Der Schalter wird erst aktiviert, wenn Anmeldedaten hinterlegt sind. Administratoren und der Demo-Benutzer nutzen automatisch die Club-XML-Subscription. Klicken Sie auf «QRZ-Verbindung testen», um zu prüfen, ob die Anmeldung funktioniert. Beim Erfassen eines QSOs werden Name, Adresse, Land, Grid-Locator und E-Mail des Operators automatisch von QRZ.com geladen.",
+        example: "Einstellungen → QRZ-Benutzername & Passwort eingeben → Speichern → Schalter aktivieren → «Verbindung testen»."
       },
       {
         title: "Daten aktualisieren",
