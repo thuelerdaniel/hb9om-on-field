@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import { base44 } from "@/api/base44Client";
@@ -77,20 +77,36 @@ const SECTIONS = [
           { icon: Trees, color: "#8e44ad", name: "HBFF", desc: "Flora & Fauna Schweiz – Naturreservate", url: "https://hbff.ch/Refs/HBFFReferenceSlim.html" },
           { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker", url: "https://wwbota.net/map/" },
           { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser", url: "https://wcagroup.org/?page_id=207" },
-          { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Inseln", url: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html" },
-          { icon: Anchor, color: "#f39c12", name: "WLOTA", desc: "Lighthouses on the Air – Leuchttürme", url: "https://wllw.org/index.php/en/" },
-          { icon: Trees, color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare – Auengebiete, Moore etc.", url: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html" }
+          { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Meer Inseln (Schweiz hat keine IOTA-Referenzen, da Binnenland)", url: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html" },
+          { icon: Anchor, color: "#f39c12", name: "WLOTA/ARLHS", desc: "Lighthouses on the Air – Leuchttürme (ARLHS WLOL Referenzen)", url: "https://wlol.arlhs.com/" },
+          { icon: Trees, color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare – Auengebiete, Moore etc.", url: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html" },
+          { icon: Zap, color: "#dc2626", name: "Gefahren & Störquellen", desc: "Hochspannungsleitungen und Starkstromanlagen (map.geo.admin.ch)", url: "https://map.geo.admin.ch/" }
         ]
       },
       {
         title: "Burgen & Schlösser – Wikipedia",
-        body: "In der Detailansicht einer Burg oder eines Schlosses (Marker anklicken) finden Sie einen Wikipedia-Link. Die Suche verwendet den Burgnamen zusammen mit dem Ort/Kanton. Bei Swisstopo-Karten sind viele Burgnamen als Flurnamen auf der Karte sichtbar – diese Namen können im Suchfeld oben gesucht und für die Wikipedia-Recherche genutzt werden.",
+        body: "In der Detailansicht einer Burg oder eines Schlosses (Marker anklicken) finden Sie einen Wikipedia-Link. Die Suche verwendet den Burgnamen zusammen mit dem Ort. Bei Swisstopo-Karten sind viele Burgnamen als Flurnamen auf der Karte sichtbar – diese Namen können im Suchfeld oben gesucht und für die Wikipedia-Recherche genutzt werden.",
         example: "Burgmarker anklicken → «Wikipedia»-Link → Wikipedia öffnet sich mit Suchergebnis für Burgname + Ort."
       },
       {
         title: "Burgen-Statistik in der Legende",
         body: "Wenn der Burgen-Layer aktiv ist, zeigt die Legende unten links eine Statistik an: «Burgen X/Y» – dabei ist X die Anzahl der erfolgreich georeferenzierten Burgen und Y die Gesamtzahl. Die Statistik erscheint nur, wenn der Burgen-Layer eingeschaltet ist.",
         example: "Burgen-Layer aktivieren → Legende zeigt «Burgen 180/256»."
+      },
+      {
+        title: "Gefahren & Störquellen",
+        body: "Der Layer «Gefahren & Störquellen» blendet Hochspannungsleitungen und Starkstromanlagen (über 36 kV) von map.geo.admin.ch ein. Diese Informationen sind für Amateurfunker wichtig, da Hochspannungsleitungen und elektrische Anlagen Störungen verursachen können. Der Layer zeigt auch Projektierungszonen für zukünftige Starkstromanlagen. Die Daten stammen vom Bundesamt für Energie (BFE).",
+        example: "Layer «Gefahren & Störquellen» aktivieren → rote Linien zeigen Hochspannungsleitungen auf der Karte."
+      },
+      {
+        title: "Bunker-Details (WWBOTA)",
+        body: "Bei WWBOTA-Bunkern führt der «Mehr Infos»-Link zur allgemeinen HBBOTA-Seite (wwbota.net), da keine einzelnen Bunker-Detailseiten existieren. Zusätzlich gibt es einen Wikipedia-Link, der nach dem spezifischen Bunkernamen sucht und so weitere Informationen zum jeweiligen Bunker liefert.",
+        example: "Bunker anklicken → «Mehr Infos» öffnet wwbota.net → «Wikipedia» sucht nach dem Bunkernamen."
+      },
+      {
+        title: "Leuchtturm-Referenzen (ARLHS WLOL)",
+        body: "Schweizer Leuchttürme verwenden die offiziellen ARLHS WLOL-Referenznummern (SWI-001 bis SWI-006). Der «Mehr Infos»-Link führt direkt zur jeweiligen Detailseite auf wlol.arlhs.com. Die Referenzen wurden gegen die offizielle ARLHS-Liste verifiziert. Es gibt 6 verifizierte Schweizer Leuchttürme: Phare des Pâquis (Genf), Genève Jetée du Sud, Morges Jetée du Sud/Nord, Romanshorn und Rorschach Hafen.",
+        example: "Leuchtturm anklicken → «Mehr Infos» öffnet wlol.arlhs.com/lighthouse/SWI1.html mit Details zum Leuchtturm."
       }
     ]
   },

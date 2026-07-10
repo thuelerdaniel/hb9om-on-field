@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2, FlaskConical } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, FlaskConical, HelpCircle } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/constants";
@@ -57,6 +57,11 @@ export default function Login() {
       icon={LogIn}
       title="Willkommen zurück"
       subtitle="Melde dich mit deinem Konto an"
+      headerExtra={
+        <Link to="/help" className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors" title="Hilfe">
+          <HelpCircle className="w-5 h-5" />
+        </Link>
+      }
       footer={
         <>
           Noch kein Konto?{" "}

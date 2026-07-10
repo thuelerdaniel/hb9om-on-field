@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap } from "lucide-react";
 
 const LAYER_GROUPS = [
   {
@@ -57,6 +57,13 @@ const LAYER_GROUPS = [
     icon: Trees,
     color: "#16a085",
     description: "BLN, Moore, Vogelreservate"
+  },
+  {
+    id: "hazards",
+    label: "Gefahren & Störquellen",
+    icon: Zap,
+    color: "#dc2626",
+    description: "Hochspannungsleitungen, Sendeanlagen (map.geo.admin.ch)"
   }
 ];
 

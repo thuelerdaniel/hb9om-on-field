@@ -3,9 +3,13 @@
 // Sources: ARLHS WLOL (wlol.arlhs.com), WLOTA (wlota.com), ILLW (illw.net)
 
 export const LIGHTHOUSE_DATA = [
-  // === Switzerland ===
-  { code: "CH-0001", name: "Rheinfelden Leuchtturm", lat: 47.5596, lng: 7.7900, country: "Switzerland", link: "https://wlol.arlhs.com/" },
-  { code: "CH-0002", name: "Genfersee Leuchtturm St. Gingolph", lat: 46.4592, lng: 6.8453, country: "Switzerland", link: "https://wlol.arlhs.com/" },
+  // === Switzerland (ARLHS WLOL verified) ===
+  { code: "SWI-001", name: "Phare des Pâquis (Genf)", lat: 46.2100, lng: 6.1570, country: "Switzerland", link: "https://wlol.arlhs.com/lighthouse/SWI1.html" },
+  { code: "SWI-002", name: "Genève Jetée du Sud (Genf)", lat: 46.2080, lng: 6.1560, country: "Switzerland", link: "https://wlol.arlhs.com/lighthouse/SWI2.html" },
+  { code: "SWI-003", name: "Morges Jetée du Sud", lat: 46.5061, lng: 6.4990, country: "Switzerland", link: "https://wlol.arlhs.com/lighthouse/SWI3.html" },
+  { code: "SWI-004", name: "Morges Jetée du Nord", lat: 46.5065, lng: 6.4991, country: "Switzerland", link: "https://wlol.arlhs.com/lighthouse/SWI4.html" },
+  { code: "SWI-005", name: "Romanshorn Leuchtturm", lat: 47.5668, lng: 9.3922, country: "Switzerland", link: "https://wlol.arlhs.com/lighthouse/SWI5.html" },
+  { code: "SWI-006", name: "Rorschach Hafen Leuchtturm", lat: 47.4794, lng: 9.4946, country: "Switzerland", link: "https://wlol.arlhs.com/lighthouse/SWI6.html" },
 
   // === Germany ===
   { code: "FED-001", name: "Roter Sand Lighthouse", lat: 53.5667, lng: 8.0833, country: "Germany", link: "https://wlol.arlhs.com/lighthouse/FED354.html" },

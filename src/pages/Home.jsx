@@ -44,10 +44,9 @@ const HBFF_DATA = [
   { code: "HBFF-0489", name: "Vanil Noir Federal Reserve", lat: 46.5200, lng: 7.1300, canton: "FR", parkType: "Fed. Reserve", link: "https://hbff.ch/geo/HBFF-0489.htm" },
 ];
 
-// Swiss IOTA references
-const IOTA_DATA = [
-  { code: "EU-165", name: "Bodensee Inseln (Mainau, Reichenau)", lat: 47.6600, lng: 9.2000, link: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html?filter_search=EU-165" },
-];
+// IOTA covers oceanic islands only — Switzerland is landlocked with no IOTA references.
+// EU-165 was incorrect (Sardinia's Coastal Islands). Layer kept for potential border-region data.
+const IOTA_DATA = [];
 
 // Swiss WWBOTA bunkers
 const WWBOTA_DATA = [
@@ -71,7 +70,8 @@ const LAYER_COLORS = {
   castle: "#e67e22",
   iota: "#3498db",
   lighthouse: "#f39c12",
-  swiss_protected: "#16a085"
+  swiss_protected: "#16a085",
+  hazards: "#dc2626"
 };
 
 function MapBounds({ center, zoom }) {
@@ -711,6 +711,27 @@ export default function Home() {
 
           {currentPosition && (
             <PositionMarker position={currentPosition} fixed={positionFixed} radius={positionRadius} onRadiusChange={setPositionRadius} onPositionChange={handlePositionChange} />
+          )}
+
+          {/* Hazards & Interference Sources WMS overlay (high-voltage power lines) */}
+          {activeLayers.includes("hazards") && (
+            <>
+              <WMSTileLayer
+                url="https://wms.geo.admin.ch/"
+                layers="ch.bfe.elektrische-anlagen_ueber_36"
+                format="image/png"
+                transparent={true}
+                opacity={0.6}
+                attribution='&copy; BFE'
+              />
+              <WMSTileLayer
+                url="https://wms.geo.admin.ch/"
+                layers="ch.bfe.projektierungszonen-starkstromanlagen"
+                format="image/png"
+                transparent={true}
+                opacity={0.4}
+              />
+            </>
           )}
 
           {/* Swiss Federal Inventories WMS overlay */}

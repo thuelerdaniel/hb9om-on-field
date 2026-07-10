@@ -52,7 +52,7 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit }) {
       {data.region && <p className="text-xs text-gray-500">Region: {data.region}</p>}
       {data.locationDesc && <p className="text-xs text-gray-500">Ort: {data.locationDesc}</p>}
       {data.parkType && <p className="text-xs text-gray-500">Typ: {data.parkType}</p>}
-      {data.canton && <p className="text-xs text-gray-500">Kanton: {data.canton}</p>}
+      {data.canton && <p className="text-xs text-gray-500">{layerType === "castle" ? "Ort" : "Kanton"}: {data.canton}</p>}
       {data.country && <p className="text-xs text-gray-500">Land: {data.country}</p>}
       {data.activationCount !== undefined && <p className="text-xs text-gray-500">Aktivierungen: {data.activationCount}</p>}
 
@@ -66,6 +66,19 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit }) {
       {layerType === "castle" && data.name && (() => {
         const loc = data.canton || data.wcaLocation || '';
         const wikiQuery = loc ? `${data.name} ${loc}` : data.name;
+        return (
+          <a
+            href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(wikiQuery)}`}
+            target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+          >
+            Wikipedia <ExternalLink className="w-3 h-3" />
+          </a>
+        );
+      })()}
+
+      {layerType === "wwbota" && data.name && (() => {
+        const wikiQuery = `${data.name} Bunker Schweiz`;
         return (
           <a
             href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(wikiQuery)}`}
