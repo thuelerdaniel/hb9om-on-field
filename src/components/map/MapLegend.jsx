@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp, X, Layers } from "lucide-react";
 import { LAYER_GROUPS } from "./LayerControl";
+import { getMarkerSvg } from "@/lib/markerShapes";
 
 export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -48,7 +49,7 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
         <div className="px-3 pb-2 flex items-center gap-3 flex-wrap border-t border-gray-100 pt-2 relative">
           {activeItems.map(lg => (
             <span key={lg.id} className="flex items-center gap-1 text-xs">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: lg.color }} />
+              <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: getMarkerSvg(lg.id, lg.color) }} />
               <span className="text-gray-600">{lg.label.split("–")[0].trim()}</span>
             </span>
           ))}

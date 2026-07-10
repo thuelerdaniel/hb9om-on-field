@@ -1,7 +1,8 @@
 import React, { memo } from "react";
-import { CircleMarker, Marker, Popup } from "react-leaflet";
+import { Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
+import { getMarkerSvg } from "@/lib/markerShapes";
 
 function createDraggableIcon(color) {
   return L.divIcon({
@@ -11,6 +12,17 @@ function createDraggableIcon(color) {
     className: "draggable-marker-icon",
     iconSize: [32, 32],
     iconAnchor: [16, 16]
+  });
+}
+
+function createShapeIcon(layerType, color) {
+  const svg = getMarkerSvg(layerType, color);
+  return L.divIcon({
+    html: `<div style="width: 24px; height: 24px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));">${svg}</div>`,
+    className: "shape-marker-icon",
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -10]
   });
 }
 
@@ -36,16 +48,10 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
           );
         }
         return (
-          <CircleMarker
+          <Marker
             key={key}
-            center={[m.lat, m.lng]}
-            radius={7}
-            pathOptions={{
-              color: m.color,
-              fillColor: m.color,
-              fillOpacity: 0.85,
-              weight: 2
-            }}
+            position={[m.lat, m.lng]}
+            icon={createShapeIcon(m.layerType, m.color)}
             eventHandlers={{
               click: (e) => {
                 const map = e.target._map;
@@ -58,7 +64,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
             <Popup>
               <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} />
             </Popup>
-          </CircleMarker>
+          </Marker>
         );
       })}
     </>
