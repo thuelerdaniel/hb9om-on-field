@@ -9,8 +9,12 @@ const NAV_ITEMS = [
   { path: "/settings", label: "Einstell.", icon: SettingsIcon },
 ];
 
+const HIDDEN_PATTERNS = ["/help", "/privacy", "/users", "/change-requests", "/admin/"];
+
 export default function BottomNavigation() {
   const location = useLocation();
+
+  if (HIDDEN_PATTERNS.some(p => location.pathname.startsWith(p))) return null;
 
   const handleLogout = async () => {
     try {
