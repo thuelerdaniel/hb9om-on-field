@@ -33,10 +33,16 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(DEMO_EMAIL, DEMO_PASSWORD);
-      window.location.href = "/";
+      const res = await base44.functions.invoke("demoLogin", {});
+      if (res.data?.access_token) {
+        base44.auth.setToken(res.data.access_token);
+        window.location.href = "/";
+      } else {
+        setError(res.data?.error || "Demo-Login fehlgeschlagen");
+      }
     } catch (err) {
-      setError("Demo-Login fehlgeschlagen: " + (err.message || "unbekannt"));
+      const detail = err?.response?.data?.error || err?.message || "unbekannt";
+      setError("Demo-Login fehlgeschlagen: " + detail);
     } finally {
       setLoading(false);
     }

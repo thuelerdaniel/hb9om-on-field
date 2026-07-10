@@ -7,27 +7,24 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Find demo user
+    // Check if demo user exists and is verified
     const users = await base44.asServiceRole.entities.User.list("-created_date", 500);
-    let demoUser = users.find(u => u.email === DEMO_EMAIL);
-
-    // Register demo user if it doesn't exist
-    if (!demoUser) {
-      try {
-        await base44.auth.register({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
-      } catch (e) {
-        // ignore — may exist already
-      }
-      const users2 = await base44.asServiceRole.entities.User.list("-created_date", 500);
-      demoUser = users2.find(u => u.email === DEMO_EMAIL);
-    }
+    const demoUser = users.find(u => u.email === DEMO_EMAIL);
 
     if (!demoUser) {
-      return Response.json({ error: 'Demo-Benutzer konnte nicht erstellt werden' }, { status: 500 });
+      return Response.json({ 
+        error: 'Demo-Benutzer noch nicht eingerichtet. Ein Admin muss dies einmalig in den Einstellungen vornehmen.' 
+      }, { status: 400 });
     }
 
-    // Generate an SSO access token for the demo user — bypasses email verification
-    const { access_token } = await base44.asServiceRole.sso.getAccessToken(demoUser.id);
+    if (!demoUser.is_verified) {
+      return Response.json({ 
+        error: 'Demo-Benutzer noch nicht verifiziert. Ein Admin muss dies einmalig in den Einstellungen vornehmen.' 
+      }, { status: 400 });
+    }
+
+    // Login as demo user — works because the account is already verified
+    const { access_token } = await base44.auth.loginViaEmailPassword(DEMO_EMAIL, DEMO_PASSWORD);
 
     return Response.json({ success: true, access_token });
   } catch (error) {
