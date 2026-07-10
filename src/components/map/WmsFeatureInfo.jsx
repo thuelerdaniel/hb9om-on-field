@@ -38,13 +38,14 @@ const HIDDEN_PROPS = new Set([
   "kanton", "gemeinde", "datum", "bemerkung", "beschreibung", "description",
   "refobjbln", "subareaname", "teilobjekt", "inventar", "biozone",
   "bln_fl", "bln_obj", "flaeche", "area",
-  "spannungandere", "stromnetztyp"
+  "spannungandere"
 ]);
 
 const PROP_LABELS = {
   bezeichnung: "Bezeichnung", name: "Name", bln_name: "Name",
   eigentuemer: "Eigentümer", betreiber: "Betreiber", betreibername: "Betreiber",
-  spannung: "Spannung", voltage: "Spannung", leitungtyp: "Leitungstyp",
+  spannung: "Spannung", voltage: "Spannung", leitungtyp: "Trasseetyp",
+  stromnetztyp: "Stromnetz",
   typ: "Typ", typ_de: "Typ", type: "Typ", status: "Status",
   standort: "Standort", standortbezeichnung: "Standortbezeichnung",
   sendeleistung: "Sendeleistung", frequenz: "Frequenz", frequenzbereich: "Frequenzbereich",
@@ -80,8 +81,12 @@ function formatPropName(key) {
   return key.charAt(0).toUpperCase() + key.slice(1);
 }
 
-function formatPropValue(val) {
-  if (val === null || val === undefined || val === "") return null; // null = skip entirely
+function formatPropValue(val, key) {
+  if (val === null || val === undefined || val === "") {
+    // BAKOM adaptiv_de: empty = conventional antennas only (per BAKOM docs)
+    if (key && key.toLowerCase() === "adaptiv_de") return "Keine Angabe (konventionell)";
+    return null; // null = skip entirely
+  }
   let s = String(val).trim();
   // Strip redundant prefixes
   for (const prefix of VALUE_PREFIXES) {
@@ -89,7 +94,6 @@ function formatPropValue(val) {
   }
   // Format voltage/frequency codes
   s = s.replace(/^S(\d+)kV$/, "$1 kV").replace(/^F(\d+)Hz$/, "$1 Hz");
-  // BAKOM adaptiv: empty means "Keine Angabe (konventionell)"
   if (s === "") return null;
   if (s.length > MAX_VALUE_LENGTH) s = s.substring(0, MAX_VALUE_LENGTH) + "…";
   return s;
@@ -121,7 +125,7 @@ function buildMapAdminUrl(lat, lng, zoom, layerIds) {
 
 function buildFeatureHtml(props, isLast) {
   const propEntries = Object.entries(props)
-    .map(([k, v]) => [formatPropName(k), formatPropValue(v)])
+    .map(([k, v]) => [formatPropName(k), formatPropValue(v, k)])
     .filter(([label, val]) => label !== null && label !== undefined && val !== null);
   const propHtml = propEntries.length > 0
     ? propEntries.map(([label, val]) =>
