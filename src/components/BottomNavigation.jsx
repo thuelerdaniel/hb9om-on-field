@@ -9,13 +9,6 @@ const NAV_ITEMS = [
   { path: "/settings", label: "Einstell.", icon: SettingsIcon },
 ];
 
-const HIDDEN_ROUTES = [
-  "/users",
-  "/change-requests",
-  "/admin/change-requests",
-  "/admin/feature-requests",
-];
-
 export default function BottomNavigation() {
   const location = useLocation();
 
@@ -26,11 +19,6 @@ export default function BottomNavigation() {
       window.location.href = "/login";
     }
   };
-
-  // Hide bottom tabs on deep nested admin/user sub-pages (native screen stack pattern)
-  if (HIDDEN_ROUTES.some(route => location.pathname.startsWith(route))) {
-    return null;
-  }
 
   return (
     <nav

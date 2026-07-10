@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Users, Loader2, Mail, KeyRound, Search, Shield, CheckCircle2, AlertCircle, Trash2, UserCog, Clock, ShieldCheck, ShieldOff } from "lucide-react";
+import { ArrowLeft, Users, Loader2, Mail, KeyRound, Search, Shield, CheckCircle2, AlertCircle, Trash2, UserCog, Clock, ShieldCheck, ShieldOff } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
-import PageHeader from "@/components/PageHeader";
 import { DEMO_EMAIL } from "@/lib/constants";
 
 export default function UserManagement() {
@@ -142,11 +141,22 @@ export default function UserManagement() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="Benutzerverwaltung"
-        subtitle={`${users.length} angemeldete Benutzer`}
-        icon={Users}
-      />
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+          <button onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate("/")} className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div className="flex items-center gap-2 flex-1">
+            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
+              <Users className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-gray-900">Benutzerverwaltung</h1>
+              <p className="text-[10px] text-gray-400">{users.length} angemeldete Benutzer</p>
+            </div>
+          </div>
+        </div>
+      </header>
 
       <div className="max-w-4xl mx-auto px-4 py-4 pb-24">
         {/* Search */}

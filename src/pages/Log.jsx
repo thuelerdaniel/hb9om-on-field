@@ -6,7 +6,6 @@ import LogEntryForm from "@/components/map/LogEntryForm";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
 import LogStats from "@/components/log/LogStats";
-import PullToRefresh from "@/components/PullToRefresh";
 import { loadLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync, syncPending, getPendingCount } from "@/lib/localLogStore";
 
 const REF_TYPE_LABELS = {
@@ -188,7 +187,7 @@ export default function Log() {
         </div>
       </header>
 
-      <PullToRefresh onRefresh={loadEntries} className="max-w-5xl mx-auto px-4 py-4 pb-24">
+      <div className="max-w-5xl mx-auto px-4 py-4 pb-24">
         {view === "stats" && <LogStats entries={entries} />}
         {/* Toolbar */}
         <div className={`bg-white rounded-xl border border-gray-200 p-3 mb-4 ${view === "stats" ? "hidden" : "flex flex-wrap items-center gap-2"}`}>
@@ -353,7 +352,7 @@ export default function Log() {
             ))}
           </div>
         )}
-      </PullToRefresh>
+      </div>
 
       {showQsoForm && (
         <LogEntryForm
