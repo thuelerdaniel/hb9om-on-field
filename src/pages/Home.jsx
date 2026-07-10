@@ -11,6 +11,7 @@ import LogEntryForm from "@/components/map/LogEntryForm";
 import MapControls from "@/components/map/MapControls";
 import MapMarkers from "@/components/map/MapMarkers";
 import PositionMarker from "@/components/map/PositionMarker";
+import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
 import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList } from "lucide-react";
@@ -768,6 +769,8 @@ export default function Home() {
               />
             </>
           )}
+
+          <WmsFeatureInfo activeLayers={activeLayers} clickMode={pickingPosition} />
 
           <MapMarkers
             markers={allMarkers}
