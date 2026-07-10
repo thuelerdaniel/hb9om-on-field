@@ -13,21 +13,33 @@ export default function CloudProviderCard({ provider, connectorId, displayName, 
   const [restoring, setRestoring] = useState(false);
   const [files, setFiles] = useState([]);
   const [showFiles, setShowFiles] = useState(false);
+  const [connError, setConnError] = useState("");
   const [autoBackup, setAutoBackup] = useState(() => localStorage.getItem("hb9om_auto_cloud_backup") === "true" && localStorage.getItem("hb9om_cloud_provider") === provider);
   const [lastBackup, setLastBackup] = useState(() => localStorage.getItem("hb9om_last_cloud_backup"));
 
   const checkConnection = useCallback(async () => {
     setChecking(true);
     try {
-      const res = await base44.functions.invoke("cloudDriveBackup", { action: "list", provider });
-      if (res.data?.files) {
+      const res = await base44.functions.invoke("cloudDriveBackup", { action: "status", provider });
+      if (res.data?.connected) {
         setConnected(true);
-        setFiles(res.data.files);
+        // Also load files in background
+        try {
+          const listRes = await base44.functions.invoke("cloudDriveBackup", { action: "list", provider });
+          if (listRes.data?.files) setFiles(listRes.data.files);
+        } catch {}
       } else {
         setConnected(false);
       }
     } catch (e) {
-      setConnected(false);
+      // Distinguish "not connected" from real errors
+      const errMsg = e?.response?.data?.error || e?.message || "";
+      if (errMsg.includes("not_connected")) {
+        setConnected(false);
+      } else {
+        setConnected(false);
+        setConnError(errMsg);
+      }
     } finally {
       setChecking(false);
     }
@@ -38,17 +50,31 @@ export default function CloudProviderCard({ provider, connectorId, displayName, 
   }, [checkConnection]);
 
   const handleConnect = async () => {
+    setConnError("");
     try {
       const url = await base44.connectors.connectAppUser(connectorId);
       const popup = window.open(url, "_blank");
+      if (!popup) {
+        // Popup blocked — provide manual link
+        toast({
+          title: "Pop-up blockiert",
+          description: "Bitte erlauben Sie Pop-ups für diese Seite oder öffnen Sie den Link manuell.",
+          variant: "destructive"
+        });
+        // Fallback: redirect in same tab
+        window.location.href = url;
+        return;
+      }
       const timer = setInterval(() => {
         if (!popup || popup.closed) {
           clearInterval(timer);
-          setTimeout(() => checkConnection(), 500);
+          // Delay to allow server to process OAuth callback
+          setTimeout(() => checkConnection(), 1000);
         }
       }, 500);
     } catch (e) {
-      toast({ title: "Verbindung fehlgeschlagen", description: e?.message, variant: "destructive" });
+      toast({ title: "Verbindung fehlgeschlagen", description: e?.response?.data?.error || e?.message, variant: "destructive" });
+      setConnError(e?.response?.data?.error || e?.message);
     }
   };
 
@@ -203,14 +229,32 @@ export default function CloudProviderCard({ provider, connectorId, displayName, 
       </div>
 
       {!connected && !checking && (
-        <button
-          onClick={handleConnect}
-          className="w-full px-3 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90 flex items-center justify-center gap-1.5"
-          style={{ backgroundColor: color }}
-        >
-          <Link2 className="w-4 h-4" />
-          Mit {displayName} verbinden
-        </button>
+        <>
+          <button
+            onClick={handleConnect}
+            className="w-full px-3 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90 flex items-center justify-center gap-1.5"
+            style={{ backgroundColor: color }}
+          >
+            <Link2 className="w-4 h-4" />
+            Mit {displayName} verbinden
+          </button>
+          <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+            Klicken Sie auf «Verbinden» und erlauben Sie den Zugriff in Ihrem {displayName}-Konto.
+          </p>
+          {connError && !connError.includes("not_connected") && (
+            <div className="mt-1.5 p-2 bg-red-50 rounded text-[11px] text-red-600 flex items-start gap-1">
+              <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+              <span>{connError}</span>
+            </div>
+          )}
+          <button
+            onClick={() => checkConnection()}
+            className="w-full mt-1.5 px-2 py-1 text-[11px] font-medium text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Erneut prüfen
+          </button>
+        </>
       )}
 
       {connected && (

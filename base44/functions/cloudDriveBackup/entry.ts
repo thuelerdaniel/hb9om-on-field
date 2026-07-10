@@ -21,16 +21,29 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid provider. Use "googledrive" or "one_drive".' }, { status: 400 });
     }
 
+    // Status check: lightweight connection test without listing files
+    if (action === 'status') {
+      try {
+        const conn = await base44.asServiceRole.connectors.getCurrentAppUserConnection(connectorId);
+        if (conn && conn.accessToken) {
+          return Response.json({ connected: true, provider });
+        }
+        return Response.json({ connected: false, provider });
+      } catch (e) {
+        return Response.json({ connected: false, provider });
+      }
+    }
+
     let accessToken;
     try {
       const conn = await base44.asServiceRole.connectors.getCurrentAppUserConnection(connectorId);
       accessToken = conn.accessToken;
     } catch (e) {
-      return Response.json({ error: 'not_connected', message: 'Cloud-Verbindung nicht eingerichtet. Bitte verbinden Sie Ihr Konto.' }, { status: 403 });
+      return Response.json({ error: 'not_connected', message: 'Cloud-Verbindung nicht eingerichtet. Bitte verbinden Sie Ihr Konto über den «Verbinden»-Button.' }, { status: 403 });
     }
 
     if (!accessToken) {
-      return Response.json({ error: 'not_connected', message: 'Kein Access-Token erhalten.' }, { status: 403 });
+      return Response.json({ error: 'not_connected', message: 'Kein Access-Token erhalten. Bitte verbinden Sie Ihr Konto neu.' }, { status: 403 });
     }
 
     // ─── Google Drive ───
