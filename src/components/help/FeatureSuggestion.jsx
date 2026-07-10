@@ -33,6 +33,7 @@ export default function FeatureSuggestion() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [withdrawingId, setWithdrawingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
   const loadRequests = async () => {
@@ -100,6 +101,20 @@ export default function FeatureSuggestion() {
       toast({ title: "Fehler", description: e.message, variant: "destructive" });
     } finally {
       setWithdrawingId(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Diesen zurückgezogenen Vorschlag endgültig löschen?")) return;
+    setDeletingId(id);
+    try {
+      const res = await base44.functions.invoke("manageFeatureRequests", { action: "delete", requestId: id });
+      toast({ title: "Gelöscht", description: res.data?.message || "Vorschlag gelöscht" });
+      loadRequests();
+    } catch (e) {
+      toast({ title: "Fehler", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -261,6 +276,16 @@ export default function FeatureSuggestion() {
                         >
                           {withdrawingId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                           Zurückziehen
+                        </button>
+                      )}
+                      {r.status === "withdrawn" && (
+                        <button
+                          onClick={() => handleDelete(r.id)}
+                          disabled={deletingId === r.id}
+                          className="px-3 py-1 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-40 flex items-center gap-1"
+                        >
+                          {deletingId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                          Löschen
                         </button>
                       )}
                     </div>

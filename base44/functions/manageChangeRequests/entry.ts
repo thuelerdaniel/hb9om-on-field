@@ -70,6 +70,20 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, message: 'Antrag abgelehnt' });
     }
 
+    // Admin or owner: delete a withdrawn request
+    if (action === 'delete') {
+      const { requestId } = body;
+      const cr = await base44.asServiceRole.entities.ReferenceChangeRequest.get(requestId);
+      if (!cr) return Response.json({ error: 'Antrag nicht gefunden' }, { status: 404 });
+      if (cr.status !== 'withdrawn') return Response.json({ error: 'Nur zurückgezogene Anträge können gelöscht werden' }, { status: 400 });
+
+      const isOwner = cr.created_by_id === user.id;
+      if (!isOwner && user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+
+      await base44.asServiceRole.entities.ReferenceChangeRequest.delete(requestId);
+      return Response.json({ success: true, message: 'Antrag gelöscht' });
+    }
+
     return Response.json({ error: 'Unbekannte Aktion: ' + action }, { status: 400 });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

@@ -50,6 +50,20 @@ Deno.serve(async (req) => {
       return Response.json({ count: requests ? requests.length : 0 });
     }
 
+    // Admin or owner: delete a withdrawn request
+    if (action === 'delete') {
+      const { requestId } = body;
+      const fr = await base44.asServiceRole.entities.FeatureRequest.get(requestId);
+      if (!fr) return Response.json({ error: 'Vorschlag nicht gefunden' }, { status: 404 });
+      if (fr.status !== 'withdrawn') return Response.json({ error: 'Nur zurückgezogene Vorschläge können gelöscht werden' }, { status: 400 });
+
+      const isOwner = fr.created_by_id === user.id;
+      if (!isOwner && user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+
+      await base44.asServiceRole.entities.FeatureRequest.delete(requestId);
+      return Response.json({ success: true, message: 'Vorschlag gelöscht' });
+    }
+
     return Response.json({ error: 'Unbekannte Aktion: ' + action }, { status: 400 });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

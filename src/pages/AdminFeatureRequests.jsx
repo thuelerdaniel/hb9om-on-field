@@ -93,6 +93,20 @@ export default function AdminFeatureRequests() {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!confirm("Diesen zurückgezogenen Vorschlag endgültig löschen?")) return;
+    setActionId(id);
+    try {
+      const res = await base44.functions.invoke("manageFeatureRequests", { action: "delete", requestId: id });
+      toast({ title: "Gelöscht", description: res.data?.message || "Vorschlag gelöscht" });
+      loadRequests();
+    } catch (e) {
+      toast({ title: "Fehler", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const filtered = filter === "all" ? requests : requests.filter(r => r.status === filter);
   const pendingCount = requests.filter(r => r.status === "pending").length;
 
@@ -190,6 +204,17 @@ export default function AdminFeatureRequests() {
                       <MessageSquare className="w-3 h-3 flex-shrink-0 mt-0.5" />
                       <span><strong>Admin:</strong> {r.admin_comment}</span>
                     </div>
+                  )}
+
+                  {r.status === "withdrawn" && (
+                    <button
+                      onClick={() => handleDelete(r.id)}
+                      disabled={actionId === r.id}
+                      className="w-full px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    >
+                      {actionId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      Endgültig löschen
+                    </button>
                   )}
 
                   {r.status !== "withdrawn" && (

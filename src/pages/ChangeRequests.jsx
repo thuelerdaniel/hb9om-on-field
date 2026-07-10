@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ArrowLeft, MapPin, Clock, Check, X, Trash2, Loader2, MessageSquare, ArrowRight } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import { useToast } from "@/components/ui/use-toast";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -23,9 +24,11 @@ const STATUS_CONFIG = {
 
 export default function ChangeRequests() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [withdrawingId, setWithdrawingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -55,6 +58,20 @@ export default function ChangeRequests() {
     } catch (e) {
     } finally {
       setWithdrawingId(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Diesen zurückgezogenen Antrag endgültig löschen?")) return;
+    setDeletingId(id);
+    try {
+      const res = await base44.functions.invoke("manageChangeRequests", { action: "delete", requestId: id });
+      toast({ title: "Gelöscht", description: res.data?.message || "Antrag gelöscht" });
+      loadRequests();
+    } catch (e) {
+      toast({ title: "Fehler", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -156,6 +173,16 @@ export default function ChangeRequests() {
                       >
                         {withdrawingId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                         Zurückziehen
+                      </button>
+                    )}
+                    {r.status === "withdrawn" && (
+                      <button
+                        onClick={() => handleDelete(r.id)}
+                        disabled={deletingId === r.id}
+                        className="px-3 py-1 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-40 flex items-center gap-1"
+                      >
+                        {deletingId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                        Löschen
                       </button>
                     )}
                   </div>
