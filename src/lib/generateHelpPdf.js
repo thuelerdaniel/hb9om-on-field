@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { MARKER_SHAPES } from "@/lib/markerShapes";
 import { SECTIONS, MARKER_SYMBOLS, UI_ICONS, LINKS, SCREENSHOTS } from "@/lib/helpPdfContent";
+import { getIconSvg } from "@/lib/helpPdfIcons";
 
 // Farben
 const NAVY = [11, 30, 51];
@@ -71,11 +72,16 @@ function hexToRgb(hex) {
 
 // ─── Zeichnungs-Helfer ───
 
-function drawStepBox(doc, x, y, w, stepNum, text, color) {
-  const maxLineW = w - 14;
+function drawStepBox(doc, x, y, w, stepNum, stepData, color, iconImgs) {
+  const text = typeof stepData === "string" ? stepData : stepData.text;
+  const iconName = typeof stepData === "string" ? null : stepData.icon;
+  const iconImg = iconName && iconImgs ? iconImgs[iconName] : null;
+
+  const iconSpace = iconImg ? 10 : 0;
+  const maxLineW = w - 14 - iconSpace;
   doc.setFontSize(7.5);
   const lines = doc.splitTextToSize(text, maxLineW);
-  const h = Math.max(7, lines.length * 3.5 + 4);
+  const h = Math.max(8, lines.length * 3.5 + 5);
 
   doc.setFillColor(...LIGHT_GRAY);
   doc.roundedRect(x, y, w, h, 1, 1, "F");
@@ -86,11 +92,25 @@ function drawStepBox(doc, x, y, w, stepNum, text, color) {
   doc.setFontSize(7);
   doc.text(String(stepNum), x + 4, y + h / 2 + 0.7, { align: "center" });
 
+  // App-Icon neben der Schritt-Nummer
+  if (iconImg) {
+    const iconSize = 7;
+    const iconX = x + 7.5;
+    const iconY = y + (h - iconSize) / 2;
+    // Heller Kreis hinter dem Icon fuer bessere Sichtbarkeit
+    doc.setFillColor(255, 255, 255);
+    doc.circle(iconX + iconSize / 2, iconY + iconSize / 2, iconSize / 2 + 0.5, "F");
+    try {
+      doc.addImage(iconImg, "PNG", iconX, iconY, iconSize, iconSize);
+    } catch (e) {}
+  }
+
   doc.setTextColor(50, 50, 50);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
+  const textX = x + 9 + iconSpace;
   for (let li = 0; li < lines.length; li++) {
-    doc.text(lines[li], x + 9, y + 4 + li * 3.5);
+    doc.text(lines[li], textX, y + 4 + li * 3.5);
   }
   return y + h + 1.5;
 }
@@ -357,10 +377,32 @@ export async function generateHelpPdf() {
   // Marker-Symbole als PNG laden
   const markerImgs = {};
   for (const ms of MARKER_SYMBOLS) {
-    const shape = MARKER_SHAPES[ms.type];
+    const shape = MARKER_SHAPES[ms.shape];
     if (shape) {
-      markerImgs[ms.type] = await svgToPng(shape.svg(ms.color), 120);
+      markerImgs[ms.shape] = await svgToPng(shape.svg(ms.color), 120);
     }
+  }
+
+  // Lucide-App-Icons als PNG laden
+  const iconImgs = {};      // Navy-Version fuer Schritt-fuer-Schritt
+  const iconImgsWhite = {}; // Weiss-Version fuer farbige Buttons
+  const allIconNames = new Set();
+  for (const ms of MARKER_SYMBOLS) allIconNames.add(ms.icon);
+  for (const ic of UI_ICONS) allIconNames.add(ic.icon);
+  for (const sec of SECTIONS) {
+    for (const item of sec.items) {
+      if (item.steps) {
+        for (const s of item.steps) {
+          if (typeof s === "object" && s.icon) allIconNames.add(s.icon);
+        }
+      }
+    }
+  }
+  for (const name of allIconNames) {
+    const svgNavy = getIconSvg(name, "#0b1e33");
+    iconImgs[name] = await svgToPng(svgNavy, 96);
+    const svgWhite = getIconSvg(name, "#ffffff");
+    iconImgsWhite[name] = await svgToPng(svgWhite, 96);
   }
 
   const checkPage = (needed) => {
@@ -554,7 +596,7 @@ export async function generateHelpPdf() {
   doc.setTextColor(50, 50, 50);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  const symIntro = "Jeder Referenz-Typ hat ein eigenes, gut erkennbares Symbol auf der Karte. Diese Symbole werden auch in der Legende und im Ebenen-Menü verwendet. Hier sehen Sie alle Symbole mit Erklärung:";
+  const symIntro = "Jeder Referenz-Typ hat in der App zwei Darstellungen: das App-Icon (Lucide-Icon, sichtbar im Ebenen-Menü und in der Legende) und das Karten-Marker-Symbol (sichtbar auf der Karte). Beide werden hier nebeneinander gezeigt:";
   const symIntroLines = doc.splitTextToSize(symIntro, CONTENT_W);
   for (const line of symIntroLines) {
     doc.text(line, MARGIN, y);
@@ -562,10 +604,19 @@ export async function generateHelpPdf() {
   }
   y += 4;
 
+  // Spalten-Header
+  doc.setTextColor(...GRAY);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.text("App-Icon  /  Karten-Marker  -  Referenz-Typ und Beschreibung", MARGIN, y);
+  y += 5;
+
   // Symbol-Tabelle: 2 Spalten, 4 Zeilen
+  // Zeigt Lucide-Icon (App) + Marker-Shape (Karte) nebeneinander
   const symColW = (CONTENT_W - 6) / 2;
-  const symRowH = 22;
-  const symImgSize = 12;
+  const symRowH = 26;
+  const iconSz = 10;
+  const shapeSz = 10;
 
   for (let i = 0; i < MARKER_SYMBOLS.length; i++) {
     const ms = MARKER_SYMBOLS[i];
@@ -581,68 +632,108 @@ export async function generateHelpPdf() {
     doc.setFillColor(...LIGHT_GRAY);
     doc.roundedRect(sx, sy, symColW, symRowH, 1.5, 1.5, "F");
 
-    if (markerImgs[ms.type]) {
+    // Lucide-App-Icon (links)
+    if (iconImgs[ms.icon]) {
       try {
-        doc.addImage(markerImgs[ms.type], "PNG", sx + 3, sy + 3, symImgSize, symImgSize);
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(sx + 2, sy + 3, iconSz + 2, iconSz + 2, 1, 1, "F");
+        doc.addImage(iconImgs[ms.icon], "PNG", sx + 3, sy + 4, iconSz, iconSz);
       } catch (e) {}
-    } else {
-      const rgb = hexToRgb(ms.color);
-      doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-      doc.circle(sx + 3 + symImgSize / 2, sy + 3 + symImgSize / 2, symImgSize / 2, "F");
     }
+    doc.setTextColor(...GRAY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(5);
+    doc.text("App", sx + 3 + iconSz / 2, sy + 2.5, { align: "center" });
 
+    // Marker-Shape (Karte) daneben
+    if (markerImgs[ms.shape]) {
+      try {
+        doc.addImage(markerImgs[ms.shape], "PNG", sx + 3 + iconSz + 3, sy + 4, shapeSz, shapeSz);
+      } catch (e) {}
+    }
+    doc.text("Karte", sx + 3 + iconSz + 3 + shapeSz / 2, sy + 2.5, { align: "center" });
+
+    // Name und Beschreibung rechts daneben
+    const textX = sx + 3 + iconSz + 3 + shapeSz + 4;
     doc.setTextColor(...NAVY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.text(ms.name, sx + 3 + symImgSize + 3, sy + 6);
+    doc.text(ms.name, textX, sy + 7);
 
+    // Farb-Farbblatt
     const rgb = hexToRgb(ms.color);
     doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-    doc.roundedRect(sx + symColW - 8, sy + 3, 5, 5, 0.5, 0.5, "F");
+    doc.roundedRect(sx + symColW - 8, sy + 4, 5, 5, 0.5, 0.5, "F");
 
     doc.setTextColor(60, 60, 60);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    const descLines = doc.splitTextToSize(ms.desc, symColW - symImgSize - 8);
-    for (let dl = 0; dl < Math.min(descLines.length, 2); dl++) {
-      doc.text(descLines[dl], sx + 3 + symImgSize + 3, sy + 10 + dl * 3.5);
+    doc.setFontSize(6);
+    const descLines = doc.splitTextToSize(ms.desc, symColW - (textX - sx) - 10);
+    for (let dl = 0; dl < Math.min(descLines.length, 3); dl++) {
+      doc.text(descLines[dl], textX, sy + 11 + dl * 3.2);
     }
   }
 
   y += 4 * (symRowH + 2) + 4;
 
-  // UI-Icons Erklärung
-  checkPage(50);
+  // UI-Icons mit echten App-Icons
+  checkPage(60);
   doc.setTextColor(...NAVY);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("Wichtige UI-Icons auf der Karte:", MARGIN, y);
-  y += 6;
+  doc.text("Werkzeug-Icons (wie in der App):", MARGIN, y);
+  y += 5;
+  doc.setTextColor(...GRAY);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text("Diese Icons sehen Sie auf der Karte und in den Bedienelementen - exakt wie in der App:", MARGIN, y);
+  y += 5;
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.4);
   doc.line(MARGIN, y, MARGIN + 50, y);
-  y += 6;
+  y += 5;
 
-  for (const ic of UI_ICONS) {
-    checkPage(10);
+  // UI-Icons: 2 Spalten mit echten App-Icons in farbigen Buttons
+  const uiColW = (CONTENT_W - 6) / 2;
+  const uiRowH = 16;
+  for (let i = 0; i < UI_ICONS.length; i++) {
+    const ic = UI_ICONS[i];
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const sx = MARGIN + col * (uiColW + 6);
+    const sy = y + row * (uiRowH + 1.5);
+
+    if (i === 0 || i === 2 || i === 4 || i === 6 || i === 8 || i === 10) {
+      checkPage(uiRowH * 2 + 6);
+    }
+
+    doc.setFillColor(...LIGHT_GRAY);
+    doc.roundedRect(sx, sy, uiColW, uiRowH, 1.5, 1.5, "F");
+
+    // Farbiger Button mit weissem Icon (wie in der App)
+    const btnSize = 10;
     doc.setFillColor(...ic.color);
-    doc.roundedRect(MARGIN, y - 3, 10, 5, 0.5, 0.5, "F");
-    doc.setTextColor(...WHITE);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(5);
-    doc.text(ic.letter, MARGIN + 5, y + 0.2, { align: "center" });
+    doc.roundedRect(sx + 2, sy + 3, btnSize, btnSize, 1.5, 1.5, "F");
+    if (iconImgsWhite[ic.icon]) {
+      try {
+        doc.addImage(iconImgsWhite[ic.icon], "PNG", sx + 3, sy + 4, btnSize - 2, btnSize - 2);
+      } catch (e) {}
+    }
 
+    // Name und Beschreibung
     doc.setTextColor(...NAVY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
-    doc.text(ic.name, MARGIN + 13, y);
+    doc.text(ic.name, sx + 2 + btnSize + 3, sy + 6);
     doc.setTextColor(60, 60, 60);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    const icDescLines = doc.splitTextToSize(ic.desc, CONTENT_W - 18);
-    doc.text(icDescLines[0], MARGIN + 13, y + 3.5);
-    y += 8;
+    doc.setFontSize(6);
+    const icDescLines = doc.splitTextToSize(ic.desc, uiColW - btnSize - 8);
+    for (let dl = 0; dl < Math.min(icDescLines.length, 2); dl++) {
+      doc.text(icDescLines[dl], sx + 2 + btnSize + 3, sy + 10 + dl * 3);
+    }
   }
+  y += Math.ceil(UI_ICONS.length / 2) * (uiRowH + 1.5) + 4;
 
   addFooter();
 
@@ -805,11 +896,15 @@ export async function generateHelpPdf() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
         doc.text("Schritt-für-Schritt:", MARGIN, y);
+        doc.setTextColor(...GRAY);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.text("(Icons = App-Buttons)", MARGIN + 32, y);
         y += 4;
 
         for (let i = 0; i < item.steps.length; i++) {
           checkPage(12);
-          y = drawStepBox(doc, MARGIN, y, CONTENT_W, i + 1, item.steps[i], section.color);
+          y = drawStepBox(doc, MARGIN, y, CONTENT_W, i + 1, item.steps[i], section.color, iconImgs);
         }
         y += 2;
       }
