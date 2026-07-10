@@ -190,7 +190,7 @@ export default function BandPlanInfo() {
           <Radio className="w-5 h-5 text-indigo-600" />
         </div>
         <div className="flex-1 text-left">
-          <h2 className="text-sm font-bold text-gray-900">IARU Bandplan (Region 1 / USKA)</h2>
+          <h2 className="text-sm font-bold text-gray-900">IARU Bandplan (Region 1)</h2>
           <p className="text-xs text-gray-500">Frequenzbereiche und Modi für alle Amateurfunk-Bänder</p>
         </div>
         {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
@@ -199,11 +199,15 @@ export default function BandPlanInfo() {
       {expanded && (
         <div className="px-5 pb-5">
           <div className="mb-3 p-3 bg-amber-50 rounded-lg text-xs text-amber-800 border border-amber-100">
-            <p className="font-semibold mb-0.5">⚠️ Hinweis</p>
+            <p className="font-semibold mb-0.5">⚠️ Hinweis zur rechtlichen Grundlage</p>
+            <p className="mb-1">
+              Diese Tabelle ist eine vereinfachte visuelle Darstellung. Die USKA hat lediglich eine visuelle
+              Aufbereitung erstellt – <strong>massgeblich ist ausschliesslich der offizielle Frequenzplan des BAKOM</strong>{" "}
+              (Bundesamt für Kommunikation).
+            </p>
             <p>
-              Diese Tabelle ist eine vereinfachte Zusammenfassung des IARU Region 1 Bandplans (USKA v1.4).
-              Massgeblich ist stets der offizielle Bandplan auf{" "}
-              <a href="https://www.uska.ch" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-medium">uska.ch</a>.
+              Konsultieren Sie für rechtlich verbindliche Informationen stets die{" "}
+              <a href="https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-medium">offizielle BAKOM-Frequenztabelle</a>.
             </p>
           </div>
 
@@ -237,12 +241,12 @@ export default function BandPlanInfo() {
           </div>
 
           <a
-            href="https://www.uska.ch/wp-content/uploads/2023/07/IARU-Bandplan-Reg-1_USKA-v1.4.pdf"
+            href="https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html"
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 block text-center text-xs text-indigo-600 hover:underline"
           >
-            Original-PDF auf uska.ch öffnen →
+            Offizieller BAKOM-Frequenzplan öffnen →
           </a>
         </div>
       )}

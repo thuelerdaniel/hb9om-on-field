@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
@@ -637,15 +637,31 @@ export default function Help() {
           </div>
         ))}
 
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="text-left">
+              <h3 className="text-sm font-bold text-red-900 mb-1">Keine rechtliche Grundlage – Eigenverantwortung</h3>
+              <p className="text-xs text-red-800 leading-relaxed font-medium">
+                Du bist lizenzierter Funkamateur und du musst selber wissen, was du machst und was du machen darfst.
+                Darum hast du ja eine Prüfung gemacht. Also heule nicht, wenn du was falsch machst – du bist erwachsen.
+              </p>
+              <p className="text-xs text-red-700 leading-relaxed mt-2">
+                Diese App und der enthaltene Bandplan dienen ausschliesslich als praktische Orientierungshilfe und
+                stellen <strong>keine rechtsverbindliche Grundlage</strong> dar. Massgeblich ist stets der offizielle
+                Frequenzplan des{" "}
+                <a href="https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html" target="_blank" rel="noopener noreferrer" className="text-red-900 underline font-bold">BAKOM</a>.
+                Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
           <p>HB9OM On Field v0.7 · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
             Bei Fragen oder Problemen wenden Sie sich an den Club HB9OM:{" "}
             <a href="mailto:hb9om@hb9om.ch" className="text-blue-600 font-medium hover:underline">hb9om@hb9om.ch</a>
-          </p>
-          <p className="mt-2 text-[10px] text-gray-400 leading-relaxed">
-            Haftungsausschluss: Diese App wird ohne jegliche Gewährleistung bereitgestellt.
-            Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen.
           </p>
         </div>
       </div>

@@ -12,6 +12,7 @@ export const LINKS = {
   arlhs: "https://wlol.arlhs.com/",
   geoAdmin: "https://map.geo.admin.ch/",
   bafu: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html",
+  bakom: "https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html",
   paypal: "https://paypal.me/Thueler",
   email: "mailto:hb9om@hb9om.ch"
 };

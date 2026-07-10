@@ -567,7 +567,7 @@ export async function generateHelpPdf() {
     { label: "Burgen und Schlösser", url: LINKS.wca },
     { label: "IOTA-Inseln", url: LINKS.iota },
     { label: "Leuchttürme (ARLHS)", url: LINKS.arlhs },
-    { label: "Bundesinventare", url: LINKS.bafu }
+    { label: "BAKOM-Frequenzplan", url: LINKS.bakom }
   ];
   let colX = MARGIN;
   let linkY = y;
@@ -703,7 +703,7 @@ export async function generateHelpPdf() {
     const sx = MARGIN + col * (uiColW + 6);
     const sy = y + row * (uiRowH + 1.5);
 
-    if (i === 0 || i === 2 || i === 4 || i === 6 || i === 8 || i === 10) {
+    if (i % 4 === 0) {
       checkPage(uiRowH * 2 + 6);
     }
 
@@ -1019,6 +1019,37 @@ export async function generateHelpPdf() {
   y += 16;
   doc.textWithLink("-> Über PayPal spenden (paypal.me/Thueler)", MARGIN + 3, y, { url: LINKS.paypal });
   y += 12;
+
+  // Rechtlicher Hinweis - Eigenverantwortung
+  checkPage(40);
+  doc.setFillColor(...WARN_BG);
+  doc.roundedRect(MARGIN, y, CONTENT_W, 28, 2, 2, "F");
+  doc.setDrawColor(...WARN_BORDER);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, y + 1, MARGIN, y + 27);
+  doc.setTextColor(...WARN_BORDER);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Keine rechtliche Grundlage - Eigenverantwortung", MARGIN + 3, y + 5);
+  doc.setTextColor(120, 20, 20);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  const legalText1 = "Du bist lizenzierter Funkamateur und du musst selber wissen, was du machst und was du machen darfst. Darum hast du ja eine Pruefung gemacht. Also heule nicht, wenn du was falsch machst - du bist erwachsen.";
+  const legalLines1 = doc.splitTextToSize(legalText1, CONTENT_W - 6);
+  for (const line of legalLines1) {
+    doc.text(line, MARGIN + 3, y + 10);
+    y += 3.5;
+  }
+  y -= legalLines1.length * 3.5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(100, 30, 30);
+  const legalText2 = "Diese App und der enthaltene Bandplan dienen ausschliesslich als praktische Orientierungshilfe und stellen keine rechtsverbindliche Grundlage dar. Massgeblich ist stets der offizielle Frequenzplan des BAKOM (Bundesamt fuer Kommunikation). Die USKA hat lediglich eine visuelle Aufbereitung erstellt.";
+  const legalLines2 = doc.splitTextToSize(legalText2, CONTENT_W - 6);
+  for (let li = 0; li < legalLines2.length; li++) {
+    doc.text(legalLines2[li], MARGIN + 3, y + 14 + li * 3.2);
+  }
+  y += 28 + 4;
 
   // Haftungsausschluss
   doc.setTextColor(...NAVY);
