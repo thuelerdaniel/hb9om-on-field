@@ -61,10 +61,15 @@ const PROP_LABELS = {
   agw_de: "Anlagegrenzwert", link_class: "Klasse"
 };
 
+// Redundant prefixes to strip from values (label already conveys this)
+const VALUE_PREFIXES = [
+  "Leistungsklasse : ", "Technologie ", "Anlagegrenzwert ",
+  "Classe de puissance : ", "Classe di potenza : ", "Power class : "
+];
+
 const MAX_FEATURES_PER_LAYER = 3;
-const MAX_RESULTS_PER_LAYER = 8; // limit before dedup to avoid processing huge arrays
-const MAX_VALUE_LENGTH = 120;
-const TOLERANCE = 10;
+const MAX_RESULTS_PER_LAYER = 10;
+const MAX_VALUE_LENGTH = 150;
 const REQUEST_TIMEOUT_MS = 8000;
 
 function formatPropName(key) {
@@ -76,9 +81,16 @@ function formatPropName(key) {
 }
 
 function formatPropValue(val) {
-  if (val === null || val === undefined || val === "") return "–";
-  let s = String(val);
+  if (val === null || val === undefined || val === "") return null; // null = skip entirely
+  let s = String(val).trim();
+  // Strip redundant prefixes
+  for (const prefix of VALUE_PREFIXES) {
+    if (s.startsWith(prefix)) { s = s.substring(prefix.length); break; }
+  }
+  // Format voltage/frequency codes
   s = s.replace(/^S(\d+)kV$/, "$1 kV").replace(/^F(\d+)Hz$/, "$1 Hz");
+  // BAKOM adaptiv: empty means "Keine Angabe (konventionell)"
+  if (s === "") return null;
   if (s.length > MAX_VALUE_LENGTH) s = s.substring(0, MAX_VALUE_LENGTH) + "…";
   return s;
 }
@@ -109,18 +121,47 @@ function buildMapAdminUrl(lat, lng, zoom, layerIds) {
 
 function buildFeatureHtml(props, isLast) {
   const propEntries = Object.entries(props)
-    .map(([k, v]) => [formatPropName(k), v])
-    .filter(([label]) => label !== null && label !== undefined);
+    .map(([k, v]) => [formatPropName(k), formatPropValue(v)])
+    .filter(([label, val]) => label !== null && label !== undefined && val !== null);
   const propHtml = propEntries.length > 0
     ? propEntries.map(([label, val]) =>
-        `<div style="font-size:12px;color:#4b5563;line-height:1.4;"><span style="font-weight:600;color:#374151;">${escapeHtml(label)}:</span> ${escapeHtml(formatPropValue(val))}</div>`
+        `<div style="font-size:12px;color:#4b5563;line-height:1.4;"><span style="font-weight:600;color:#374151;">${escapeHtml(label)}:</span> ${escapeHtml(val)}</div>`
       ).join("")
     : '<div style="font-size:11px;color:#9ca3af;">Keine Detaildaten verfügbar.</div>';
   return `<div style="${isLast ? "" : "margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f3f4f6;"}">${propHtml}</div>`;
 }
 
+// Group mobilfunk results by station name — show unique stations, not duplicate entries
+function deduplicateMobilfunk(results) {
+  const byStation = new Map();
+  for (const r of results) {
+    const station = r.attributes?.station || r.attributes?.label || r.featureId;
+    if (!byStation.has(station)) byStation.set(station, r);
+  }
+  return Array.from(byStation.values());
+}
+
+function deduplicateResults(results) {
+  const mobilfunk = results.filter(r => r.layerBodId === "ch.bakom.standorte-mobilfunkanlagen");
+  const others = results.filter(r => r.layerBodId !== "ch.bakom.standorte-mobilfunkanlagen");
+
+  // Mobilfunk: group by station name
+  const dedupMobilfunk = deduplicateMobilfunk(mobilfunk);
+
+  // Others: dedup by fid/label
+  const seen = new Set();
+  const dedupOthers = others.filter(r => {
+    const attrs = r.attributes || {};
+    const key = `${r.layerBodId}:${attrs.fid || attrs.label || r.featureId || r.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return [...dedupOthers, ...dedupMobilfunk];
+}
+
 function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
-  // Group by layer and limit per layer
   const byLayer = {};
   for (const r of results) {
     const info = layerLookup[r.layerBodId];
@@ -138,8 +179,15 @@ function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
     const remaining = features.length - limited.length;
     const featureHtml = limited.map((f, idx) => buildFeatureHtml(f.attributes || f.properties || {}, idx === limited.length - 1)).join("");
     const moreHtml = remaining > 0 ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">+ ${remaining} weitere(s) Objekt(e)</div>` : "";
-    const mapAdminLink = `<div style="margin-top:4px;"><a href="${escapeHtml(buildMapAdminUrl(clickLat, clickLng, zoom, [layerBodId]))}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">🗺️ In map.geo.admin.ch öffnen →</a></div>`;
-    return `<div style="margin-bottom:8px;"><div style="font-weight:600;font-size:12px;margin-bottom:3px;color:${info.groupColor};">${info.icon} ${escapeHtml(info.name)}</div>${featureHtml}${moreHtml}${mapAdminLink}</div>`;
+
+    // BAKOM layers get an extra info link
+    const isBakom = layerBodId.startsWith("ch.bakom");
+    const bakomLink = isBakom
+      ? `<div style="margin-top:2px;"><a href="https://www.bakom.admin.ch/de/standorte-von-sendeanlagen" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">📡 BAKOM Sendeanlagen-Übersicht →</a></div>`
+      : "";
+    const mapAdminLink = `<div style="margin-top:2px;"><a href="${escapeHtml(buildMapAdminUrl(clickLat, clickLng, zoom, [layerBodId]))}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">🗺️ In map.geo.admin.ch öffnen →</a></div>`;
+
+    return `<div style="margin-bottom:8px;"><div style="font-weight:600;font-size:12px;margin-bottom:3px;color:${info.groupColor};">${info.icon} ${escapeHtml(info.name)}</div>${featureHtml}${moreHtml}${bakomLink}${mapAdminLink}</div>`;
   }).join("");
 
   return `<div style="min-width:200px;max-width:280px;">
@@ -154,8 +202,8 @@ function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
   </div>`;
 }
 
-// Single combined identify call for ALL layers at once (1 HTTP request instead of N)
-async function identifyAllLayers(layerIds, lat, lng, mapExtent, imageSize) {
+// Single combined identify call — 1 HTTP request for ALL layers
+async function identifyAllLayers(layerIds, lat, lng, mapExtent, imageSize, tolerance) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -163,7 +211,7 @@ async function identifyAllLayers(layerIds, lat, lng, mapExtent, imageSize) {
       `?geometry=${lng.toFixed(6)},${lat.toFixed(6)}` +
       "&geometryType=esriGeometryPoint" +
       `&layers=all:${layerIds.join(",")}` +
-      `&tolerance=${TOLERANCE}&returnGeometry=false&sr=4326&lang=de` +
+      `&tolerance=${tolerance}&returnGeometry=false&sr=4326&lang=de` +
       `&imageDisplay=${imageSize.x},${imageSize.y},96` +
       `&mapExtent=${mapExtent}`;
     const res = await fetch(url, { signal: controller.signal });
@@ -175,17 +223,6 @@ async function identifyAllLayers(layerIds, lat, lng, mapExtent, imageSize) {
   } finally {
     clearTimeout(timeout);
   }
-}
-
-function deduplicateResults(results) {
-  const seen = new Set();
-  return results.filter(r => {
-    const attrs = r.attributes || {};
-    const key = `${r.layerBodId}:${attrs.fid || attrs.station || attrs.label || r.featureId || r.id}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }
 
 export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMode }) {
@@ -220,14 +257,19 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const zoom = map.getZoom();
       const mapExtent = `${bounds.getWest().toFixed(6)},${bounds.getSouth().toFixed(6)},${bounds.getEast().toFixed(6)},${bounds.getNorth().toFixed(6)}`;
 
+      // Dynamic tolerance: higher when zoomed out (features are sparse), lower when zoomed in
+      // At zoom ≤ 10 (country/canton view): tolerance 20 to catch sparse features
+      // At zoom 11-13 (city/street): tolerance 12 (enough for touch, avoids too many results)
+      // At zoom > 13 (building level): tolerance 8
+      const tolerance = zoom <= 10 ? 20 : zoom <= 13 ? 12 : 8;
+
       const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: false })
         .setLatLng(e.latlng)
         .setContent('<div style="min-width:140px;text-align:center;padding:6px;"><div style="font-size:12px;color:#6b7280;">⏳ Lade…</div></div>')
         .openOn(map);
 
       try {
-        // Single combined API call for all layers
-        const allResults = await identifyAllLayers(queryLayerIds, lat, lng, mapExtent, size);
+        const allResults = await identifyAllLayers(queryLayerIds, lat, lng, mapExtent, size, tolerance);
         const results = deduplicateResults(allResults);
 
         if (results.length === 0) {
