@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
       return Response.json({
         checked_at: new Date().toISOString(),
         duration_ms: duration,
-        summary: { total: results.length, up_to_date, new_data: newData, errors, check_needed: results.length - upToDate - newData - errors },
+        summary: { total: results.length, up_to_date: upToDate, new_data: newData, errors: errors, check_needed: results.length - upToDate - newData - errors },
         results
       });
     }
