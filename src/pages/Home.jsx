@@ -721,7 +721,7 @@ export default function Home() {
                 layers="ch.bfe.elektrische-anlagen_ueber_36"
                 format="image/png"
                 transparent={true}
-                opacity={0.6}
+                opacity={0.85}
                 attribution='&copy; BFE'
               />
               <WMSTileLayer
@@ -729,7 +729,7 @@ export default function Home() {
                 layers="ch.bfe.projektierungszonen-starkstromanlagen"
                 format="image/png"
                 transparent={true}
-                opacity={0.4}
+                opacity={0.7}
               />
             </>
           )}
