@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import { DEMO_EMAIL } from "@/lib/constants";
@@ -532,6 +532,27 @@ export default function Settings() {
             >
               <ClipboardList className="w-4 h-4" />
               Anträge
+            </Link>
+          </div>
+        </section>
+
+        {/* Feature Requests - available for all users */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <Lightbulb className="w-4 h-4" /> Funktionsvorschläge
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Neue Funktionen vorschlagen und Status verfolgen
+              </p>
+            </div>
+            <Link
+              to="/help"
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center gap-2"
+            >
+              <Lightbulb className="w-4 h-4" />
+              Zur Hilfe
             </Link>
           </div>
         </section>

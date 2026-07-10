@@ -1,0 +1,73 @@
+{
+  "name": "FeatureRequest",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Titel des Funktionsvorschlags"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detaillierte Beschreibung des Vorschlags"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "karte",
+        "logbuch",
+        "einstellungen",
+        "neue_funktion",
+        "bug",
+        "verbesserung",
+        "other"
+      ],
+      "default": "neue_funktion",
+      "description": "Kategorie des Vorschlags"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_review",
+        "planned",
+        "implemented",
+        "rejected",
+        "withdrawn"
+      ],
+      "default": "pending",
+      "description": "Status des Vorschlags"
+    },
+    "submitter_comment": {
+      "type": "string",
+      "description": "Zusaetzlicher Kommentar des Antragstellers"
+    },
+    "admin_comment": {
+      "type": "string",
+      "description": "Antwort/Kommentar des Admins"
+    },
+    "submitted_by_name": {
+      "type": "string",
+      "description": "Rufzeichen/Name des Antragstellers"
+    },
+    "reviewed_by_name": {
+      "type": "string",
+      "description": "Name des pruefenden Admins"
+    }
+  },
+  "required": [
+    "title",
+    "category"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

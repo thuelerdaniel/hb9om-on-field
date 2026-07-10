@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
+import FeatureSuggestion from "@/components/help/FeatureSuggestion";
 import { base44 } from "@/api/base44Client";
 
 const SECTIONS = [
@@ -97,6 +98,16 @@ const SECTIONS = [
         title: "Gefahren & Störquellen",
         body: "Der Layer «Gefahren & Störquellen» blendet Hochspannungsleitungen und Starkstromanlagen (über 36 kV) von map.geo.admin.ch ein. Diese Informationen sind für Amateurfunker wichtig, da Hochspannungsleitungen und elektrische Anlagen Störungen verursachen können. Der Layer zeigt auch Projektierungszonen für zukünftige Starkstromanlagen. Die Daten stammen vom Bundesamt für Energie (BFE).",
         example: "Layer «Gefahren & Störquellen» aktivieren → rote Linien zeigen Hochspannungsleitungen auf der Karte."
+      },
+      {
+        title: "Standort-Info bei Gefahren & Naturzonen",
+        body: "Wenn Sie die Layer «Gefahren & Störquellen» oder «Natur Zonen» aktiviert haben, können Sie auf die Karte tippen, um detaillierte Informationen zu den Objekten an diesem Standort abzufragen. Es erscheint ein Popup mit allen verfügbaren Details wie Bezeichnung, Eigentümer, Spannung, Fläche oder Datenblatt-Links. Wenn sich an einem Standort keine Gefahrenquelle oder Naturzone befindet, erscheint auch kein Popup. Die Daten stammen von der geo.admin.ch-Identify-API.",
+        example: "Layer «Gefahren» aktivieren → auf Hochspannungsleitung tippen → Popup zeigt Bezeichnung, Eigentümer und Spannung."
+      },
+      {
+        title: "Funktionsvorschläge einreichen",
+        body: "In der Hilfe unten im Bereich «Funktionsvorschläge» können Sie neue Funktionen vorschlagen oder Fehler melden. Geben Sie einen Titel, eine Kategorie und eine Beschreibung ein. Nach dem Einreichen können Sie den Status Ihres Vorschlags verfolgen: In Prüfung, Wird geprüft, Geplant, Umgesetzt oder Abgelehnt. Admins können eine Antwort hinterlegen, die Sie ebenfalls sehen. Ausstehende Vorschläge können jederzeit zurückgezogen werden.",
+        example: "«Neuen Vorschlag machen» → Titel «Dunkelmodus» → Kategorie «Verbesserung» → Beschreibung → Einreichen → Status in der Liste verfolgen."
       },
       {
         title: "Bunker-Details (WWBOTA)",
@@ -280,6 +291,20 @@ const SECTIONS = [
 ];
 
 const ADMIN_SECTIONS = [
+  {
+    id: "admin-vorschlaege",
+    icon: Lightbulb,
+    title: "Admin: Funktionsvorschläge prüfen",
+    color: "#8b5cf6",
+    description: "Benutzer haben neue Funktionen vorgeschlagen? Hier können Sie diese prüfen und beantworten.",
+    items: [
+      {
+        title: "Vorschläge prüfen",
+        body: "Wenn Benutzer einen Funktionsvorschlag einreichen, erscheint dieser auf der Prüfseite. Sie können den Status ändern (In Prüfung, Wird geprüft, Geplant, Umgesetzt, Abgelehnt) und eine Antwort an den Benutzer hinterlegen. Der Benutzer sieht die Antwort und den neuen Status in seinem Vorschlags-Bereich in der Hilfe.",
+        example: "Vorschlag «Dunkelmodus» → Status «Geplant» → Antwort «Wird in nächster Version umgesetzt» → Benutzer sieht dies in der Hilfe."
+      }
+    ]
+  },
   {
     id: "admin-referenzen",
     icon: Pencil,
@@ -478,6 +503,31 @@ export default function Help() {
             <HelpSection section={section} />
           </div>
         ))}
+
+        {/* Funktionsvorschläge */}
+        <FeatureSuggestion />
+
+        {isAdmin && (
+          <div className="bg-purple-50 rounded-xl border-2 border-purple-300 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                  <Lightbulb className="w-4 h-4 text-purple-600" /> Funktionsvorschläge prüfen
+                </h3>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Benutzer eingereichte Vorschläge prüfen und beantworten
+                </p>
+              </div>
+              <Link
+                to="/admin/feature-requests"
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2"
+              >
+                <Lightbulb className="w-4 h-4" />
+                Prüfen
+              </Link>
+            </div>
+          </div>
+        )}
 
         {isAdmin && ADMIN_SECTIONS.map(section => (
           <div key={section.id} id={section.id}>

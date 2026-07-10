@@ -722,15 +722,15 @@ export default function Home() {
                 layers="ch.bfe.elektrische-anlagen_ueber_36"
                 format="image/png"
                 transparent={true}
-                opacity={0.85}
+                opacity={0.9}
                 attribution='&copy; BFE'
               />
               <WMSTileLayer
                 url="https://wms.geo.admin.ch/"
-                layers="ch.bfe.projektierungszonen-starkstromanlagen"
+                layers="ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb"
                 format="image/png"
                 transparent={true}
-                opacity={0.7}
+                opacity={0.6}
               />
             </>
           )}

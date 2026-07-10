@@ -9,7 +9,7 @@ const LAYER_GROUPS = {
     icon: "⚡",
     layers: [
       { id: "ch.bfe.elektrische-anlagen_ueber_36", name: "Elektrische Anlagen (>36 kV)" },
-      { id: "ch.bfe.projektierungszonen-starkstromanlagen", name: "Projektierungszonen Starkstrom" }
+      { id: "ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb", name: "Projektierungszonen Starkstrom" }
     ]
   },
   swiss_protected: {
@@ -208,9 +208,7 @@ export default function WmsFeatureInfo({ activeLayers, clickMode }) {
         const results = deduplicateResults(allResults);
 
         if (results.length === 0) {
-          popup.setContent(
-            '<div style="font-size:12px;color:#6b7280;padding:4px;">Keine Objekte an diesem Standort gefunden.</div>'
-          );
+          map.closePopup(popup);
           return;
         }
 

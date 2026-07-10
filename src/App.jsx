@@ -17,6 +17,7 @@ import Help from '@/pages/Help';
 import UserManagement from '@/pages/UserManagement';
 import ChangeRequests from '@/pages/ChangeRequests';
 import AdminChangeRequests from '@/pages/AdminChangeRequests';
+import AdminFeatureRequests from '@/pages/AdminFeatureRequests';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -63,6 +64,7 @@ const AuthenticatedApp = () => {
             <Route path="/users" element={<PageWrapper><UserManagement /></PageWrapper>} />
             <Route path="/change-requests" element={<PageWrapper><ChangeRequests /></PageWrapper>} />
             <Route path="/admin/change-requests" element={<PageWrapper><AdminChangeRequests /></PageWrapper>} />
+            <Route path="/admin/feature-requests" element={<PageWrapper><AdminFeatureRequests /></PageWrapper>} />
           </Route>
           <Route path="*" element={<PageWrapper><PageNotFound /></PageWrapper>} />
         </Routes>
