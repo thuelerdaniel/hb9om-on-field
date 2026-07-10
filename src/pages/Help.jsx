@@ -696,7 +696,9 @@ export default function Help() {
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
           <p>HB9OM On Field v0.7 · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
-            Bei Fragen oder Problemen wenden Sie sich an den Club HB9OM:{" "}
+            <Link to="/privacy" className="text-blue-600 font-medium hover:underline">Datenschutzerklärung</Link>
+            {" · "}
+            Bei Fragen:{" "}
             <a href="mailto:hb9om@hb9om.ch" className="text-blue-600 font-medium hover:underline">hb9om@hb9om.ch</a>
           </p>
         </div>

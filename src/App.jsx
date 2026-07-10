@@ -14,6 +14,7 @@ import Log from '@/pages/Log';
 import Settings from '@/pages/Settings';
 import FirstTimeSetup from '@/components/FirstTimeSetup';
 import Help from '@/pages/Help';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import UserManagement from '@/pages/UserManagement';
 import ChangeRequests from '@/pages/ChangeRequests';
 import AdminChangeRequests from '@/pages/AdminChangeRequests';
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/help" element={<PageWrapper><Help /></PageWrapper>} />
+          <Route path="/privacy" element={<PageWrapper><PrivacyPolicy /></PageWrapper>} />
           <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
             <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
             <Route path="/log" element={<PageWrapper><Log /></PageWrapper>} />

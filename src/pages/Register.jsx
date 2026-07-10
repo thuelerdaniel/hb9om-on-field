@@ -240,6 +240,14 @@ export default function Register() {
           )}
         </Button>
       </form>
+
+      <p className="text-center text-xs text-muted-foreground mt-4">
+        Mit der Registrierung stimmen Sie der{" "}
+        <Link to="/privacy" className="text-primary font-medium hover:underline">
+          Datenschutzerklärung
+        </Link>{" "}
+        zu.
+      </p>
     </AuthLayout>
   );
 }
