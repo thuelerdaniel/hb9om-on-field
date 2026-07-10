@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import PageHeader from "@/components/PageHeader";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
@@ -17,7 +18,6 @@ const TYPE_LABELS = {
 };
 
 export default function Settings() {
-  const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [cacheStatus, setCacheStatus] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -345,20 +345,11 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate("/")} className="p-1.5 hover:bg-gray-100 rounded-lg">
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div className="flex items-center gap-2 flex-1">
-            <SettingsIcon className="w-5 h-5 text-gray-700" />
-            <h1 className="text-sm font-bold text-gray-900">Einstellungen</h1>
-          </div>
-          <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
-            <HelpCircle className="w-5 h-5" />
-          </Link>
-        </div>
-      </header>
+      <PageHeader title="Einstellungen" icon={SettingsIcon}>
+        <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
+          <HelpCircle className="w-5 h-5" />
+        </Link>
+      </PageHeader>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24">
         {/* User Profile */}
