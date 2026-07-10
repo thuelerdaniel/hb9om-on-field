@@ -136,12 +136,27 @@ function deduplicateResults(results) {
   });
 }
 
+// WGS84 -> LV95 (Swiss grid EPSG:2056), accuracy ~1m for Switzerland
+function wgs84ToLV95(lat, lng) {
+  const phi = ((lat - 46.95240555555556) * 3600) / 10000;
+  const lambda = ((lng - 7.439583333333333) * 3600) / 10000;
+  const y =
+    600072.37 + 211455.93 * lambda - 10938.51 * lambda * phi - 0.36 * lambda * phi * phi - 44.54 * lambda * lambda * lambda;
+  const x =
+    200147.07 + 308807.95 * phi + 3745.25 * lambda * lambda - 76.63 * phi * phi - 194.56 * lambda * lambda * phi + 119.79 * phi * phi * phi;
+  return { E: Math.round(y + 2000000), N: Math.round(x + 1000000) };
+}
+
 function buildMapAdminUrl(lat, lng, zoom, layerIds) {
-  const base = "https://map.geo.admin.ch/?lang=de";
-  const center = `&center=${lng.toFixed(6)},${lat.toFixed(6)}`;
-  const z = `&z=${Math.round(zoom)}`;
-  const layers = layerIds.length > 0 ? `&layers=${layerIds.join(",")}` : "";
-  return `${base}${center}${z}&bgLayer=ch.swisstopo.pixelkarte-farbe${layers}`;
+  const { E, N } = wgs84ToLV95(lat, lng);
+  // map.geo.admin.ch zoom levels: 0 (whole CH) to 13 (street level); convert from Leaflet zoom
+  const mapAdminZ = Math.max(0, Math.min(13, Math.round(zoom - 2)));
+  // layers are separated by semicolon; add visibility=t and opacity=1 for each
+  const layersParam = layerIds.length > 0
+    ? `&layers=${layerIds.map(id => `${id},t,1.0`).join(";")}`
+    : "";
+  // crosshair=marker,E,N places a marker pin at the exact clicked location
+  return `https://map.geo.admin.ch/#/map?lang=de&center=${E},${N}&z=${mapAdminZ}&crosshair=marker,${E},${N}&bgLayer=ch.swisstopo.pixelkarte-farbe${layersParam}`;
 }
 
 function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
