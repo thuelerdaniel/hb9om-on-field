@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2 } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
+import { generateFlyer } from "@/lib/generateFlyer";
 import { base44 } from "@/api/base44Client";
 
 const SECTIONS = [
@@ -433,6 +434,18 @@ function HelpSection({ section }) {
 export default function Help() {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [flyerLoading, setFlyerLoading] = useState(false);
+
+  const handleDownloadFlyer = async () => {
+    setFlyerLoading(true);
+    try {
+      await generateFlyer();
+    } catch (e) {
+      // ignore
+    } finally {
+      setFlyerLoading(false);
+    }
+  };
 
   useEffect(() => {
     base44.functions.invoke("adminManageUsers", { action: "checkStatus" })
@@ -460,6 +473,27 @@ export default function Help() {
       </header>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 pb-24">
+        {/* Werbe-Flyer Download */}
+        <button
+          onClick={handleDownloadFlyer}
+          disabled={flyerLoading}
+          className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl p-5 flex items-center gap-4 hover:from-slate-700 hover:to-slate-800 transition-all disabled:opacity-60 shadow-lg"
+        >
+          <div className="w-12 h-12 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+            {flyerLoading ? <Loader2 className="w-6 h-6 text-slate-900 animate-spin" /> : <FileText className="w-6 h-6 text-slate-900" />}
+          </div>
+          <div className="text-left flex-1">
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              App-Flyer herunterladen
+              <span className="px-2 py-0.5 bg-amber-500 text-slate-900 text-[10px] font-bold rounded-full">PDF</span>
+            </h3>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Promotions-Flyer mit allen Funktionen – exklusiv & einzigartig in der Schweiz
+            </p>
+          </div>
+          <Download className="w-5 h-5 text-slate-400 flex-shrink-0" />
+        </button>
+
         {/* PayPal Spende - am Anfang */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
           <div className="inline-flex items-center justify-center w-10 h-10 bg-amber-100 rounded-full mb-2">
