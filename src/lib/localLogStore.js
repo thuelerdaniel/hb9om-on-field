@@ -27,7 +27,9 @@ export function getPendingCount() {
 }
 
 function isOnline() {
-  return typeof navigator === "undefined" || navigator.onLine !== false;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+  if (typeof localStorage !== "undefined" && localStorage.getItem("hb9om_force_offline") === "true") return false;
+  return true;
 }
 
 // Sync server data, preserving pending offline entries

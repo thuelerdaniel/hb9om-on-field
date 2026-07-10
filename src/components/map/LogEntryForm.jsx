@@ -101,6 +101,7 @@ function bandToCenterFreq(band) {
 
 export default function LogEntryForm({ mapCenter, myPosition, allMarkers, activeLayers, onClose, onSaved, editEntry }) {
   const isEditing = !!editEntry;
+  const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || localStorage.getItem("hb9om_force_offline") === "true");
   const [justSaved, setJustSaved] = useState(false);
   const [highContrast, setHighContrast] = useState(localStorage.getItem("hb9om_hc_mode") === "true");
 
@@ -237,6 +238,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     const qrzEnabled = localStorage.getItem("hb9om_qrz_enabled") !== "false";
     if (!qrzEnabled) return;
     if (!callsign || callsign.length < 3) return;
+    if (isOffline) return;
 
     qrzInFlightRef.current = true;
     setQrzLoading(true);
@@ -445,13 +447,15 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
               />
               <button
                 onClick={handleQRZLookup}
-                disabled={qrzLoading || !callsign}
+                disabled={qrzLoading || !callsign || isOffline}
                 className="px-2.5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 flex items-center gap-1 flex-shrink-0"
+                title={isOffline ? "QRZ-Abfrage nur online möglich" : "QRZ.com abfragen"}
               >
                 {qrzLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 QRZ
               </button>
             </div>
+            {isOffline && <p className="text-xs text-amber-600 mt-1">⚠ QRZ-Abfrage nur online möglich – Operator-Daten manuell eingeben</p>}
             {qrzError && <p className="text-xs text-amber-600 mt-1">{qrzError}</p>}
             {operator.name && (
               <div className="mt-2 p-3 bg-blue-50 rounded-lg text-xs space-y-0.5">

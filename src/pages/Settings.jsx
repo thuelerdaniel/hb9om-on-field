@@ -7,6 +7,7 @@ import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
 import { DEMO_EMAIL } from "@/lib/constants";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
+import { cacheFromServer, isOfflineReady, getCachedAt } from "@/lib/offlineDataCache";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -48,6 +49,8 @@ export default function Settings() {
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [storageInfo, setStorageInfo] = useState({ areas: 0, tiles: 0 });
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
+  const [offlineReady, setOfflineReady] = useState(() => isOfflineReady());
+  const [offlineCachedAt, setOfflineCachedAt] = useState(() => getCachedAt());
   const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
   const [adminPendingRequests, setAdminPendingRequests] = useState(0);
   const [demoSetupResult, setDemoSetupResult] = useState(null);
@@ -303,9 +306,16 @@ export default function Settings() {
     setStorageInfo({ areas: 0, tiles: 0 });
   };
 
-  const handleToggleForceOffline = (enabled) => {
+  const handleToggleForceOffline = async (enabled) => {
     setForceOffline(enabled);
     localStorage.setItem("hb9om_force_offline", String(enabled));
+    if (enabled) {
+      const success = await cacheFromServer();
+      if (success) {
+        setOfflineReady(true);
+        setOfflineCachedAt(getCachedAt());
+      }
+    }
   };
 
   const handleToggleAutoUpdate = async (enabled) => {
@@ -544,7 +554,24 @@ export default function Settings() {
             </button>
           </div>
 
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Heruntergeladene Karten</h3>
+          {/* Offline readiness indicator */}
+          <div className={`mt-2 p-3 rounded-lg flex items-start gap-2 ${offlineReady ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+            {offlineReady
+              ? <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+              : <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />}
+            <div className="text-xs">
+              <p className={`font-semibold ${offlineReady ? 'text-green-700' : 'text-amber-700'}`}>
+                {offlineReady ? 'App bereit für Offline-Nutzung' : 'App nicht bereit für Offline-Nutzung'}
+              </p>
+              <p className={`mt-0.5 ${offlineReady ? 'text-green-600' : 'text-amber-600'}`}>
+                {offlineReady
+                  ? `Referenzdaten gespeichert am ${offlineCachedAt ? new Date(offlineCachedAt).toLocaleString('de-CH') : 'unbekannt'}. Karte, Logbuch und Referenzen können offline genutzt werden.`
+                  : 'Bitte aktivieren Sie den Offline-Modus auf der Karte (Wifi-Icon), um Referenzdaten lokal zu speichern.'}
+              </p>
+            </div>
+          </div>
+
+          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2 mt-3">Heruntergeladene Karten</h3>
           {offlineAreas.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
               <Download className="w-10 h-10 text-gray-200 mx-auto mb-2" />

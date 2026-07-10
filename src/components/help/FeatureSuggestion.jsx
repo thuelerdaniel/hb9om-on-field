@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Lightbulb, Send, Loader2, Clock, CheckCircle2, XCircle, Trash2, MessageSquare, Eye, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { Lightbulb, Send, Loader2, Clock, CheckCircle2, XCircle, Trash2, MessageSquare, Eye, Sparkles, ChevronDown, ChevronUp, WifiOff } from "lucide-react";
+import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { useToast } from "@/components/ui/use-toast";
 
 const CATEGORY_LABELS = {
@@ -24,6 +25,7 @@ const STATUS_CONFIG = {
 
 export default function FeatureSuggestion() {
   const { toast } = useToast();
+  const isOffline = useOfflineStatus();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -141,11 +143,17 @@ export default function FeatureSuggestion() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="mt-3 w-full px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition-colors"
+          disabled={isOffline}
+          className="mt-3 w-full px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
         >
           <Lightbulb className="w-4 h-4" />
           {showForm ? "Abbrechen" : "Neuen Vorschlag machen"}
         </button>
+        {isOffline && (
+          <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+            <WifiOff className="w-3 h-3" /> Einreichen von Vorschlägen nur online möglich
+          </p>
+        )}
       </div>
 
       {showForm && (
@@ -197,12 +205,17 @@ export default function FeatureSuggestion() {
           </div>
           <button
             onClick={handleSubmit}
-            disabled={submitting || !title.trim()}
+            disabled={submitting || !title.trim() || isOffline}
             className="w-full px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-2"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Vorschlag einreichen
           </button>
+          {isOffline && (
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              <WifiOff className="w-3 h-3" /> Nur online möglich
+            </p>
+          )}
         </div>
       )}
 

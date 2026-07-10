@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { X, Loader2, MapPin, ArrowRight, Check, MessageSquare } from "lucide-react";
+import { X, Loader2, MapPin, ArrowRight, Check, MessageSquare, WifiOff } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const TYPE_LABELS = {
@@ -21,6 +21,8 @@ export default function ChangeRequestDialog({ marker, newPosition, onClose, onSu
   const code = marker.code || marker.reference || "";
   const typeLabel = TYPE_LABELS[marker.layerType] || marker.layerType;
   const typeColor = TYPE_COLORS[marker.layerType] || "#666";
+
+  const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || localStorage.getItem("hb9om_force_offline") === "true");
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -115,14 +117,20 @@ export default function ChangeRequestDialog({ marker, newPosition, onClose, onSu
           <button onClick={onClose} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
             Abbrechen
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
-          >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            Einreichen
-          </button>
+          {isOffline ? (
+            <div className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-400 bg-gray-100 rounded-lg flex items-center justify-center gap-1.5 border border-gray-200 cursor-not-allowed">
+              <WifiOff className="w-4 h-4" /> Nur online möglich
+            </div>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              Einreichen
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -22,6 +22,7 @@ import MapTileLayer from "@/components/map/MapTileLayer";
 import OfflineAreaDialog from "@/components/map/OfflineAreaDialog";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
+import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides } from "@/lib/offlineDataCache";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -279,10 +280,17 @@ export default function Home() {
     } catch (e) { }
   }, []);
 
-  useEffect(() => { loadServerOverrides(); }, [loadServerOverrides]);
+  useEffect(() => {
+    if (isOffline) {
+      setServerOverrides(loadCachedOverrides());
+    } else {
+      loadServerOverrides();
+    }
+  }, [loadServerOverrides, isOffline]);
 
   // Load pending change request count for badge + subscribe to updates
   useEffect(() => {
+    if (isOffline) return; // Skip server polling when offline
     const loadPendingCount = async () => {
       try {
         if (isAdmin) {
@@ -308,7 +316,7 @@ export default function Home() {
       if (unsubscribe) unsubscribe();
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [isAdmin, currentUserId]);
+  }, [isAdmin, currentUserId, isOffline]);
 
   // Offline detection and area loading
   useEffect(() => {
@@ -325,6 +333,20 @@ export default function Home() {
 
   // Load all cached reference data on mount
   useEffect(() => {
+    // Offline: load from local cache immediately, skip server
+    if (isOffline) {
+      const cached = loadCachedReferenceData();
+      if (cached) {
+        if (cached.sota) setSotaData(cached.sota);
+        if (cached.pota) setPotaData(cached.pota);
+        if (cached.hbff) setHbffData(cached.hbff);
+        if (cached.wwbota) setWwbotaData(cached.wwbota);
+        if (cached.castle) setCastleData(cached.castle);
+      }
+      setServerOverrides(loadCachedOverrides());
+      setCacheLoaded(true);
+      return;
+    }
     base44.entities.ReferenceData.list()
       .then(cached => {
         if (!cached) return;
@@ -338,21 +360,30 @@ export default function Home() {
         });
       })
       .catch(() => {
-        // Offline fallback: load cached references from downloaded areas
-        loadOfflineReferences().then(refs => {
-          if (refs.sota?.length) setSotaData(refs.sota);
-          if (refs.pota?.length) setPotaData(refs.pota);
-          if (refs.hbff?.length) setHbffData(refs.hbff);
-          if (refs.wwbota?.length) setWwbotaData(refs.wwbota);
-          if (refs.castle?.length) setCastleData(refs.castle);
-        }).catch(() => {});
+        // Server failed: try local cache first, then offline areas
+        const localCache = loadCachedReferenceData();
+        if (localCache) {
+          if (localCache.sota) setSotaData(localCache.sota);
+          if (localCache.pota) setPotaData(localCache.pota);
+          if (localCache.hbff) setHbffData(localCache.hbff);
+          if (localCache.wwbota) setWwbotaData(localCache.wwbota);
+          if (localCache.castle) setCastleData(localCache.castle);
+        } else {
+          loadOfflineReferences().then(refs => {
+            if (refs.sota?.length) setSotaData(refs.sota);
+            if (refs.pota?.length) setPotaData(refs.pota);
+            if (refs.hbff?.length) setHbffData(refs.hbff);
+            if (refs.wwbota?.length) setWwbotaData(refs.wwbota);
+            if (refs.castle?.length) setCastleData(refs.castle);
+          }).catch(() => {});
+        }
       })
       .finally(() => setCacheLoaded(true));
   }, []);
 
   // Load SOTA from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("sota") || sotaData.length > 0) return;
+    if (!cacheLoaded || !activeLayers.includes("sota") || sotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, sota: true }));
     base44.functions.invoke("fetchSOTA", { region: "HB" })
       .then(res => {
@@ -360,11 +391,11 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, sota: false })));
-  }, [activeLayers, cacheLoaded]);
+  }, [activeLayers, cacheLoaded, isOffline]);
 
   // Load POTA from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("pota") || potaData.length > 0) return;
+    if (!cacheLoaded || !activeLayers.includes("pota") || potaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, pota: true }));
     base44.functions.invoke("fetchPOTA", {})
       .then(res => {
@@ -372,37 +403,37 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, pota: false })));
-  }, [activeLayers, cacheLoaded]);
+  }, [activeLayers, cacheLoaded, isOffline]);
 
   // Load HBFF from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("hbff") || hbffData.length > 0) return;
+    if (!cacheLoaded || !activeLayers.includes("hbff") || hbffData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, hbff: true }));
     base44.functions.invoke("fetchHBFF", { batchSize: 500, batchStart: 0 })
       .then(res => { if (res.data?.references) setHbffData(res.data.references); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, hbff: false })));
-  }, [activeLayers, cacheLoaded]);
+  }, [activeLayers, cacheLoaded, isOffline]);
 
   // Load WWBOTA from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("wwbota") || wwbotaData.length > 0) return;
+    if (!cacheLoaded || !activeLayers.includes("wwbota") || wwbotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, wwbota: true }));
     base44.functions.invoke("fetchWWBOTA", {})
       .then(res => { if (res.data?.bunkers) setWwbotaData(res.data.bunkers); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, wwbota: false })));
-  }, [activeLayers, cacheLoaded]);
+  }, [activeLayers, cacheLoaded, isOffline]);
 
   // Load Castles from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("castle") || castleData.length > 0) return;
+    if (!cacheLoaded || !activeLayers.includes("castle") || castleData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, castle: true }));
     base44.functions.invoke("fetchCastles", {})
       .then(res => { if (res.data?.castles) setCastleData(res.data.castles); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
-  }, [activeLayers, cacheLoaded]);
+  }, [activeLayers, cacheLoaded, isOffline]);
 
   const toggleLayer = useCallback((layerId) => {
     setActiveLayers(prev =>
@@ -828,10 +859,11 @@ export default function Home() {
           </button>
           <button
             onClick={() => setShowOfflineDialog(true)}
-            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+            disabled={isOffline}
+            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               offlineAreas.length > 0 ? "border-blue-400 text-blue-500" : "border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
-            title="Offline-Karte herunterladen"
+            title={isOffline ? "Nur online möglich" : "Offline-Karte herunterladen"}
           >
             <Download className="w-4 h-4" />
           </button>
@@ -840,7 +872,14 @@ export default function Home() {
               const newVal = !forceOffline;
               setForceOffline(newVal);
               localStorage.setItem("hb9om_force_offline", String(newVal));
-              toast({ title: newVal ? "Offline-Modus aktiviert" : "Online-Modus aktiviert", duration: 2000 });
+              if (newVal) {
+                // Cache all current data for offline use
+                cacheReferenceData({ sota: sotaData, pota: potaData, hbff: hbffData, wwbota: wwbotaData, castle: castleData });
+                cacheOverrides(serverOverrides);
+                toast({ title: "Offline-Modus aktiviert", description: "Daten für Offline-Nutzung gespeichert", duration: 3000 });
+              } else {
+                toast({ title: "Online-Modus aktiviert", duration: 2000 });
+              }
             }}
             className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
               forceOffline ? "border-amber-400 text-amber-500" : "border-gray-200 text-gray-700 hover:bg-gray-50"
@@ -851,10 +890,11 @@ export default function Home() {
           </button>
           <button
             onClick={() => setDragMode(!dragMode)}
-            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+            disabled={isOffline}
+            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               dragMode ? "border-purple-400 text-purple-500 animate-pulse" : "border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
-            title={isAdmin ? "Punkte verschieben (Drag & Drop)" : "Punkte korrigieren (Antrag an Admin)"}
+            title={isOffline ? "Nur online möglich" : isAdmin ? "Punkte verschieben (Drag & Drop)" : "Punkte korrigieren (Antrag an Admin)"}
           >
             <Move className="w-4 h-4" />
           </button>

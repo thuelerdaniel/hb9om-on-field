@@ -85,6 +85,16 @@ const SECTIONS = [
         example: "Download-Icon → Gebiet auf Karte wählen → Zoom-Stufen auswählen → Download starten → in Einstellungen verwalten."
       },
       {
+        title: "Daten für Offline-Nutzung speichern",
+        body: "Wenn Sie den Offline-Modus zum ersten Mal aktivieren (Wifi-Icon auf der Karte oder Schalter in den Einstellungen), werden alle aktuell geladenen Referenzdaten (SOTA, POTA, HBFF, WWBOTA, Burgen) sowie alle Namens-Anpassungen lokal im Browser gespeichert. So können Sie die Karte, Referenzen und das Logbuch auch ohne Internetverbindung nutzen. In den Einstellungen sehen Sie einen Status, ob die App offline-bereit ist und wann die Daten zuletzt gespeichert wurden.",
+        example: "Wifi-Icon auf Karte klicken → «Daten für Offline-Nutzung gespeichert» → alle Referenzen und Logbuch offline nutzbar."
+      },
+      {
+        title: "Was offline funktioniert – und was nicht",
+        body: "Offline nutzbar: Karte (mit Cached-Kacheln), Referenzen anzeigen und suchen, QSOs erfassen/bearbeiten/löschen, Logbuch-Statistik, ADIF-Export. Nicht offline nutzbar: QRZ.com-Abfrage (Button ausgegraut), Positions-Korrekturen einreichen (Button ausgegraut), Funktionsvorschläge einreichen (Button ausgegraut), Daten aktualisieren, neue Referenz-Layer laden. Ausgegraute Buttons zeigen den Hinweis «Nur online möglich».",
+        example: "Offline QSO erfassen: Rufzeichen manuell eingeben (QRZ-Button ausgegraut) → QSO speichern → wird bei Online-Verbindung synchronisiert."
+      },
+      {
         title: "Referenz-Typen",
         body: "Folgende Referenz-Typen werden unterstützt. Klicken Sie auf den Namen, um die aktuelle Referenzliste zu öffnen:",
         list: [
@@ -258,9 +268,9 @@ const SECTIONS = [
         example: "Einstellungen → «Meine Änderungsanträge» → «Anträge» → Status siehen oder zurückziehen."
       },
       {
-        title: "Offline-Modus",
-        body: "In den Einstellungen unter «Offline-Modus» können Sie den manuellen Offline-Modus mit einem Schalter ein- und ausschalten. Zudem werden hier alle heruntergeladenen Offline-Karten aufgelistet. Einzelne Gebiete können gelöscht werden, oder alle Offline-Daten auf einmal.",
-        example: "Offline-Modus Schalter aktivieren → App läuft offline → heruntergeladene Karten anzeigen und verwalten."
+        title: "Offline-Modus & Bereitschaft",
+        body: "In den Einstellungen unter «Offline-Modus» können Sie den manuellen Offline-Modus mit einem Schalter ein- und ausschalten. Beim Aktivieren werden alle Referenzdaten lokal gespeichert. Ein Status zeigt an, ob die App bereit für die Offline-Nutzung ist und wann die Daten zuletzt gespeichert wurden. Zudem werden hier alle heruntergeladenen Offline-Karten aufgelistet. Einzelne Gebiete können gelöscht werden, oder alle Offline-Daten auf einmal.",
+        example: "Offline-Modus Schalter aktivieren → «App bereit für Offline-Nutzung» → Referenzdaten gespeichert → heruntergeladene Karten verwalten."
       },
       {
         title: "Konto löschen",
@@ -382,7 +392,7 @@ const ADMIN_SECTIONS = [
 ];
 
 function HelpSection({ section }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const Icon = section.icon;
 
   return (
@@ -543,15 +553,17 @@ export default function Help() {
         </div>
 
         {/* Quick Navigation */}
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {SECTIONS.map(s => (
             <a
               key={s.id}
               href={`#${s.id}`}
-              className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-1.5"
+              className="px-3 py-2.5 text-sm font-semibold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 flex items-center gap-2 transition-colors"
             >
-              <s.icon className="w-3.5 h-3.5" style={{ color: s.color }} />
-              {s.title}
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: s.color + '15' }}>
+                <s.icon className="w-4 h-4" style={{ color: s.color }} />
+              </div>
+              <span className="text-gray-700">{s.title}</span>
             </a>
           ))}
         </div>
