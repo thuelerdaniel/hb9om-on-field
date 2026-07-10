@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
+import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
 import { DEMO_EMAIL } from "@/lib/constants";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
 
@@ -856,6 +857,30 @@ export default function Settings() {
 
         </>
         )}
+        {/* Admin: Feature Requests Review */}
+        {isAdmin && (
+         <section className="bg-white rounded-xl border-2 border-purple-200 p-4">
+           <div className="flex items-center justify-between">
+             <div>
+               <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                 <Lightbulb className="w-4 h-4 text-purple-600" /> Funktionsvorschläge prüfen
+               </h3>
+               <p className="text-xs text-gray-500 mt-0.5">Benutzer eingereichte Vorschläge prüfen und beantworten</p>
+             </div>
+             <Link
+               to="/admin/feature-requests"
+               className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2"
+             >
+               <Lightbulb className="w-4 h-4" />
+               Prüfen
+             </Link>
+           </div>
+         </section>
+        )}
+
+        {/* Admin: Data Maintenance */}
+        {isAdmin && <AdminDataMaintains />}
+
         {/* Admin: User Management */}
         {isAdmin && (
          <section className="bg-white rounded-xl border border-gray-200 p-4">

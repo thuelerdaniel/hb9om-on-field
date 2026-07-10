@@ -349,8 +349,18 @@ const ADMIN_SECTIONS = [
       },
       {
         title: "Änderungsanträge prüfen",
-        body: "Wenn Benutzer eine Marker-Position korrigieren, wird ein Änderungsantrag erstellt. Diese Anträge erscheinen in den Einstellungen unter «Änderungsanträge prüfen» (farblich hervorgehoben in Orange) und auf der separaten Prüfseite. Ausstehende Anträge sind gelb hinterlegt, genehmigte grün und abgelehnte rot. Sie können jeden Antrag mit optionalem Kommentar genehmigen oder ablehnen. Bei Genehmigung wird die Position sofort als Override gespeichert und auf der Karte angezeigt.",
-        example: "Einstellungen → «Änderungsanträge prüfen» → «Prüfen» → Antrag auswählen → «Genehmigen» oder «Ablehnen»."
+        body: "Wenn Benutzer eine Marker-Position korrigieren, wird ein Änderungsantrag erstellt. Diese Anträge erscheinen in den Einstellungen unter «Anträge prüfen» und auf der separaten Prüfseite. Ausstehende Anträge sind gelb hinterlegt, genehmigte grün und abgelehnte rot. Sie können jeden Antrag mit optionalem Kommentar genehmigen oder ablehnen. Bei Genehmigung wird die Position sofort als Override gespeichert und auf der Karte angezeigt. Über den Filter «Zurückgezogen» sehen Sie alle zurückgezogenen Anträge und können diese mit dem Button «Endgültig löschen» entfernen.",
+        example: "Einstellungen → «Anträge prüfen» → Filter «Zurückgezogen» → «Endgültig löschen»."
+      },
+      {
+        title: "Funktionsvorschläge prüfen",
+        body: "In den Einstellungen im Admin-Bereich finden Sie den Button «Funktionsvorschläge prüfen». Dort können Sie eingereichte Vorschläge mit Statusänderung (In Prüfung, Wird geprüft, Geplant, Umgesetzt, Abgelehnt) und einem Kommentar an den Benutzer beantworten. Über den Filter «Zurückgezogen» sehen Sie alle zurückgezogenen Vorschläge und können diese endgültig löschen.",
+        example: "Einstellungen → «Funktionsvorschläge prüfen» → Filter «Zurückgezogen» → «Endgültig löschen»."
+      },
+      {
+        title: "Datenpflege – Anträge & Vorschläge aufräumen",
+        body: "In den Einstellungen im Admin-Bereich finden Sie die «Datenpflege». Hier können Sie erledigte (genehmigte, abgelehnte, umgesetzte) und zurückgezogene Anträge sowie Funktionsvorschläge, die älter als eine bestimmte Anzahl Tage sind, in einem Schritt löschen. Wählen Sie den Zeitraum (7, 14, 30, 90, 180 Tage oder 1 Jahr) und klicken Sie auf «Änderungsanträge aufräumen» oder «Funktionsvorschläge aufräumen». Ausstehende Anträge werden niemals gelöscht. Diese Funktion eignet sich, um von Zeit zu Zeit aufzuräumen.",
+        example: "Einstellungen → «Datenpflege» → «Älter als 90 Tage» → «Änderungsanträge aufräumen» → Bestätigen → Anzahl gelöschter Anträge wird angezeigt."
       }
     ]
   }
@@ -506,28 +516,6 @@ export default function Help() {
 
         {/* Funktionsvorschläge */}
         <FeatureSuggestion />
-
-        {isAdmin && (
-          <div className="bg-purple-50 rounded-xl border-2 border-purple-300 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                  <Lightbulb className="w-4 h-4 text-purple-600" /> Funktionsvorschläge prüfen
-                </h3>
-                <p className="text-xs text-gray-600 mt-0.5">
-                  Benutzer eingereichte Vorschläge prüfen und beantworten
-                </p>
-              </div>
-              <Link
-                to="/admin/feature-requests"
-                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2"
-              >
-                <Lightbulb className="w-4 h-4" />
-                Prüfen
-              </Link>
-            </div>
-          </div>
-        )}
 
         {isAdmin && ADMIN_SECTIONS.map(section => (
           <div key={section.id} id={section.id}>

@@ -33,6 +33,7 @@ const FILTERS = [
   { value: "planned", label: "Geplant" },
   { value: "implemented", label: "Umgesetzt" },
   { value: "rejected", label: "Abgelehnt" },
+  { value: "withdrawn", label: "Zurückgezogen" },
 ];
 
 export default function AdminFeatureRequests() {

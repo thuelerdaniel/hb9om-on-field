@@ -84,6 +84,30 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, message: 'Antrag gelöscht' });
     }
 
+    // Admin-only: bulk cleanup of old resolved/withdrawn requests
+    if (action === 'cleanup') {
+      if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+      const { olderThanDays } = body;
+      const days = parseInt(olderThanDays) || 30;
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const all = await base44.asServiceRole.entities.ReferenceChangeRequest.list('-created_date', 500);
+      const toDelete = (all || []).filter(r =>
+        ['approved', 'rejected', 'withdrawn'].includes(r.status) &&
+        new Date(r.created_date) < cutoff
+      );
+
+      for (const r of toDelete) {
+        await base44.asServiceRole.entities.ReferenceChangeRequest.delete(r.id);
+      }
+
+      return Response.json({
+        success: true,
+        message: `${toDelete.length} Anträge gelöscht (älter als ${days} Tage)`,
+        deletedCount: toDelete.length
+      });
+    }
+
     return Response.json({ error: 'Unbekannte Aktion: ' + action }, { status: 400 });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

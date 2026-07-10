@@ -27,6 +27,7 @@ const FILTERS = [
   { value: "all", label: "Alle" },
   { value: "approved", label: "Genehmigt" },
   { value: "rejected", label: "Abgelehnt" },
+  { value: "withdrawn", label: "Zurückgezogen" },
 ];
 
 export default function AdminChangeRequests() {
