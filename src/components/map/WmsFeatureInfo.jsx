@@ -224,7 +224,7 @@ async function identifyLayer(layerId, lat, lng, mapExtent, imageSize) {
     `?geometry=${lng.toFixed(6)},${lat.toFixed(6)}` +
     "&geometryType=esriGeometryPoint" +
     `&layers=all:${layerId}` +
-    "&tolerance=20&returnGeometry=false&sr=4326&lang=de" +
+    "&tolerance=30&returnGeometry=false&sr=4326&lang=de" +
     `&imageDisplay=${imageSize.x},${imageSize.y},96` +
     `&mapExtent=${mapExtent}`;
 
@@ -269,7 +269,7 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const zoom = map.getZoom();
       const mapExtent = `${bounds.getWest().toFixed(6)},${bounds.getSouth().toFixed(6)},${bounds.getEast().toFixed(6)},${bounds.getNorth().toFixed(6)}`;
 
-      const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
+      const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: false })
         .setLatLng(e.latlng)
         .setContent(
           '<div style="min-width:140px;text-align:center;padding:6px;"><div style="font-size:12px;color:#6b7280;">⏳ Lade…</div></div>'
@@ -283,7 +283,14 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
         const results = deduplicateResults(allResults);
 
         if (results.length === 0) {
-          map.closePopup(popup);
+          const allLayerIds = layerIds;
+          const mapAdminUrl = buildMapAdminUrl(lat, lng, zoom, allLayerIds);
+          popup.setContent(
+            '<div style="min-width:200px;max-width:260px;">' +
+            '<div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Keine Detaildaten an diesem Standort.</div>' +
+            '<a href="' + escapeHtml(mapAdminUrl) + '" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">🗺️ In map.geo.admin.ch öffnen →</a>' +
+            '</div>'
+          );
           return;
         }
 
