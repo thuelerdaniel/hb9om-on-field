@@ -248,24 +248,61 @@ export default function BackupSection() {
           <Cloud className="w-3.5 h-3.5" /> Cloud-Backup
         </h3>
         <p className="text-xs text-gray-500 mb-3">
-          Verbinden Sie Ihr Google Drive oder OneDrive – Backups werden automatisch erstellt. Mit einem Klick verbinden, fertig.
+           Verbinden Sie Ihre Cloud – Backups werden automatisch erstellt. WebDAV ist bereits verfügbar, Google Drive und OneDrive folgen.
         </p>
 
         <div className="space-y-2 mb-3">
-          <CloudProviderCard
-            provider="googledrive"
-            connectorId={GOOGLE_DRIVE_CONNECTOR_ID}
-            displayName="Google Drive"
-            color="#0F9D58"
-            description="Google-Konto verbinden"
-          />
-          <CloudProviderCard
-            provider="one_drive"
-            connectorId={ONEDRIVE_CONNECTOR_ID}
-            displayName="OneDrive"
-            color="#0078D4"
-            description="Microsoft-Konto verbinden"
-          />
+          {/* Google Drive – kommt in einer späteren Version */}
+          <div className="border border-gray-200 rounded-lg p-3 opacity-50">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100">
+                  <Cloud className="w-4 h-4 text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-500">Google Drive</p>
+                  <p className="text-[10px] text-gray-400">Google-Konto verbinden</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-400 bg-gray-100 rounded-full">Bald</span>
+            </div>
+            <button
+              disabled
+              className="w-full px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 rounded-lg cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              <Link2 className="w-4 h-4" />
+              Mit Google Drive verbinden
+            </button>
+            <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+              Kommt in einer späteren Version der App.
+            </p>
+          </div>
+
+          {/* OneDrive – kommt in einer späteren Version */}
+          <div className="border border-gray-200 rounded-lg p-3 opacity-50">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100">
+                  <Cloud className="w-4 h-4 text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-500">OneDrive</p>
+                  <p className="text-[10px] text-gray-400">Microsoft-Konto verbinden</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-400 bg-gray-100 rounded-full">Bald</span>
+            </div>
+            <button
+              disabled
+              className="w-full px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 rounded-lg cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              <Link2 className="w-4 h-4" />
+              Mit OneDrive verbinden
+            </button>
+            <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+              Kommt in einer späteren Version der App.
+            </p>
+          </div>
         </div>
 
         {/* WebDAV (advanced) */}

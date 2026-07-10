@@ -288,50 +288,13 @@ const SECTIONS = [
         ]
       },
       {
-        title: "Cloud-Backup mit Google Drive",
-        body: "Verbinden Sie Ihr Google Drive mit einem Klick. Backups werden automatisch in Ihre Cloud hochgeladen.",
-        steps: [
-          "Einstellungen → «Datensicherung»",
-          "«Mit Google Drive verbinden» antippen",
-          "Google-Konto im Popup auswaehlen",
-          "Zugriff erlauben – Popup schliesst sich",
-          "Status zeigt «Verbunden» (gruen)",
-          "«Backup» fuer manuelles Backup antippen",
-          "Oder «Automatisches Backup» aktivieren"
-        ],
-        mockup: "cloudGoogle"
-      },
-      {
-        title: "Cloud-Backup mit OneDrive",
-        body: "Genauso einfach verbinden Sie Ihr OneDrive (Microsoft-Konto).",
-        steps: [
-          "Einstellungen → «Datensicherung»",
-          "«Mit OneDrive verbinden» antippen",
-          "Microsoft-Konto im Popup auswaehlen",
-          "Zugriff erlauben – Popup schliesst sich",
-          "Status zeigt «Verbunden» (gruen)",
-          "Backup-Funktionen wie bei Google Drive"
-        ],
-        mockup: "cloudOneDrive"
-      },
-      {
         title: "Cloud-Backups verwalten",
         body: "Listen Sie vorhandene Backups auf, stellen Sie sie wiederher oder loeschen Sie sie.",
         steps: [
-          "«Dateien»-Button beim Cloud-Anbieter antippen",
+          "«Dateien»-Button beim WebDAV-Anbieter antippen",
           "Liste aller Backups wird angezeigt",
           "Wiederherstellen: Upload-Icon antippen",
           "Loeschen: Muellheimer-Icon antippen und bestaetigen"
-        ]
-      },
-      {
-        title: "Verbindung trennen",
-        body: "Sie koennen die Verbindung zu Google Drive oder OneDrive jederzeit entfernen.",
-        steps: [
-          "«Verbindung trennen» antippen",
-          "Verbindung wird entfernt",
-          "Bereits hochgeladene Backups bleiben erhalten",
-          "Neu verbinden jederzeit moeglich"
         ]
       },
       {
@@ -543,48 +506,6 @@ function drawMockup(doc, x, y, w, type, color) {
     doc.setTextColor(...WHITE);
     doc.setFontSize(5);
     doc.text("QSO speichern & weiter", x + 5, y + 27.5);
-  } else if (type === "cloudGoogle") {
-    doc.setFillColor(...WHITE);
-    doc.roundedRect(x + 2, y + 2, w - 4, 24, 1, 1, "F");
-    doc.setTextColor(15, 157, 88);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
-    doc.text("Google Drive", x + 3, y + 5.5);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(5.5);
-    doc.setTextColor(...GRAY);
-    doc.text("Google-Konto verbinden", x + 3, y + 9);
-    doc.setTextColor(15, 157, 88);
-    doc.text("o Nicht verbunden", x + 3, y + 13);
-    doc.setFillColor(15, 157, 88);
-    doc.roundedRect(x + 3, y + 15, 25, 5, 1, 1, "F");
-    doc.setTextColor(...WHITE);
-    doc.setFontSize(5.5);
-    doc.text("Mit Google Drive verbinden", x + 5, y + 18);
-    doc.setTextColor(...GRAY);
-    doc.setFontSize(5);
-    doc.text("Klicken -> Google-Konto waehlen -> Zugriff erlauben", x + 3, y + 23);
-  } else if (type === "cloudOneDrive") {
-    doc.setFillColor(...WHITE);
-    doc.roundedRect(x + 2, y + 2, w - 4, 24, 1, 1, "F");
-    doc.setTextColor(0, 120, 212);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
-    doc.text("OneDrive", x + 3, y + 5.5);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(5.5);
-    doc.setTextColor(...GRAY);
-    doc.text("Microsoft-Konto verbinden", x + 3, y + 9);
-    doc.setTextColor(0, 120, 212);
-    doc.text("o Nicht verbunden", x + 3, y + 13);
-    doc.setFillColor(0, 120, 212);
-    doc.roundedRect(x + 3, y + 15, 22, 5, 1, 1, "F");
-    doc.setTextColor(...WHITE);
-    doc.setFontSize(5.5);
-    doc.text("Mit OneDrive verbinden", x + 5, y + 18);
-    doc.setTextColor(...GRAY);
-    doc.setFontSize(5);
-    doc.text("Klicken -> Microsoft-Konto waehlen -> Zugriff erlauben", x + 3, y + 23);
   } else if (type === "webdav") {
     doc.setFillColor(...WHITE);
     doc.roundedRect(x + 2, y + 2, w - 4, 24, 1, 1, "F");
