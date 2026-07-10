@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { MARKER_SHAPES } from "@/lib/markerShapes";
 
 const NAVY = [11, 30, 51];
 const GOLD = [217, 119, 6];
@@ -24,6 +25,72 @@ const LINKS = {
   email: "mailto:hb9om@hb9om.ch"
 };
 
+// Screenshot URLs (echte App-Screenshots)
+const SCREENSHOTS = {
+  map: "https://media.base44.com/images/public/6a4a64185561a655062a41bf/51001fde7_generated_image.png",
+  qso: "https://media.base44.com/images/public/6a4a64185561a655062a41bf/f63bcb32e_generated_image.png",
+  stats: "https://media.base44.com/images/public/6a4a64185561a655062a41bf/9dd11427e_generated_image.png",
+  hero: "https://media.base44.com/images/public/6a4a64185561a655062a41bf/b2f8036bf_generated_image.png"
+};
+
+// Marker-Symbole aus der App (Farben und Beschreibungen)
+const MARKER_SYMBOLS = [
+  { type: "sota", color: "#e74c3c", name: "SOTA", desc: "Berggipfel ab 150 m Prominenz" },
+  { type: "pota", color: "#27ae60", name: "POTA", desc: "Nationalparks & Schutzgebiete" },
+  { type: "hbff", color: "#8e44ad", name: "HBFF", desc: "Flora & Fauna Naturreservate" },
+  { type: "wwbota", color: "#795548", name: "WWBOTA", desc: "Militärische Bunker" },
+  { type: "castle", color: "#e67e22", name: "Burgen/Schlösser", desc: "WCA/COTA Referenzen" },
+  { type: "iota", color: "#3498db", name: "IOTA", desc: "Inseln (Schweiz hat keine IOTA)" },
+  { type: "lighthouse", color: "#f39c12", name: "Leuchttürme", desc: "ARLHS WLOL Referenzen" },
+  { type: "swiss_protected", color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare / Naturzonen" }
+];
+
+// Bild als Data-URL laden (für jsPDF addImage)
+async function loadImageData(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      try {
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+// SVG-String in PNG Data-URL umwandeln (für Marker-Symbole)
+async function svgToPng(svgString, size) {
+  return new Promise((resolve) => {
+    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      try {
+        resolve(canvas.toDataURL("image/png"));
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
 const SECTIONS = [
   {
     title: "KARTE & REFERENZEN",
@@ -37,7 +104,8 @@ const SECTIONS = [
           "Karte mit gedrueckter Maustaste (oder Finger) verschieben",
           "Mit Mausrad oder Zwei-Finger-Pinch zoomen",
           "Die letzte Position wird automatisch gespeichert"
-        ]
+        ],
+        screenshot: "map"
       },
       {
         title: "Referenzen suchen",
@@ -177,7 +245,8 @@ const SECTIONS = [
           "Eigenen Standort/Referenz waehlen",
           "«QSO speichern & weiter» – Formular bleibt offen"
         ],
-        mockup: "qso"
+        mockup: "qso",
+        screenshot: "qso"
       },
       {
         title: "QRZ.com-Abfrage",
@@ -258,7 +327,8 @@ const SECTIONS = [
           "Statistik mit Diagrammen wird angezeigt",
           "QSOs pro Band, Mode und Referenz-Typ",
           "Weitere Kennzahlen"
-        ]
+        ],
+        screenshot: "stats"
       }
     ]
   },
@@ -536,6 +606,13 @@ function drawMockup(doc, x, y, w, type, color) {
   return y + h + 3;
 }
 
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return [r, g, b];
+}
+
 function drawClickableLink(doc, x, y, text, url, color) {
   doc.setTextColor(...color);
   doc.setFont("helvetica", "normal");
@@ -556,6 +633,20 @@ export async function generateHelpPdf() {
   let y = 0;
 
   const sectionPageMap = {};
+
+  // ─── Bilder vorab laden ───
+  const screenshotImgs = {};
+  for (const key of Object.keys(SCREENSHOTS)) {
+    screenshotImgs[key] = await loadImageData(SCREENSHOTS[key]);
+  }
+  // Marker-Symbole als PNG laden
+  const markerImgs = {};
+  for (const ms of MARKER_SYMBOLS) {
+    const shape = MARKER_SHAPES[ms.type];
+    if (shape) {
+      markerImgs[ms.type] = await svgToPng(shape.svg(ms.color), 120);
+    }
+  }
 
   const checkPage = (needed) => {
     if (y + needed > H - 20) {
@@ -590,8 +681,20 @@ export async function generateHelpPdf() {
   };
 
   // ========== COVER PAGE ==========
+  if (screenshotImgs.hero) {
+    try {
+      doc.addImage(screenshotImgs.hero, "JPEG", 0, 0, W, 85);
+    } catch (e) {
+      doc.setFillColor(...NAVY);
+      doc.rect(0, 0, W, 85, "F");
+    }
+  } else {
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, W, 85, "F");
+  }
+  // Navy-Band über dem unteren Teil des Hero-Bilds für Textlesbarkeit
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, W, 85, "F");
+  doc.rect(0, 25, W, 60, "F");
 
   doc.setTextColor(...WHITE);
   doc.setFont("helvetica", "bold");
@@ -665,6 +768,32 @@ export async function generateHelpPdf() {
     y += 12;
   }
 
+  // Zusätzliche TOC-Einträge für Sonderseiten
+  const extraTocEntries = [];
+  const extraPages = [
+    { title: "Symbole & Icons", desc: "Alle Marker-Symbole und UI-Icons", color: NAVY, icon: "S" },
+    { title: "App-Eindrücke", desc: "Echte Screenshots aus der App", color: GOLD, icon: "A" }
+  ];
+  for (const ep of extraPages) {
+    extraTocEntries.push({ y: y });
+    doc.setFillColor(...ep.color);
+    doc.circle(MARGIN + 3, y + 2, 3.5, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(ep.icon, MARGIN + 3, y + 3.5, { align: "center" });
+
+    doc.setTextColor(...NAVY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(ep.title, MARGIN + 10, y + 1);
+    doc.setTextColor(...GRAY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(ep.desc, MARGIN + 10, y + 6);
+    y += 12;
+  }
+
   // Quick links section
   y += 4;
   doc.setTextColor(...NAVY);
@@ -690,6 +819,192 @@ export async function generateHelpPdf() {
     linkY = drawClickableLink(doc, colX, linkY, "> " + ql.label, ql.url, [30, 64, 175]);
   });
   y = linkY + 4;
+
+  addFooter();
+
+  // ========== SYMBOLE & ICONS SEITE ==========
+  doc.addPage();
+  const symbolsPageNum = doc.internal.getNumberOfPages();
+  y = 20;
+  addHeader();
+
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 12, W, 16, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Symbole & Icons in der App", MARGIN, 23);
+  y = 38;
+
+  doc.setTextColor(50, 50, 50);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  const symIntro = "Jeder Referenz-Typ hat ein eigenes, gut erkennbares Symbol auf der Karte. Diese Symbole werden auch in der Legende und im Ebenen-Menue verwendet. Hier sehen Sie alle Symbole mit Erklaerung:";
+  const symIntroLines = doc.splitTextToSize(symIntro, CONTENT_W);
+  for (const line of symIntroLines) {
+    doc.text(line, MARGIN, y);
+    y += 4;
+  }
+  y += 4;
+
+  // Symbol-Tabelle: 2 Spalten, 4 Zeilen
+  const symColW = (CONTENT_W - 6) / 2;
+  const symRowH = 22;
+  const symImgSize = 12;
+
+  for (let i = 0; i < MARKER_SYMBOLS.length; i++) {
+    const ms = MARKER_SYMBOLS[i];
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const sx = MARGIN + col * (symColW + 6);
+    const sy = y + row * (symRowH + 2);
+
+    if (i === 0 || i === 2 || i === 4 || i === 6) {
+      checkPage(symRowH * 2 + 6);
+    }
+
+    // Hintergrund-Karte
+    doc.setFillColor(...LIGHT_GRAY);
+    doc.roundedRect(sx, sy, symColW, symRowH, 1.5, 1.5, "F");
+
+    // Marker-Bild
+    if (markerImgs[ms.type]) {
+      try {
+        doc.addImage(markerImgs[ms.type], "PNG", sx + 3, sy + 3, symImgSize, symImgSize);
+      } catch (e) {}
+    } else {
+      // Fallback: farbiger Kreis
+      const rgb = hexToRgb(ms.color);
+      doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+      doc.circle(sx + 3 + symImgSize / 2, sy + 3 + symImgSize / 2, symImgSize / 2, "F");
+    }
+
+    // Text
+    doc.setTextColor(...NAVY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text(ms.name, sx + 3 + symImgSize + 3, sy + 6);
+
+    // Farb-Indikator
+    const rgb = hexToRgb(ms.color);
+    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+    doc.roundedRect(sx + symColW - 8, sy + 3, 5, 5, 0.5, 0.5, "F");
+
+    doc.setTextColor(60, 60, 60);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    const descLines = doc.splitTextToSize(ms.desc, symColW - symImgSize - 8);
+    for (let dl = 0; dl < Math.min(descLines.length, 2); dl++) {
+      doc.text(descLines[dl], sx + 3 + symImgSize + 3, sy + 10 + dl * 3.5);
+    }
+  }
+
+  y += 4 * (symRowH + 2) + 4;
+
+  // UI-Icons Erklaerung
+  checkPage(40);
+  doc.setTextColor(...NAVY);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Wichtige UI-Icons auf der Karte:", MARGIN, y);
+  y += 6;
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.4);
+  doc.line(MARGIN, y, MARGIN + 50, y);
+  y += 6;
+
+  const uiIcons = [
+    { symbol: "[GPS]", color: BLUE, name: "GPS-Position", desc: "Zeigt Ihre aktuelle GPS-Position auf der Karte mit Radiuskreis." },
+    { symbol: "[PIN]", color: BLUE, name: "Position fixieren", desc: "Setzt eine Position manuell auf der Karte (ohne GPS)." },
+    { symbol: "[MOVE]", color: NAVY, name: "Marker verschieben", desc: "Drag & Drop-Modus: Marker an korrekte Position ziehen." },
+    { symbol: "[WIFI]", color: GOLD, name: "Offline-Modus", desc: "Schaltet den Offline-Modus ein/aus. Gelb = aktiv." },
+    { symbol: "[DL]", color: NAVY, name: "Karten herunterladen", desc: "Kartenausschnitte für Offline-Nutzung speichern." },
+    { symbol: "[LAYERS]", color: NAVY, name: "Ebenen-Menü", desc: "Layer ein-/ausschalten, Hintergrundkarte wählen." },
+    { symbol: "[+]", color: BLUE, name: "Neues QSO", desc: "Öffnet das QSO-Logbuch-Formular." },
+    { symbol: "[BAR]", color: GREEN, name: "Statistik", desc: "Wechselt zur Statistik-Ansicht im Logbuch." }
+  ];
+
+  for (const ic of uiIcons) {
+    checkPage(8);
+    doc.setFillColor(...ic.color);
+    doc.roundedRect(MARGIN, y - 3, 8, 5, 0.5, 0.5, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(5);
+    doc.text(ic.symbol, MARGIN + 4, y + 0.2, { align: "center" });
+
+    doc.setTextColor(...NAVY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.text(ic.name, MARGIN + 11, y);
+    doc.setTextColor(60, 60, 60);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    const icDescLines = doc.splitTextToSize(ic.desc, CONTENT_W - 16);
+    doc.text(icDescLines[0], MARGIN + 11, y + 3.5);
+    y += 7;
+  }
+
+  addFooter();
+
+  // ========== SCREENSHOT-GALERIE ==========
+  doc.addPage();
+  const screenshotsPageNum = doc.internal.getNumberOfPages();
+  y = 20;
+  addHeader();
+
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 12, W, 16, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("App-Eindrücke", MARGIN, 23);
+  y = 38;
+
+  doc.setTextColor(50, 50, 50);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.text("Hier sehen Sie echte Screenshots aus der App:", MARGIN, y);
+  y += 6;
+
+  // Drei Screenshots nebeneinander
+  const sw = 52, sh = 93;
+  const gap = 6;
+  const startX = (W - 3 * sw - 2 * gap) / 2;
+  const screens = [
+    { img: screenshotImgs.map, label: "Karte & Referenzen" },
+    { img: screenshotImgs.qso, label: "QSO-Formular" },
+    { img: screenshotImgs.stats, label: "Statistik" }
+  ];
+
+  for (let i = 0; i < screens.length; i++) {
+    const sx = startX + i * (sw + gap);
+    // Handy-Rahmen
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(sx - 1.5, y - 1.5, sw + 3, sh + 8, 2, 2, "F");
+    if (screens[i].img) {
+      try {
+        doc.addImage(screens[i].img, "JPEG", sx, y, sw, sh);
+      } catch (e) {
+        doc.setFillColor(240, 240, 240);
+        doc.rect(sx, y, sw, sh, "F");
+      }
+    } else {
+      doc.setFillColor(240, 240, 240);
+      doc.rect(sx, y, sw, sh, "F");
+    }
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.text(screens[i].label, sx + sw / 2, y + sh + 4, { align: "center" });
+  }
+
+  y += sh + 12;
+
+  // Hinweis
+  doc.setTextColor(...GRAY);
+  doc.setFontSize(7.5);
+  doc.text("Tipp: Die Screenshots zeigen die Hauptansichten der App – Karte, QSO-Formular und Statistik.", MARGIN, y);
 
   addFooter();
 
@@ -758,6 +1073,27 @@ export async function generateHelpPdf() {
       if (item.mockup) {
         checkPage(35);
         y = drawMockup(doc, MARGIN, y, CONTENT_W, item.mockup, section.color);
+      }
+
+      // Echter Screenshot
+      if (item.screenshot && screenshotImgs[item.screenshot]) {
+        checkPage(60);
+        const scrW = CONTENT_W * 0.55;
+        const scrH = scrW * 1.78; // 9:16 Aspect Ratio
+        const scrX = MARGIN + (CONTENT_W - scrW) / 2;
+        doc.setFillColor(...NAVY);
+        doc.roundedRect(scrX - 1.5, y - 1.5, scrW + 3, scrH + 5, 2, 2, "F");
+        try {
+          doc.addImage(screenshotImgs[item.screenshot], "JPEG", scrX, y, scrW, scrH);
+        } catch (e) {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(scrX, y, scrW, scrH, "F");
+        }
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(6);
+        doc.setFont("helvetica", "normal");
+        doc.text("Screenshot aus der App", scrX + scrW / 2, y + scrH + 3.5, { align: "center" });
+        y += scrH + 6;
       }
 
       // Links
@@ -855,6 +1191,13 @@ export async function generateHelpPdf() {
     if (targetPage) {
       doc.link(MARGIN, entry.y - 2, CONTENT_W, 10, { pageNumber: targetPage });
     }
+  }
+  // Klickbare Links für Sonderseiten (Symbole & Screenshots)
+  if (extraTocEntries[0] && symbolsPageNum) {
+    doc.link(MARGIN, extraTocEntries[0].y - 2, CONTENT_W, 10, { pageNumber: symbolsPageNum });
+  }
+  if (extraTocEntries[1] && screenshotsPageNum) {
+    doc.link(MARGIN, extraTocEntries[1].y - 2, CONTENT_W, 10, { pageNumber: screenshotsPageNum });
   }
 
   doc.save("HB9OM_On_Field_Hilfe.pdf");
