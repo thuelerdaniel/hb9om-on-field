@@ -7,7 +7,7 @@ export default function SplashScreen({ onDismiss }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       handleClose();
-    }, 3000);
+    }, 1500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -54,7 +54,7 @@ export default function SplashScreen({ onDismiss }) {
           </p>
 
           <div className="inline-block px-4 py-1.5 rounded-full bg-white/10 border border-white/20">
-            <span className="text-sm font-mono text-slate-200">Version 0.6</span>
+            <span className="text-sm font-mono text-slate-200">Version 0.7</span>
           </div>
         </a>
 
@@ -68,7 +68,7 @@ export default function SplashScreen({ onDismiss }) {
           <div className="w-32 h-1 bg-white/10 rounded-full mx-auto overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
-              style={{ animation: "splash-progress 3s linear forwards" }}
+              style={{ animation: "splash-progress 1.5s linear forwards" }}
             />
           </div>
         </div>

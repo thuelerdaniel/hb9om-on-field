@@ -331,44 +331,41 @@ export default function Home() {
     };
   }, []);
 
-  // Load all cached reference data on mount
+  // Load reference data on mount — local cache FIRST (instant display), then server in background
   useEffect(() => {
-    // Offline: load from local cache immediately, skip server
-    if (isOffline) {
-      const cached = loadCachedReferenceData();
-      if (cached) {
-        if (cached.sota) setSotaData(cached.sota);
-        if (cached.pota) setPotaData(cached.pota);
-        if (cached.hbff) setHbffData(cached.hbff);
-        if (cached.wwbota) setWwbotaData(cached.wwbota);
-        if (cached.castle) setCastleData(cached.castle);
-      }
-      setServerOverrides(loadCachedOverrides());
-      setCacheLoaded(true);
-      return;
+    // Step 1: Load local cache instantly for immediate marker display
+    const localCache = loadCachedReferenceData();
+    if (localCache) {
+      if (localCache.sota) setSotaData(localCache.sota);
+      if (localCache.pota) setPotaData(localCache.pota);
+      if (localCache.hbff) setHbffData(localCache.hbff);
+      if (localCache.wwbota) setWwbotaData(localCache.wwbota);
+      if (localCache.castle) setCastleData(localCache.castle);
     }
+    setServerOverrides(loadCachedOverrides());
+    setCacheLoaded(true);
+
+    // Step 2: Offline mode — local cache is all we have
+    if (isOffline) return;
+
+    // Step 3: Fetch from server in background (non-blocking, updates markers when ready)
     base44.entities.ReferenceData.list()
       .then(cached => {
         if (!cached) return;
+        const data = { sota: [], pota: [], hbff: [], wwbota: [], castle: [] };
         cached.forEach(entry => {
           if (!entry.references) return;
-          if (entry.type === 'sota') setSotaData(entry.references);
-          if (entry.type === 'pota') setPotaData(entry.references);
-          if (entry.type === 'hbff') setHbffData(entry.references);
-          if (entry.type === 'wwbota') setWwbotaData(entry.references);
-          if (entry.type === 'castle') setCastleData(entry.references);
+          if (entry.type === 'sota') { setSotaData(entry.references); data.sota = entry.references; }
+          if (entry.type === 'pota') { setPotaData(entry.references); data.pota = entry.references; }
+          if (entry.type === 'hbff') { setHbffData(entry.references); data.hbff = entry.references; }
+          if (entry.type === 'wwbota') { setWwbotaData(entry.references); data.wwbota = entry.references; }
+          if (entry.type === 'castle') { setCastleData(entry.references); data.castle = entry.references; }
         });
+        cacheReferenceData(data);
       })
       .catch(() => {
-        // Server failed: try local cache first, then offline areas
-        const localCache = loadCachedReferenceData();
-        if (localCache) {
-          if (localCache.sota) setSotaData(localCache.sota);
-          if (localCache.pota) setPotaData(localCache.pota);
-          if (localCache.hbff) setHbffData(localCache.hbff);
-          if (localCache.wwbota) setWwbotaData(localCache.wwbota);
-          if (localCache.castle) setCastleData(localCache.castle);
-        } else {
+        // Server failed but local cache already loaded above — try offline areas as last resort
+        if (!localCache) {
           loadOfflineReferences().then(refs => {
             if (refs.sota?.length) setSotaData(refs.sota);
             if (refs.pota?.length) setPotaData(refs.pota);
@@ -377,9 +374,16 @@ export default function Home() {
             if (refs.castle?.length) setCastleData(refs.castle);
           }).catch(() => {});
         }
-      })
-      .finally(() => setCacheLoaded(true));
+      });
   }, []);
+
+  // Dismiss splash early once data is ready (minimum 600ms branding)
+  useEffect(() => {
+    if (cacheLoaded && showSplash) {
+      const t = setTimeout(() => setShowSplash(false), 600);
+      return () => clearTimeout(t);
+    }
+  }, [cacheLoaded, showSplash]);
 
   // Load SOTA from API if not cached
   useEffect(() => {
