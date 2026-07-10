@@ -25,8 +25,25 @@ const LAYER_GROUPS = {
   }
 };
 
-const HIDDEN_PROPS = ["shape", "geom", "geometry", "geo_shape", "the_geom", "label", "fid", "subareanumber"];
-const LINK_PROPS = ["linkurldescription", "linkurl", "url"];
+// Properties to always hide (technical/internal fields)
+const HIDDEN_PROPS = [
+  "shape", "geom", "geometry", "geo_shape", "the_geom", "label", "fid",
+  "subareanumber", "objectid", "objekt_id", "id", "uuid", "gid",
+  "lon", "lat", "longitude", "latitude", "x", "y", "coord_x", "coord_y",
+  "ch5a", "ch5b", "ch5c", "importdate", "importguid", "datenherr",
+  "quelle", "source", "revision", "revid", "nr", "no", "code",
+  "linkurldescription", "linkurl", "url", "frequencies",
+  "kanton", "gemeinde", "datum", "bemerkung", "beschreibung", "description",
+  "refobjbln", "subareaname", "teilobjekt", "inventar", "biozone",
+  "bln_fl", "bln_obj", "bln_name", "objekt", "flaeche", "area",
+  "spannungandere", "stromnetztyp", "frequenz"
+];
+
+// Only show these key properties for hazards layer (in this order)
+const HAZARD_PROP_WHITELIST = ["bezeichnung", "name", "eigentuemer", "betreiber", "spannung", "leitungtyp", "typ", "type", "status"];
+
+// Only show these key properties for nature zones
+const NATURE_PROP_WHITELIST = ["name", "bln_name", "objekt", "teilobjekt", "typ", "type", "status"];
 
 const PROP_LABELS = {
   bezeichnung: "Bezeichnung",
@@ -36,39 +53,21 @@ const PROP_LABELS = {
   betreiber: "Betreiber",
   spannung: "Spannung",
   voltage: "Spannung",
-  spannungandere: "Spannung andere",
-  stromnetztyp: "Stromnetztyp",
   leitungtyp: "Leitungstyp",
   typ: "Typ",
   type: "Typ",
   status: "Status",
-  bemerkung: "Bemerkung",
-  beschreibung: "Beschreibung",
-  description: "Beschreibung",
-  flaeche: "Fläche",
-  area: "Fläche",
-  bln_fl: "Fläche (m²)",
-  bln_obj: "BLN-Nr.",
-  frequenz: "Frequenz",
-  objectid: "ID",
-  objekt_id: "ID",
-  kanton: "Kanton",
-  gemeinde: "Gemeinde",
-  datum: "Datum",
-  biozone: "Biozone",
   objekt: "Objekt",
-  teilobjekt: "Teilobjekt",
-  inventar: "Inventar",
-  refobjbln: "BLN-Ref.",
-  subareaname: "Teilgebiet"
+  teilobjekt: "Teilobjekt"
 };
+
+const MAX_FEATURES_PER_LAYER = 3;
 
 function formatPropName(key) {
   const lower = key.toLowerCase();
   if (HIDDEN_PROPS.includes(lower)) return null;
-  if (LINK_PROPS.includes(lower)) return null;
   if (PROP_LABELS[lower]) return PROP_LABELS[lower];
-  return key.charAt(0).toUpperCase() + key.slice(1);
+  return null; // Hide any property not in our label map
 }
 
 function formatPropValue(val) {
@@ -88,7 +87,7 @@ function escapeHtml(val) {
 }
 
 function getLinkUrl(props) {
-  for (const key of LINK_PROPS) {
+  for (const key of ["linkurl", "linkurldescription", "url"]) {
     if (props[key]) return props[key];
   }
   return null;
@@ -115,7 +114,10 @@ function buildPopupHtml(results, layerLookup) {
   });
 
   const sections = Object.values(byLayer).map(({ info, features }) => {
-    const featureHtml = features.map((f, idx) => {
+    const limited = features.slice(0, MAX_FEATURES_PER_LAYER);
+    const remaining = features.length - limited.length;
+
+    const featureHtml = limited.map((f, idx) => {
       const props = f.attributes || f.properties || {};
       const linkUrl = getLinkUrl(props);
       const propEntries = Object.entries(props)
@@ -127,27 +129,28 @@ function buildPopupHtml(results, layerLookup) {
           ).join("")
         : '<div style="font-size:12px;color:#9ca3af;">Keine Detaildaten verfügbar</div>';
       const linkHtml = linkUrl
-        ? `<div style="margin-top:4px;"><a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">📄 Datenblatt / Detailseite →</a></div>`
+        ? `<div style="margin-top:4px;"><a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">📄 Datenblatt →</a></div>`
         : "";
-      return `<div style="${idx < features.length - 1 ? "margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f3f4f6;" : ""}">${propHtml}${linkHtml}</div>`;
+      return `<div style="${idx < limited.length - 1 ? "margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f3f4f6;" : ""}">${propHtml}${linkHtml}</div>`;
     }).join("");
 
-    return `<div style="margin-bottom:10px;">
-      <div style="font-weight:600;font-size:12px;margin-bottom:4px;color:${info.groupColor};">${info.icon} ${escapeHtml(info.name)}</div>
-      ${featureHtml}
+    const moreHtml = remaining > 0
+      ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">+ ${remaining} weitere(s) Objekt(e)</div>`
+      : "";
+
+    return `<div style="margin-bottom:8px;">
+      <div style="font-weight:600;font-size:12px;margin-bottom:3px;color:${info.groupColor};">${info.icon} ${escapeHtml(info.name)}</div>
+      ${featureHtml}${moreHtml}
     </div>`;
   }).join("");
 
-  return `<div style="min-width:220px;max-width:300px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f3f4f6;">
-      <div style="font-size:16px;">📍</div>
-      <div>
-        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#374151;">Standort-Info</span>
-        <p style="font-size:11px;color:#9ca3af;margin:0;">${results.length} Objekt(e) an diesem Standort</p>
-      </div>
+  return `<div style="min-width:200px;max-width:280px;">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f3f4f6;">
+      <span style="font-size:14px;">📍</span>
+      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#374151;">Standort-Info</span>
     </div>
     ${sections}
-    <div style="margin-top:8px;padding-top:8px;border-top:1px solid #f3f4f6;">
+    <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f3f4f6;">
       <a href="https://map.geo.admin.ch/?lang=de" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">In map.geo.admin.ch öffnen →</a>
     </div>
   </div>`;
@@ -159,7 +162,7 @@ async function identifyLayer(layerId, lat, lng, mapExtent, imageSize) {
     `?geometry=${lng.toFixed(6)},${lat.toFixed(6)}` +
     "&geometryType=esriGeometryPoint" +
     `&layers=all:${layerId}` +
-    "&tolerance=30&returnGeometry=false&sr=4326&lang=de" +
+    "&tolerance=20&returnGeometry=false&sr=4326&lang=de" +
     `&imageDisplay=${imageSize.x},${imageSize.y},96` +
     `&mapExtent=${mapExtent}`;
 
@@ -193,15 +196,14 @@ export default function WmsFeatureInfo({ activeLayers, clickMode }) {
       const size = map.getSize();
       const mapExtent = `${bounds.getWest().toFixed(6)},${bounds.getSouth().toFixed(6)},${bounds.getEast().toFixed(6)},${bounds.getNorth().toFixed(6)}`;
 
-      const popup = L.popup({ maxWidth: 320, autoClose: false, closeOnClick: false })
+      const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
         .setLatLng(e.latlng)
         .setContent(
-          '<div style="min-width:180px;text-align:center;padding:8px;"><div style="font-size:12px;color:#6b7280;">⏳ Lade Standort-Info…</div></div>'
+          '<div style="min-width:140px;text-align:center;padding:6px;"><div style="font-size:12px;color:#6b7280;">⏳ Lade…</div></div>'
         )
         .openOn(map);
 
       try {
-        // Query each layer individually — one failing layer won't break the others
         const promises = layerIds.map(id => identifyLayer(id, lat, lng, mapExtent, size));
         const layerResults = await Promise.all(promises);
         const allResults = layerResults.flat();

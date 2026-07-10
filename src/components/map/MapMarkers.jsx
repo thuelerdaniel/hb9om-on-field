@@ -4,26 +4,41 @@ import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
-function createDraggableIcon(color) {
-  return L.divIcon({
-    html: `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${color}; border: 4px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.6); cursor: grab; display: flex; align-items: center; justify-content: center; touch-action: none;">
-      <div style="width: 10px; height: 10px; border-radius: 50%; background: white; opacity: 0.7;"></div>
-    </div>`,
-    className: "draggable-marker-icon",
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
-  });
+// Cache divIcons per (layerType, color) — creating L.divIcon for every marker is extremely expensive
+const iconCache = new Map();
+const draggableIconCache = new Map();
+
+function getShapeIcon(layerType, color) {
+  const key = `${layerType}:${color}`;
+  let icon = iconCache.get(key);
+  if (!icon) {
+    const svg = getMarkerSvg(layerType, color);
+    icon = L.divIcon({
+      html: `<div style="width: 28px; height: 28px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));">${svg}</div>`,
+      className: "shape-marker-icon",
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -12]
+    });
+    iconCache.set(key, icon);
+  }
+  return icon;
 }
 
-function createShapeIcon(layerType, color) {
-  const svg = getMarkerSvg(layerType, color);
-  return L.divIcon({
-    html: `<div style="width: 28px; height: 28px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));">${svg}</div>`,
-    className: "shape-marker-icon",
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -12]
-  });
+function getDraggableIcon(color) {
+  let icon = draggableIconCache.get(color);
+  if (!icon) {
+    icon = L.divIcon({
+      html: `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${color}; border: 4px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.6); cursor: grab; display: flex; align-items: center; justify-content: center; touch-action: none;">
+        <div style="width: 10px; height: 10px; border-radius: 50%; background: white; opacity: 0.7;"></div>
+      </div>`,
+      className: "draggable-marker-icon",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+    draggableIconCache.set(color, icon);
+  }
+  return icon;
 }
 
 function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
@@ -36,7 +51,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
             <Marker
               key={key}
               position={[m.lat, m.lng]}
-              icon={createDraggableIcon(m.color)}
+              icon={getDraggableIcon(m.color)}
               draggable={true}
               eventHandlers={{
                 dragend: (e) => {
@@ -51,15 +66,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag }) {
           <Marker
             key={key}
             position={[m.lat, m.lng]}
-            icon={createShapeIcon(m.layerType, m.color)}
-            eventHandlers={{
-              click: (e) => {
-                const map = e.target._map;
-                if (map) {
-                  map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 13), { duration: 0.5 });
-                }
-              }
-            }}
+            icon={getShapeIcon(m.layerType, m.color)}
           >
             <Popup>
               <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} />

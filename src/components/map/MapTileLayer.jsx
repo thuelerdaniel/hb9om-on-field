@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import { getTile } from "@/lib/offlineMapStore";
@@ -9,7 +9,6 @@ const OfflineTileLayerClass = L.TileLayer.extend({
     const tile = document.createElement("img");
 
     if (this.options.isOffline) {
-      // Light gray placeholder so missing tiles don't show as black bars
       tile.style.backgroundColor = "#e8e8e8";
       const key = `${this.options.tileKeyPrefix}_${coords.z}_${coords.x}_${coords.y}`;
       getTile(key)
@@ -18,7 +17,6 @@ const OfflineTileLayerClass = L.TileLayer.extend({
             tile.src = URL.createObjectURL(blob);
             done(null, tile);
           } else {
-            // No cached tile – keep light placeholder, no error
             done(null, tile);
           }
         })
@@ -42,7 +40,9 @@ export default function MapTileLayer({
   tileKeyPrefix,
 }) {
   const map = useMap();
+  const layerRef = useRef(null);
 
+  // Create/remove layer only when url, offline mode, or tileKeyPrefix changes
   useEffect(() => {
     const layer = new OfflineTileLayerClass(url, {
       attribution,
@@ -51,11 +51,21 @@ export default function MapTileLayer({
       isOffline: !!isOffline,
       tileKeyPrefix: tileKeyPrefix || "",
     });
+    layerRef.current = layer;
     layer.addTo(map);
     return () => {
       map.removeLayer(layer);
+      layerRef.current = null;
     };
-  }, [map, url, attribution, maxZoom, opacity, isOffline, tileKeyPrefix]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, url, isOffline, tileKeyPrefix]);
+
+  // Update opacity in-place without recreating the layer (prevents tile reload)
+  useEffect(() => {
+    if (layerRef.current && opacity != null) {
+      layerRef.current.setOpacity(opacity);
+    }
+  }, [opacity]);
 
   return null;
 }
