@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { MARKER_SHAPES } from "@/lib/markerShapes";
-import { SECTIONS, MARKER_SYMBOLS, UI_ICONS, LINKS, SCREENSHOTS } from "@/lib/helpPdfContent";
+import { SECTIONS, MARKER_SYMBOLS, UI_ICONS, LINKS, SCREENSHOTS, SETUP_CHECKLIST } from "@/lib/helpPdfContent";
 import { getIconSvg } from "@/lib/helpPdfIcons";
 
 // Farben
@@ -357,7 +357,15 @@ function drawScreenLayout(doc, x, y, w, screenshotImg, labels) {
 
 // ─── Hauptfunktion ───
 
-export async function generateHelpPdf() {
+export async function generateHelpPdf(config = {}) {
+  const sections = config.sections || SECTIONS;
+  const pdfTitle = config.title || "Interaktive Hilfe und Anleitung";
+  const pdfSubtitle = config.subtitle || "Die exklusive Amateurfunk-App für Referenzen und QSO-Logbuch";
+  const coverLabel = config.coverLabel || "INTERAKTIVE HILFE";
+  const headerTitle = config.headerTitle || "Interaktive Hilfe";
+  const setupChecklist = config.setupChecklist !== undefined ? config.setupChecklist : SETUP_CHECKLIST;
+  const filename = config.filename || "HB9OM_On_Field_Hilfe.pdf";
+  const isAdmin = config.isAdmin || false;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210, H = 297;
   const MARGIN = 18;
@@ -365,6 +373,7 @@ export async function generateHelpPdf() {
   let y = 0;
 
   const sectionPageMap = {};
+  let checklistPageNum = null;
   const tocEntries = [];
   const extraTocEntries = [];
 
@@ -389,7 +398,7 @@ export async function generateHelpPdf() {
   const allIconNames = new Set();
   for (const ms of MARKER_SYMBOLS) allIconNames.add(ms.icon);
   for (const ic of UI_ICONS) allIconNames.add(ic.icon);
-  for (const sec of SECTIONS) {
+  for (const sec of sections) {
     for (const item of sec.items) {
       if (item.steps) {
         for (const s of item.steps) {
@@ -420,7 +429,7 @@ export async function generateHelpPdf() {
     doc.setTextColor(...WHITE);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.text("HB9OM On Field - Interaktive Hilfe", MARGIN, 8);
+    doc.text("HB9OM On Field - " + headerTitle, MARGIN, 8);
     doc.setTextColor(...GOLD);
     doc.textWithLink("hb9om.ch", W - MARGIN - 15, 8, { url: "https://hb9om.ch" });
   };
@@ -433,7 +442,7 @@ export async function generateHelpPdf() {
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     const pageNum = doc.internal.getNumberOfPages();
-    doc.text("hb9om.ch  -  Interaktive Hilfe und Anleitung", W / 2, pageHeight - 5, { align: "center" });
+    doc.text("hb9om.ch  -  " + pdfTitle, W / 2, pageHeight - 5, { align: "center" });
     doc.text("Seite " + pageNum, W - MARGIN, pageHeight - 5, { align: "right" });
   };
 
@@ -464,9 +473,9 @@ export async function generateHelpPdf() {
 
   doc.setTextColor(220, 220, 220);
   doc.setFontSize(11);
-  doc.text("Interaktive Hilfe und Anleitung", MARGIN, 48);
+  doc.text(pdfTitle, MARGIN, 48);
   doc.setFontSize(9);
-  doc.text("Die exklusive Amateurfunk-App für Referenzen und QSO-Logbuch", MARGIN, 55);
+  doc.text(pdfSubtitle, MARGIN, 55);
   doc.text("SOTA - POTA - HBFF - WWBOTA - Burgen - Leuchttürme - IOTA", MARGIN, 61);
 
   doc.setFillColor(...GOLD);
@@ -474,7 +483,7 @@ export async function generateHelpPdf() {
   doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("INTERAKTIVE HILFE", W - 41.5, 16, { align: "center" });
+  doc.text(coverLabel, W - 41.5, 16, { align: "center" });
 
   // Tipp-Box auf Cover
   y = 95;
@@ -503,8 +512,8 @@ export async function generateHelpPdf() {
   y += 8;
 
   // Hauptabschnitte
-  for (let i = 0; i < SECTIONS.length; i++) {
-    const s = SECTIONS[i];
+  for (let i = 0; i < sections.length; i++) {
+    const s = sections[i];
     tocEntries.push({ index: i, y: y });
 
     doc.setFillColor(...s.color);
@@ -521,7 +530,9 @@ export async function generateHelpPdf() {
     doc.setTextColor(...GRAY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(s.items.length + " Themen mit Schritt-für-Schritt Anleitungen", MARGIN + 10, y + 6);
+    let tocDesc = s.description || (s.items.length + " Themen mit Schritt-für-Schritt Anleitungen");
+    if (tocDesc.length > 85) tocDesc = tocDesc.substring(0, 82) + "...";
+    doc.text(tocDesc, MARGIN + 10, y + 6);
 
     y += 12;
   }
@@ -531,6 +542,9 @@ export async function generateHelpPdf() {
     { title: "Symbole und Icons", desc: "Alle Marker-Symbole und UI-Icons", color: NAVY, icon: "S" },
     { title: "App-Eindrücke", desc: "Echte Screenshots aus der App", color: GOLD, icon: "A" }
   ];
+  if (setupChecklist && setupChecklist.length > 0) {
+    extraPages.push({ title: "Checkliste: Inbetriebnahme", desc: "Zwingende und optionale Schritte", color: GREEN, icon: "C" });
+  }
   for (const ep of extraPages) {
     extraTocEntries.push({ y: y });
     doc.setFillColor(...ep.color);
@@ -828,8 +842,8 @@ export async function generateHelpPdf() {
   addFooter();
 
   // ─── INHALT SEITEN ───
-  for (let si = 0; si < SECTIONS.length; si++) {
-    const section = SECTIONS[si];
+  for (let si = 0; si < sections.length; si++) {
+    const section = sections[si];
     doc.addPage();
     const sectionPageNum = doc.internal.getNumberOfPages();
     sectionPageMap[si] = sectionPageNum;
@@ -849,6 +863,47 @@ export async function generateHelpPdf() {
     doc.setFontSize(13);
     doc.text(section.title, MARGIN + 12, 23);
     y = 38;
+
+    // Kapitel-Beschreibung
+    if (section.description) {
+      checkPage(15);
+      doc.setTextColor(...GRAY);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8.5);
+      const descLines = doc.splitTextToSize(section.description, CONTENT_W);
+      for (const line of descLines) {
+        checkPage(5);
+        doc.text(line, MARGIN, y);
+        y += 4;
+      }
+      y += 4;
+    }
+
+    // Kapitel-Screenshot (nur fuer reguläre Hilfe, nicht Admin)
+    if (!isAdmin) {
+      const chapterShots = ["map", "qso", "settings", "stats"];
+      const chapterShot = chapterShots[si % chapterShots.length];
+      if (screenshotImgs[chapterShot]) {
+        checkPage(115);
+        const cscrW = CONTENT_W * 0.32;
+        const cscrH = cscrW * 1.78;
+        const cscrX = MARGIN + (CONTENT_W - cscrW) / 2;
+        doc.setFillColor(...NAVY);
+        doc.roundedRect(cscrX - 1, y - 1, cscrW + 2, cscrH + 5, 1.5, 1.5, "F");
+        try {
+          doc.addImage(screenshotImgs[chapterShot], "JPEG", cscrX, y, cscrW, cscrH);
+        } catch (e) {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(cscrX, y, cscrW, cscrH, "F");
+        }
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(6);
+        doc.setFont("helvetica", "normal");
+        const shotLabels = ["Kartenansicht", "QSO-Formular", "Einstellungen", "Statistik"];
+        doc.text(shotLabels[si % shotLabels.length], cscrX + cscrW / 2, y + cscrH + 3, { align: "center" });
+        y += cscrH + 8;
+      }
+    }
 
     for (const item of section.items) {
       checkPage(35);
@@ -903,7 +958,7 @@ export async function generateHelpPdf() {
         y += 4;
 
         for (let i = 0; i < item.steps.length; i++) {
-          checkPage(12);
+          checkPage(18);
           y = drawStepBox(doc, MARGIN, y, CONTENT_W, i + 1, item.steps[i], section.color, iconImgs);
         }
         y += 2;
@@ -969,6 +1024,103 @@ export async function generateHelpPdf() {
       doc.setLineWidth(0.1);
       doc.line(MARGIN, y, MARGIN + CONTENT_W, y);
       y += 5;
+    }
+
+    addFooter();
+  }
+
+  // ─── CHECKLISTE ANHANG ───
+  if (setupChecklist && setupChecklist.length > 0) {
+    doc.addPage();
+    checklistPageNum = doc.internal.getNumberOfPages();
+    y = 20;
+    addHeader();
+
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 12, W, 16, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Anhang: Erste Inbetriebnahme", MARGIN, 23);
+    y = 38;
+
+    doc.setTextColor(50, 50, 50);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    const checklistIntro = "Diese Checkliste hilft Ihnen, die App vollstaendig einzurichten. Zwingende Schritte sind mit einem roten Ausrufezeichen markiert, optionale Schritte mit einem blauen Plus.";
+    const clIntroLines = doc.splitTextToSize(checklistIntro, CONTENT_W);
+    for (const line of clIntroLines) {
+      checkPage(5);
+      doc.text(line, MARGIN, y);
+      y += 4;
+    }
+    y += 6;
+
+    // Legende
+    doc.setFillColor(...RED);
+    doc.circle(MARGIN + 3, y + 2, 2.5, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text("!", MARGIN + 3, y + 3, { align: "center" });
+    doc.setTextColor(...RED);
+    doc.setFontSize(7);
+    doc.text("Zwingend", MARGIN + 7, y + 3);
+
+    doc.setFillColor(...BLUE);
+    doc.circle(MARGIN + 35, y + 2, 2.5, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text("+", MARGIN + 35, y + 3, { align: "center" });
+    doc.setTextColor(...BLUE);
+    doc.setFontSize(7);
+    doc.text("Optional", MARGIN + 39, y + 3);
+    y += 8;
+
+    for (const cat of setupChecklist) {
+      checkPage(30);
+      doc.setFillColor(...GOLD);
+      doc.roundedRect(MARGIN, y - 3, CONTENT_W, 8, 1.5, 1.5, "F");
+      doc.setTextColor(...WHITE);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(cat.category, MARGIN + 3, y + 2);
+      y += 10;
+
+      for (const item of cat.items) {
+        checkPage(12);
+        if (item.mandatory) {
+          doc.setFillColor(...RED);
+        } else {
+          doc.setFillColor(...BLUE);
+        }
+        doc.circle(MARGIN + 3, y + 2, 2.5, "F");
+        doc.setTextColor(...WHITE);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.text(item.mandatory ? "!" : "+", MARGIN + 3, y + 3, { align: "center" });
+
+        if (item.mandatory) {
+          doc.setTextColor(...RED);
+        } else {
+          doc.setTextColor(...BLUE);
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6);
+        doc.text(item.mandatory ? "ZWINGEND" : "OPTIONAL", MARGIN + 7, y + 1);
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        const itemLines = doc.splitTextToSize(item.text, CONTENT_W - 12);
+        for (let li = 0; li < itemLines.length; li++) {
+          checkPage(4);
+          doc.text(itemLines[li], MARGIN + 7, y + 5 + li * 3.5);
+        }
+        y += Math.max(8, itemLines.length * 3.5 + 3);
+      }
+      y += 4;
     }
 
     addFooter();
@@ -1071,7 +1223,7 @@ export async function generateHelpPdf() {
   addFooter();
 
   // ─── KLICKBARE TOC LINKS ───
-  for (let i = 0; i < SECTIONS.length; i++) {
+  for (let i = 0; i < sections.length; i++) {
     const entry = tocEntries[i];
     const targetPage = sectionPageMap[i];
     if (targetPage) {
@@ -1084,6 +1236,9 @@ export async function generateHelpPdf() {
   if (extraTocEntries[1] && screenshotsPageNum) {
     doc.link(MARGIN, extraTocEntries[1].y - 2, CONTENT_W, 10, { pageNumber: screenshotsPageNum });
   }
+  if (extraTocEntries[2] && checklistPageNum) {
+    doc.link(MARGIN, extraTocEntries[2].y - 2, CONTENT_W, 10, { pageNumber: checklistPageNum });
+  }
 
-  doc.save("HB9OM_On_Field_Hilfe.pdf");
+  doc.save(filename);
 }

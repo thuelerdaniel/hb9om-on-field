@@ -66,6 +66,7 @@ export const SECTIONS = [
     shortTitle: "Karte",
     color: [59, 130, 246],
     letter: "K",
+    description: "In diesem Kapitel lernen Sie die interaktive Karte kennen: Navigation, Referenzsuche, Layer-Verwaltung, GPS-Positionierung, Offline-Modus und alle Marker-Symbole der verschiedenen Referenz-Typen.",
     items: [
       {
         title: "Bildschirm-Aufbau der Karte",
@@ -228,6 +229,7 @@ export const SECTIONS = [
     shortTitle: "Logbuch",
     color: [5, 150, 105],
     letter: "L",
+    description: "Hier erfahren Sie alles über das Erfassen, Bearbeiten und Verwalten von Funkverbindungen (QSOs): vom ersten Eintrag über QRZ.com-Abfragen bis hin zu ADIF-Export und Statistik-Auswertungen.",
     items: [
       {
         title: "Neues QSO erfassen",
@@ -376,6 +378,7 @@ export const SECTIONS = [
     shortTitle: "Einstellungen",
     color: [217, 119, 6],
     letter: "E",
+    description: "Dieses Kapitel behandelt Ihr Profil, die QRZ.com-Integration, lokale und Cloud-basierte Datensicherung (WebDAV), den Offline-Modus sowie die Kontoverwaltung.",
     items: [
       {
         title: "Übersicht der Einstellungen",
@@ -454,15 +457,6 @@ export const SECTIONS = [
         ]
       },
       {
-        title: "Daten aktualisieren (Admin)",
-        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Nur für Administratoren verfügbar.",
-        steps: [
-          { icon: "refreshCw", text: "«Alle Daten aktualisieren» antippen" },
-          { icon: "check", text: "Warten bis Status «Erfolgreich»" },
-          { icon: "database", text: "Cache-Status zeigt Anzahl und Georeferenzierung" }
-        ]
-      },
-      {
         title: "Meine Änderungsanträge",
         body: "Unter «Meine Änderungsanträge» sehen Sie alle Ihre eingereichten Positions-Korrekturen. Jeder Antrag zeigt den Referenz-Code, die aktuelle und vorgeschlagene Position, den Status und eventuelle Admin-Kommentare. Ausstehende Anträge können jederzeit zurückgezogen werden.",
         steps: [
@@ -470,18 +464,6 @@ export const SECTIONS = [
           { icon: "eye", text: "Status sehen: In Prüfung, Genehmigt, Abgelehnt, Zurückgezogen" },
           { icon: "archiveRestore", text: "Ausstehende Anträge können zurückgezogen werden" }
         ]
-      },
-      {
-        title: "Benutzerverwaltung (Admin)",
-        body: "Administratoren sehen in den Einstellungen einen Bereich «Benutzerverwaltung». Darüber können alle angemeldeten Benutzer eingesehen, Passwörter zurückgesetzt, Rollen geändert (Admin/User) und Benutzer gelöscht werden.",
-        steps: [
-          { icon: "settings", text: "Einstellungen -> «Benutzerverwaltung» (nur Admin)" },
-          { icon: "list", text: "Benutzerliste durchsuchen" },
-          { icon: "user", text: "Rolle ändern (Admin/User)" },
-          { icon: "refreshCw", text: "Passwort zurücksetzen" },
-          { icon: "trash2", text: "Benutzer löschen (falls nötig)" }
-        ],
-        warning: "ACHTUNG: Das Löschen eines Benutzers ist unwiderruflich! Alle Daten des Benutzers (QSO-Logs, Einstellungen) gehen verloren. Neue Admins müssen sich einmal ab- und wieder anmelden."
       },
       {
         title: "Konto löschen",
@@ -500,6 +482,7 @@ export const SECTIONS = [
     shortTitle: "Tipps",
     color: [139, 92, 246],
     letter: "T",
+    description: "Praktische Hinweise für den Alltag: Wake-Lock, Formulardaten-Erhaltung, Sonnenmodus für starke Sonneneinstrahlung, Maidenhead-Locator und lokale Speicherung mit Synchronisation.",
     items: [
       {
         title: "Wake-Lock (Bildschirm an)",
@@ -548,6 +531,52 @@ export const SECTIONS = [
         ],
         tip: "Tipp: Ein Cloud-Icon neben der Eintragsanzahl zeigt den Synchronisationsstatus an."
       }
+    ]
+  }
+];
+
+// Checkliste fuer erste Inbetriebnahme
+// mandatory = true: zwingend fuer Grundfunktionen
+// mandatory = false: optional fuer erweiterte Funktionen
+export const SETUP_CHECKLIST = [
+  {
+    category: "Konto & Profil",
+    items: [
+      { text: "Konto erstellen und anmelden", mandatory: true },
+      { text: "Persönliches Rufzeichen im Profil erfassen", mandatory: true },
+      { text: "QRZ.com-Zugangsdaten hinterlegen (für automatische Operator-Abfragen)", mandatory: false }
+    ]
+  },
+  {
+    category: "Karte & Referenzen",
+    items: [
+      { text: "GPS-Berechtigung im Browser erteilen", mandatory: true },
+      { text: "Gewünschte Referenz-Layer aktivieren (SOTA, POTA, etc.)", mandatory: true },
+      { text: "Hintergrundkarte wählen (Strassenkarte, Satellit, SwissTopo)", mandatory: false },
+      { text: "Kartenmassstab festlegen (z.B. 1:25'000 für SOTA)", mandatory: false },
+      { text: "Offline-Karten für Einsatzgebiete herunterladen", mandatory: false },
+      { text: "Offline-Modus aktivieren und Referenzdaten lokal speichern", mandatory: false }
+    ]
+  },
+  {
+    category: "QSO-Logbuch",
+    items: [
+      { text: "Erstes QSO erfassen und speichern", mandatory: true },
+      { text: "Band und Mode korrekt einstellen", mandatory: true },
+      { text: "Eigenen Standort/Referenz erfassen (SOTA, POTA, etc.)", mandatory: true },
+      { text: "Suffix wählen (/P für portable, etc.)", mandatory: false },
+      { text: "Clubstation-Modus einrichten (falls relevant)", mandatory: false },
+      { text: "Statistik-Ansicht testen", mandatory: false },
+      { text: "ADIF-Export testen", mandatory: false }
+    ]
+  },
+  {
+    category: "Datensicherung",
+    items: [
+      { text: "Erstes lokales Backup erstellen (JSON-Datei)", mandatory: true },
+      { text: "Backup-Datei an sicherem Ort aufbewahren", mandatory: true },
+      { text: "WebDAV-Cloud-Backup einrichten", mandatory: false },
+      { text: "Auto-Backup bei jedem QSO aktivieren", mandatory: false }
     ]
   }
 ];
