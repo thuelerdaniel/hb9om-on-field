@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Sett
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
+import BackupSection from "@/components/settings/BackupSection";
 import { DEMO_EMAIL } from "@/lib/constants";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
 import { cacheFromServer, isOfflineReady, getCachedAt } from "@/lib/offlineDataCache";
@@ -610,6 +611,9 @@ export default function Settings() {
             </div>
           )}
         </section>
+
+        {/* Data Backup */}
+        <BackupSection />
 
         {/* Change Requests - available for all users */}
         <section className="bg-white rounded-xl border border-gray-200 p-4">
