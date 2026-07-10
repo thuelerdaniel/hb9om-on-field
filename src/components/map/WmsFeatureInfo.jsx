@@ -29,7 +29,7 @@ const LAYER_GROUPS = {
 };
 
 // Properties to always hide (technical/internal fields)
-const HIDDEN_PROPS = [
+const HIDDEN_PROPS = new Set([
   "shape", "geom", "geometry", "geo_shape", "the_geom", "label", "fid",
   "subareanumber", "objectid", "objekt_id", "id", "uuid", "gid",
   "lon", "lat", "longitude", "latitude", "x", "y", "coord_x", "coord_y",
@@ -38,68 +38,46 @@ const HIDDEN_PROPS = [
   "linkurldescription", "linkurl", "url", "frequencies",
   "kanton", "gemeinde", "datum", "bemerkung", "beschreibung", "description",
   "refobjbln", "subareaname", "teilobjekt", "inventar", "biozone",
-  "bln_fl", "bln_obj", "bln_name", "objekt", "flaeche", "area",
-  "spannungandere", "stromnetztyp"
-];
-
-// Only show these key properties for hazards layer (in this order)
-const HAZARD_PROP_WHITELIST = [
-  "bezeichnung", "name", "eigentuemer", "betreiber", "betreibername",
-  "spannung", "leitungtyp", "typ", "type", "status", "standort",
-  "standortbezeichnung", "sendeleistung", "frequenz", "frequenzbereich",
-  "antennentyp", "antennenhoehe", "azimut", "elevation", "polarisation",
-  "kanal", "bandbreite", "programm", "dienstart", "system", "sektor",
-  "tilt", "gain", "betriebsstatus", "inbetriebnahme", "sendeanlage"
-];
-
-// Only show these key properties for nature zones
-const NATURE_PROP_WHITELIST = ["name", "bln_name", "objekt", "teilobjekt", "typ", "type", "status"];
+  "bln_fl", "bln_obj", "flaeche", "area",
+  "spannungandere", "stromnetztyp",
+  // multi-language suffixes (we only show _de or non-suffixed)
+  "typ_fr", "typ_it", "typ_en", "power_fr", "power_it", "power_en",
+  "techno_fr", "techno_it", "techno_en", "adaptiv_fr", "adaptiv_it", "adaptiv_en",
+  "bewilligung_fr", "bewilligung_it", "bewilligung_en", "agw_fr", "agw_it", "agw_en"
+]);
 
 const PROP_LABELS = {
-  bezeichnung: "Bezeichnung",
-  name: "Name",
-  bln_name: "Name",
-  eigentuemer: "Eigentümer",
-  betreiber: "Betreiber",
-  betreibername: "Betreiber",
-  spannung: "Spannung",
-  voltage: "Spannung",
-  leitungtyp: "Leitungstyp",
-  typ: "Typ",
-  type: "Typ",
-  status: "Status",
-  standort: "Standort",
-  standortbezeichnung: "Standortbezeichnung",
-  sendeleistung: "Sendeleistung",
-  frequenz: "Frequenz",
-  frequenzbereich: "Frequenzbereich",
-  antennentyp: "Antennentyp",
-  antennenhoehe: "Antennenhöhe",
-  azimut: "Azimut",
-  elevation: "Elevation",
-  polarisation: "Polarisation",
-  kanal: "Kanal",
-  bandbreite: "Bandbreite",
-  programm: "Programm",
-  dienstart: "Dienstart",
-  system: "System",
-  sektor: "Sektor",
-  tilt: "Tilt",
-  gain: "Gain",
-  betriebsstatus: "Betriebsstatus",
-  inbetriebnahme: "Inbetriebnahme",
-  sendeanlage: "Sendeanlage",
-  objekt: "Objekt",
-  teilobjekt: "Teilobjekt"
+  bezeichnung: "Bezeichnung", name: "Name", bln_name: "Name",
+  eigentuemer: "Eigentümer", betreiber: "Betreiber", betreibername: "Betreiber",
+  spannung: "Spannung", voltage: "Spannung", leitungtyp: "Leitungstyp",
+  typ: "Typ", typ_de: "Typ", type: "Typ", status: "Status",
+  standort: "Standort", standortbezeichnung: "Standortbezeichnung",
+  sendeleistung: "Sendeleistung", frequenz: "Frequenz", frequenzbereich: "Frequenzbereich",
+  antennentyp: "Antennentyp", antennenhoehe: "Antennenhöhe",
+  azimut: "Azimut", elevation: "Elevation", polarisation: "Polarisation",
+  kanal: "Kanal", bandbreite: "Bandbreite", programm: "Programm",
+  dienstart: "Dienstart", system: "System", sektor: "Sektor",
+  tilt: "Tilt", gain: "Gain", betriebsstatus: "Betriebsstatus",
+  inbetriebnahme: "Inbetriebnahme", sendeanlage: "Sendeanlage",
+  objekt: "Objekt", teilobjekt: "Teilobjekt",
+  // BAKOM Mobilfunkanlagen
+  station: "Station", koord: "Koordinaten (LV95)",
+  power_de: "Leistungsklasse", techno_de: "Technologie",
+  adaptiv_de: "Adaptiver Betrieb", bewilligung_de: "Bewilligung",
+  agw_de: "Anlagegrenzwert"
 };
 
 const MAX_FEATURES_PER_LAYER = 3;
 
 function formatPropName(key) {
   const lower = key.toLowerCase();
-  if (HIDDEN_PROPS.includes(lower)) return null;
+  // Hide technical/internal fields and multi-language variants
+  if (HIDDEN_PROPS.has(lower)) return null;
+  // Hide _fr, _it, _en suffixes (keep _de or non-suffixed)
+  if (/_fr$|_it$|_en$/.test(lower)) return null;
+  // Use label if known, otherwise capitalize the key
   if (PROP_LABELS[lower]) return PROP_LABELS[lower];
-  return null;
+  return key.charAt(0).toUpperCase() + key.slice(1);
 }
 
 function formatPropValue(val) {
