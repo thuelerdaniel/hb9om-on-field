@@ -1,5 +1,5 @@
-import React from "react";
-import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil } from "lucide-react";
+import React, { useState } from "react";
+import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 
 const LAYER_META = {
   sota: { icon: Mountain, color: "#e74c3c", label: "SOTA", program: "Summits on the Air", linkBase: "https://sotl.as/summits/" },
@@ -12,12 +12,12 @@ const LAYER_META = {
   swiss_protected: { icon: Trees, color: "#16a085", label: "BLN/Moor", program: "Bundesinventar", linkBase: "https://map.geo.admin.ch/" }
 };
 
-export default function MarkerPopup({ data, layerType, isAdmin, onEdit }) {
+export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode }) {
+  const [showDetails, setShowDetails] = useState(false);
   const meta = LAYER_META[layerType] || {};
   const Icon = meta.icon || MapPin;
 
   // Build external link based on layer type and data
-  // Specific deep links take priority over generic data.link
   const externalLink = (() => {
     if (layerType === "sota" && data.code) return meta.linkBase + data.code;
     if (layerType === "pota" && (data.reference || data.code)) return meta.linkBase + (data.reference || data.code);
@@ -27,6 +27,40 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit }) {
     if (meta.linkBase) return meta.linkBase;
     return null;
   })();
+
+  // Performance mode: show only essential info, load details on demand
+  if (performanceMode && !showDetails) {
+    return (
+      <div className="min-w-[180px] max-w-[240px]">
+        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: meta.color + '20' }}>
+            <Icon className="w-4 h-4" style={{ color: meta.color }} />
+          </div>
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: meta.color }}>
+              {meta.label}
+            </span>
+          </div>
+        </div>
+
+        <h3 className="font-bold text-sm text-gray-900 mb-1">{data.name || data.reference || data.code}</h3>
+
+        {data.code && <p className="text-xs text-gray-500 mb-1">Referenz: <span className="font-mono font-semibold">{data.code}</span></p>}
+        {data.reference && !data.code && <p className="text-xs text-gray-500 mb-1">Referenz: <span className="font-mono font-semibold">{data.reference}</span></p>}
+
+        <div className="mt-1 mb-2 text-[10px] text-gray-400">
+          {data.lat?.toFixed(5)}, {data.lng?.toFixed(5)}
+        </div>
+
+        <button
+          onClick={() => setShowDetails(true)}
+          className="w-full px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
+        >
+          <ChevronDown className="w-3 h-3" /> Mehr Infos
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-w-[220px] max-w-[300px]">
@@ -96,6 +130,15 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit }) {
           className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
         >
           <Pencil className="w-3 h-3" /> Referenz bearbeiten
+        </button>
+      )}
+
+      {performanceMode && showDetails && (
+        <button
+          onClick={() => setShowDetails(false)}
+          className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1.5"
+        >
+          <ChevronUp className="w-3 h-3" /> Weniger Infos
         </button>
       )}
 

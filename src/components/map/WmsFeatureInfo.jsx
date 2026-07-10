@@ -34,16 +34,23 @@ const HIDDEN_PROPS = [
   "subareanumber", "objectid", "objekt_id", "id", "uuid", "gid",
   "lon", "lat", "longitude", "latitude", "x", "y", "coord_x", "coord_y",
   "ch5a", "ch5b", "ch5c", "importdate", "importguid", "datenherr",
-  "quelle", "source", "revision", "revid", "nr", "no", "code",
+  "quelle", "source", "revision", "revid", "nr", "no",
   "linkurldescription", "linkurl", "url", "frequencies",
   "kanton", "gemeinde", "datum", "bemerkung", "beschreibung", "description",
   "refobjbln", "subareaname", "teilobjekt", "inventar", "biozone",
   "bln_fl", "bln_obj", "bln_name", "objekt", "flaeche", "area",
-  "spannungandere", "stromnetztyp", "frequenz"
+  "spannungandere", "stromnetztyp"
 ];
 
 // Only show these key properties for hazards layer (in this order)
-const HAZARD_PROP_WHITELIST = ["bezeichnung", "name", "eigentuemer", "betreiber", "spannung", "leitungtyp", "typ", "type", "status", "betreibername", "standort", "sendeleistung", "frequenzbereich", "antennentyp", "betriebsstatus", "inbetriebnahme"];
+const HAZARD_PROP_WHITELIST = [
+  "bezeichnung", "name", "eigentuemer", "betreiber", "betreibername",
+  "spannung", "leitungtyp", "typ", "type", "status", "standort",
+  "standortbezeichnung", "sendeleistung", "frequenz", "frequenzbereich",
+  "antennentyp", "antennenhoehe", "azimut", "elevation", "polarisation",
+  "kanal", "bandbreite", "programm", "dienstart", "system", "sektor",
+  "tilt", "gain", "betriebsstatus", "inbetriebnahme", "sendeanlage"
+];
 
 // Only show these key properties for nature zones
 const NATURE_PROP_WHITELIST = ["name", "bln_name", "objekt", "teilobjekt", "typ", "type", "status"];
@@ -62,11 +69,26 @@ const PROP_LABELS = {
   type: "Typ",
   status: "Status",
   standort: "Standort",
+  standortbezeichnung: "Standortbezeichnung",
   sendeleistung: "Sendeleistung",
+  frequenz: "Frequenz",
   frequenzbereich: "Frequenzbereich",
   antennentyp: "Antennentyp",
+  antennenhoehe: "Antennenhöhe",
+  azimut: "Azimut",
+  elevation: "Elevation",
+  polarisation: "Polarisation",
+  kanal: "Kanal",
+  bandbreite: "Bandbreite",
+  programm: "Programm",
+  dienstart: "Dienstart",
+  system: "System",
+  sektor: "Sektor",
+  tilt: "Tilt",
+  gain: "Gain",
   betriebsstatus: "Betriebsstatus",
   inbetriebnahme: "Inbetriebnahme",
+  sendeanlage: "Sendeanlage",
   objekt: "Objekt",
   teilobjekt: "Teilobjekt"
 };
@@ -77,7 +99,7 @@ function formatPropName(key) {
   const lower = key.toLowerCase();
   if (HIDDEN_PROPS.includes(lower)) return null;
   if (PROP_LABELS[lower]) return PROP_LABELS[lower];
-  return null; // Hide any property not in our label map
+  return null;
 }
 
 function formatPropValue(val) {
@@ -114,7 +136,15 @@ function deduplicateResults(results) {
   });
 }
 
-function buildPopupHtml(results, layerLookup) {
+function buildMapAdminUrl(lat, lng, zoom, layerIds) {
+  const base = "https://map.geo.admin.ch/?lang=de";
+  const center = `&center=${lng.toFixed(6)},${lat.toFixed(6)}`;
+  const z = `&z=${Math.round(zoom)}`;
+  const layers = layerIds.length > 0 ? `&layers=${layerIds.join(",")}` : "";
+  return `${base}${center}${z}&bgLayer=ch.swisstopo.pixelkarte-farbe${layers}`;
+}
+
+function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
   const byLayer = {};
   results.forEach(r => {
     const layerInfo = layerLookup[r.layerBodId];
@@ -123,7 +153,9 @@ function buildPopupHtml(results, layerLookup) {
     byLayer[r.layerBodId].features.push(r);
   });
 
-  const sections = Object.values(byLayer).map(({ info, features }) => {
+  const allLayerIds = Object.keys(byLayer);
+
+  const sections = Object.entries(byLayer).map(([layerBodId, { info, features }]) => {
     const limited = features.slice(0, MAX_FEATURES_PER_LAYER);
     const remaining = features.length - limited.length;
 
@@ -137,7 +169,7 @@ function buildPopupHtml(results, layerLookup) {
         ? propEntries.map(([label, val]) =>
             `<div style="font-size:12px;color:#4b5563;line-height:1.4;"><span style="font-weight:600;color:#374151;">${escapeHtml(label)}:</span> ${escapeHtml(formatPropValue(val))}</div>`
           ).join("")
-        : '<div style="font-size:12px;color:#9ca3af;">Keine Detaildaten verfügbar</div>';
+        : "";
       const linkHtml = linkUrl
         ? `<div style="margin-top:4px;"><a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">📄 Datenblatt →</a></div>`
         : "";
@@ -148,11 +180,16 @@ function buildPopupHtml(results, layerLookup) {
       ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">+ ${remaining} weitere(s) Objekt(e)</div>`
       : "";
 
+    const layerMapAdminUrl = buildMapAdminUrl(clickLat, clickLng, zoom, [layerBodId]);
+    const mapAdminLink = `<div style="margin-top:4px;"><a href="${escapeHtml(layerMapAdminUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">🗺️ In map.geo.admin.ch öffnen →</a></div>`;
+
     return `<div style="margin-bottom:8px;">
       <div style="font-weight:600;font-size:12px;margin-bottom:3px;color:${info.groupColor};">${info.icon} ${escapeHtml(info.name)}</div>
-      ${featureHtml}${moreHtml}
+      ${featureHtml}${moreHtml}${mapAdminLink}
     </div>`;
   }).join("");
+
+  const bottomMapAdminUrl = buildMapAdminUrl(clickLat, clickLng, zoom, allLayerIds);
 
   return `<div style="min-width:200px;max-width:280px;">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f3f4f6;">
@@ -161,7 +198,7 @@ function buildPopupHtml(results, layerLookup) {
     </div>
     ${sections}
     <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f3f4f6;">
-      <a href="https://map.geo.admin.ch/?lang=de" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">In map.geo.admin.ch öffnen →</a>
+      <a href="${escapeHtml(bottomMapAdminUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">Alle Layer in map.geo.admin.ch öffnen →</a>
     </div>
   </div>`;
 }
@@ -182,7 +219,7 @@ async function identifyLayer(layerId, lat, lng, mapExtent, imageSize) {
   return data.results || [];
 }
 
-export default function WmsFeatureInfo({ activeLayers, clickMode }) {
+export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMode }) {
   const map = useMapEvents({
     click: async (e) => {
       if (clickMode) return;
@@ -201,9 +238,20 @@ export default function WmsFeatureInfo({ activeLayers, clickMode }) {
         });
       });
 
+      // In performance mode: only query the most important layers (skip Mobilfunk/Richtfunk details)
+      let queryLayerIds = layerIds;
+      if (performanceMode) {
+        queryLayerIds = layerIds.filter(id =>
+          id === "ch.bfe.elektrische-anlagen_ueber_36" ||
+          id === "ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb"
+        );
+        if (queryLayerIds.length === 0) queryLayerIds = layerIds;
+      }
+
       const { lat, lng } = e.latlng;
       const bounds = map.getBounds();
       const size = map.getSize();
+      const zoom = map.getZoom();
       const mapExtent = `${bounds.getWest().toFixed(6)},${bounds.getSouth().toFixed(6)},${bounds.getEast().toFixed(6)},${bounds.getNorth().toFixed(6)}`;
 
       const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
@@ -214,7 +262,7 @@ export default function WmsFeatureInfo({ activeLayers, clickMode }) {
         .openOn(map);
 
       try {
-        const promises = layerIds.map(id => identifyLayer(id, lat, lng, mapExtent, size));
+        const promises = queryLayerIds.map(id => identifyLayer(id, lat, lng, mapExtent, size));
         const layerResults = await Promise.all(promises);
         const allResults = layerResults.flat();
         const results = deduplicateResults(allResults);
@@ -224,7 +272,7 @@ export default function WmsFeatureInfo({ activeLayers, clickMode }) {
           return;
         }
 
-        popup.setContent(buildPopupHtml(results, layerLookup));
+        popup.setContent(buildPopupHtml(results, layerLookup, lat, lng, zoom));
       } catch (err) {
         popup.setContent(
           '<div style="font-size:12px;color:#ef4444;padding:4px;">Fehler: ' +

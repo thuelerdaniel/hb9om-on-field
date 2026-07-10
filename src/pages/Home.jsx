@@ -831,7 +831,7 @@ export default function Home() {
             </>
           )}
 
-          <WmsFeatureInfo activeLayers={activeLayers} clickMode={pickingPosition} />
+          <WmsFeatureInfo activeLayers={activeLayers} clickMode={pickingPosition} performanceMode={performanceMode} />
 
           <MapMarkers
             markers={allMarkers}

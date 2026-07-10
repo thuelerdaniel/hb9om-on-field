@@ -104,29 +104,29 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
               }}
             >
               <Popup>
-                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} />
+                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} />
               </Popup>
-            </CircleMarker>
-          );
-        })}
-      </>
-    );
-  }
+              </CircleMarker>
+              );
+              })}
+              </>
+              );
+              }
 
-  // Normal mode: SVG divIcon markers with shapes (original symbols)
-  return (
-    <>
-      {visibleMarkers.map((m, idx) => {
-        const key = `${m.layerType}-${m.code || m.reference || idx}`;
-        return (
-          <Marker
-            key={key}
-            position={[m.lat, m.lng]}
-            icon={getShapeIcon(m.layerType, m.color)}
-          >
-            <Popup>
-              <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} />
-            </Popup>
+              // Normal mode: SVG divIcon markers with shapes (original symbols)
+              return (
+              <>
+              {visibleMarkers.map((m, idx) => {
+              const key = `${m.layerType}-${m.code || m.reference || idx}`;
+              return (
+              <Marker
+              key={key}
+              position={[m.lat, m.lng]}
+              icon={getShapeIcon(m.layerType, m.color)}
+              >
+              <Popup>
+                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} />
+              </Popup>
           </Marker>
         );
       })}
