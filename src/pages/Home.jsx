@@ -259,6 +259,7 @@ export default function Home() {
   const [castleData, setCastleData] = useState([]);
   const [cacheLoaded, setCacheLoaded] = useState(false);
   const [serverCacheLoaded, setServerCacheLoaded] = useState(false);
+  const [serverCacheLoading, setServerCacheLoading] = useState(false);
 
   // Check admin status
   useEffect(() => {
@@ -357,6 +358,7 @@ export default function Home() {
     // Step 3: Fetch from server in background (non-blocking, updates markers when ready)
     // CRITICAL: Only overwrite state if server data is non-empty — otherwise local cache
     // data that's already displayed would be wiped, causing markers to appear then vanish.
+    setServerCacheLoading(true);
     base44.entities.ReferenceData.list()
       .then(cached => {
         if (!cached) return;
@@ -386,7 +388,7 @@ export default function Home() {
           }).catch(() => {});
         }
       })
-      .finally(() => setServerCacheLoaded(true));
+      .finally(() => { setServerCacheLoaded(true); setServerCacheLoading(false); });
   }, []);
 
   // Dismiss splash after minimum 3s AND server cache loaded — uses the time to fetch data in background
@@ -690,7 +692,7 @@ export default function Home() {
   const positionFixed = positionMode === "fixed";
 
   const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0;
-  const isLoading = Object.values(loading).some(v => v) || (!serverCacheLoaded && !isOffline && !hasAnyData);
+  const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline && !hasAnyData);
 
   const SWISSTOPO_SCALE_LAYERS = {
     10000: { layer: "ch.swisstopo.landeskarte-farbe-10", format: "png" },

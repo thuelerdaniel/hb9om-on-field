@@ -500,10 +500,10 @@ export const SECTIONS = [
     items: [
       {
         title: "Ladeanzeige bei vielen Daten",
-        body: "Wenn die App viele Referenzdaten laden muss (z.B. beim ersten Start oder bei vielen aktivierten Layern), erscheint oben ein Lade-Indikator. Wenn das Laden länger als 3 Sekunden dauert, wird ein kleines Handfunkgerät mit aussendenden Funkwellen angezeigt. Es weist darauf hin, dass viele Daten geladen werden und etwas Geduld nötig ist. Zusätzlich werden Tipps eingeblendet: Kartenausschnitt verkleinern, weniger Layer aktivieren oder den Performance-Modus in den Einstellungen einschalten.",
+        body: "Wenn die App viele Referenzdaten laden muss (z.B. beim ersten Start oder bei vielen aktivierten Layern), erscheint oben ein Lade-Indikator. Wenn das Laden länger als 1,5 Sekunden dauert, wird ein kleines Handfunkgerät mit aussendenden Funkwellen angezeigt. Es weist darauf hin, dass viele Daten geladen werden und etwas Geduld nötig ist. Zusätzlich werden Tipps eingeblendet: Kartenausschnitt verkleinern, weniger Layer aktivieren oder den Performance-Modus in den Einstellungen einschalten. Der Lade-Indikator erscheint auch während dem Splash-Screen, falls das Laden der Referenzdaten länger dauert.",
         steps: [
           { icon: "zap", text: "Viele Layer aktiviert + langsames Internet" },
-          { icon: "clock", text: "Nach 3s erscheint das Handfunkgerät mit Wellen" },
+          { icon: "clock", text: "Nach 1,5s erscheint das Handfunkgerät mit Wellen" },
           { icon: "mapPin", text: "Tipp: Kartenausschnitt verkleinern" },
           { icon: "layers", text: "Tipp: Weniger Layer aktivieren" },
           { icon: "settings", text: "Tipp: Performance-Modus in den Einstellungen" }

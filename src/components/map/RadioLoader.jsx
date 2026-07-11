@@ -38,7 +38,7 @@ export default function RadioLoader({ isLoading }) {
       setShowTips(false);
       return;
     }
-    const timer = setTimeout(() => setShowTips(true), 3000);
+    const timer = setTimeout(() => setShowTips(true), 1500);
     return () => clearTimeout(timer);
   }, [isLoading]);
 
@@ -46,15 +46,15 @@ export default function RadioLoader({ isLoading }) {
 
   return (
     <>
-      {/* Compact spinner — always visible while loading */}
-      <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1001] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
+      {/* Compact spinner — always visible while loading (above splash z-10000) */}
+      <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
         <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
         <span className="text-sm text-gray-600">Daten werden geladen…</span>
       </div>
 
       {/* Extended tips panel — appears after 3s */}
       {showTips && (
-        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[1001] bg-white rounded-2xl shadow-xl border border-gray-200 p-5 max-w-sm w-[90vw]">
+        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-2xl shadow-xl border border-gray-200 p-5 max-w-sm w-[90vw]">
           <div className="flex justify-center mb-3">
             <RadioWaves />
           </div>
