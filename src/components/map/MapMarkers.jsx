@@ -1,8 +1,13 @@
-import React, { memo, useState } from "react";
+import React, { memo, useState, useRef, useEffect, useCallback } from "react";
 import { Marker, Popup, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
+
+// Above this count, automatically switch to lightweight CircleMarker (canvas) to prevent browser freeze
+const CANVAS_THRESHOLD = 600;
+// Hard cap on markers rendered at once — prevents "page not responding" on extreme loads
+const MAX_RENDER_MARKERS = 2000;
 
 // Cache divIcons per (layerType, color) — creating L.divIcon for every marker is extremely expensive
 const iconCache = new Map();
@@ -45,14 +50,23 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
+  const debounceRef = useRef(null);
+
+  // Debounced viewport update — prevents filter+re-render storm during pan/zoom
+  const updateBounds = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setBounds(map.getBounds());
+      setZoom(map.getZoom());
+    }, 150);
+  }, [map]);
 
   useMapEvents({
-    zoomend: () => {
-      setZoom(map.getZoom());
-      setBounds(map.getBounds());
-    },
-    moveend: () => setBounds(map.getBounds()),
+    zoomend: updateBounds,
+    moveend: updateBounds,
   });
+
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   // Viewport culling: only render markers within current bounds + 30% buffer
   const paddedBounds = bounds.pad(0.3);
@@ -60,11 +74,18 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
     m.lat != null && m.lng != null && paddedBounds.contains([m.lat, m.lng])
   );
 
+  // Auto-canvas: too many markers → switch to lightweight CircleMarker (canvas) to prevent freeze
+  const useCanvasMode = performanceMode || (!dragMode && visibleMarkers.length > CANVAS_THRESHOLD);
+  // Hard cap: never render more than MAX_RENDER_MARKERS (takes first N within viewport)
+  const cappedMarkers = visibleMarkers.length > MAX_RENDER_MARKERS
+    ? visibleMarkers.slice(0, MAX_RENDER_MARKERS)
+    : visibleMarkers;
+
   // Drag mode: always use draggable markers
   if (dragMode) {
     return (
       <>
-        {visibleMarkers.map((m, idx) => {
+        {cappedMarkers.map((m, idx) => {
           const key = `${m.layerType}-${m.code || m.reference || idx}`;
           return (
             <Marker
@@ -85,11 +106,11 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
     );
   }
 
-  // Performance mode: simple colored dots (Canvas) — for slow devices/connections
-  if (performanceMode) {
+  // Canvas mode (performance mode OR auto-switch when too many markers): lightweight CircleMarkers on canvas
+  if (useCanvasMode) {
     return (
       <>
-        {visibleMarkers.map((m, idx) => {
+        {cappedMarkers.map((m, idx) => {
           const key = `${m.layerType}-${m.code || m.reference || idx}`;
           return (
             <CircleMarker
@@ -106,33 +127,33 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
               <Popup>
                 <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} />
               </Popup>
-              </CircleMarker>
-              );
-              })}
-              </>
-              );
-              }
+            </CircleMarker>
+          );
+        })}
+      </>
+    );
+  }
 
-              // Normal mode: SVG divIcon markers with shapes (original symbols)
-              return (
-              <>
-              {visibleMarkers.map((m, idx) => {
-              const key = `${m.layerType}-${m.code || m.reference || idx}`;
-              return (
-              <Marker
-              key={key}
-              position={[m.lat, m.lng]}
-              icon={getShapeIcon(m.layerType, m.color)}
-              >
-              <Popup>
-                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} />
-              </Popup>
+  // Normal mode: SVG divIcon markers with shapes (original symbols)
+  return (
+    <>
+      {cappedMarkers.map((m, idx) => {
+        const key = `${m.layerType}-${m.code || m.reference || idx}`;
+        return (
+          <Marker
+            key={key}
+            position={[m.lat, m.lng]}
+            icon={getShapeIcon(m.layerType, m.color)}
+          >
+            <Popup>
+              <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} />
+            </Popup>
           </Marker>
         );
       })}
     </>
   );
-}
+  }
 
 function arePropsEqual(prev, next) {
   return (

@@ -474,6 +474,10 @@ export default function Home() {
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
 
+  const handleEdit = useCallback((data, layerType) => {
+    setEditTarget({ data, layerType });
+  }, []);
+
   const toggleLayer = useCallback((layerId) => {
     setActiveLayers(prev => {
       const next = prev.includes(layerId) ? prev.filter(l => l !== layerId) : [...prev, layerId];
@@ -872,7 +876,7 @@ export default function Home() {
             dragMode={dragMode}
             isAdmin={isAdmin}
             onMarkerDrag={handleMarkerDrag}
-            onEdit={(data, layerType) => setEditTarget({ data, layerType })}
+            onEdit={handleEdit}
             performanceMode={performanceMode}
           />
 
