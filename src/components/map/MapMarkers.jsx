@@ -46,11 +46,12 @@ function getDraggableIcon(color) {
   return icon;
 }
 
-function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode }) {
+function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, onAutoCanvas }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
   const debounceRef = useRef(null);
+  const autoCanvasNotified = useRef(false);
 
   // Debounced viewport update — prevents filter+re-render storm during pan/zoom
   const updateBounds = useCallback(() => {
@@ -75,7 +76,19 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   );
 
   // Auto-canvas: too many markers → switch to lightweight CircleMarker (canvas) to prevent freeze
-  const useCanvasMode = performanceMode || (!dragMode && visibleMarkers.length > CANVAS_THRESHOLD);
+  const isAutoCanvas = !performanceMode && !dragMode && visibleMarkers.length > CANVAS_THRESHOLD;
+  const useCanvasMode = performanceMode || isAutoCanvas;
+
+  // Notify parent once when auto-canvas activates (not when user manually enabled performance mode)
+  useEffect(() => {
+    if (isAutoCanvas && !autoCanvasNotified.current && onAutoCanvas) {
+      autoCanvasNotified.current = true;
+      onAutoCanvas();
+    }
+    if (!isAutoCanvas) {
+      autoCanvasNotified.current = false;
+    }
+  }, [isAutoCanvas, onAutoCanvas]);
   // Hard cap: never render more than MAX_RENDER_MARKERS (takes first N within viewport)
   const cappedMarkers = visibleMarkers.length > MAX_RENDER_MARKERS
     ? visibleMarkers.slice(0, MAX_RENDER_MARKERS)

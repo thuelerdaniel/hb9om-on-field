@@ -474,6 +474,14 @@ export default function Home() {
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
 
+  const handleAutoCanvas = useCallback(() => {
+    toast({
+      title: "Performance-Modus automatisch aktiviert",
+      description: "Viele Punkte werden geladen — zur Darstellung wurde auf vereinfachte Marker umgeschaltet. Siehe Hilfe für mehr Infos und Anpassungen.",
+      duration: 6000,
+    });
+  }, [toast]);
+
   const handleEdit = useCallback((data, layerType) => {
     setEditTarget({ data, layerType });
   }, []);
@@ -878,6 +886,7 @@ export default function Home() {
             onMarkerDrag={handleMarkerDrag}
             onEdit={handleEdit}
             performanceMode={performanceMode}
+            onAutoCanvas={handleAutoCanvas}
           />
 
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}
