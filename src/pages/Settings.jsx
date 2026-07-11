@@ -57,6 +57,7 @@ export default function Settings() {
   const [offlineCachedAt, setOfflineCachedAt] = useState(() => getCachedAt());
   const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
   const [adminPendingRequests, setAdminPendingRequests] = useState(0);
+  const [adminPendingFeatureRequests, setAdminPendingFeatureRequests] = useState(0);
   const [demoSetupResult, setDemoSetupResult] = useState(null);
   const [demoOtpCode, setDemoOtpCode] = useState("");
   const [demoVerifying, setDemoVerifying] = useState(false);
@@ -99,10 +100,15 @@ export default function Settings() {
         .then(res => {
           if (res) {
             const [reqRes, me] = res;
-            const myId = me?.id;
-            const pending = (reqRes?.data?.requests || []).filter(r => r.status === "pending" && r.created_by_id !== myId).length;
+            const pending = (reqRes?.data?.requests || []).filter(r => r.status === "pending").length;
             setAdminPendingRequests(pending);
+            // Also load pending feature requests count
+            return base44.functions.invoke("manageFeatureRequests", { action: "countPending" });
           }
+          return null;
+        })
+        .then(res => {
+          if (res) setAdminPendingFeatureRequests(res.data?.count || 0);
         })
         .catch(() => {});
       if (settingsData && settingsData.length > 0) {
@@ -1071,20 +1077,30 @@ export default function Settings() {
         )}
         {/* Admin: Feature Requests Review */}
         {isAdmin && (
-         <section className="bg-white rounded-xl border-2 border-purple-200 p-4">
+         <section className="bg-purple-50 rounded-xl border-2 border-purple-300 p-4">
            <div className="flex items-center justify-between">
              <div>
                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
                  <Lightbulb className="w-4 h-4 text-purple-600" /> Funktionsvorschläge prüfen
                </h3>
-               <p className="text-xs text-gray-500 mt-0.5">Benutzer eingereichte Vorschläge prüfen und beantworten</p>
+               <p className="text-xs text-gray-600 mt-0.5">Benutzer eingereichte Vorschläge prüfen und beantworten</p>
+               {adminPendingFeatureRequests > 0 && (
+                 <p className="text-xs text-purple-700 mt-1 font-medium flex items-center gap-1">
+                   <Clock className="w-3 h-3" /> {adminPendingFeatureRequests} Vorschlag{adminPendingFeatureRequests !== 1 ? 'äge' : ''} wartet{adminPendingFeatureRequests !== 1 ? 'en' : ''} auf Prüfung
+                 </p>
+               )}
              </div>
              <Link
                to="/admin/feature-requests"
-               className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2"
+               className="relative px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2"
              >
                <Lightbulb className="w-4 h-4" />
                Prüfen
+               {adminPendingFeatureRequests > 0 && (
+                 <span className="absolute -top-2 -right-2 min-w-[20px] h-[20px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                   {adminPendingFeatureRequests}
+                 </span>
+               )}
              </Link>
            </div>
          </section>
