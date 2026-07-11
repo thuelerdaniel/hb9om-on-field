@@ -15,7 +15,7 @@ import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
 import RadioLoader from "@/components/map/RadioLoader";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
-import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList } from "lucide-react";
+import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList, Zap, HelpCircle, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
 import ReferenceEditDialog from "@/components/admin/ReferenceEditDialog";
@@ -474,13 +474,11 @@ export default function Home() {
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
 
+  const [showAutoCanvasBanner, setShowAutoCanvasBanner] = useState(false);
+
   const handleAutoCanvas = useCallback(() => {
-    toast({
-      title: "Performance-Modus automatisch aktiviert",
-      description: "Viele Punkte werden geladen — zur Darstellung wurde auf vereinfachte Marker umgeschaltet. Siehe Hilfe für mehr Infos und Anpassungen.",
-      duration: 999999999,
-    });
-  }, [toast]);
+    setShowAutoCanvasBanner(true);
+  }, []);
 
   const handleEdit = useCallback((data, layerType) => {
     setEditTarget({ data, layerType });
@@ -765,6 +763,32 @@ export default function Home() {
       )}
 
       <RadioLoader isLoading={isLoading} />
+
+      {showAutoCanvasBanner && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10003] bg-white rounded-xl shadow-2xl border border-amber-300 p-4 max-w-sm w-[90vw]">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Zap className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-gray-900">Performance-Modus automatisch aktiviert</h3>
+              <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                Viele Punkte werden geladen — zur Darstellung wurde auf vereinfachte Marker umgeschaltet. Siehe Hilfe für mehr Infos und Anpassungen.
+              </p>
+              <Link to="/help" className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline mt-2">
+                <HelpCircle className="w-3 h-3" /> Hilfe öffnen
+              </Link>
+            </div>
+            <button
+              onClick={() => setShowAutoCanvasBanner(false)}
+              className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 transition-colors"
+              title="Schliessen"
+            >
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 mt-[52px] relative">
         <MapContainer
