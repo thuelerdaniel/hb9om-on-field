@@ -710,28 +710,34 @@ export default function Home() {
   const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline);
 
   const [showPerfSuggestion, setShowPerfSuggestion] = useState(false);
+  const perfTimerRef = useRef(null);
 
   // Time-based auto-canvas: if loading takes longer than 3 seconds, switch to canvas mode
   // and show a suggestion popup (first time per login session, unless dismissed)
   useEffect(() => {
-    if (!isLoading) {
-      setAutoCanvasActive(false);
-      return;
-    }
     if (autoModeOverride) return; // User has disabled auto-canvas
     const alreadyShown = sessionStorage.getItem("hb9om_auto_canvas_shown") === "true";
     if (alreadyShown) return;
-    const timer = setTimeout(() => {
-      // Still loading after 3s → activate auto-canvas (safety) and show suggestion
-      setAutoCanvasActive(true);
-      sessionStorage.setItem("hb9om_auto_canvas_shown", "true");
-      // Only show suggestion popup if user hasn't permanently dismissed it
-      if (localStorage.getItem("hb9om_perf_suggestion_dismissed") !== "true") {
-        setShowPerfSuggestion(true);
-      }
-    }, 3000);
-    return () => clearTimeout(timer);
+    // Start timer once when loading begins — don't reset on isLoading flicker
+    if (isLoading && !perfTimerRef.current) {
+      perfTimerRef.current = setTimeout(() => {
+        setAutoCanvasActive(true);
+        sessionStorage.setItem("hb9om_auto_canvas_shown", "true");
+        if (localStorage.getItem("hb9om_perf_suggestion_dismissed") !== "true") {
+          setShowPerfSuggestion(true);
+        }
+        perfTimerRef.current = null;
+      }, 3000);
+    }
+    // NOTE: autoCanvasActive is NOT reset when loading finishes — switching back to SVG
+    // markers causes a heavy re-render that freezes the browser while the popup is visible.
+    // Once activated, canvas mode stays for the session; user can toggle in Settings.
   }, [isLoading, autoModeOverride]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => { if (perfTimerRef.current) clearTimeout(perfTimerRef.current); };
+  }, []);
 
   const handleActivatePerformanceMode = useCallback(() => {
     setPerformanceMode(true);
