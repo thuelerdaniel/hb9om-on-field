@@ -355,19 +355,24 @@ export default function Home() {
     }
 
     // Step 3: Fetch from server in background (non-blocking, updates markers when ready)
+    // CRITICAL: Only overwrite state if server data is non-empty — otherwise local cache
+    // data that's already displayed would be wiped, causing markers to appear then vanish.
     base44.entities.ReferenceData.list()
       .then(cached => {
         if (!cached) return;
-        const data = { sota: [], pota: [], hbff: [], wwbota: [], castle: [] };
+        const data = {};
         cached.forEach(entry => {
-          if (!entry.references) return;
+          if (!entry.references || entry.references.length === 0) return;
           if (entry.type === 'sota') { setSotaData(entry.references); data.sota = entry.references; }
           if (entry.type === 'pota') { setPotaData(entry.references); data.pota = entry.references; }
           if (entry.type === 'hbff') { setHbffData(entry.references); data.hbff = entry.references; }
           if (entry.type === 'wwbota') { setWwbotaData(entry.references); data.wwbota = entry.references; }
           if (entry.type === 'castle') { setCastleData(entry.references); data.castle = entry.references; }
         });
-        cacheReferenceData(data);
+        // Only update the local cache with types that actually had data from server
+        if (Object.keys(data).length > 0) {
+          cacheReferenceData({ sota: data.sota || sotaData, pota: data.pota || potaData, hbff: data.hbff || hbffData, wwbota: data.wwbota || wwbotaData, castle: data.castle || castleData });
+        }
       })
       .catch(() => {
         // Server failed but local cache already loaded above — try offline areas as last resort
@@ -414,7 +419,7 @@ export default function Home() {
     setLoading(prev => ({ ...prev, sota: true }));
     base44.functions.invoke("fetchSOTA", { region: "HB" })
       .then(res => {
-        if (res.data?.summits) setSotaData(res.data.summits);
+        if (res.data?.summits?.length > 0) setSotaData(res.data.summits);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, sota: false })));
@@ -426,7 +431,7 @@ export default function Home() {
     setLoading(prev => ({ ...prev, pota: true }));
     base44.functions.invoke("fetchPOTA", {})
       .then(res => {
-        if (res.data?.parks) setPotaData(res.data.parks);
+        if (res.data?.parks?.length > 0) setPotaData(res.data.parks);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, pota: false })));
@@ -437,7 +442,7 @@ export default function Home() {
     if (!serverCacheLoaded || !activeLayers.includes("hbff") || hbffData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, hbff: true }));
     base44.functions.invoke("fetchHBFF", { batchSize: 500, batchStart: 0 })
-      .then(res => { if (res.data?.references) setHbffData(res.data.references); })
+      .then(res => { if (res.data?.references?.length > 0) setHbffData(res.data.references); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, hbff: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
@@ -447,7 +452,7 @@ export default function Home() {
     if (!serverCacheLoaded || !activeLayers.includes("wwbota") || wwbotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, wwbota: true }));
     base44.functions.invoke("fetchWWBOTA", {})
-      .then(res => { if (res.data?.bunkers) setWwbotaData(res.data.bunkers); })
+      .then(res => { if (res.data?.bunkers?.length > 0) setWwbotaData(res.data.bunkers); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, wwbota: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
@@ -457,7 +462,7 @@ export default function Home() {
     if (!serverCacheLoaded || !activeLayers.includes("castle") || castleData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, castle: true }));
     base44.functions.invoke("fetchCastles", {})
-      .then(res => { if (res.data?.castles) setCastleData(res.data.castles); })
+      .then(res => { if (res.data?.castles?.length > 0) setCastleData(res.data.castles); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
