@@ -183,6 +183,7 @@ export default function Home() {
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
   const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("hb9om_performance_mode") === "true");
   const [autoModeOverride, setAutoModeOverride] = useState(() => localStorage.getItem("hb9om_auto_mode_override") === "true");
+  const [autoCanvasActive, setAutoCanvasActive] = useState(false);
   const isOffline = !isOnline || forceOffline;
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
@@ -477,9 +478,24 @@ export default function Home() {
 
   const [showAutoCanvasBanner, setShowAutoCanvasBanner] = useState(false);
 
-  const handleAutoCanvas = useCallback(() => {
-    setShowAutoCanvasBanner(true);
-  }, []);
+  // Time-based auto-canvas: if loading takes longer than 3 seconds, switch to canvas mode
+  // Only triggers once per session and only if user hasn't enabled "Auto-Modus überschreiben"
+  useEffect(() => {
+    if (!isLoading) {
+      setAutoCanvasActive(false);
+      return;
+    }
+    if (autoModeOverride) return; // User has disabled auto-canvas
+    const alreadyShown = sessionStorage.getItem("hb9om_auto_canvas_shown") === "true";
+    if (alreadyShown) return;
+    const timer = setTimeout(() => {
+      // Still loading after 3s → activate auto-canvas and show banner
+      setAutoCanvasActive(true);
+      sessionStorage.setItem("hb9om_auto_canvas_shown", "true");
+      setShowAutoCanvasBanner(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isLoading, autoModeOverride]);
 
   const handleEdit = useCallback((data, layerType) => {
     setEditTarget({ data, layerType });
@@ -916,8 +932,7 @@ export default function Home() {
             onMarkerDrag={handleMarkerDrag}
             onEdit={handleEdit}
             performanceMode={performanceMode}
-            autoModeOverride={autoModeOverride}
-            onAutoCanvas={handleAutoCanvas}
+            autoCanvasActive={autoCanvasActive}
           />
 
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}

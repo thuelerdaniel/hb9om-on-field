@@ -4,8 +4,6 @@ import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
-// Above this count, automatically switch to lightweight CircleMarker (canvas) to prevent browser freeze
-const CANVAS_THRESHOLD = 1500;
 // Hard cap on markers rendered at once — prevents "page not responding" on extreme loads
 const MAX_RENDER_MARKERS = 2000;
 
@@ -46,12 +44,11 @@ function getDraggableIcon(color) {
   return icon;
 }
 
-function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoModeOverride, onAutoCanvas }) {
+function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
   const debounceRef = useRef(null);
-  const autoCanvasNotified = useRef(false);
 
   // Debounced viewport update — prevents filter+re-render storm during pan/zoom
   const updateBounds = useCallback(() => {
@@ -75,25 +72,9 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
     m.lat != null && m.lng != null && paddedBounds.contains([m.lat, m.lng])
   );
 
-  // Auto-canvas: too many markers → switch to lightweight CircleMarker (canvas) to prevent freeze
-  const isAutoCanvas = !performanceMode && !autoModeOverride && !dragMode && visibleMarkers.length > CANVAS_THRESHOLD;
-  const useCanvasMode = performanceMode || isAutoCanvas;
+  // Canvas mode: performance mode OR auto-canvas (time-based, triggered by parent)
+  const useCanvasMode = performanceMode || autoCanvasActive;
 
-  // Notify parent once per session when auto-canvas activates (not when user manually enabled performance mode)
-  useEffect(() => {
-    if (isAutoCanvas && !autoCanvasNotified.current && onAutoCanvas) {
-      // Only show the banner once per browser session — prevents re-triggering on pan/zoom
-      const alreadyShown = sessionStorage.getItem("hb9om_auto_canvas_shown") === "true";
-      if (!alreadyShown) {
-        autoCanvasNotified.current = true;
-        sessionStorage.setItem("hb9om_auto_canvas_shown", "true");
-        onAutoCanvas();
-      }
-    }
-    if (!isAutoCanvas) {
-      autoCanvasNotified.current = false;
-    }
-  }, [isAutoCanvas, onAutoCanvas]);
   // Hard cap: never render more than MAX_RENDER_MARKERS (takes first N within viewport)
   const cappedMarkers = visibleMarkers.length > MAX_RENDER_MARKERS
     ? visibleMarkers.slice(0, MAX_RENDER_MARKERS)
@@ -181,7 +162,7 @@ function arePropsEqual(prev, next) {
     prev.onMarkerDrag === next.onMarkerDrag &&
     prev.onEdit === next.onEdit &&
     prev.performanceMode === next.performanceMode &&
-    prev.autoModeOverride === next.autoModeOverride
+    prev.autoCanvasActive === next.autoCanvasActive
   );
 }
 
