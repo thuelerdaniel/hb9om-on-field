@@ -307,7 +307,7 @@ export default function Home() {
         if (isAdmin) {
           // Admin: fetch ALL pending requests via backend function (bypasses RLS)
           const res = await base44.functions.invoke("manageChangeRequests", { action: "listAll" });
-          const pending = (res.data?.requests || []).filter(r => r.status === "pending" && r.created_by_id !== currentUserId).length;
+          const pending = (res.data?.requests || []).filter(r => r.status === "pending").length;
           setPendingRequestCount(pending);
         } else {
           // Regular user: only own requests (RLS-scoped)
