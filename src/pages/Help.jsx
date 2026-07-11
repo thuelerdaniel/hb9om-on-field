@@ -319,6 +319,7 @@ const SECTIONS = [
         example: "Viele Layer aktiviert + langsames Internet → nach 3s erscheint das Handfunkgerät mit Wellen → Tipps zum Beschleunigen werden angezeigt."
       },
       {
+        anchor: "energiesparmodus",
         title: "Energiesparmodus (Performance)",
         body: "In den Einstellungen können Sie den Energiesparmodus (Performance-Modus) aktivieren. Dieser Modus ist ideal für langsame Geräte oder instabile Internetverbindungen. Wenn aktiviert: Marker werden als einfache farbige Kreise statt komplexe SVG-Symbole gerendert (schnellerer Aufbau). Beim Antippen eines Markers zeigt das Popup nur die wichtigsten Infos (Name, Referenz-Code, Koordinaten) – ein «Mehr Infos»-Button lädt die vollständigen Details (Höhe, Punkte, externe Links etc.) erst auf Wunsch nach. Mit «Weniger Infos» können die Details wieder ausgeblendet werden. Beim Gefahren-Layer werden im Sparmodus nur die wichtigsten Layer (Starkstromanlagen) abgefragt, BAKOM-Details (Mobilfunk, Richtfunk) werden übersprungen. Ausserdem werden nur sichtbare Marker im aktuellen Kartenausschnitt gerendert (Viewport-Culling) und die Kartenkacheln mit Hardware-Beschleunigung geladen.",
         example: "Einstellungen → Energiesparmodus aktivieren → Marker erscheinen als einfache Kreise → Marker antippen → «Mehr Infos» für volle Details."
@@ -427,6 +428,17 @@ function HelpSection({ section }) {
   const [expanded, setExpanded] = useState(false);
   const Icon = section.icon;
 
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (section.items.some(item => item.anchor === hash)) {
+      setExpanded(true);
+      setTimeout(() => {
+        const el = document.getElementById(hash);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, []);
+
   return (
     <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <button
@@ -446,7 +458,7 @@ function HelpSection({ section }) {
       {expanded && (
         <div className="px-5 pb-5 space-y-4">
           {section.items.map((item, i) => (
-            <div key={i} className="border-l-2 pl-4" style={{ borderColor: section.color + '30' }}>
+            <div key={i} id={item.anchor} className="border-l-2 pl-4 scroll-mt-20" style={{ borderColor: section.color + '30' }}>
               <h3 className="text-sm font-semibold text-gray-900 mb-1">{item.title}</h3>
               <p className="text-sm text-gray-600 leading-relaxed">{item.body}</p>
 
@@ -704,7 +716,7 @@ export default function Help() {
         </div>
 
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
-          <p>HB9OM On Field v0.7 · Amateurfunk Referenzkarte & QSO-Logbuch</p>
+          <p>HB9OM On Field v0.75 · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
             <Link to="/privacy" className="text-blue-600 font-medium hover:underline">Datenschutzerklärung</Link>
             {" · "}

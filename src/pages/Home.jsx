@@ -15,7 +15,7 @@ import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
 import RadioLoader from "@/components/map/RadioLoader";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
-import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList, Zap, HelpCircle, X } from "lucide-react";
+import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList, Zap, HelpCircle, X, Settings as SettingsIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
 import ReferenceEditDialog from "@/components/admin/ReferenceEditDialog";
@@ -775,9 +775,14 @@ export default function Home() {
               <p className="text-xs text-gray-600 mt-1 leading-relaxed">
                 Viele Punkte werden geladen — zur Darstellung wurde auf vereinfachte Marker umgeschaltet. Siehe Hilfe für mehr Infos und Anpassungen.
               </p>
-              <Link to="/help" className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline mt-2">
-                <HelpCircle className="w-3 h-3" /> Hilfe öffnen
-              </Link>
+              <div className="flex items-center gap-3 mt-2">
+                <Link to="/help#energiesparmodus" className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline">
+                  <HelpCircle className="w-3 h-3" /> Hilfe: Performance
+                </Link>
+                <Link to="/settings" className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline">
+                  <SettingsIcon className="w-3 h-3" /> Einstellungen
+                </Link>
+              </div>
             </div>
             <button
               onClick={() => setShowAutoCanvasBanner(false)}

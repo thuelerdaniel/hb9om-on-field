@@ -48,7 +48,7 @@ export default function SplashScreen({ onDismiss }) {
           </p>
 
           <div className="inline-block px-4 py-1.5 rounded-full bg-white/10 border border-white/20">
-            <span className="text-sm font-mono text-slate-200">Version 0.7</span>
+            <span className="text-sm font-mono text-slate-200">Version 0.75</span>
           </div>
         </a>
 
