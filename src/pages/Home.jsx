@@ -476,27 +476,6 @@ export default function Home() {
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
 
-  const [showAutoCanvasBanner, setShowAutoCanvasBanner] = useState(false);
-
-  // Time-based auto-canvas: if loading takes longer than 3 seconds, switch to canvas mode
-  // Only triggers once per session and only if user hasn't enabled "Auto-Modus überschreiben"
-  useEffect(() => {
-    if (!isLoading) {
-      setAutoCanvasActive(false);
-      return;
-    }
-    if (autoModeOverride) return; // User has disabled auto-canvas
-    const alreadyShown = sessionStorage.getItem("hb9om_auto_canvas_shown") === "true";
-    if (alreadyShown) return;
-    const timer = setTimeout(() => {
-      // Still loading after 3s → activate auto-canvas and show banner
-      setAutoCanvasActive(true);
-      sessionStorage.setItem("hb9om_auto_canvas_shown", "true");
-      setShowAutoCanvasBanner(true);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [isLoading, autoModeOverride]);
-
   const handleEdit = useCallback((data, layerType) => {
     setEditTarget({ data, layerType });
   }, []);
@@ -728,6 +707,27 @@ export default function Home() {
 
   const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0;
   const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline);
+
+  const [showAutoCanvasBanner, setShowAutoCanvasBanner] = useState(false);
+
+  // Time-based auto-canvas: if loading takes longer than 3 seconds, switch to canvas mode
+  // Only triggers once per session and only if user hasn't enabled "Auto-Modus überschreiben"
+  useEffect(() => {
+    if (!isLoading) {
+      setAutoCanvasActive(false);
+      return;
+    }
+    if (autoModeOverride) return; // User has disabled auto-canvas
+    const alreadyShown = sessionStorage.getItem("hb9om_auto_canvas_shown") === "true";
+    if (alreadyShown) return;
+    const timer = setTimeout(() => {
+      // Still loading after 3s → activate auto-canvas and show banner
+      setAutoCanvasActive(true);
+      sessionStorage.setItem("hb9om_auto_canvas_shown", "true");
+      setShowAutoCanvasBanner(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isLoading, autoModeOverride]);
 
   const SWISSTOPO_SCALE_LAYERS = {
     10000: { layer: "ch.swisstopo.landeskarte-farbe-10", format: "png" },
