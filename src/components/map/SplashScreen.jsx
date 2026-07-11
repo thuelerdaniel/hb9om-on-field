@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Radio, X } from "lucide-react";
+import { Radio, X, Coffee } from "lucide-react";
 
 export default function SplashScreen({ onDismiss }) {
   const [visible, setVisible] = useState(true);
@@ -58,7 +58,18 @@ export default function SplashScreen({ onDismiss }) {
           </div>
         </a>
 
-        <p className="text-[10px] text-slate-500 mt-6 max-w-xs mx-auto leading-relaxed text-center">
+        {/* Donation hint */}
+        <a
+          href="https://paypal.me/Thueler"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 mt-5 px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-medium hover:bg-amber-500/30 transition-colors"
+        >
+          <Coffee className="w-3.5 h-3.5" />
+          Spende doch was ☕
+        </a>
+
+        <p className="text-[10px] text-slate-500 mt-4 max-w-xs mx-auto leading-relaxed text-center">
           Haftungsausschluss: Diese App wird ohne jegliche Gewährleistung bereitgestellt.
           Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen.
           Die Nutzung erfolgt auf eigene Verantwortung.

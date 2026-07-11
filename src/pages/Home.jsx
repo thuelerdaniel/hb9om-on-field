@@ -12,6 +12,7 @@ import MapControls from "@/components/map/MapControls";
 import MapMarkers from "@/components/map/MapMarkers";
 import PositionMarker from "@/components/map/PositionMarker";
 import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
+import RadioLoader from "@/components/map/RadioLoader";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
 import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList } from "lucide-react";
@@ -257,6 +258,7 @@ export default function Home() {
   const [wwbotaData, setWwbotaData] = useState([]);
   const [castleData, setCastleData] = useState([]);
   const [cacheLoaded, setCacheLoaded] = useState(false);
+  const [serverCacheLoaded, setServerCacheLoaded] = useState(false);
 
   // Check admin status
   useEffect(() => {
@@ -347,7 +349,10 @@ export default function Home() {
     setCacheLoaded(true);
 
     // Step 2: Offline mode — local cache is all we have
-    if (isOffline) return;
+    if (isOffline) {
+      setServerCacheLoaded(true);
+      return;
+    }
 
     // Step 3: Fetch from server in background (non-blocking, updates markers when ready)
     base44.entities.ReferenceData.list()
@@ -375,7 +380,8 @@ export default function Home() {
             if (refs.castle?.length) setCastleData(refs.castle);
           }).catch(() => {});
         }
-      });
+      })
+      .finally(() => setServerCacheLoaded(true));
   }, []);
 
   // Dismiss splash early once data is ready (minimum 600ms branding)
@@ -386,9 +392,9 @@ export default function Home() {
     }
   }, [cacheLoaded, showSplash]);
 
-  // Load SOTA from API if not cached
+  // Load SOTA from API if not cached (wait for server cache check to avoid duplicate fetches)
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("sota") || sotaData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || !activeLayers.includes("sota") || sotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, sota: true }));
     base44.functions.invoke("fetchSOTA", { region: "HB" })
       .then(res => {
@@ -396,11 +402,11 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, sota: false })));
-  }, [activeLayers, cacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline]);
 
   // Load POTA from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("pota") || potaData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || !activeLayers.includes("pota") || potaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, pota: true }));
     base44.functions.invoke("fetchPOTA", {})
       .then(res => {
@@ -408,37 +414,37 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, pota: false })));
-  }, [activeLayers, cacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline]);
 
   // Load HBFF from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("hbff") || hbffData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || !activeLayers.includes("hbff") || hbffData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, hbff: true }));
     base44.functions.invoke("fetchHBFF", { batchSize: 500, batchStart: 0 })
       .then(res => { if (res.data?.references) setHbffData(res.data.references); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, hbff: false })));
-  }, [activeLayers, cacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline]);
 
   // Load WWBOTA from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("wwbota") || wwbotaData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || !activeLayers.includes("wwbota") || wwbotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, wwbota: true }));
     base44.functions.invoke("fetchWWBOTA", {})
       .then(res => { if (res.data?.bunkers) setWwbotaData(res.data.bunkers); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, wwbota: false })));
-  }, [activeLayers, cacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline]);
 
   // Load Castles from API if not cached
   useEffect(() => {
-    if (!cacheLoaded || !activeLayers.includes("castle") || castleData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || !activeLayers.includes("castle") || castleData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, castle: true }));
     base44.functions.invoke("fetchCastles", {})
       .then(res => { if (res.data?.castles) setCastleData(res.data.castles); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
-  }, [activeLayers, cacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline]);
 
   const toggleLayer = useCallback((layerId) => {
     setActiveLayers(prev =>
@@ -662,7 +668,8 @@ export default function Home() {
   const currentPosition = positionMode === "fixed" ? fixedPosition : (positionMode === "gps" ? gpsPosition : null);
   const positionFixed = positionMode === "fixed";
 
-  const isLoading = Object.values(loading).some(v => v);
+  const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0;
+  const isLoading = Object.values(loading).some(v => v) || (!serverCacheLoaded && !isOffline && !hasAnyData);
 
   const SWISSTOPO_SCALE_LAYERS = {
     10000: { layer: "ch.swisstopo.landeskarte-farbe-10", format: "png" },
@@ -714,12 +721,7 @@ export default function Home() {
         </div>
       )}
 
-      {isLoading && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1001] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
-          <span className="text-sm text-gray-600">Daten werden geladen...</span>
-        </div>
-      )}
+      <RadioLoader isLoading={isLoading} />
 
       <div className="flex-1 mt-[52px] relative">
         <MapContainer

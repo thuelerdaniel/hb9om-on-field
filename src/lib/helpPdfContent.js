@@ -499,6 +499,18 @@ export const SECTIONS = [
     description: "Praktische Hinweise für den Alltag: Wake-Lock, Formulardaten-Erhaltung, Sonnenmodus für starke Sonneneinstrahlung, Maidenhead-Locator und lokale Speicherung mit Synchronisation.",
     items: [
       {
+        title: "Ladeanzeige bei vielen Daten",
+        body: "Wenn die App viele Referenzdaten laden muss (z.B. beim ersten Start oder bei vielen aktivierten Layern), erscheint oben ein Lade-Indikator. Wenn das Laden länger als 3 Sekunden dauert, wird ein kleines Handfunkgerät mit aussendenden Funkwellen angezeigt. Es weist darauf hin, dass viele Daten geladen werden und etwas Geduld nötig ist. Zusätzlich werden Tipps eingeblendet: Kartenausschnitt verkleinern, weniger Layer aktivieren oder den Performance-Modus in den Einstellungen einschalten.",
+        steps: [
+          { icon: "zap", text: "Viele Layer aktiviert + langsames Internet" },
+          { icon: "clock", text: "Nach 3s erscheint das Handfunkgerät mit Wellen" },
+          { icon: "mapPin", text: "Tipp: Kartenausschnitt verkleinern" },
+          { icon: "layers", text: "Tipp: Weniger Layer aktivieren" },
+          { icon: "settings", text: "Tipp: Performance-Modus in den Einstellungen" }
+        ],
+        tip: "Tipp: Die App lädt zuerst den lokalen Cache (sofortige Anzeige), dann wird im Hintergrund der Server-Cache geladen. Erst wenn Daten fehlen, werden die externen Quellen abgefragt."
+      },
+      {
         title: "Energiesparmodus (Performance)",
         body: "In den Einstellungen können Sie den Energiesparmodus aktivieren – ideal für langsame Geräte oder instabile Internetverbindungen. Marker werden als einfache farbige Kreise gerendert. Beim Antippen eines Markers zeigt das Popup nur die wichtigsten Infos (Name, Referenz-Code, Koordinaten). Ein «Mehr Infos»-Button lädt die vollständigen Details erst auf Wunsch nach. Beim Gefahren-Layer werden nur die wichtigsten Layer abgefragt.",
         steps: [

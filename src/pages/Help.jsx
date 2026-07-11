@@ -314,6 +314,11 @@ const SECTIONS = [
     description: "Nützliche Hinweise für den Alltag.",
     items: [
       {
+        title: "Ladeanzeige bei vielen Daten",
+        body: "Wenn die App viele Referenzdaten laden muss (z.B. beim ersten Start oder bei aktivierten vielen Layern), erscheint oben ein Lade-Indikator. Wenn das Laden länger als 3 Sekunden dauert, wird ein kleines Handfunkgerät mit aussendenden Funkwellen angezeigt. Es weist darauf hin, dass viele Daten geladen werden und etwas Geduld nötig ist. Zusätzlich werden Tipps eingeblendet: Kartenausschnitt verkleinern (weniger Marker laden), weniger Layer aktivieren, oder den Performance-Modus in den Einstellungen einschalten.",
+        example: "Viele Layer aktiviert + langsames Internet → nach 3s erscheint das Handfunkgerät mit Wellen → Tipps zum Beschleunigen werden angezeigt."
+      },
+      {
         title: "Energiesparmodus (Performance)",
         body: "In den Einstellungen können Sie den Energiesparmodus (Performance-Modus) aktivieren. Dieser Modus ist ideal für langsame Geräte oder instabile Internetverbindungen. Wenn aktiviert: Marker werden als einfache farbige Kreise statt komplexe SVG-Symbole gerendert (schnellerer Aufbau). Beim Antippen eines Markers zeigt das Popup nur die wichtigsten Infos (Name, Referenz-Code, Koordinaten) – ein «Mehr Infos»-Button lädt die vollständigen Details (Höhe, Punkte, externe Links etc.) erst auf Wunsch nach. Mit «Weniger Infos» können die Details wieder ausgeblendet werden. Beim Gefahren-Layer werden im Sparmodus nur die wichtigsten Layer (Starkstromanlagen) abgefragt, BAKOM-Details (Mobilfunk, Richtfunk) werden übersprungen. Ausserdem werden nur sichtbare Marker im aktuellen Kartenausschnitt gerendert (Viewport-Culling) und die Kartenkacheln mit Hardware-Beschleunigung geladen.",
         example: "Einstellungen → Energiesparmodus aktivieren → Marker erscheinen als einfache Kreise → Marker antippen → «Mehr Infos» für volle Details."
