@@ -5,7 +5,7 @@ import MarkerPopup from "@/components/map/MarkerPopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
 // Above this count, automatically switch to lightweight CircleMarker (canvas) to prevent browser freeze
-const CANVAS_THRESHOLD = 600;
+const CANVAS_THRESHOLD = 1500;
 // Hard cap on markers rendered at once — prevents "page not responding" on extreme loads
 const MAX_RENDER_MARKERS = 2000;
 
@@ -79,11 +79,16 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   const isAutoCanvas = !performanceMode && !dragMode && visibleMarkers.length > CANVAS_THRESHOLD;
   const useCanvasMode = performanceMode || isAutoCanvas;
 
-  // Notify parent once when auto-canvas activates (not when user manually enabled performance mode)
+  // Notify parent once per session when auto-canvas activates (not when user manually enabled performance mode)
   useEffect(() => {
     if (isAutoCanvas && !autoCanvasNotified.current && onAutoCanvas) {
-      autoCanvasNotified.current = true;
-      onAutoCanvas();
+      // Only show the banner once per browser session — prevents re-triggering on pan/zoom
+      const alreadyShown = sessionStorage.getItem("hb9om_auto_canvas_shown") === "true";
+      if (!alreadyShown) {
+        autoCanvasNotified.current = true;
+        sessionStorage.setItem("hb9om_auto_canvas_shown", "true");
+        onAutoCanvas();
+      }
     }
     if (!isAutoCanvas) {
       autoCanvasNotified.current = false;
