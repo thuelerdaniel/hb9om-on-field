@@ -64,6 +64,7 @@ const PERSIST_KEYS = {
   clubOperatorCallsign: "hb9om_last_club_op_callsign",
   clubOperatorName: "hb9om_last_club_op_name",
   myGrid: "hb9om_last_my_grid",
+  notes: "hb9om_last_notes",
 };
 
 // Band <-> Frequency mapping (IARU Region 1)
@@ -137,7 +138,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [rstSent, setRstSent] = useState(editEntry?.rst_sent || (localStorage.getItem(PERSIST_KEYS.rstSent) || "59"));
   const [rstReceived, setRstReceived] = useState(editEntry?.rst_received || (localStorage.getItem(PERSIST_KEYS.rstReceived) || "59"));
   const [power, setPower] = useState(editEntry?.power != null ? String(editEntry.power) : (localStorage.getItem(PERSIST_KEYS.power) || ""));
-  const [notes, setNotes] = useState(editEntry?.notes || "");
+  const [notes, setNotes] = useState(editEntry?.notes ?? (localStorage.getItem(PERSIST_KEYS.notes) || ""));
   const [saving, setSaving] = useState(false);
 
   const handleFrequencyChange = (val) => {
@@ -321,6 +322,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     localStorage.setItem(PERSIST_KEYS.clubOperatorCallsign, clubOperatorCallsign);
     localStorage.setItem(PERSIST_KEYS.clubOperatorName, clubOperatorName);
     localStorage.setItem(PERSIST_KEYS.myGrid, myGrid);
+    localStorage.setItem(PERSIST_KEYS.notes, notes);
   };
 
   const handleSave = async () => {
@@ -374,7 +376,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         setOperator({ name: "", address: "", country: "", grid: "", email: "" });
         setQrzError("");
         setSaveError("");
-        setNotes("");
+        setNotes(localStorage.getItem(PERSIST_KEYS.notes) || "");
         const now = new Date();
         setQsoDate(now.toISOString().slice(0, 10));
         setTimeStart(now.toISOString().slice(11, 16));
@@ -687,7 +689,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
               value={notes}
               onChange={e => setNotes(e.target.value)}
               rows={2}
-              placeholder="Zusätzliche Informationen..."
+              placeholder="Notizen für dieses & nächste QSO (wird übernommen)..."
               className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
             />
           </div>
