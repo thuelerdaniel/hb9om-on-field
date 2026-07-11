@@ -384,13 +384,29 @@ export default function Home() {
       .finally(() => setServerCacheLoaded(true));
   }, []);
 
-  // Dismiss splash early once data is ready (minimum 600ms branding)
+  // Dismiss splash after minimum 3s AND server cache loaded — uses the time to fetch data in background
+  const mountTime = useRef(Date.now());
   useEffect(() => {
-    if (cacheLoaded && showSplash) {
-      const t = setTimeout(() => setShowSplash(false), 600);
+    if (!showSplash) return;
+    const MIN_SPLASH_MS = 3000;
+    const MAX_SPLASH_MS = 6000;
+    const elapsed = Date.now() - mountTime.current;
+    const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
+    // Server cache already loaded (or offline): dismiss after remaining min time
+    if (serverCacheLoaded || isOffline) {
+      const t = setTimeout(() => setShowSplash(false), remaining);
       return () => clearTimeout(t);
     }
-  }, [cacheLoaded, showSplash]);
+    // Still loading: dismiss when 3s elapsed AND serverCacheLoaded, max 6s fallback
+    const interval = setInterval(() => {
+      const el = Date.now() - mountTime.current;
+      if ((serverCacheLoaded && el >= MIN_SPLASH_MS) || el >= MAX_SPLASH_MS) {
+        setShowSplash(false);
+        clearInterval(interval);
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, [showSplash, serverCacheLoaded, isOffline]);
 
   // Load SOTA from API if not cached (wait for server cache check to avoid duplicate fetches)
   useEffect(() => {
@@ -732,7 +748,8 @@ export default function Home() {
           preferCanvas={true}
           zoomSnap={0.5}
           zoomDelta={0.5}
-          updateWhenIdle={false}
+          updateWhenIdle={true}
+          keepBuffer={2}
         >
           <MapTileLayer
             url={baseTileUrl}

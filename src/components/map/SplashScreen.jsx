@@ -4,13 +4,7 @@ import { Radio, X, Coffee } from "lucide-react";
 export default function SplashScreen({ onDismiss }) {
   const [visible, setVisible] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      handleClose();
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
+  // No internal auto-dismiss — parent controls timing (min 3s)
   const handleClose = () => {
     setVisible(false);
     if (onDismiss) setTimeout(onDismiss, 300);
@@ -79,7 +73,7 @@ export default function SplashScreen({ onDismiss }) {
           <div className="w-32 h-1 bg-white/10 rounded-full mx-auto overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
-              style={{ animation: "splash-progress 1.5s linear forwards" }}
+              style={{ animation: "splash-progress 3s linear forwards" }}
             />
           </div>
         </div>
