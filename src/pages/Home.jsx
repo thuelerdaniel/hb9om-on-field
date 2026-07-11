@@ -182,6 +182,7 @@ export default function Home() {
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
   const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("hb9om_performance_mode") === "true");
+  const [autoModeOverride, setAutoModeOverride] = useState(() => localStorage.getItem("hb9om_auto_mode_override") === "true");
   const isOffline = !isOnline || forceOffline;
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
@@ -915,6 +916,7 @@ export default function Home() {
             onMarkerDrag={handleMarkerDrag}
             onEdit={handleEdit}
             performanceMode={performanceMode}
+            autoModeOverride={autoModeOverride}
             onAutoCanvas={handleAutoCanvas}
           />
 

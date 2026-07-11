@@ -320,9 +320,9 @@ const SECTIONS = [
       },
       {
         anchor: "energiesparmodus",
-        title: "Energiesparmodus (Performance)",
-        body: "In den Einstellungen können Sie den Energiesparmodus (Performance-Modus) aktivieren. Dieser Modus ist ideal für langsame Geräte oder instabile Internetverbindungen. Wenn aktiviert: Marker werden als einfache farbige Kreise statt komplexe SVG-Symbole gerendert (schnellerer Aufbau). Beim Antippen eines Markers zeigt das Popup nur die wichtigsten Infos (Name, Referenz-Code, Koordinaten) – ein «Mehr Infos»-Button lädt die vollständigen Details (Höhe, Punkte, externe Links etc.) erst auf Wunsch nach. Mit «Weniger Infos» können die Details wieder ausgeblendet werden. Beim Gefahren-Layer werden im Sparmodus nur die wichtigsten Layer (Starkstromanlagen) abgefragt, BAKOM-Details (Mobilfunk, Richtfunk) werden übersprungen. Ausserdem werden nur sichtbare Marker im aktuellen Kartenausschnitt gerendert (Viewport-Culling) und die Kartenkacheln mit Hardware-Beschleunigung geladen.",
-        example: "Einstellungen → Energiesparmodus aktivieren → Marker erscheinen als einfache Kreise → Marker antippen → «Mehr Infos» für volle Details."
+        title: "Energiesparmodus (Performance) & Auto-Modus überschreiben",
+        body: "In den Einstellungen gibt es zwei Schalter im Bereich «Performance-Modus»: 1) Energiesparmodus: Wenn aktiviert, werden Marker als einfache farbige Kreise statt komplexe SVG-Symbole gerendert (schnellerer Aufbau). Beim Antippen eines Markers zeigt das Popup nur die wichtigsten Infos (Name, Referenz-Code, Koordinaten) – ein «Mehr Infos»-Button lädt die vollständigen Details erst auf Wunsch nach. Beim Gefahren-Layer werden im Sparmodus nur die wichtigsten Layer abgefragt. Ausserdem werden nur sichtbare Marker im aktuellen Kartenausschnitt gerendert (Viewport-Culling). 2) Auto-Modus überschreiben: Standardmässig schaltet die App bei sehr vielen Markern (über 1500 im sichtbaren Bereich) automatisch auf den Energiesparmodus um, um ein Einfrieren des Browsers zu verhindern. Wenn Sie diesen automatischen Wechsel nicht möchten, aktivieren Sie «Auto-Modus überschreiben». Dann gilt immer Ihre manuelle Einstellung – auch wenn die Karte durch viele Marker träger reagiert. Der Auto-Modus wird pro Sitzung nur einmal aktiviert und zeigt einen Hinweis an.",
+        example: "Auto-Modus deaktivieren: Einstellungen → «Auto-Modus überschreiben» einschalten → Ihre Einstellung gilt immer, kein automatisches Umschalten mehr."
       },
       {
         title: "Wake-Lock (Bildschirm an)",

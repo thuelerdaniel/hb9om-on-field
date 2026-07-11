@@ -46,7 +46,7 @@ function getDraggableIcon(color) {
   return icon;
 }
 
-function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, onAutoCanvas }) {
+function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoModeOverride, onAutoCanvas }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
@@ -76,7 +76,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   );
 
   // Auto-canvas: too many markers → switch to lightweight CircleMarker (canvas) to prevent freeze
-  const isAutoCanvas = !performanceMode && !dragMode && visibleMarkers.length > CANVAS_THRESHOLD;
+  const isAutoCanvas = !performanceMode && !autoModeOverride && !dragMode && visibleMarkers.length > CANVAS_THRESHOLD;
   const useCanvasMode = performanceMode || isAutoCanvas;
 
   // Notify parent once per session when auto-canvas activates (not when user manually enabled performance mode)
@@ -180,7 +180,8 @@ function arePropsEqual(prev, next) {
     prev.isAdmin === next.isAdmin &&
     prev.onMarkerDrag === next.onMarkerDrag &&
     prev.onEdit === next.onEdit &&
-    prev.performanceMode === next.performanceMode
+    prev.performanceMode === next.performanceMode &&
+    prev.autoModeOverride === next.autoModeOverride
   );
 }
 

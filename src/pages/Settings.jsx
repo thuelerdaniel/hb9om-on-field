@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap, Shield } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
@@ -52,6 +52,7 @@ export default function Settings() {
   const [storageInfo, setStorageInfo] = useState({ areas: 0, tiles: 0 });
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
   const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("hb9om_performance_mode") === "true");
+  const [autoModeOverride, setAutoModeOverride] = useState(() => localStorage.getItem("hb9om_auto_mode_override") === "true");
   const [offlineReady, setOfflineReady] = useState(() => isOfflineReady());
   const [offlineCachedAt, setOfflineCachedAt] = useState(() => getCachedAt());
   const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
@@ -314,6 +315,11 @@ export default function Settings() {
     localStorage.setItem("hb9om_performance_mode", String(enabled));
   };
 
+  const handleToggleAutoModeOverride = (enabled) => {
+    setAutoModeOverride(enabled);
+    localStorage.setItem("hb9om_auto_mode_override", String(enabled));
+  };
+
   const handleToggleForceOffline = async (enabled) => {
     setForceOffline(enabled);
     localStorage.setItem("hb9om_force_offline", String(enabled));
@@ -565,6 +571,35 @@ export default function Settings() {
             <div className="mt-2 p-2.5 bg-amber-50 rounded-lg text-xs text-amber-700 flex items-start gap-1.5">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
               <span>Marker werden als einfache farbige Punkte dargestellt. Tippe auf einen Punkt für Details. Die Kartenverschiebung ist dadurch deutlich flüssiger.</span>
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="my-3 border-t border-gray-100" />
+
+          {/* Auto-Mode Override */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-blue-500" /> Auto-Modus überschreiben
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {autoModeOverride
+                  ? "Ihre Einstellung wird immer verwendet – kein automatisches Umschalten bei vielen Markern"
+                  : "Bei sehr vielen Markern wird automatisch auf Energiesparmodus umgeschaltet"}
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleAutoModeOverride(!autoModeOverride)}
+              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${autoModeOverride ? 'bg-blue-500' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autoModeOverride ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+          {autoModeOverride && (
+            <div className="mt-2 p-2.5 bg-blue-50 rounded-lg text-xs text-blue-700 flex items-start gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <span>Der automatische Performance-Modus ist deaktiviert. Ihre manuelle Einstellung oben gilt immer – auch bei sehr vielen Markern auf der Karte.</span>
             </div>
           )}
         </section>
