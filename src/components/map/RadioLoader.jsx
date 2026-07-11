@@ -66,9 +66,9 @@ export default function RadioLoader({ isLoading }) {
 
   return (
     <>
-      {/* Compact spinner — always visible while loading (fixed positioning for reliable z-index above splash) */}
+      {/* Compact loader with radio symbol — always visible while loading */}
       <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
-        <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
+        <RadioWaves />
         <span className="text-sm text-gray-600">Daten werden geladen…</span>
       </div>
 
