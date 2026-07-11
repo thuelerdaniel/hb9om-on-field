@@ -478,9 +478,6 @@ export default function Home() {
 
   const handleAutoCanvas = useCallback(() => {
     setShowAutoCanvasBanner(true);
-    // Persist performance mode so the Settings toggle reflects the auto-activation and can be turned off
-    setPerformanceMode(true);
-    localStorage.setItem("hb9om_performance_mode", "true");
   }, []);
 
   const handleEdit = useCallback((data, layerType) => {
