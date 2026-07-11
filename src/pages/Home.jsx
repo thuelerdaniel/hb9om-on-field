@@ -478,7 +478,7 @@ export default function Home() {
     toast({
       title: "Performance-Modus automatisch aktiviert",
       description: "Viele Punkte werden geladen — zur Darstellung wurde auf vereinfachte Marker umgeschaltet. Siehe Hilfe für mehr Infos und Anpassungen.",
-      duration: 6000,
+      duration: 999999999,
     });
   }, [toast]);
 
