@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Loader2, ZoomIn, Layers, Settings as SettingsIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -32,29 +32,49 @@ function RadioWaves() {
 
 export default function RadioLoader({ isLoading }) {
   const [showTips, setShowTips] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const minVisibleUntil = useRef(0);
+  const tipsStartedAt = useRef(0);
 
   useEffect(() => {
-    if (!isLoading) {
-      setShowTips(false);
-      return;
+    if (isLoading) {
+      setVisible(true);
+      // Minimum visible time: 2s from first show
+      minVisibleUntil.current = Math.max(minVisibleUntil.current, Date.now() + 2000);
+      // Tips appear after 1.5s — only start timer if not already started
+      if (tipsStartedAt.current === 0) {
+        tipsStartedAt.current = Date.now();
+      }
+      const elapsed = Date.now() - tipsStartedAt.current;
+      const remaining = Math.max(0, 1500 - elapsed);
+      const tipsTimer = setTimeout(() => setShowTips(true), remaining);
+      return () => clearTimeout(tipsTimer);
+    } else {
+      // Delay hiding to prevent flicker — keep visible until minimum time expires
+      const remaining = Math.max(0, minVisibleUntil.current - Date.now());
+      const hideTimer = setTimeout(() => {
+        setVisible(false);
+        setShowTips(false);
+        minVisibleUntil.current = 0;
+        tipsStartedAt.current = 0;
+      }, remaining + 300); // 300ms grace period beyond minimum
+      return () => clearTimeout(hideTimer);
     }
-    const timer = setTimeout(() => setShowTips(true), 1500);
-    return () => clearTimeout(timer);
   }, [isLoading]);
 
-  if (!isLoading) return null;
+  if (!visible) return null;
 
   return (
     <>
-      {/* Compact spinner — always visible while loading (above splash z-10000) */}
-      <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
+      {/* Compact spinner — always visible while loading (fixed positioning for reliable z-index above splash) */}
+      <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
         <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
         <span className="text-sm text-gray-600">Daten werden geladen…</span>
       </div>
 
-      {/* Extended tips panel — appears after 3s */}
+      {/* Extended tips panel — appears after 1.5s */}
       {showTips && (
-        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-2xl shadow-xl border border-gray-200 p-5 max-w-sm w-[90vw]">
+        <div className="fixed top-28 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-2xl shadow-xl border border-gray-200 p-5 max-w-sm w-[90vw]">
           <div className="flex justify-center mb-3">
             <RadioWaves />
           </div>

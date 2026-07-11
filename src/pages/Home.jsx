@@ -692,7 +692,7 @@ export default function Home() {
   const positionFixed = positionMode === "fixed";
 
   const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0;
-  const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline && !hasAnyData);
+  const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!hasAnyData && !isOffline);
 
   const SWISSTOPO_SCALE_LAYERS = {
     10000: { layer: "ch.swisstopo.landeskarte-farbe-10", format: "png" },
