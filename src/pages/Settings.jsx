@@ -61,6 +61,7 @@ export default function Settings() {
   const [demoOtpCode, setDemoOtpCode] = useState("");
   const [demoVerifying, setDemoVerifying] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [perfSuggestionReset, setPerfSuggestionReset] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -602,6 +603,39 @@ export default function Settings() {
               <span>Der automatische Performance-Modus ist deaktiviert. Ihre manuelle Einstellung oben gilt immer – auch bei sehr vielen Markern auf der Karte.</span>
             </div>
           )}
+
+          {/* Divider */}
+          <div className="my-3 border-t border-gray-100" />
+
+          {/* Reset suggestion popup */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <Bell className="w-4 h-4 text-gray-500" /> Performance-Hinweis zurücksetzen
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {localStorage.getItem("hb9om_perf_suggestion_dismissed") === "true"
+                  ? "Hinweis wurde ausgeblendet – zurücksetzen, um ihn wieder anzuzeigen"
+                  : "Hinweis wird angezeigt, wenn viele Marker geladen werden"}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.removeItem("hb9om_perf_suggestion_dismissed");
+                setPerfSuggestionReset(true);
+                setTimeout(() => setPerfSuggestionReset(false), 2000);
+              }}
+              disabled={localStorage.getItem("hb9om_perf_suggestion_dismissed") !== "true"}
+              className={`px-3 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 flex-shrink-0 ${
+                localStorage.getItem("hb9om_perf_suggestion_dismissed") === "true"
+                  ? "text-gray-700 border-gray-300 hover:bg-gray-50"
+                  : "text-gray-300 border-gray-100 cursor-not-allowed"
+              }`}
+            >
+              {perfSuggestionReset ? <Check className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+              {perfSuggestionReset ? "Zurückgesetzt" : "Zurücksetzen"}
+            </button>
+          </div>
         </section>
 
         {/* Offline Maps */}

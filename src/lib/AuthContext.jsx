@@ -99,6 +99,15 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(false);
       setAuthChecked(true);
 
+      // Clear per-session dismissed flags when user changes (new login / different user)
+      try {
+        const lastUserId = localStorage.getItem("hb9om_last_user_id");
+        if (lastUserId !== currentUser.id) {
+          localStorage.removeItem("hb9om_perf_suggestion_dismissed");
+          localStorage.setItem("hb9om_last_user_id", currentUser.id);
+        }
+      } catch (e) { }
+
       // Track last login time (throttled to once per 10 minutes via localStorage)
       try {
         const lastTracked = localStorage.getItem("hb9om_last_login_tracked");

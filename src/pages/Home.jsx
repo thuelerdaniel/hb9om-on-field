@@ -15,13 +15,14 @@ import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
 import RadioLoader from "@/components/map/RadioLoader";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
-import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList, Zap, HelpCircle, X, Settings as SettingsIcon } from "lucide-react";
+import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
 import ReferenceEditDialog from "@/components/admin/ReferenceEditDialog";
 import MapTileLayer from "@/components/map/MapTileLayer";
 import OfflineAreaDialog from "@/components/map/OfflineAreaDialog";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
+import PerformanceSuggestionPopup from "@/components/map/PerformanceSuggestionPopup";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
 
@@ -708,10 +709,10 @@ export default function Home() {
   const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0;
   const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline);
 
-  const [showAutoCanvasBanner, setShowAutoCanvasBanner] = useState(false);
+  const [showPerfSuggestion, setShowPerfSuggestion] = useState(false);
 
   // Time-based auto-canvas: if loading takes longer than 3 seconds, switch to canvas mode
-  // Only triggers once per session and only if user hasn't enabled "Auto-Modus überschreiben"
+  // and show a suggestion popup (first time per login session, unless dismissed)
   useEffect(() => {
     if (!isLoading) {
       setAutoCanvasActive(false);
@@ -721,13 +722,29 @@ export default function Home() {
     const alreadyShown = sessionStorage.getItem("hb9om_auto_canvas_shown") === "true";
     if (alreadyShown) return;
     const timer = setTimeout(() => {
-      // Still loading after 3s → activate auto-canvas and show banner
+      // Still loading after 3s → activate auto-canvas (safety) and show suggestion
       setAutoCanvasActive(true);
       sessionStorage.setItem("hb9om_auto_canvas_shown", "true");
-      setShowAutoCanvasBanner(true);
+      // Only show suggestion popup if user hasn't permanently dismissed it
+      if (localStorage.getItem("hb9om_perf_suggestion_dismissed") !== "true") {
+        setShowPerfSuggestion(true);
+      }
     }, 3000);
     return () => clearTimeout(timer);
   }, [isLoading, autoModeOverride]);
+
+  const handleActivatePerformanceMode = useCallback(() => {
+    setPerformanceMode(true);
+    localStorage.setItem("hb9om_performance_mode", "true");
+    setShowPerfSuggestion(false);
+    toast({ title: "Energiesparmodus aktiviert", description: "Marker werden als einfache Punkte dargestellt", duration: 3000 });
+  }, [toast]);
+
+  const handleDontAskAgain = useCallback(() => {
+    localStorage.setItem("hb9om_perf_suggestion_dismissed", "true");
+    setShowPerfSuggestion(false);
+    toast({ title: "Hinweis deaktiviert", description: "Wird beim nächsten Login wieder angezeigt", duration: 3000 });
+  }, [toast]);
 
   const SWISSTOPO_SCALE_LAYERS = {
     10000: { layer: "ch.swisstopo.landeskarte-farbe-10", format: "png" },
@@ -781,35 +798,12 @@ export default function Home() {
 
       <RadioLoader isLoading={isLoading} />
 
-      {showAutoCanvasBanner && (
-        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10003] bg-white rounded-xl shadow-2xl border border-amber-300 p-4 max-w-sm w-[90vw]">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Zap className="w-5 h-5 text-amber-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-gray-900">Performance-Modus automatisch aktiviert</h3>
-              <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                Viele Punkte werden geladen — zur Darstellung wurde auf vereinfachte Marker umgeschaltet. Siehe Hilfe für mehr Infos und Anpassungen.
-              </p>
-              <div className="flex items-center gap-3 mt-2">
-                <Link to="/help#energiesparmodus" className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline">
-                  <HelpCircle className="w-3 h-3" /> Hilfe: Performance
-                </Link>
-                <Link to="/settings" className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline">
-                  <SettingsIcon className="w-3 h-3" /> Einstellungen
-                </Link>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowAutoCanvasBanner(false)}
-              className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 transition-colors"
-              title="Schliessen"
-            >
-              <X className="w-4 h-4 text-gray-400" />
-            </button>
-          </div>
-        </div>
+      {showPerfSuggestion && (
+        <PerformanceSuggestionPopup
+          onActivate={handleActivatePerformanceMode}
+          onDontAskAgain={handleDontAskAgain}
+          onClose={() => setShowPerfSuggestion(false)}
+        />
       )}
 
       <div className="flex-1 mt-[52px] relative">
