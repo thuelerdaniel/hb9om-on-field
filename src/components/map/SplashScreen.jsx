@@ -73,7 +73,7 @@ export default function SplashScreen({ onDismiss }) {
           <div className="w-32 h-1 bg-white/10 rounded-full mx-auto overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
-              style={{ animation: "splash-progress 3s linear forwards" }}
+              style={{ animation: "splash-progress 1.5s linear forwards" }}
             />
           </div>
         </div>
@@ -83,6 +83,9 @@ export default function SplashScreen({ onDismiss }) {
         @keyframes splash-progress {
           from { width: 0%; }
           to { width: 100%; }
+        }
+        .splash-progress-bar {
+          animation: splash-progress 1.5s linear forwards;
         }
       `}</style>
     </div>

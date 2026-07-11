@@ -129,8 +129,12 @@ export default function Home() {
   const [activeLayers, setActiveLayers] = useState(() => {
     try {
       const saved = localStorage.getItem("hb9om_map_active_layers");
-      return saved ? JSON.parse(saved) : ["sota"];
-    } catch { return ["sota"]; }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return ["sota"];
   });
   const [baseLayer, setBaseLayer] = useState(() => localStorage.getItem("hb9om_map_base_layer") || "osm");
   const [mapOpacity, setMapOpacity] = useState(() => {
@@ -259,7 +263,7 @@ export default function Home() {
   const [castleData, setCastleData] = useState([]);
   const [cacheLoaded, setCacheLoaded] = useState(false);
   const [serverCacheLoaded, setServerCacheLoaded] = useState(false);
-  const [serverCacheLoading, setServerCacheLoading] = useState(false);
+  const [serverCacheLoading, setServerCacheLoading] = useState(true);
 
   // Check admin status
   useEffect(() => {
@@ -352,6 +356,7 @@ export default function Home() {
     // Step 2: Offline mode — local cache is all we have
     if (isOffline) {
       setServerCacheLoaded(true);
+      setServerCacheLoading(false);
       return;
     }
 
@@ -395,8 +400,8 @@ export default function Home() {
   const mountTime = useRef(Date.now());
   useEffect(() => {
     if (!showSplash) return;
-    const MIN_SPLASH_MS = 3000;
-    const MAX_SPLASH_MS = 6000;
+    const MIN_SPLASH_MS = 1500;
+    const MAX_SPLASH_MS = 4000;
     const elapsed = Date.now() - mountTime.current;
     const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
     // Server cache already loaded (or offline): dismiss after remaining min time
@@ -470,9 +475,12 @@ export default function Home() {
   }, [activeLayers, serverCacheLoaded, isOffline]);
 
   const toggleLayer = useCallback((layerId) => {
-    setActiveLayers(prev =>
-      prev.includes(layerId) ? prev.filter(l => l !== layerId) : [...prev, layerId]
-    );
+    setActiveLayers(prev => {
+      const next = prev.includes(layerId) ? prev.filter(l => l !== layerId) : [...prev, layerId];
+      // Write synchronously — don't rely on the effect alone (prevents loss on fast unmount/refresh)
+      try { localStorage.setItem("hb9om_map_active_layers", JSON.stringify(next)); } catch {}
+      return next;
+    });
   }, []);
 
   // Build all markers by layer
@@ -692,7 +700,7 @@ export default function Home() {
   const positionFixed = positionMode === "fixed";
 
   const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0;
-  const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!hasAnyData && !isOffline);
+  const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline);
 
   const SWISSTOPO_SCALE_LAYERS = {
     10000: { layer: "ch.swisstopo.landeskarte-farbe-10", format: "png" },
