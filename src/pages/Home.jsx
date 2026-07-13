@@ -858,13 +858,6 @@ export default function Home() {
               />
               <WMSTileLayer
                 url="https://wms.geo.admin.ch/"
-                layers="ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb"
-                format="image/png"
-                transparent={true}
-                opacity={0.6}
-              />
-              <WMSTileLayer
-                url="https://wms.geo.admin.ch/"
                 layers="ch.bakom.standorte-mobilfunkanlagen"
                 format="image/png"
                 transparent={true}
