@@ -48,8 +48,8 @@ const PROP_LABELS = {
   stromnetztyp: "Stromnetz",
   typ: "Typ", typ_de: "Typ", type: "Typ", status: "Status",
   standort: "Standort", standortbezeichnung: "Standortbezeichnung",
-  sendeleistung: "Sendeleistung", frequenz: "Frequenz", frequenzbereich: "Frequenzbereich",
-  antennentyp: "Antennentyp", antennenhoehe: "Antennenhöhe",
+  sendeleistung: "Sendeleistung", power: "Leistung", frequenz: "Frequenz", frequenzbereich: "Frequenzbereich",
+  freqchan: "Frequenz/Kanal", antennentyp: "Antennentyp", antennenhoehe: "Antennenhöhe",
   azimut: "Azimut", elevation: "Elevation", polarisation: "Polarisation",
   kanal: "Kanal", bandbreite: "Bandbreite", programm: "Programm",
   dienstart: "Dienstart", system: "System", sektor: "Sektor",
@@ -59,7 +59,8 @@ const PROP_LABELS = {
   station: "Station", koord: "Koordinaten (LV95)",
   power_de: "Leistungsklasse", techno_de: "Technologie",
   adaptiv_de: "Adaptiver Betrieb", bewilligung_de: "Bewilligung",
-  agw_de: "Anlagegrenzwert", link_class: "Klasse"
+  agw_de: "Anlagegrenzwert", link_class: "Klasse",
+  code: "Code", service: "Dienst"
 };
 
 // Redundant prefixes to strip from values (label already conveys this)
@@ -71,10 +72,9 @@ const VALUE_PREFIXES = [
 const MAX_FEATURES_PER_LAYER = 3;
 const MAX_RESULTS_PER_LAYER = 10;
 const MAX_VALUE_LENGTH = 150;
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 10000;
 
 // Module-level counter: tracks the latest click so stale API responses are discarded
-// (prevents "Lade…" popup getting stuck when user clicks again while loading)
 let latestClickId = 0;
 
 function formatPropName(key) {
@@ -87,16 +87,13 @@ function formatPropName(key) {
 
 function formatPropValue(val, key) {
   if (val === null || val === undefined || val === "") {
-    // BAKOM adaptiv_de: empty = conventional antennas only (per BAKOM docs)
     if (key && key.toLowerCase() === "adaptiv_de") return "Keine Angabe (konventionell)";
-    return null; // null = skip entirely
+    return null;
   }
   let s = String(val).trim();
-  // Strip redundant prefixes
   for (const prefix of VALUE_PREFIXES) {
     if (s.startsWith(prefix)) { s = s.substring(prefix.length); break; }
   }
-  // Format voltage/frequency codes
   s = s.replace(/^S(\d+)kV$/, "$1 kV").replace(/^F(\d+)Hz$/, "$1 Hz");
   if (s === "") return null;
   if (s.length > MAX_VALUE_LENGTH) s = s.substring(0, MAX_VALUE_LENGTH) + "…";
@@ -139,34 +136,17 @@ function buildFeatureHtml(props, isLast) {
   return `<div style="${isLast ? "" : "margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f3f4f6;"}">${propHtml}</div>`;
 }
 
-// Group mobilfunk results by station name — show unique stations, not duplicate entries
-function deduplicateMobilfunk(results) {
-  const byStation = new Map();
-  for (const r of results) {
-    const station = r.attributes?.station || r.attributes?.label || r.featureId;
-    if (!byStation.has(station)) byStation.set(station, r);
-  }
-  return Array.from(byStation.values());
-}
-
+// Deduplicate results — use featureId as primary key (label can be identical for multiple features)
 function deduplicateResults(results) {
-  const mobilfunk = results.filter(r => r.layerBodId === "ch.bakom.standorte-mobilfunkanlagen");
-  const others = results.filter(r => r.layerBodId !== "ch.bakom.standorte-mobilfunkanlagen");
-
-  // Mobilfunk: group by station name
-  const dedupMobilfunk = deduplicateMobilfunk(mobilfunk);
-
-  // Others: dedup by fid/label
   const seen = new Set();
-  const dedupOthers = others.filter(r => {
+  return results.filter(r => {
     const attrs = r.attributes || {};
-    const key = `${r.layerBodId}:${attrs.fid || attrs.label || r.featureId || r.id}`;
+    // featureId is unique per feature; label is NOT (e.g. all Richtfunk links have label "KL1")
+    const key = `${r.layerBodId}:${r.featureId || r.id || attrs.fid}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-
-  return [...dedupOthers, ...dedupMobilfunk];
 }
 
 function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
@@ -188,7 +168,6 @@ function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
     const featureHtml = limited.map((f, idx) => buildFeatureHtml(f.attributes || f.properties || {}, idx === limited.length - 1)).join("");
     const moreHtml = remaining > 0 ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">+ ${remaining} weitere(s) Objekt(e)</div>` : "";
 
-    // BAKOM layers get an extra info link
     const isBakom = layerBodId.startsWith("ch.bakom");
     const bakomLink = isBakom
       ? `<div style="margin-top:2px;"><a href="https://www.bakom.admin.ch/de/standorte-von-sendeanlagen" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">📡 BAKOM Sendeanlagen-Übersicht →</a></div>`
@@ -210,26 +189,25 @@ function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
   </div>`;
 }
 
-// Single combined identify call — 1 HTTP request for ALL layers
-// Returns null on error (distinguishable from empty []), array of results on success
-async function identifyAllLayers(layerIds, lat, lng, mapExtent, imageSize, tolerance) {
+// Query a SINGLE layer — ensures correct layerBodId attribution (no mixup between layers)
+// Returns array of results (empty on error)
+async function identifyLayer(layerId, lat, lng, mapExtent, imageSize, tolerance) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify" +
       `?geometry=${lng.toFixed(6)},${lat.toFixed(6)}` +
       "&geometryType=esriGeometryPoint" +
-      `&layers=all:${layerIds.join(",")}` +
+      `&layers=all:${layerId}` +
       `&tolerance=${tolerance}&returnGeometry=false&sr=4326&lang=de` +
       `&imageDisplay=${imageSize.x},${imageSize.y},96` +
       `&mapExtent=${mapExtent}`;
     const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const data = await res.json();
     return data.results || [];
   } catch (err) {
-    if (err.name === 'AbortError') return null;
-    return null;
+    return [];
   } finally {
     clearTimeout(timeout);
   }
@@ -267,25 +245,31 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const zoom = map.getZoom();
       const mapExtent = `${bounds.getWest().toFixed(6)},${bounds.getSouth().toFixed(6)},${bounds.getEast().toFixed(6)},${bounds.getNorth().toFixed(6)}`;
 
-      // Dynamic tolerance: BAKOM sender/Richtfunk layers use sparse point features that need
-      // a large click radius to be found reliably. Mobilfunk/Starkstrom are denser but dedup
-      // + MAX_RESULTS_PER_LAYER caps keep the popup manageable even at high tolerance.
-      // Touch devices get extra tolerance for easier tapping of small features.
+      // High tolerance: point features (senders, mobilfunk) need a large click radius.
+      // Line features (starkstrom, richtfunk) also benefit — thin lines are hard to hit.
+      // Touch devices get extra tolerance for easier tapping.
       const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-      const baseTolerance = zoom <= 10 ? 60 : zoom <= 13 ? 55 : 50;
-      const tolerance = isTouch ? Math.round(baseTolerance * 1.5) : baseTolerance;
+      const baseTolerance = 120;
+      const tolerance = isTouch ? Math.round(baseTolerance * 1.3) : baseTolerance;
 
       // Track latest click — if user clicks again while loading, stale results are discarded
       const myClickId = ++latestClickId;
 
       try {
-        const allResults = await identifyAllLayers(queryLayerIds, lat, lng, mapExtent, size, tolerance);
+        // Query each layer SEPARATELY in parallel — guarantees correct layerBodId attribution
+        const layerPromises = queryLayerIds.map(id => identifyLayer(id, lat, lng, mapExtent, size, tolerance));
+        const settled = await Promise.allSettled(layerPromises);
 
         // Stale click — a newer click happened while loading, discard results
         if (myClickId !== latestClickId) return;
 
-        if (allResults === null) {
-          // API error — show error popup with map.geo.admin.ch link
+        // Combine results from all layers
+        const allResults = settled.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+
+        // Check if ALL layers failed (all returned empty due to error, not just no features)
+        const allFailed = settled.every(r => r.status === 'rejected');
+
+        if (allFailed) {
           L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
             .setLatLng(e.latlng)
             .setContent(
