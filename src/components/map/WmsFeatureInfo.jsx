@@ -189,25 +189,26 @@ function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
   </div>`;
 }
 
-// Query a SINGLE layer — ensures correct layerBodId attribution (no mixup between layers)
-// Returns array of results (empty on error)
-async function identifyLayer(layerId, lat, lng, mapExtent, imageSize, tolerance) {
+// Single combined identify call — 1 HTTP request for ALL layers
+// Returns null on error (distinguishable from empty []), array of results on success
+async function identifyAllLayers(layerIds, lat, lng, mapExtent, imageSize, tolerance) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify" +
       `?geometry=${lng.toFixed(6)},${lat.toFixed(6)}` +
       "&geometryType=esriGeometryPoint" +
-      `&layers=all:${layerId}` +
+      `&layers=all:${layerIds.join(",")}` +
       `&tolerance=${tolerance}&returnGeometry=false&sr=4326&lang=de` +
       `&imageDisplay=${imageSize.x},${imageSize.y},96` +
       `&mapExtent=${mapExtent}`;
     const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const data = await res.json();
     return data.results || [];
   } catch (err) {
-    return [];
+    if (err.name === 'AbortError') return null;
+    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -245,31 +246,24 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const zoom = map.getZoom();
       const mapExtent = `${bounds.getWest().toFixed(6)},${bounds.getSouth().toFixed(6)},${bounds.getEast().toFixed(6)},${bounds.getNorth().toFixed(6)}`;
 
-      // High tolerance: point features (senders, mobilfunk) need a large click radius.
-      // Line features (starkstrom, richtfunk) also benefit — thin lines are hard to hit.
-      // Touch devices get extra tolerance for easier tapping.
+      // Tolerance: high enough to find sparse point features (senders, mobilfunk),
+      // moderate enough to not flood with Starkstrom results.
+      // Touch devices get extra tolerance for easier tapping of small features.
       const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-      const baseTolerance = 120;
+      const baseTolerance = 70;
       const tolerance = isTouch ? Math.round(baseTolerance * 1.3) : baseTolerance;
 
       // Track latest click — if user clicks again while loading, stale results are discarded
       const myClickId = ++latestClickId;
 
       try {
-        // Query each layer SEPARATELY in parallel — guarantees correct layerBodId attribution
-        const layerPromises = queryLayerIds.map(id => identifyLayer(id, lat, lng, mapExtent, size, tolerance));
-        const settled = await Promise.allSettled(layerPromises);
+        const allResults = await identifyAllLayers(queryLayerIds, lat, lng, mapExtent, size, tolerance);
 
         // Stale click — a newer click happened while loading, discard results
         if (myClickId !== latestClickId) return;
 
-        // Combine results from all layers
-        const allResults = settled.flatMap(r => r.status === 'fulfilled' ? r.value : []);
-
-        // Check if ALL layers failed (all returned empty due to error, not just no features)
-        const allFailed = settled.every(r => r.status === 'rejected');
-
-        if (allFailed) {
+        if (allResults === null) {
+          // API error — show error popup with map.geo.admin.ch link
           L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
             .setLatLng(e.latlng)
             .setContent(
