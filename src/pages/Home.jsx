@@ -854,6 +854,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.9}
+                zIndex={100}
                 attribution='&copy; BFE'
               />
               <WMSTileLayer
@@ -862,6 +863,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.6}
+                zIndex={110}
               />
               <WMSTileLayer
                 url="https://wms.geo.admin.ch/"
@@ -869,6 +871,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.85}
+                zIndex={120}
                 attribution='&copy; BAKOM'
               />
               <WMSTileLayer
@@ -877,6 +880,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.8}
+                zIndex={130}
               />
               <WMSTileLayer
                 url="https://wms.geo.admin.ch/"
@@ -884,6 +888,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.8}
+                zIndex={140}
               />
             </>
           )}
@@ -897,6 +902,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.5}
+                zIndex={200}
                 attribution='&copy; BAFU'
               />
               <WMSTileLayer
@@ -905,6 +911,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.5}
+                zIndex={210}
               />
               <WMSTileLayer
                 url="https://wms.geo.admin.ch/"
@@ -912,6 +919,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.5}
+                zIndex={220}
               />
               <WMSTileLayer
                 url="https://wms.geo.admin.ch/"
@@ -919,6 +927,7 @@ export default function Home() {
                 format="image/png"
                 transparent={true}
                 opacity={0.5}
+                zIndex={230}
               />
             </>
           )}

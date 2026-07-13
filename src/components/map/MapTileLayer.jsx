@@ -50,6 +50,7 @@ export default function MapTileLayer({
       opacity: opacity != null ? opacity : 1,
       isOffline: !!isOffline,
       tileKeyPrefix: tileKeyPrefix || "",
+      zIndex: 1,
       keepBuffer: 4,
       updateWhenZooming: false,
       updateWhenIdle: false,
@@ -57,6 +58,7 @@ export default function MapTileLayer({
     });
     layerRef.current = layer;
     layer.addTo(map);
+    layer.bringToBack();
     return () => {
       map.removeLayer(layer);
       layerRef.current = null;

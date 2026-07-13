@@ -262,10 +262,10 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const mapExtent = `${bounds.getWest().toFixed(6)},${bounds.getSouth().toFixed(6)},${bounds.getEast().toFixed(6)},${bounds.getNorth().toFixed(6)}`;
 
       // Dynamic tolerance: higher when zoomed out (features are sparse), lower when zoomed in
-      // At zoom ≤ 10 (country/canton view): tolerance 20 to catch sparse features
-      // At zoom 11-13 (city/street): tolerance 12 (enough for touch, avoids too many results)
-      // At zoom > 13 (building level): tolerance 8
-      const tolerance = zoom <= 10 ? 20 : zoom <= 13 ? 12 : 8;
+      // Touch devices get doubled tolerance for easier tapping of small features
+      const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      const baseTolerance = zoom <= 10 ? 20 : zoom <= 13 ? 12 : 8;
+      const tolerance = isTouch ? baseTolerance * 2 : baseTolerance;
 
       const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: false })
         .setLatLng(e.latlng)
@@ -277,12 +277,7 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
         const results = deduplicateResults(allResults);
 
         if (results.length === 0) {
-          popup.setContent(
-            '<div style="min-width:200px;max-width:260px;">' +
-            '<div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Keine Detaildaten an diesem Standort.</div>' +
-            `<a href="${escapeHtml(buildMapAdminUrl(lat, lng, zoom, layerIds))}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">🗺️ In map.geo.admin.ch öffnen →</a>` +
-            '</div>'
-          );
+          map.closePopup(popup);
           return;
         }
 
