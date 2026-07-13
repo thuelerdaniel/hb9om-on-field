@@ -50,7 +50,6 @@ export default function MapTileLayer({
       opacity: opacity != null ? opacity : 1,
       isOffline: !!isOffline,
       tileKeyPrefix: tileKeyPrefix || "",
-      zIndex: 1,
       keepBuffer: 4,
       updateWhenZooming: false,
       updateWhenIdle: false,

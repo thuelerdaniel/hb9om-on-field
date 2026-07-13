@@ -207,6 +207,7 @@ function buildPopupHtml(results, layerLookup, clickLat, clickLng, zoom) {
 }
 
 // Single combined identify call — 1 HTTP request for ALL layers
+// Returns null on error (distinguishable from empty []), array of results on success
 async function identifyAllLayers(layerIds, lat, lng, mapExtent, imageSize, tolerance) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -219,11 +220,12 @@ async function identifyAllLayers(layerIds, lat, lng, mapExtent, imageSize, toler
       `&imageDisplay=${imageSize.x},${imageSize.y},96` +
       `&mapExtent=${mapExtent}`;
     const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const data = await res.json();
     return data.results || [];
-  } catch {
-    return [];
+  } catch (err) {
+    if (err.name === 'AbortError') return null;
+    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -267,13 +269,26 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const baseTolerance = zoom <= 10 ? 20 : zoom <= 13 ? 12 : 8;
       const tolerance = isTouch ? baseTolerance * 2 : baseTolerance;
 
-      const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: false })
+      const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
         .setLatLng(e.latlng)
         .setContent('<div style="min-width:140px;text-align:center;padding:6px;"><div style="font-size:12px;color:#6b7280;">⏳ Lade…</div></div>')
         .openOn(map);
 
       try {
         const allResults = await identifyAllLayers(queryLayerIds, lat, lng, mapExtent, size, tolerance);
+
+        // null = API error (network, timeout, etc.) — show error so user knows something went wrong
+        if (allResults === null) {
+          if (popup.isOpen()) {
+            popup.setContent(
+              '<div style="min-width:180px;padding:4px;"><div style="font-size:12px;color:#ef4444;">⚠ Abfrage fehlgeschlagen.</div>' +
+              `<a href="${escapeHtml(buildMapAdminUrl(lat, lng, zoom, layerIds))}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">🗺️ In map.geo.admin.ch öffnen →</a>` +
+              '</div>'
+            );
+          }
+          return;
+        }
+
         const results = deduplicateResults(allResults);
 
         if (results.length === 0) {
@@ -281,11 +296,21 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
           return;
         }
 
-        popup.setContent(buildPopupHtml(results, layerLookup, lat, lng, zoom));
+        const html = buildPopupHtml(results, layerLookup, lat, lng, zoom);
+        if (popup.isOpen()) {
+          popup.setContent(html);
+          popup.update();
+        } else {
+          // Popup was closed while loading — re-open with results
+          popup.setContent(html);
+          popup.openOn(map);
+        }
       } catch (err) {
-        popup.setContent(
-          '<div style="font-size:12px;color:#ef4444;padding:4px;">Fehler: ' + escapeHtml(err.message || "Unbekannt") + '</div>'
-        );
+        if (popup.isOpen()) {
+          popup.setContent(
+            '<div style="font-size:12px;color:#ef4444;padding:4px;">Fehler: ' + escapeHtml(err.message || "Unbekannt") + '</div>'
+          );
+        }
       }
     }
   });
