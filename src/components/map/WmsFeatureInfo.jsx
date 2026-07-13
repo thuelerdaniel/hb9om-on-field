@@ -278,12 +278,6 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       // Track latest click — if user clicks again while loading, stale results are discarded
       const myClickId = ++latestClickId;
 
-      // Open loading popup
-      L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
-        .setLatLng(e.latlng)
-        .setContent('<div style="min-width:140px;text-align:center;padding:6px;"><div style="font-size:12px;color:#6b7280;">⏳ Lade…</div></div>')
-        .openOn(map);
-
       try {
         const allResults = await identifyAllLayers(queryLayerIds, lat, lng, mapExtent, size, tolerance);
 
@@ -305,13 +299,10 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
 
         const results = deduplicateResults(allResults);
 
-        if (results.length === 0) {
-          // No features at this location — close popup silently
-          map.closePopup();
-          return;
-        }
+        // No features at this location — show nothing (no popup at all)
+        if (results.length === 0) return;
 
-        // Results found — close loading popup and open fresh results popup
+        // Results found — open popup with content
         const html = buildPopupHtml(results, layerLookup, lat, lng, zoom);
         L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
           .setLatLng(e.latlng)
