@@ -73,6 +73,10 @@ const MAX_RESULTS_PER_LAYER = 10;
 const MAX_VALUE_LENGTH = 150;
 const REQUEST_TIMEOUT_MS = 8000;
 
+// Module-level counter: tracks the latest click so stale API responses are discarded
+// (prevents "Lade…" popup getting stuck when user clicks again while loading)
+let latestClickId = 0;
+
 function formatPropName(key) {
   const lower = key.toLowerCase();
   if (HIDDEN_PROPS.has(lower)) return null;
@@ -269,7 +273,11 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const baseTolerance = zoom <= 10 ? 20 : zoom <= 13 ? 12 : 8;
       const tolerance = isTouch ? baseTolerance * 2 : baseTolerance;
 
-      const popup = L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
+      // Track latest click — if user clicks again while loading, stale results are discarded
+      const myClickId = ++latestClickId;
+
+      // Open loading popup
+      L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
         .setLatLng(e.latlng)
         .setContent('<div style="min-width:140px;text-align:center;padding:6px;"><div style="font-size:12px;color:#6b7280;">⏳ Lade…</div></div>')
         .openOn(map);
@@ -277,40 +285,44 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       try {
         const allResults = await identifyAllLayers(queryLayerIds, lat, lng, mapExtent, size, tolerance);
 
-        // null = API error (network, timeout, etc.) — show error so user knows something went wrong
+        // Stale click — a newer click happened while loading, discard results
+        if (myClickId !== latestClickId) return;
+
         if (allResults === null) {
-          if (popup.isOpen()) {
-            popup.setContent(
+          // API error — show error popup with map.geo.admin.ch link
+          L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
+            .setLatLng(e.latlng)
+            .setContent(
               '<div style="min-width:180px;padding:4px;"><div style="font-size:12px;color:#ef4444;">⚠ Abfrage fehlgeschlagen.</div>' +
               `<a href="${escapeHtml(buildMapAdminUrl(lat, lng, zoom, layerIds))}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2563eb;text-decoration:none;">🗺️ In map.geo.admin.ch öffnen →</a>` +
               '</div>'
-            );
-          }
+            )
+            .openOn(map);
           return;
         }
 
         const results = deduplicateResults(allResults);
 
         if (results.length === 0) {
-          map.closePopup(popup);
+          // No features at this location — close popup silently
+          map.closePopup();
           return;
         }
 
+        // Results found — close loading popup and open fresh results popup
         const html = buildPopupHtml(results, layerLookup, lat, lng, zoom);
-        if (popup.isOpen()) {
-          popup.setContent(html);
-          popup.update();
-        } else {
-          // Popup was closed while loading — re-open with results
-          popup.setContent(html);
-          popup.openOn(map);
-        }
+        L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
+          .setLatLng(e.latlng)
+          .setContent(html)
+          .openOn(map);
       } catch (err) {
-        if (popup.isOpen()) {
-          popup.setContent(
+        if (myClickId !== latestClickId) return;
+        L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
+          .setLatLng(e.latlng)
+          .setContent(
             '<div style="font-size:12px;color:#ef4444;padding:4px;">Fehler: ' + escapeHtml(err.message || "Unbekannt") + '</div>'
-          );
-        }
+          )
+          .openOn(map);
       }
     }
   });
