@@ -233,13 +233,6 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
         });
       });
 
-      // Performance mode: only query the most important layers
-      let queryLayerIds = layerIds;
-      if (performanceMode) {
-        queryLayerIds = layerIds.filter(id => id === "ch.bfe.elektrische-anlagen_ueber_36");
-        if (queryLayerIds.length === 0) queryLayerIds = layerIds;
-      }
-
       const { lat, lng } = e.latlng;
       const bounds = map.getBounds();
       const size = map.getSize();
@@ -257,7 +250,7 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const myClickId = ++latestClickId;
 
       try {
-        const allResults = await identifyAllLayers(queryLayerIds, lat, lng, mapExtent, size, tolerance);
+        const allResults = await identifyAllLayers(layerIds, lat, lng, mapExtent, size, tolerance);
 
         // Stale click — a newer click happened while loading, discard results
         if (myClickId !== latestClickId) return;
