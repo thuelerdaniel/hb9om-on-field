@@ -12,6 +12,7 @@ import MapControls from "@/components/map/MapControls";
 import MapMarkers from "@/components/map/MapMarkers";
 import PositionMarker from "@/components/map/PositionMarker";
 import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
+import GpsTracker from "@/components/map/GpsTracker";
 import RadioLoader from "@/components/map/RadioLoader";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
@@ -917,6 +918,7 @@ export default function Home() {
           )}
 
           <WmsFeatureInfo activeLayers={activeLayers} clickMode={pickingPosition} performanceMode={performanceMode} />
+          <GpsTracker />
 
           <MapMarkers
             markers={allMarkers}

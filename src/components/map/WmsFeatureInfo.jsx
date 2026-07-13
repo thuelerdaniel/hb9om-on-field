@@ -257,7 +257,7 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
 
         if (allResults === null) {
           // API error — show error popup with map.geo.admin.ch link
-          L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
+          L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true, autoPan: false })
             .setLatLng(e.latlng)
             .setContent(
               '<div style="min-width:180px;padding:4px;"><div style="font-size:12px;color:#ef4444;">⚠ Abfrage fehlgeschlagen.</div>' +
@@ -275,13 +275,13 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
 
         // Results found — open popup with content
         const html = buildPopupHtml(results, layerLookup, lat, lng, zoom);
-        L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
+        L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true, autoPan: false })
           .setLatLng(e.latlng)
           .setContent(html)
           .openOn(map);
       } catch (err) {
         if (myClickId !== latestClickId) return;
-        L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true })
+        L.popup({ maxWidth: 300, autoClose: true, closeOnClick: true, autoPan: false })
           .setLatLng(e.latlng)
           .setContent(
             '<div style="font-size:12px;color:#ef4444;padding:4px;">Fehler: ' + escapeHtml(err.message || "Unbekannt") + '</div>'

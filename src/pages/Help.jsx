@@ -53,6 +53,11 @@ const SECTIONS = [
         example: "GPS-Button klicken → Karte zoomt heraus, Kreis sichtbar → Pin-Nadel anklicken → Koordinaten, manuelle Eingabe, Radiusschieber und Navigieren-Button."
       },
       {
+        title: "GPS-Standort-Tracking (Dauerhaft)",
+        body: "In den Einstellungen können Sie unter «GPS-Standort auf Karte» eine permanente GPS-Anzeige aktivieren. Ein blaues Kreuz mit Mittelpunkt zeigt Ihren aktuellen Standort auf der Karte an – unabhängig vom GPS-Button für die QSO-Positionierung. Das Aktualisierungsintervall ist einstellbar von 30 Sekunden bis 1 Stunde. Ein kürzeres Intervall liefert eine genauere Position, erhöht aber den Akkuverbrauch. Die Einstellung wird sofort wirksam – ein Neuladen der Seite ist nicht nötig. Diese Funktion ist nützlich, um beim Navigieren im Feld immer zu sehen, wo man sich gerade befindet.",
+        example: "Einstellungen → «GPS-Standort auf Karte» einschalten → Intervall «1 Minute» wählen → blaues Kreuz erscheint auf der Karte."
+      },
+      {
         title: "Position fixieren",
         body: "Wenn Sie die GPS-Position nicht verwenden möchten oder kein GPS-Empfang haben, können Sie die Position frei auf der Karte festlegen: Klicken Sie auf den Pin-Button, dann auf die gewünschte Stelle der Karte. Die Karte zoomt automatisch so heraus, dass der Radiuskreis vollständig sichtbar ist. Die fixierte Position (blau) ersetzt die GPS-Position für die Referenzsuche im QSO-Formular. Im Popup können Sie den Radius anpassen und die Position an Google Maps übergeben. Klicken Sie erneut auf den GPS-Button, um zur GPS-Position zurückzukehren.",
         example: "Pin-Button → Karte antippen → Position blau, Karte zoomt heraus → Popup mit Koordinaten, Radiusschieber und Navigieren-Button."

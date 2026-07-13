@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap, Shield } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap, Shield, Crosshair } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
@@ -63,6 +63,8 @@ export default function Settings() {
   const [demoVerifying, setDemoVerifying] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [perfSuggestionReset, setPerfSuggestionReset] = useState(false);
+  const [gpsTrackingEnabled, setGpsTrackingEnabled] = useState(() => localStorage.getItem("hb9om_gps_tracking_enabled") === "true");
+  const [gpsTrackingInterval, setGpsTrackingInterval] = useState(() => parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"));
 
   useEffect(() => {
     loadData();
@@ -325,6 +327,18 @@ export default function Settings() {
   const handleToggleAutoModeOverride = (enabled) => {
     setAutoModeOverride(enabled);
     localStorage.setItem("hb9om_auto_mode_override", String(enabled));
+  };
+
+  const handleToggleGpsTracking = (enabled) => {
+    setGpsTrackingEnabled(enabled);
+    localStorage.setItem("hb9om_gps_tracking_enabled", String(enabled));
+    window.dispatchEvent(new CustomEvent("gps-tracking-changed"));
+  };
+
+  const handleGpsIntervalChange = (seconds) => {
+    setGpsTrackingInterval(seconds);
+    localStorage.setItem("hb9om_gps_tracking_interval", String(seconds));
+    window.dispatchEvent(new CustomEvent("gps-tracking-changed"));
   };
 
   const handleToggleForceOffline = async (enabled) => {
@@ -642,6 +656,46 @@ export default function Settings() {
               {perfSuggestionReset ? "Zurückgesetzt" : "Zurücksetzen"}
             </button>
           </div>
+        </section>
+
+        {/* GPS Tracking */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <Crosshair className="w-4 h-4 text-blue-500" /> GPS-Standort auf Karte
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {gpsTrackingEnabled ? "Aktueller Standort wird als Kreuz auf der Karte angezeigt" : "GPS-Standort wird nicht auf der Karte angezeigt"}
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleGpsTracking(!gpsTrackingEnabled)}
+              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${gpsTrackingEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${gpsTrackingEnabled ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+          {gpsTrackingEnabled && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktualisierungsintervall</label>
+              <select
+                value={gpsTrackingInterval}
+                onChange={(e) => handleGpsIntervalChange(parseInt(e.target.value))}
+                className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                <option value={30}>30 Sekunden</option>
+                <option value={60}>1 Minute</option>
+                <option value={120}>2 Minuten</option>
+                <option value={300}>5 Minuten</option>
+                <option value={600}>10 Minuten</option>
+                <option value={900}>15 Minuten</option>
+                <option value={1800}>30 Minuten</option>
+                <option value={3600}>1 Stunde</option>
+              </select>
+              <p className="text-[10px] text-gray-400 mt-1">Kürzeres Intervall = genauere Position, aber höherer Akkuverbrauch.</p>
+            </div>
+          )}
         </section>
 
         {/* Offline Maps */}

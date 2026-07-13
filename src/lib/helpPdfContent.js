@@ -137,6 +137,17 @@ export const SECTIONS = [
         mockup: "gps"
       },
       {
+        title: "GPS-Standort-Tracking (Dauerhaft)",
+        body: "In den Einstellungen kann eine permanente GPS-Anzeige aktiviert werden. Ein blaues Kreuz mit Mittelpunkt zeigt Ihren aktuellen Standort auf der Karte – unabhaengig vom GPS-Button fuer die QSO-Positionierung. Das Aktualisierungsintervall ist einstellbar von 30 Sekunden bis 1 Stunde. Ein kuerzeres Intervall liefert eine genauere Position, erhoeht aber den Akkuverbrauch.",
+        steps: [
+          { icon: "settings", text: "In die Einstellungen wechseln" },
+          { icon: "locateFixed", text: "«GPS-Standort auf Karte» einschalten" },
+          { icon: "clock", text: "Aktualisierungsintervall waehlen (30 s bis 1 h)" },
+          { icon: "mapPin", text: "Blaues Kreuz erscheint auf der Karte" }
+        ],
+        tip: "Tipp: 1 Minute ist ein guter Kompromiss zwischen Genauigkeit und Akkuverbrauch."
+      },
+      {
         title: "Position fixieren (ohne GPS)",
         body: "Wenn Sie kein GPS haben oder die Position frei wählen möchten, können Sie die Position auf der Karte festlegen. Die fixierte Position (blau) ersetzt die GPS-Position für die Referenzsuche im QSO-Formular.",
         steps: [

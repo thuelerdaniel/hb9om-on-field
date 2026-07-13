@@ -153,6 +153,7 @@ export async function generateFlyer() {
         "Layer ein-/ausschalten – nur sehen, was Sie brauchen",
         "Offline-Karten für den Feldeinsatz herunterladen",
         "Gefahren & Störquellen: Hochspannungsleitungen von map.geo.admin.ch",
+        "GPS-Standort-Tracking mit einstellbarem Intervall (30 s – 1 h)",
       ],
     },
     {
