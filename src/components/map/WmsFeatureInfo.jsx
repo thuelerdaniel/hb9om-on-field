@@ -267,11 +267,13 @@ export default function WmsFeatureInfo({ activeLayers, clickMode, performanceMod
       const zoom = map.getZoom();
       const mapExtent = `${bounds.getWest().toFixed(6)},${bounds.getSouth().toFixed(6)},${bounds.getEast().toFixed(6)},${bounds.getNorth().toFixed(6)}`;
 
-      // Dynamic tolerance: higher when zoomed out (features are sparse), lower when zoomed in
-      // Touch devices get doubled tolerance for easier tapping of small features
+      // Dynamic tolerance: BAKOM sender/Richtfunk layers use sparse point features that need
+      // a large click radius to be found reliably. Mobilfunk/Starkstrom are denser but dedup
+      // + MAX_RESULTS_PER_LAYER caps keep the popup manageable even at high tolerance.
+      // Touch devices get extra tolerance for easier tapping of small features.
       const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-      const baseTolerance = zoom <= 10 ? 20 : zoom <= 13 ? 12 : 8;
-      const tolerance = isTouch ? baseTolerance * 2 : baseTolerance;
+      const baseTolerance = zoom <= 10 ? 60 : zoom <= 13 ? 55 : 50;
+      const tolerance = isTouch ? Math.round(baseTolerance * 1.5) : baseTolerance;
 
       // Track latest click — if user clicks again while loading, stale results are discarded
       const myClickId = ++latestClickId;
