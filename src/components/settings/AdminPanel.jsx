@@ -20,8 +20,8 @@ export default function AdminPanel({
   cacheStatus, loading,
   refreshing, refreshResult, handleRefresh,
   autoUpdateEnabled, autoUpdateLoading, handleToggleAutoUpdate,
-  notifyNewUser, notifyDbUpdate, notifyAppErrors, notifyLoading, handleToggleNotification,
-  setNotifyNewUser, setNotifyDbUpdate, setNotifyAppErrors,
+  notifyNewUser, notifyDbUpdate, notifyAppErrors, notifyDemoLogin, notifyLoading, handleToggleNotification,
+  setNotifyNewUser, setNotifyDbUpdate, setNotifyAppErrors, setNotifyDemoLogin,
   logs,
   adminPendingRequests, adminPendingFeatureRequests,
   demoSettingUp, demoSetupResult, demoOtpCode, setDemoOtpCode, demoVerifying,
@@ -254,6 +254,21 @@ export default function AdminPanel({
               className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${notifyAppErrors ? 'bg-gray-900' : 'bg-gray-300'} ${notifyLoading ? 'opacity-40' : ''}`}
             >
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyAppErrors ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5" /> Demo-Login
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">Wenn sich jemand als Demo-Benutzer anmeldet</p>
+            </div>
+            <button
+              onClick={() => handleToggleNotification("notify_demo_login", !notifyDemoLogin, setNotifyDemoLogin)}
+              disabled={notifyLoading}
+              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${notifyDemoLogin ? 'bg-gray-900' : 'bg-gray-300'} ${notifyLoading ? 'opacity-40' : ''}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyDemoLogin ? 'translate-x-6' : ''}`} />
             </button>
           </div>
         </div>

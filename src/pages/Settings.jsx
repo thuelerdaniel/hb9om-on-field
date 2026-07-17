@@ -45,6 +45,7 @@ export default function Settings() {
   const [notifyNewUser, setNotifyNewUser] = useState(true);
   const [notifyDbUpdate, setNotifyDbUpdate] = useState(true);
   const [notifyAppErrors, setNotifyAppErrors] = useState(true);
+  const [notifyDemoLogin, setNotifyDemoLogin] = useState(true);
   const [notifyLoading, setNotifyLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -127,6 +128,8 @@ export default function Settings() {
       if (newUserSettings?.length > 0) setNotifyNewUser(newUserSettings[0].enabled !== false);
       if (dbUpdateSettings?.length > 0) setNotifyDbUpdate(dbUpdateSettings[0].enabled !== false);
       if (errorSettings?.length > 0) setNotifyAppErrors(errorSettings[0].enabled !== false);
+      const demoLoginSettings = await base44.entities.AppSetting.filter({ key: "notify_demo_login" });
+      if (demoLoginSettings?.length > 0) setNotifyDemoLogin(demoLoginSettings[0].enabled !== false);
     } catch (e) {
       setLogs([]);
       setCacheStatus([]);
@@ -858,11 +861,13 @@ export default function Settings() {
                   notifyNewUser={notifyNewUser}
                   notifyDbUpdate={notifyDbUpdate}
                   notifyAppErrors={notifyAppErrors}
+                  notifyDemoLogin={notifyDemoLogin}
                   notifyLoading={notifyLoading}
                   handleToggleNotification={handleToggleNotification}
                   setNotifyNewUser={setNotifyNewUser}
                   setNotifyDbUpdate={setNotifyDbUpdate}
                   setNotifyAppErrors={setNotifyAppErrors}
+                  setNotifyDemoLogin={setNotifyDemoLogin}
                   logs={logs}
                   adminPendingRequests={adminPendingRequests}
                   adminPendingFeatureRequests={adminPendingFeatureRequests}

@@ -119,6 +119,26 @@ export const AuthProvider = ({ children }) => {
       } catch (e) {
         // Non-critical — don't block app load
       }
+
+      // Notify admins about new user registration via Google login
+      // Detect: account created within last 5 min AND not yet notified (localStorage flag)
+      try {
+        if (currentUser.created_date) {
+          const createdMs = new Date(currentUser.created_date).getTime();
+          const isNew = (Date.now() - createdMs) < 5 * 60 * 1000;
+          const notifiedKey = `hb9om_notified_user_${currentUser.id}`;
+          const alreadyNotified = localStorage.getItem(notifiedKey) === "true";
+          if (isNew && !alreadyNotified) {
+            localStorage.setItem(notifiedKey, "true");
+            base44.functions.invoke("notifyAdminOnRegistration", {
+              data: { email: currentUser.email, full_name: currentUser.full_name || "" },
+              event: { type: "create", entity_name: "User" }
+            }).catch(() => {});
+          }
+        }
+      } catch (e) {
+        // Non-critical
+      }
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);

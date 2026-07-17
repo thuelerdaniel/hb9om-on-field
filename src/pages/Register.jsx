@@ -49,11 +49,15 @@ export default function Register() {
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
       }
-      // Admins über neue Registrierung benachrichtigen (fire-and-forget)
-      base44.functions.invoke("notifyAdminOnRegistration", {
-        data: { email, full_name: "" },
-        event: { type: "create", entity_name: "User" }
-      }).catch(() => {});
+      // Admins über neue Registrierung benachrichtigen (vor Redirect abwarten)
+      try {
+        await base44.functions.invoke("notifyAdminOnRegistration", {
+          data: { email, full_name: "" },
+          event: { type: "create", entity_name: "User" }
+        });
+      } catch (e) {
+        // Notification failure should not block login
+      }
       window.location.href = "/";
     } catch (err) {
       setError(err.message || "Ungültiger Bestätigungscode");
