@@ -106,6 +106,10 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   }
 
   // Canvas mode (performance mode OR auto-switch when too many markers): lightweight CircleMarkers on canvas
+  // Touch devices get larger markers for easier tapping; desktop stays compact for density
+  const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+  const circleRadius = isTouch ? 10 : 7;
+  const circleWeight = isTouch ? 3 : 2;
   if (useCanvasMode) {
     return (
       <>
@@ -115,10 +119,10 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
             <CircleMarker
               key={key}
               center={[m.lat, m.lng]}
-              radius={5}
+              radius={circleRadius}
               pathOptions={{
                 color: "#ffffff",
-                weight: 1.5,
+                weight: circleWeight,
                 fillColor: m.color,
                 fillOpacity: 0.85,
               }}
