@@ -722,12 +722,17 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     let user = null;
     try { user = await base44.auth.me(); } catch {}
+    let body = {};
+    try { body = await req.json(); } catch {}
 
-    // Skip scheduled runs if auto-update is disabled (manual runs always proceed)
-    if (!user) {
+    // Scheduled runs pass { scheduled: true } from the automation. Manual UI runs send no flag.
+    // Only scheduled runs respect the auto_update toggle; manual runs always proceed.
+    // Each admin has their own AppSetting record (RLS), so check ALL records — not just settings[0].
+    if (body.scheduled === true) {
       try {
         const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'auto_update' });
-        if (settings.length > 0 && settings[0].enabled === false) {
+        const anyDisabled = (settings || []).some(s => s.enabled === false);
+        if (anyDisabled) {
           return Response.json({ skipped: true, message: 'Automatische Aktualisierung deaktiviert' });
         }
       } catch {}
@@ -804,14 +809,15 @@ Deno.serve(async (req) => {
     const successCount = results.filter(r => r.status === 'success').length;
     const overallStatus = successCount === results.length ? 'success' : successCount > 0 ? 'partial' : 'failed';
 
-    // SyncLog pro User: nutzerspezifisch wenn angemeldet, sonst service role (scheduled)
-    const syncLogClient = user ? base44.entities.SyncLog : base44.asServiceRole.entities.SyncLog;
+    // SyncLog: scheduled runs use service role (no user context expected); manual runs use user context
+    const isScheduled = body.scheduled === true;
+    const syncLogClient = isScheduled ? base44.asServiceRole.entities.SyncLog : (user ? base44.entities.SyncLog : base44.asServiceRole.entities.SyncLog);
     await syncLogClient.create({
       timestamp: new Date().toISOString(),
       overall_status: overallStatus,
       total_duration_ms: totalDuration,
       results: results,
-      trigger: user ? 'manual' : 'scheduled'
+      trigger: isScheduled ? 'scheduled' : 'manual'
     });
 
     // Send db-update notification emails to admins who opted in
