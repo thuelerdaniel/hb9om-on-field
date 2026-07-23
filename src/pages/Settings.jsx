@@ -77,11 +77,11 @@ export default function Settings() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [logsData, cacheData, qrzData, settingsData] = await Promise.all([
+      const [logsData, cacheData, qrzData, autoUpdateRes] = await Promise.all([
         base44.entities.SyncLog.list("-created_date", 10),
         base44.entities.ReferenceData.list(),
         base44.entities.QrzLookup.list("-created_date", 10),
-        base44.entities.AppSetting.filter({ key: "auto_update" })
+        base44.functions.invoke("manageAutoUpdate", { action: "get" })
       ]);
       setLogs(logsData || []);
       setCacheStatus(cacheData || []);
@@ -116,9 +116,7 @@ export default function Settings() {
           if (res) setAdminPendingFeatureRequests(res.data?.count || 0);
         })
         .catch(() => {});
-      if (settingsData && settingsData.length > 0) {
-        setAutoUpdateEnabled(settingsData[0].enabled !== false);
-      }
+      setAutoUpdateEnabled(autoUpdateRes?.data?.enabled !== false);
       // Load notification preferences
       const [newUserSettings, dbUpdateSettings, errorSettings] = await Promise.all([
         base44.entities.AppSetting.filter({ key: "notify_new_user" }),
@@ -361,12 +359,7 @@ export default function Settings() {
   const handleToggleAutoUpdate = async (enabled) => {
     setAutoUpdateLoading(true);
     try {
-      const existing = await base44.entities.AppSetting.filter({ key: "auto_update" });
-      if (existing.length > 0) {
-        await base44.entities.AppSetting.update(existing[0].id, { enabled, value: String(enabled) });
-      } else {
-        await base44.entities.AppSetting.create({ key: "auto_update", enabled, value: String(enabled) });
-      }
+      await base44.functions.invoke("manageAutoUpdate", { action: "set", enabled });
       setAutoUpdateEnabled(enabled);
     } catch (e) {
       setAutoUpdateEnabled(!enabled);
