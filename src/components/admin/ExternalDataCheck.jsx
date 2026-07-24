@@ -49,14 +49,17 @@ export default function ExternalDataCheck() {
     setResult(null);
     try {
       const res = await base44.functions.invoke("checkExternalData", { action: "check" });
-      setResult(res.data);
-      const s = res.data?.summary;
-      if (s) {
-        toast({
-          title: "Anbindung geprüft",
-          description: `${s.sources_ok}/${s.sources_total} Quellen ok · ${s.geo_ok}/${s.geo_total} Geokodierung ok${s.gaps_without_coords > 0 ? ` · ${s.gaps_without_coords} Ref. ohne Koordinaten` : ''} – ${(res.data.duration_ms / 1000).toFixed(1)}s`,
-        });
+      const data = res?.data;
+      // Only accept well-formed responses (must contain a summary); reject error payloads
+      if (!data || data.error || !data.summary || !Array.isArray(data.sources)) {
+        throw new Error(data?.error || "Ungültige Antwort der Prüffunktion");
       }
+      setResult(data);
+      const s = data.summary;
+      toast({
+        title: "Anbindung geprüft",
+        description: `${s.sources_ok}/${s.sources_total} Quellen ok · ${s.geo_ok}/${s.geo_total} Geokodierung ok${s.gaps_without_coords > 0 ? ` · ${s.gaps_without_coords} Ref. ohne Koordinaten` : ''} – ${(data.duration_ms / 1000).toFixed(1)}s`,
+      });
     } catch (e) {
       toast({ title: "Fehler bei der Überprüfung", description: e?.message || "Unbekannt", variant: "destructive" });
     } finally {
@@ -64,9 +67,13 @@ export default function ExternalDataCheck() {
     }
   };
 
-  const hasSourceErrors = result?.sources?.some(r => r.status === 'error');
-  const hasGeoErrors = result?.geocoding?.some(r => r.status === 'error');
-  const hasGaps = result?.gaps?.length > 0;
+  const summary = result?.summary;
+  const sources = Array.isArray(result?.sources) ? result.sources : [];
+  const geocoding = Array.isArray(result?.geocoding) ? result.geocoding : [];
+  const gaps = Array.isArray(result?.gaps) ? result.gaps : [];
+  const hasSourceErrors = sources.some(r => r.status === 'error');
+  const hasGeoErrors = geocoding.some(r => r.status === 'error');
+  const hasGaps = gaps.length > 0;
 
   return (
     <section className="bg-white rounded-xl border-2 border-blue-200 p-4">
@@ -90,26 +97,26 @@ export default function ExternalDataCheck() {
         {checking ? "Prüft..." : "Anbindung prüfen"}
       </button>
 
-      {result && (
+      {result && summary && (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-green-50 rounded-lg p-2">
-              <p className="text-lg font-bold text-green-600">{result.summary.sources_ok}</p>
+              <p className="text-lg font-bold text-green-600">{summary.sources_ok}</p>
               <p className="text-[10px] text-green-700">Quellen ok</p>
             </div>
             <div className="bg-red-50 rounded-lg p-2">
-              <p className="text-lg font-bold text-red-600">{result.summary.sources_errors}</p>
+              <p className="text-lg font-bold text-red-600">{summary.sources_errors}</p>
               <p className="text-[10px] text-red-700">Quellen-Fehler</p>
             </div>
             <div className="bg-amber-50 rounded-lg p-2">
-              <p className="text-lg font-bold text-amber-600">{result.summary.gaps_without_coords}</p>
+              <p className="text-lg font-bold text-amber-600">{summary.gaps_without_coords}</p>
               <p className="text-[10px] text-amber-700">Ohne Koord.</p>
             </div>
           </div>
 
           <div className="text-[10px] text-gray-400 flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Geprüft am {new Date(result.checked_at).toLocaleString('de-CH')} · {(result.duration_ms / 1000).toFixed(1)}s
+            Geprüft am {result.checked_at ? new Date(result.checked_at).toLocaleString('de-CH') : '?'} · {result.duration_ms != null ? (result.duration_ms / 1000).toFixed(1) : '?'}s
           </div>
 
           {/* Reference data sources */}
@@ -118,7 +125,7 @@ export default function ExternalDataCheck() {
               <Database className="w-3 h-3" /> Referenzdaten-Quellen
             </h4>
             <div className="space-y-2">
-              {result.sources.map((r, i) => <SourceRow key={i} r={r} />)}
+              {sources.map((r, i) => <SourceRow key={i} r={r} />)}
             </div>
           </div>
 
@@ -128,7 +135,7 @@ export default function ExternalDataCheck() {
               <Globe className="w-3 h-3" /> Geokodierungs-Quellen (für Burgen)
             </h4>
             <div className="space-y-2">
-              {result.geocoding.map((r, i) => <SourceRow key={i} r={r} />)}
+              {geocoding.map((r, i) => <SourceRow key={i} r={r} />)}
             </div>
           </div>
 
@@ -144,15 +151,15 @@ export default function ExternalDataCheck() {
               </div>
             ) : (
               <div className="space-y-2">
-                {result.gaps.map(g => (
+                {gaps.map(g => (
                   <div key={g.type} className="border border-amber-200 bg-amber-50 rounded-lg p-2.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-gray-900">{g.label}</span>
+                      <span className="text-xs font-bold text-gray-900">{g.label || g.type}</span>
                       <span className="text-[10px] text-amber-700 font-medium">
                         {g.without_coords} / {g.total} ohne Koordinaten
                       </span>
                     </div>
-                    {g.references.length > 0 && (
+                    {Array.isArray(g.references) && g.references.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {g.references.slice(0, 20).map((r, i) => (
                           <span key={i} className="text-[10px] font-mono bg-white border border-amber-200 rounded px-1 py-0.5 text-gray-700" title={r.name}>

@@ -147,11 +147,11 @@ async function attemptFetch(src, timeoutMs) {
   }
 }
 
-async function checkSource(src, timeoutMs = 15000) {
+async function checkSource(src, timeoutMs = 10000) {
   const start = Date.now();
   let res = await attemptFetch(src, timeoutMs);
-  // Single retry on transient errors (rate-limiting, temporary network blips)
-  if (res.status === 'error' && (res.http_status === 429 || res.http_status === null)) {
+  // Single retry ONLY on explicit rate-limiting (429), not on timeouts/network errors
+  if (res.status === 'error' && res.http_status === 429) {
     await new Promise(r => setTimeout(r, 1200));
     res = await attemptFetch(src, timeoutMs);
   }

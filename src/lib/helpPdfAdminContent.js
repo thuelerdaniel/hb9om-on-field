@@ -142,6 +142,17 @@ export const ADMIN_SECTIONS = [
           { icon: "clock", text: "Bei aktiv: nächtliche Aktualisierung" }
         ],
         tip: "Tipp: Wenn deaktiviert, müssen die Daten manuell über «Jetzt aktualisieren» neu geladen werden."
+      },
+      {
+        title: "Externe Daten prüfen",
+        body: "Mit «Anbindung prüfen» testen Sie, ob alle Datenquellen, aus denen die Karte ihre Referenzpunkte aufbaut, erreichbar und funktionsfähig sind. Geprüft werden die sechs Referenzquellen (SOTA, POTA, HBFF, WWBOTA, Leuchttürme, Burgen) sowie die Geokodierungs-Hilfsquellen (OpenStreetMap, Wikidata, map.geo.admin.ch), von denen die Burg-Zuordnung abhängt. Zusätzlich werden Referenzen ohne Koordinaten («Datenlücken») angezeigt, die nicht als Kartenpunkte erstellt werden können.",
+        steps: [
+          { icon: "settings", text: "Einstellungen -> «Externe Daten prüfen»" },
+          { icon: "shieldCheck", text: "«Anbindung prüfen» antippen – dauert wenige Sekunden" },
+          { icon: "check", text: "Status pro Quelle: Erreichbar / Fehler" },
+          { icon: "mapPin", text: "Referenzen ohne Koordinaten pro Typ einsehen" }
+        ],
+        tip: "Tipp: Fehlen Koordinaten (meist bei Burgen), fügt «Daten aktualisieren» diese ergänzt. Bleibende Lücken lassen sich unter «Nicht georeferenzierte Burgen» manuell erfassen."
       }
     ]
   },
