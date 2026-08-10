@@ -794,12 +794,10 @@ Deno.serve(async (req) => {
         ),
       ]);
       const withCoords = repeaters.filter(r => r.lat !== null && r.lng !== null);
-      // Delete all existing repeaters (loop — may exceed single deleteMany limit)
-      for (let attempt = 0; attempt < 50; attempt++) {
-        const existingReps = await base44.asServiceRole.entities.Repeater.list("-created_date", 500);
-        if (!existingReps || existingReps.length === 0) break;
-        await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existingReps.map(r => r.id) } });
-      }
+      // Delete all existing repeaters in one call (full refresh)
+      try {
+        await base44.asServiceRole.entities.Repeater.deleteMany({});
+      } catch {}
       const repRecords = withCoords.map(r => ({
         callsign: r.callsign, frequency: r.frequency, offset_mhz: r.offset_mhz || 0,
         tone: r.tone || '', modes: r.modes, primary_mode: r.primary_mode,

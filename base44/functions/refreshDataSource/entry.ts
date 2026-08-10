@@ -74,12 +74,10 @@ export default async function(req: Request): Promise<Response> {
         fm_funknetz: false, source_id: r.sourceId, linked_callsigns: r.linked_callsigns || [],
       }));
 
-      // Delete existing repeaters in batches
-      for (let attempt = 0; attempt < 50; attempt++) {
-        const existing = await base44.asServiceRole.entities.Repeater.list("-created_date", 500);
-        if (!existing || existing.length === 0) break;
-        await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existing.map((r: any) => r.id) } });
-      }
+      // Delete all existing repeaters in one call (full refresh)
+      try {
+        await base44.asServiceRole.entities.Repeater.deleteMany({});
+      } catch {}
 
       // Bulk insert in batches of 100
       for (let i = 0; i < repRecords.length; i += 100) {

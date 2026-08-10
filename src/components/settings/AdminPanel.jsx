@@ -240,6 +240,58 @@ export default function AdminPanel({
         </div>
       </section>
 
+      {/* Repeater Cache Status (separate card) */}
+      {coverageProgress?.global && (
+        <section className="bg-blue-50 rounded-xl border-2 border-blue-200 p-4">
+          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+            <RadioTower className="w-4 h-4 text-blue-600" /> Relais-Cache & Abdeckung
+          </h3>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            <div className="text-center">
+              <div className="text-xl font-bold text-gray-900">{coverageProgress.global.totalRepeaters}</div>
+              <div className="text-[10px] text-gray-500">Relais gesamt</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-600">{coverageProgress.global.withCoords}</div>
+              <div className="text-[10px] text-gray-500">Mit Koordinaten</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-green-600">{coverageProgress.global.aprsRefined}</div>
+              <div className="text-[10px] text-gray-500">APRS-verfeinert</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-teal-600">{coverageProgress.global.terrainAdjusted || 0}</div>
+              <div className="text-[10px] text-gray-500">Gelände-adj.</div>
+            </div>
+            <div className="text-center">
+              <div className={`text-xl font-bold ${
+                coverageProgress.global.avgRefinementPct >= 60 ? 'text-green-600' :
+                coverageProgress.global.avgRefinementPct >= 30 ? 'text-amber-600' : 'text-gray-400'
+              }`}>
+                {coverageProgress.global.avgRefinementPct}%
+              </div>
+              <div className="text-[10px] text-gray-500">Ø Verfeinerung</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-amber-600">{coverageProgress.pendingRecalc || 0}</div>
+              <div className="text-[10px] text-gray-500">Neuberechnung offen</div>
+            </div>
+          </div>
+          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mt-3">
+            <div
+              className={`h-full rounded-full transition-all ${
+                coverageProgress.global.avgRefinementPct >= 60 ? 'bg-green-500' :
+                coverageProgress.global.avgRefinementPct >= 30 ? 'bg-amber-500' : 'bg-gray-400'
+              }`}
+              style={{ width: `${coverageProgress.global.avgRefinementPct}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">
+            {coverageProgress.global.countriesCovered || 0} Länder · {coverageProgress.global.calculated || 0} Relais berechnet
+          </p>
+        </section>
+      )}
+
       {/* Refresh / Auto-update */}
       <section className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
@@ -446,7 +498,7 @@ export default function AdminPanel({
           <div className={`mt-3 p-3 rounded-lg text-sm ${aprsResult.error ? 'bg-red-50 text-red-700' : 'bg-purple-50 text-purple-700'}`}>
             {aprsResult.error
               ? `Fehler: ${aprsResult.error}`
-              : `${aprsResult.aprs_stations_found || 0} Stationen gefunden, ${aprsResult.private_nodes_saved || 0} Nodes gespeichert, ${aprsResult.repeaters_updated_with_coords || 0} Relais mit Koordinaten aktualisiert (${(aprsResult.duration_ms / 1000).toFixed(1)}s)`
+              : `${aprsResult.aprs_stations_found || 0} Stationen gefunden (${aprsResult.bbox_queries || 0} Bereichsabfragen, ${aprsResult.bbox_stations_found || 0} Roh-Treffer), ${aprsResult.private_nodes_saved || 0} Nodes gespeichert, ${aprsResult.repeaters_updated_with_coords || 0} Relais mit Koordinaten${aprsResult.brandmeister_links ? `, ${aprsResult.brandmeister_links} BM-Verlinkungen` : ''} (${(aprsResult.duration_ms / 1000).toFixed(1)}s)`
             }
           </div>
         )}

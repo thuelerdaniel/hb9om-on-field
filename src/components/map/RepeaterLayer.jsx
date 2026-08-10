@@ -48,11 +48,11 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     if (filterCountry && filterCountry !== "all") {
       result = result.filter(r => r.country_code === filterCountry);
     }
-    if (filterModes && filterModes.length > 0 && filterModes.length < FILTER_MODES.length) {
-      // Some (but not all) modes selected: filter to matching repeaters
-      result = result.filter(r => filterModes.some(m => repeaterMatchesMode(r, m)));
+    // No modes selected = NO repeaters shown (user must actively choose at least one mode)
+    if (!filterModes || filterModes.length === 0) {
+      return [];
     }
-    // When ALL modes selected or NONE selected: no mode filter (show all including unknown)
+    result = result.filter(r => filterModes.some(m => repeaterMatchesMode(r, m)));
     if (searchQuery && searchQuery.length >= 2) {
       const q = searchQuery.toLowerCase();
       result = result.filter(r =>

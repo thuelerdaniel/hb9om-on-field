@@ -709,14 +709,16 @@ export default function Home() {
     if (repeaterFilterCountry !== "all") {
       result = result.filter(r => r.country_code === repeaterFilterCountry);
     }
-    if (repeaterFilterModes.length > 0 && repeaterFilterModes.length < REPEATER_FILTER_MODES.length) {
-      result = result.filter(r => repeaterFilterModes.some(m => {
-        if (["EchoLink", "AllStar", "IRLP", "WIRES-X"].includes(m)) {
-          return (r.modes || []).includes(m);
-        }
-        return r.primary_mode === m;
-      }));
+    // No modes selected = NO repeaters shown (user must actively choose at least one mode)
+    if (repeaterFilterModes.length === 0) {
+      return 0;
     }
+    result = result.filter(r => repeaterFilterModes.some(m => {
+      if (["EchoLink", "AllStar", "IRLP", "WIRES-X"].includes(m)) {
+        return (r.modes || []).includes(m);
+      }
+      return r.primary_mode === m;
+    }));
     if (repeaterSearchQuery.length >= 2) {
       const q = repeaterSearchQuery.toLowerCase();
       result = result.filter(r =>

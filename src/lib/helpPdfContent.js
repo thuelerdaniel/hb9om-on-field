@@ -40,7 +40,7 @@ export const MARKER_SYMBOLS = [
   { icon: "diamond", shape: "iota", color: "#3498db", name: "IOTA", desc: "Inseln (Schweiz hat keine IOTA) – Karte: Raute mit Welle" },
   { icon: "anchor", shape: "lighthouse", color: "#f39c12", name: "Leuchttürme", desc: "ARLHS WLOL Referenzen – Karte: Leuchtturm mit Licht" },
   { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" },
-  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais", desc: "Amateurfunk-Relais (FM, C4FM, DMR, D-STAR) – Karte: farbige Kreise nach Modulation" }
+  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais", desc: "Amateurfunk-Relais weltweit (FM, C4FM, DMR, D-STAR, P-25, NXDN, M17) – Karte: Radio-Turm-Symbol, farbig nach Modulation" }
 ];
 
 // UI-Icons auf der Karte – Lucide-Icon-Namen wie in der App
@@ -795,3 +795,76 @@ export const SETUP_CHECKLIST = [
     ]
   }
 ];
+
+// === Repeater-Verlinkung Informationen ===
+// Quellen: BrandMeister Network API, RepeaterBook, DMR-MARC, ARRL Repeater Directory
+export const REPEATER_LINKING_INFO = {
+  title: "Relais-Verlinkungen (Crosslinks)",
+  description: "Relais können über verschiedene Netzwerke dauerhaft oder temporär miteinander verlinkt sein. Diese Verlinkungen erweitern die Reichweite und ermöglichen weltweite Kommunikation.",
+  networks: [
+    {
+      name: "BrandMeister (DMR)",
+      description: "Das grösste DMR-Netzwerk mit über 500 Repeatern in 83 Ländern. Verlinkungen über Talkgroups und Peer-IDs. API: api.brandmeister.network",
+      url: "https://brandmeister.network/",
+      features: ["Dynamic Talkgroups", "Static Talkgroups", "Peer-to-Peer Crosslinks", "XLX-Reflector-Anbindung"]
+    },
+    {
+      name: "DMR-MARC",
+      description: "Zweites grosses DMR-Netzwerk mit über 6600 registrierten Repeatern. Unabhängig von BrandMeister.",
+      url: "https://www.dmr-marc.net/",
+      features: ["Talkgroups", "Reflectors", "Brandmeister-Crosslinks"]
+    },
+    {
+      name: "EchoLink",
+      description: "Internet-basiertes System, das Relais und Hotspots weltweit verbindet. Über 2000 aktive Nodes.",
+      url: "https://www.echolink.org/",
+      features: ["Konferenz-Server", "Verlinkung von Relais über Internet", "Smartphone-App"]
+    },
+    {
+      name: "AllStarLink",
+      description: "VoIP-basiertes Verlinkungssystem, hauptsächlich in Nordamerika. Über 3000 aktive Nodes.",
+      url: "https://www.allstarlink.org/",
+      features: ["Node-to-Node-Verlinkung", "Konferenz-Bridges", "IRLP-Kompatibilität"]
+    },
+    {
+      name: "WIRES-X (Yaesu Fusion)",
+      description: "Yaesu-eigenes Verlinkungssystem für Fusion/C4FM-Relais. Verbindet Relais über Internet.",
+      url: "https://www.yaesu.com/",
+      features: ["Digitaler Raum", "Analoger Raum", "Node-Verlinkung"]
+    },
+    {
+      name: "D-STAR (XLX/XRF/REF)",
+      description: "D-STAR-Reflektoren verlinken D-STAR-Relais weltweit. XLX-Reflektoren sind die moderne Variante.",
+      url: "https://www.dstarusers.net/",
+      features: ["REF-Reflektoren", "XRF-Reflektoren", "XLX-Multi-Protocol-Reflektoren"]
+    }
+  ],
+  dataSources: [
+    { name: "RepeaterBook", url: "https://www.repeaterbook.com/", desc: "Weltweite Repeater-Datenbank mit Crosslink-Informationen" },
+    { name: "BrandMeister API", url: "https://api.brandmeister.network/", desc: "Echtzeit-Daten aller BrandMeister-DMR-Relais und deren Verlinkungen" },
+    { name: "DMR-MARC", url: "https://www.dmr-marc.net/", desc: "DMR-MARC Repeater-Verzeichnis" },
+    { name: "APRS.fi", url: "https://aprs.fi/", desc: "APRS-Stationen inkl. Digipeater und IGates" }
+  ],
+  mapFeatures: [
+    "Permanente Verlinkungen als gestrichelte Linien auf der Karte",
+    "BrandMeister-DMR-Crosslinks werden automatisch von der API abgerufen",
+    "RepeaterBook-Crosslinks aus den Detailseiten werden geparst",
+    "Admin-bestätigte Verlinkungen können manuell hinzugefügt werden",
+    "Temporäre Verlinkungen werden nicht angezeigt (nur permanente)"
+  ]
+};
+
+// === Repeater-Filter Erklärung ===
+export const REPEATER_FILTER_INFO = {
+  title: "Relais-Filter",
+  rules: [
+    "Mindestens eine Modulationsart muss aktiv sein, sonst werden keine Relais angezeigt",
+    "FM, Fusion, DMR, D-STAR, P-25, NXDN, M17 sind Hauptmodulationsarten",
+    "EchoLink ist ein Feature-Filter: zeigt alle Relais mit EchoLink-Zugang unabhängig vom Hauptmodus",
+    "Land-Filter: nach einzelnen Ländern filtern (alle Länder verfügbar)",
+    "Radius-Filter: nur Relais innerhalb eines Radius von Ihrer GPS-Position",
+    "Suche: nach Rufzeichen, Ort, Land oder Frequenz suchen",
+    "Abdeckung: geschätzte Reichweite pro Relais (verfeinert durch APRS-Dichte und Geländedaten)",
+    "Verlinkungen: permanente Crosslinks als gestrichelte Linien anzeigen"
+  ]
+};

@@ -166,7 +166,10 @@ export default function RepeaterFilter({
                 );
               })}
             </div>
-            <p className="text-[10px] text-gray-400 mt-1.5">
+            <p className="text-[10px] text-amber-600 mt-1.5 font-medium">
+              ⚠ Mindestens eine Modulationsart muss aktiv sein, sonst werden keine Relais angezeigt.
+            </p>
+            <p className="text-[10px] text-gray-400 mt-1">
               EchoLink ist ein Feature-Filter: zeigt alle Relais mit EchoLink-Zugang unabhängig vom Hauptmodus.
             </p>
           </div>
@@ -250,7 +253,7 @@ export default function RepeaterFilter({
           <div className="p-3">
             <div className="flex items-center justify-between text-[11px] text-gray-500">
               <span>{visibleCount} von {repeaterCount} Relais sichtbar</span>
-              {noneOn && <span className="text-amber-600">Alle Filter deaktiviert</span>}
+              {noneOn && <span className="text-red-600 font-medium">Keine Modulation gewählt – keine Relais</span>}
             </div>
           </div>
         </div>

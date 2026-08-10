@@ -219,11 +219,6 @@ export async function fetchCastleDataWorldwide(castleOverrides?: Map<string, any
   const geoSources = [...allOsmCastles, ...wdCastles];
   const deduped: any[] = [];
   for (const geo of geoSources) {
-    const isDup = deduped.some(d => {
-      const dlat = Math.abs(d.lat - geo.lat);
-      const dlng = Math.abs(d.lng - geo.lng);
-      return dlat < 0.005 && dlng < 0.005 && d.name === geo.name;
-    });
     if (!isDuped(geo, deduped)) deduped.push(geo);
   }
 
