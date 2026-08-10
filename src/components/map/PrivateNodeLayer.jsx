@@ -5,22 +5,34 @@ import { Radio, Globe, Signal, Network, MapPin, Navigation, Hash } from "lucide-
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
 
 const NODE_TYPE_LABELS = {
-  hotspot: "Hotspot",
-  simplex_node: "Simplex Node",
-  repeater_node: "Repeater Node",
+  repeater_node: "Digipeater / Relais",
+  echolink_node: "IGate / EchoLink",
   allstar_node: "AllStar Node",
-  echolink_node: "EchoLink Node",
   weather_station: "Wetterstation",
-  other: "Node / Sonstiges",
+  hotspot: "Hotspot / Home",
+  simplex_node: "Simplex Node",
+  mobile: "Mobile (diverse)",
+  car: "Auto / Fahrzeug",
+  bike: "Fahrrad / Moto",
+  boat: "Boot / Schiff",
+  aircraft: "Flugzeug / Heli",
+  walker: "Fussgänger",
+  other: "Sonstiges",
 };
 
 const NODE_COLORS = {
+  repeater_node: "#3b82f6",
+  echolink_node: "#6366f1",
+  allstar_node: "#f59e0b",
+  weather_station: "#10b981",
   hotspot: "#8b5cf6",
   simplex_node: "#0ea5e9",
-  repeater_node: "#3b82f6",
-  allstar_node: "#f59e0b",
-  echolink_node: "#6366f1",
-  weather_station: "#10b981",
+  mobile: "#ec4899",
+  car: "#ef4444",
+  bike: "#f97316",
+  boat: "#06b6d4",
+  aircraft: "#7c3aed",
+  walker: "#84cc16",
   other: "#6b7280",
 };
 

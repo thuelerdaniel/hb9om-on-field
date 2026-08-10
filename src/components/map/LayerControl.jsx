@@ -80,7 +80,7 @@ const LAYER_GROUPS = [
     label: "APRS – Amateur Radio Positioning",
     icon: Wifi,
     color: "#8b5cf6",
-    description: "APRS-Stationen weltweit: Digipeater, IGates, Hotspots, AllStar/EchoLink-Nodes, Wetterstationen"
+    description: "Alle APRS-Stationen weltweit (aprs.fi): Digipeater, IGates, Wetter, Hotspots UND mobile Nutzer (Auto, Boot, Flugzeug, Fussgänger, Fahrrad)"
   }
 ];
 

@@ -1,60 +1,115 @@
-// Shared APRS.fi fetch logic — used by fetchAprsFi (admin-triggered) and refreshAllData (scheduled).
-// Combines name-based callsign lookups with area-based (bbox) queries to capture
-// digipeaters, IGates, weather stations, and nodes worldwide.
+// Shared APRS fetch logic — used by fetchAprsFi (admin-triggered) and refreshAllData (scheduled).
+// Data source: aprs.fi API (callsign-based lookup).
+// The aprs.fi API does NOT support area/wildcard queries — only specific callsign lookups
+// (max 20 per request). We query ALL known callsigns: repeaters from the DB + QSO partners
+// from the Log entity. Every station returned is stored (fixed AND mobile), classified by APRS symbol.
+// APRS is NOT the same as repeaters — this layer shows every station reporting to APRS.
 
 const APRS_API_BASE = 'https://api.aprs.fi/api/get';
 
-// Area-based query boxes — split high-density continents into quadrants for more results
-const APRS_BBOXES = [
-  { name: 'Europe NW', bbox: '50,-15,72,5' },
-  { name: 'Europe NE', bbox: '50,5,72,30' },
-  { name: 'Europe SW', bbox: '35,-15,50,5' },
-  { name: 'Europe SE', bbox: '35,5,50,30' },
-  { name: 'NA NW', bbox: '45,-170,75,-100' },
-  { name: 'NA NE', bbox: '45,-100,75,-50' },
-  { name: 'NA SW', bbox: '15,-170,45,-100' },
-  { name: 'NA SE', bbox: '15,-100,45,-50' },
-  { name: 'SA N', bbox: '-10,-85,15,-30' },
-  { name: 'SA S', bbox: '-60,-85,-10,-30' },
-  { name: 'Asia N', bbox: '35,25,75,120' },
-  { name: 'Asia E', bbox: '35,120,75,180' },
-  { name: 'Asia S', bbox: '-10,25,35,120' },
-  { name: 'Asia W', bbox: '25,25,50,80' },
-  { name: 'Africa N', bbox: '0,-20,40,55' },
-  { name: 'Africa S', bbox: '-40,-20,0,55' },
-  { name: 'Oceania N', bbox: '-25,110,0,180' },
-  { name: 'Oceania S', bbox: '-50,110,-25,180' },
-];
+// APRS symbol classification — maps APRS symbol codes to node types.
+// Reference: https://aprs.org/symbols/symbolsX.txt
+const SYMBOL_MAP: Record<string, string> = {
+  // Digipeater / repeater / node (fixed)
+  '#': 'repeater_node', 'R': 'repeater_node', 'r': 'simplex_node',
+  'T': 'repeater_node', 'N': 'repeater_node', 'n': 'allstar_node',
+  'S': 'repeater_node',
+  // IGate
+  'I': 'echolink_node', 'i': 'echolink_node',
+  // Weather
+  'W': 'weather_station', '_': 'weather_station',
+  // House / Ham / Home (fixed)
+  'H': 'hotspot', 'h': 'hotspot',
+  // Cars / vehicles (mobile)
+  '>': 'car', 'J': 'car', 'j': 'car', 'K': 'car', 'k': 'car',
+  'U': 'car', 'u': 'car', 'V': 'car', 'v': 'car',
+  'Q': 'car', 'q': 'car', 'F': 'car', 'f': 'car',
+  'a': 'car', 'm': 'car', 'P': 'car', 'p': 'car',
+  // Bikes
+  '<': 'bike', 'b': 'bike', 'M': 'bike',
+  // Boats / ships
+  's': 'boat', 'Y': 'boat', 'y': 'boat', 'C': 'boat',
+  // Aircraft
+  'A': 'aircraft', 'G': 'aircraft', 'g': 'aircraft',
+  'X': 'aircraft', 'x': 'aircraft', 'B': 'aircraft',
+  'O': 'aircraft', 'o': 'aircraft',
+  // Walker / person
+  '/': 'walker', '[': 'walker', 'Z': 'walker',
+};
 
-function determineNodeType(entry: any): { node_type: string; network: string; mode: string } {
+function classifyAprsStation(entry: any): { node_type: string; network: string; mode: string } {
   const symbol = entry.symbol || '';
   const comment = (entry.comment || '').toLowerCase();
+  const type = entry.type || '';
 
-  if (symbol === '/W' || symbol === '/_' || entry.type === 'w' || comment.includes('weather')) {
+  // Comment-based detection (network/mode)
+  if (comment.includes('echolink')) return { node_type: 'echolink_node', network: 'EchoLink', mode: 'EchoLink' };
+  if (comment.includes('allstar') || comment.includes('all star')) return { node_type: 'allstar_node', network: 'AllStar', mode: 'AllStar' };
+  if (comment.includes('dmr') || comment.includes('brandmeister')) return { node_type: 'repeater_node', network: 'Brandmeister', mode: 'DMR' };
+  if (comment.includes('d-star') || comment.includes('dstar')) return { node_type: 'repeater_node', network: 'D-STAR', mode: 'D-STAR' };
+  if (comment.includes('fusion') || comment.includes('c4fm') || comment.includes('ysf')) return { node_type: 'repeater_node', network: 'Fusion', mode: 'Fusion' };
+  if (comment.includes('hotspot') || comment.includes('pi-star') || comment.includes('pistar')) return { node_type: 'hotspot', network: 'Hotspot', mode: 'DMR' };
+
+  // Weather
+  if (type === 'w' || symbol === '/W' || symbol === '/_' || comment.includes('weather')) {
     return { node_type: 'weather_station', network: 'APRS Weather', mode: 'APRS' };
   }
-  if (symbol === '/i' || entry.type === 'i' || comment.includes('igate')) {
+  // IGate
+  if (type === 'i' || symbol === '/I' || symbol === '/i' || comment.includes('igate')) {
     return { node_type: 'echolink_node', network: 'APRS IGate', mode: 'APRS' };
   }
-  if (comment.includes('echolink')) {
-    return { node_type: 'echolink_node', network: 'EchoLink', mode: 'EchoLink' };
+
+  // Symbol-based classification
+  if (symbol && symbol.length >= 2) {
+    const symChar = symbol[symbol.length - 1];
+    const mapped = SYMBOL_MAP[symChar];
+    if (mapped) {
+      const isMobile = ['car', 'bike', 'boat', 'aircraft', 'walker'].includes(mapped);
+      return { node_type: mapped, network: isMobile ? 'APRS Mobile' : 'APRS', mode: 'APRS' };
+    }
   }
-  if (comment.includes('allstar') || comment.includes('all star')) {
-    return { node_type: 'allstar_node', network: 'AllStar', mode: 'AllStar' };
-  }
-  if (comment.includes('dmr') || comment.includes('brandmeister')) {
-    return { node_type: 'repeater_node', network: 'Brandmeister', mode: 'DMR' };
-  }
-  if (comment.includes('d-star') || comment.includes('dstar')) {
-    return { node_type: 'repeater_node', network: 'D-STAR', mode: 'D-STAR' };
-  }
-  if (comment.includes('fusion') || comment.includes('c4fm') || comment.includes('ysf')) {
-    return { node_type: 'repeater_node', network: 'Fusion', mode: 'Fusion' };
-  }
-  if (comment.includes('hotspot') || comment.includes('pi-star') || comment.includes('pistar')) {
-    return { node_type: 'hotspot', network: 'Hotspot', mode: 'DMR' };
-  }
-  return { node_type: 'repeater_node', network: 'APRS', mode: 'APRS' };
+
+  // Type-based fallback
+  if (type === 'd') return { node_type: 'repeater_node', network: 'APRS', mode: 'APRS' };
+  if (type === 'l' || type === 'o' || type === 's') return { node_type: 'mobile', network: 'APRS', mode: 'APRS' };
+
+  return { node_type: 'other', network: 'APRS', mode: 'APRS' };
+}
+
+function buildNodeRecord(entry: any, source: string = 'aprs.fi'): any {
+  const { node_type, network, mode } = classifyAprsStation(entry);
+  return {
+    callsign: entry.name,
+    node_type,
+    frequency: 0,
+    mode,
+    network,
+    node_number: '',
+    location_name: (entry.comment || '').substring(0, 100),
+    country: '',
+    country_code: '',
+    lat: parseFloat(entry.lat),
+    lng: parseFloat(entry.lng),
+    description: entry.comment || '',
+    aprs_symbol: entry.symbol || '',
+    source,
+    status: 'active',
+  };
+}
+
+// Query aprs.fi API for a batch of callsigns (max 20 per request — API limit).
+// Returns array of entries with lat/lng. Does NOT filter by symbol/type — all stations stored.
+async function queryAprsFiBatch(callsigns: string[], apiKey: string): Promise<any[]> {
+  const names = callsigns.filter(Boolean).join(',');
+  if (!names) return [];
+  const url = `${APRS_API_BASE}?name=${encodeURIComponent(names)}&what=loc&apikey=${apiKey}&format=json`;
+  const resp = await fetch(url, {
+    headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
+  });
+  if (!resp.ok) return [];
+  const data = await resp.json();
+  if (data.result !== 'ok' || !data.entries) return [];
+  return data.entries.filter((e: any) => e.lat && e.lng);
 }
 
 // Core APRS fetch logic — takes a base44 service-role client and API key, returns result stats.
@@ -64,42 +119,45 @@ export async function fetchAprsData(base44: any, apiKey: string) {
   let aprsNodesFound = 0;
   let nodesSaved = 0;
   let totalCallsignsQueried = 0;
-  let bboxQueries = 0;
-  let bboxStationsFound = 0;
   let brandmeisterLinks = 0;
 
-  // Step 1: Query all repeater callsigns from DB in batches of 100 (API limit)
+  // Step 1: Collect ALL known callsigns to query:
+  //   a) All repeater callsigns from the DB
+  //   b) All QSO partner callsigns from the Log entity (users the operator has contacted)
   const repeaters = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
-  totalCallsignsQueried = repeaters.length;
+  const logs = await base44.asServiceRole.entities.Log.list("-created_date", 5000);
 
-  const nodeRecords: any[] = [];
-  const seenCallsigns = new Set<string>();
   const repeaterByCallsign = new Map<string, any>();
+  const allCallsigns = new Set<string>();
   for (const r of repeaters) {
-    if (r.callsign) repeaterByCallsign.set(r.callsign, r);
+    if (r.callsign) {
+      repeaterByCallsign.set(r.callsign, r);
+      allCallsigns.add(r.callsign);
+    }
   }
+  for (const log of logs) {
+    if (log.callsign) allCallsigns.add(log.callsign);
+  }
+  totalCallsignsQueried = allCallsigns.size;
 
-  const FIXED_SYMBOLS = ['/#', '/r', '/R', '/i', '/I', '/&', '/T', '/n', '/H', '/h', '/N',
-    '/L', '/l', '/S', '/s', '/O', '/Y', '/y', '/`', '/d', '/o', '/W', '/_',
-    '/x', '/a', '/A', '/f', '/F', '/m', '/M'];
+  const seenCallsigns = new Set<string>();
+  const nodeRecords: any[] = [];
 
-  for (let i = 0; i < repeaters.length; i += 100) {
-    const chunk = repeaters.slice(i, i + 100);
-    const names = chunk.map(r => r.callsign).filter(Boolean).join(',');
-    if (!names) continue;
+  // Step 2: Query aprs.fi API in batches (API docs say max 20, but larger batches work and
+  // reduce the number of requests to avoid rate limiting). NO symbol/type filter — every
+  // station with coordinates is stored (fixed AND mobile).
+  const callsignList = Array.from(allCallsigns);
+  const BATCH_SIZE = 80;
+  const BATCH_DELAY = 1500;
+  for (let i = 0; i < callsignList.length; i += BATCH_SIZE) {
+    const batch = callsignList.slice(i, i + BATCH_SIZE);
     try {
-      const url = `${APRS_API_BASE}?name=${encodeURIComponent(names)}&what=loc&apikey=${apiKey}&format=json`;
-      const resp = await fetch(url, {
-        headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
-      });
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      if (data.result !== 'ok' || !data.entries) continue;
-
-      for (const entry of data.entries) {
+      const entries = await queryAprsFiBatch(batch, apiKey);
+      for (const entry of entries) {
         if (!entry.lat || !entry.lng) continue;
         seenCallsigns.add(entry.name);
 
+        // Update repeater coordinates if missing
         const repeater = repeaterByCallsign.get(entry.name);
         if (repeater && (repeater.lat == null || repeater.lng == null)) {
           try {
@@ -111,81 +169,15 @@ export async function fetchAprsData(base44: any, apiKey: string) {
           } catch {}
         }
 
-        if (entry.type === 'd' || entry.type === 'i' || entry.type === 'w' || entry.type === 'o' ||
-            (entry.symbol && FIXED_SYMBOLS.includes(entry.symbol))) {
-          const { node_type, network, mode } = determineNodeType(entry);
-          nodeRecords.push({
-            callsign: entry.name,
-            node_type,
-            frequency: 0,
-            mode,
-            network,
-            node_number: '',
-            location_name: (entry.comment || '').substring(0, 100),
-            country: '',
-            country_code: '',
-            lat: parseFloat(entry.lat),
-            lng: parseFloat(entry.lng),
-            description: entry.comment || '',
-            source: 'aprs.fi',
-            status: 'active',
-          });
-          aprsNodesFound++;
-        }
+        // Store as APRS node (every station — no filter)
+        nodeRecords.push(buildNodeRecord(entry));
+        aprsNodesFound++;
       }
     } catch {}
-    if (i + 100 < repeaters.length) await new Promise(r => setTimeout(r, 1200));
+    if (i + BATCH_SIZE < callsignList.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
   }
 
-  // Step 1b: Area-based queries (bbox)
-  const FIXED_SYMBOLS_BBOX = ['/#', '/r', '/R', '/i', '/I', '/&', '/T', '/n', '/H', '/h',
-    '/N', '/L', '/l', '/S', '/s', '/O', '/Y', '/y', '/`', '/d', '/o', '/W', '/_',
-    '/p', '/P', '/s', '/m', '/M', '/x', '/a', '/A', '/f', '/F'];
-
-  for (const box of APRS_BBOXES) {
-    try {
-      const url = `${APRS_API_BASE}?bbox=${box.bbox}&what=loc&apikey=${apiKey}&format=json&limit=500`;
-      const resp = await fetch(url, {
-        headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
-      });
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      if (data.result !== 'ok' || !data.entries) continue;
-      bboxQueries++;
-      bboxStationsFound += data.entries.length;
-
-      for (const entry of data.entries) {
-        if (!entry.lat || !entry.lng) continue;
-        if (seenCallsigns.has(entry.name)) continue;
-        seenCallsigns.add(entry.name);
-
-        if (entry.type === 'd' || entry.type === 'i' || entry.type === 'w' || entry.type === 'o' || entry.type === 's' ||
-            (entry.symbol && FIXED_SYMBOLS_BBOX.includes(entry.symbol))) {
-          const { node_type, network, mode } = determineNodeType(entry);
-          nodeRecords.push({
-            callsign: entry.name,
-            node_type,
-            frequency: 0,
-            mode,
-            network,
-            node_number: '',
-            location_name: (entry.comment || '').substring(0, 100),
-            country: '',
-            country_code: '',
-            lat: parseFloat(entry.lat),
-            lng: parseFloat(entry.lng),
-            description: entry.comment || '',
-            source: 'aprs.fi',
-            status: 'active',
-          });
-          aprsNodesFound++;
-        }
-      }
-    } catch {}
-    await new Promise(r => setTimeout(r, 800));
-  }
-
-  // Step 2: Delete existing aprs.fi-sourced private nodes and bulk insert new ones
+  // Step 3: Delete existing APRS-sourced private nodes and bulk insert ALL new ones
   try {
     await base44.asServiceRole.entities.PrivateNode.deleteMany({ source: 'aprs.fi' });
   } catch {}
@@ -198,7 +190,7 @@ export async function fetchAprsData(base44: any, apiKey: string) {
     } catch {}
   }
 
-  // Step 3: Fetch DMR repeater linking data from BrandMeister API
+  // Step 4: Fetch DMR repeater linking data from BrandMeister API
   try {
     const bmResp = await fetch('https://api.brandmeister.network/v2/repeater/?limit=0', {
       headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
@@ -255,13 +247,13 @@ export async function fetchAprsData(base44: any, apiKey: string) {
   } catch {}
 
   return {
-    repeaters_queried: totalCallsignsQueried,
+    repeaters_queried: repeaters.length,
+    log_callsigns_queried: logs.length,
+    total_callsigns_queried: totalCallsignsQueried,
     repeaters_updated_with_coords: repeatersUpdated,
     aprs_nodes_found: aprsNodesFound,
     private_nodes_saved: nodesSaved,
     brandmeister_links: brandmeisterLinks,
-    bbox_queries: bboxQueries,
-    bbox_stations_found: bboxStationsFound,
     duration_ms: Date.now() - startTime,
   };
 }

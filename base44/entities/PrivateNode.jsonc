@@ -15,10 +15,16 @@
         "allstar_node",
         "echolink_node",
         "weather_station",
+        "mobile",
+        "car",
+        "bike",
+        "boat",
+        "aircraft",
+        "walker",
         "other"
       ],
-      "default": "hotspot",
-      "description": "Typ des Nodes"
+      "default": "other",
+      "description": "Typ des Nodes (feste Station oder mobiles Objekt)"
     },
     "frequency": {
       "type": "number",
@@ -58,7 +64,11 @@
     },
     "description": {
       "type": "string",
-      "description": "Zusaetzliche Beschreibung"
+      "description": "Zusaetzliche Beschreibung (APRS-Comment)"
+    },
+    "aprs_symbol": {
+      "type": "string",
+      "description": "APRS-Symbol-Code (z.B. />, /#, /W) aus aprs.fi"
     },
     "source": {
       "type": "string",
