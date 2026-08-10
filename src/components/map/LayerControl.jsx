@@ -10,77 +10,77 @@ const LAYER_GROUPS = [
     label: "SOTA – Summits on the Air",
     icon: Mountain,
     color: "#e74c3c",
-    description: "Berggipfel-Referenzen weltweit (SOTA)"
+    description: "Berggipfel-Referenzen ab 150 m Prominenz"
   },
   {
     id: "pota",
     label: "POTA – Parks on the Air",
     icon: Trees,
     color: "#27ae60",
-    description: "Park- und Schutzgebiet-Referenzen weltweit (POTA)"
+    description: "Nationalparks und Schutzgebiete"
   },
   {
     id: "hbff",
-    label: "WWFF – Flora & Fauna (Weltweit)",
+    label: "WWFF – Flora & Fauna",
     icon: Trees,
     color: "#8e44ad",
-    description: "Flora-Fauna-Referenzen (weltweit)"
+    description: "Flora-Fauna-Naturreservate"
   },
   {
     id: "wwbota",
-    label: "WWBOTA – Bunkers on the Air (Weltweit)",
+    label: "WWBOTA – Bunkers on the Air",
     icon: Building,
     color: "#795548",
-    description: "Bunker-Referenzen weltweit"
+    description: "Militärische Bunker, farbig nach Land"
   },
   {
     id: "castle",
-    label: "Burgen / Schlösser (WCA/COTA)",
+    label: "WCA/COTA – Burgen & Schlösser",
     icon: Castle,
     color: "#e67e22",
-    description: "Burgen- und Schloss-Referenzen weltweit"
+    description: "Burgen- und Schloss-Referenzen"
   },
   {
     id: "iota",
     label: "IOTA – Islands on the Air",
     icon: MapPin,
     color: "#3498db",
-    description: "Insel-Referenzen weltweit"
+    description: "Insel-Referenzen"
   },
   {
     id: "lighthouse",
-    label: "WLOTA / ILLW – Leuchttürme",
+    label: "WLOTA/ARLHS – Leuchttürme",
     icon: Anchor,
     color: "#f39c12",
-    description: "Leuchtturm-Referenzen weltweit"
+    description: "Leuchtturm-Referenzen"
   },
   {
     id: "swiss_protected",
-    label: "HBFF und Natur Zonen (CH)",
+    label: "BLN – Natur Zonen (nur in CH)",
     icon: Trees,
     color: "#16a085",
-    description: "BLN, Moore, Vogelreservate (nur Schweiz — map.geo.admin.ch)"
+    description: "BLN, Moore, Vogelreservate (nur in CH — map.geo.admin.ch)"
   },
   {
     id: "hazards",
-    label: "Gefahren & Störquellen (CH)",
+    label: "Gefahren & Störquellen (nur in CH)",
     icon: Zap,
     color: "#dc2626",
-    description: "Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender (nur Schweiz — map.geo.admin.ch)"
+    description: "Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender (nur in CH — map.geo.admin.ch)"
   },
   {
     id: "repeater",
-    label: "Amateurfunk-Relais (RepeaterBook)",
+    label: "Amateurfunk-Relais",
     icon: Radio,
     color: "#3b82f6",
-    description: "Weltweite FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen, Radius-Filter und Notstrom-Info"
+    description: "FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen, Radius-Filter und Notstrom-Info"
   },
   {
     id: "private_nodes",
     label: "APRS – Amateur Radio Positioning",
     icon: Wifi,
     color: "#8b5cf6",
-    description: "Alle APRS-Stationen weltweit (aprs.fi): Digipeater, IGates, Wetter, Hotspots UND mobile Nutzer (Auto, Boot, Flugzeug, Fussgänger, Fahrrad)"
+    description: "Alle APRS-Stationen: Digipeater, IGates, Wetter, Hotspots und mobile Nutzer (Auto, Boot, Flugzeug, Fussgänger, Fahrrad)"
   }
 ];
 

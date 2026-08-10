@@ -123,20 +123,52 @@ export const ADMIN_SECTIONS = [
     items: [
       {
         title: "Alle Daten aktualisieren",
-        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) sowie die weltweiten Amateurfunk-Relais von RepeaterBook.com (80+ Laender inkl. USA 50 Bundesstaaten & Kanada 13 Provinzen) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt.",
+        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, WWFF, WWBOTA, Burgen, Leuchttürme, IOTA) sowie die Amateurfunk-Relais neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt.",
         steps: [
           { icon: "refreshCw", text: "«Alle Daten aktualisieren» antippen" },
           { icon: "clock", text: "Warten – kann einige Minuten dauern" },
           { icon: "check", text: "Status wird im Aktualisierungsprotokoll angezeigt" },
           { icon: "database", text: "Bei Burgen: Georeferenzierungs-Methode wird angezeigt" },
-          { icon: "radioTower", text: "Bei Relais: weltweite Standorte (80+ Laender inkl. USA/Kanada) und Verlinkungen werden von RepeaterBook aktualisiert" }
+          { icon: "radioTower", text: "Bei Relais: Standorte und Verlinkungen werden aktualisiert" },
+          { icon: "wifi", text: "Bei APRS: inkrementelles Wachstum – nur neue Rufzeichen werden abgefragt" }
         ],
         screenshot: "settings",
-        tip: "Tipp: Bei den Burgen wird angezeigt, wie viele erfolgreich georeferenziert wurden und über welche Methode (OSM/Wikidata, map.admin.ch, Locator, Nominatim)."
+        tip: "Tipp: Bei den Burgen wird angezeigt, wie viele erfolgreich georeferenziert wurden. Bei APRS wächst die Datenbank inkrementell – bestehende Stationen bleiben erhalten."
+      },
+      {
+        title: "APRS-Datenbank inkrementell aktualisieren",
+        body: "Die APRS-Datenbank wird inkrementell aufgebaut: Bei jeder Aktualisierung werden nur neue Rufzeichen (aus Relais-DB und QSO-Logbuch) von APRS.fi abgefragt, die noch nicht in der Datenbank sind. Bestehende Stationen werden beibehalten und periodisch (alle 7 Tage) aktualisiert. So wächst die Datenbank mit jeder Abfrage und später müssen nur noch Änderungen abgefragt werden. Die Aktualisierung wird über das Admin-Panel ausgelöst.",
+        steps: [
+          { icon: "settings", text: "Einstellungen -> Admin-Panel -> «APRS aktualisieren»" },
+          { icon: "wifi", text: "Neue Rufzeichen werden von APRS.fi abgefragt" },
+          { icon: "check", text: "Bestehende Stationen werden beibehalten (inkrementell)" },
+          { icon: "clock", text: "Alle 7 Tage werden bestehende Stationen aktualisiert" },
+          { icon: "database", text: "Datenbank wächst mit jeder Abfrage" }
+        ],
+        tip: "Tipp: Die APRS-Datenbank wird nie gelöscht – sie wächst kontinuierlich. Das macht zukünftige Aktualisierungen schneller, da nur neue und geänderte Stationen abgefragt werden."
+      },
+      {
+        title: "Relais-Quellen weltweit",
+        body: "Die Relais-Daten stammen von RepeaterBook.com und decken alle Kontinente ab. Ergänzende Quellen: ARRL Repeater Directory (US/Kanada), WIA (Wireless Institute of Australia für australische Relais), iz8wnh.it (interaktive Echtzeit-Weltkarte aller Relais und Bake). DMR-Verlinkungen werden von der BrandMeister Network API abgerufen. Die App umfasst nun auch afrikanische Länder und weitere südamerikanische Länder.",
+        steps: [
+          { icon: "globe", text: "RepeaterBook: 80+ Laender auf allen Kontinenten" },
+          { icon: "globe", text: "Nordamerika: USA (50 Bundesstaaten + DC) + Kanada (13 Provinzen)" },
+          { icon: "globe", text: "Suedamerika: 11 Laender (Argentinien bis Suriname)" },
+          { icon: "globe", text: "Afrika: 19 Laender (Suedafrika bis Eswatini)" },
+          { icon: "globe", text: "Ozeanien: 4 Laender (Australien, Neuseeland, PNG, Fidschi)" },
+          { icon: "globe", text: "Ergänzend: ARRL, WIA, iz8wnh.it, BrandMeister API" }
+        ],
+        links: [
+          { label: "RepeaterBook weltweit", url: "https://www.repeaterbook.com/" },
+          { label: "ARRL Repeater Directory", url: "https://www.arrl.org/repeater-directory" },
+          { label: "WIA Repeaters (Australien)", url: "https://www.wia.org.au/members/repeaters/" },
+          { label: "iz8wnh.it Echtzeit-Karte", url: "https://www.iz8wnh.it/" },
+          { label: "BrandMeister Network", url: "https://brandmeister.network/" }
+        ]
       },
       {
         title: "Tägliche Automatik",
-        body: "Mit dem Schalter «Tägliche Automatik» können Sie die automatische tägliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, HBFF etc. einmal pro Tag (nachts) automatisch aktualisiert.",
+        body: "Mit dem Schalter «Tägliche Automatik» können Sie die automatische tägliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, WWFF etc. einmal pro Tag (nachts) automatisch aktualisiert.",
         steps: [
           { icon: "settings", text: "Einstellungen -> «Tägliche Automatik»" },
           { icon: "check", text: "Schalter ein-/ausschalten" },
@@ -169,7 +201,7 @@ export const ADMIN_SECTIONS = [
       },
       {
         title: "Externe Daten prüfen",
-        body: "Mit «Anbindung prüfen» testen Sie, ob alle Datenquellen, aus denen die Karte ihre Referenzpunkte aufbaut, erreichbar und funktionsfähig sind. Geprüft werden die Referenzquellen (SOTA, POTA, HBFF, WWBOTA, Leuchttürme, Burgen) sowie die Relais-Quellen (RepeaterBook weltweit, FM-Funknetz.de) und die Geokodierungs-Hilfsquellen (OpenStreetMap, Wikidata, map.geo.admin.ch), von denen die Burg-Zuordnung abhängt. Zusätzlich werden Referenzen ohne Koordinaten («Datenlücken») angezeigt, die nicht als Kartenpunkte erstellt werden können.",
+        body: "Mit «Anbindung prüfen» testen Sie, ob alle Datenquellen, aus denen die Karte ihre Referenzpunkte aufbaut, erreichbar und funktionsfähig sind. Geprüft werden die Referenzquellen (SOTA, POTA, WWFF, WWBOTA, Leuchttürme, Burgen, IOTA) sowie die Relais-Quellen und die Geokodierungs-Hilfsquellen (OpenStreetMap, Wikidata, map.geo.admin.ch), von denen die Burg-Zuordnung abhängt. Zusätzlich werden Referenzen ohne Koordinaten («Datenlücken») angezeigt, die nicht als Kartenpunkte erstellt werden können.",
         steps: [
           { icon: "settings", text: "Einstellungen -> «Externe Daten prüfen»" },
           { icon: "shieldCheck", text: "«Anbindung prüfen» antippen – dauert wenige Sekunden" },

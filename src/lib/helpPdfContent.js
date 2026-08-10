@@ -46,14 +46,15 @@ export const SCREENSHOTS = {
 export const MARKER_SYMBOLS = [
   { icon: "mountain", shape: "sota", color: "#e74c3c", name: "SOTA", desc: "Berggipfel ab 150 m Prominenz – Karte: Berg mit Gipfelkreuz" },
   { icon: "trees", shape: "pota", color: "#27ae60", name: "POTA", desc: "Nationalparks und Schutzgebiete – Karte: Baum-Form" },
-  { icon: "trees", shape: "hbff", color: "#8e44ad", name: "HBFF", desc: "Flora und Fauna Naturreservate – Karte: Blume" },
-  { icon: "building", shape: "wwbota", color: "#795548", name: "WWBOTA", desc: "Militärische Bunker – Karte: Halbkuppel mit Scharte" },
-  { icon: "castle", shape: "castle", color: "#e67e22", name: "Burgen/Schlösser", desc: "WCA/COTA Referenzen – Karte: Burg mit Zinnen" },
-  { icon: "diamond", shape: "iota", color: "#3498db", name: "IOTA", desc: "Inseln (Schweiz hat keine IOTA) – Karte: Raute mit Welle" },
-  { icon: "anchor", shape: "lighthouse", color: "#f39c12", name: "Leuchttürme", desc: "ARLHS WLOL Referenzen – Karte: Leuchtturm mit Licht" },
-  { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" },
-  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais (Turm mit Blitz)", desc: "Amateurfunk-Relais weltweit – 80+ Laender inkl. USA (50 Bundesstaaten) & Kanada (13 Provinzen) – Karte: Turm mit Blitzsymbol, farbig nach Modulation" },
-  { icon: "wifi", shape: "private_node", color: "#8b5cf6", name: "APRS", desc: "APRS-Stationen weltweit – Symbole nach APRS-Standard: Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetter), Stern mit I (IGate) – farbig nach Node-Typ" }
+  { icon: "trees", shape: "hbff", color: "#8e44ad", name: "WWFF", desc: "Flora und Fauna Naturreservate – Karte: Blume" },
+  { icon: "building", shape: "wwbota", color: "#795548", name: "WWBOTA", desc: "Militärische Bunker, farbig nach Land – Karte: Halbkuppel mit Scharte" },
+  { icon: "castle", shape: "castle", color: "#e67e22", name: "WCA/COTA", desc: "Burgen und Schlösser – Karte: Burg mit Zinnen" },
+  { icon: "diamond", shape: "iota", color: "#3498db", name: "IOTA", desc: "Inseln – Karte: Raute mit Welle" },
+  { icon: "anchor", shape: "lighthouse", color: "#f39c12", name: "WLOTA/ARLHS", desc: "Leuchttürme – Karte: Leuchtturm mit Licht" },
+  { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN – Natur Zonen (nur in CH)", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" },
+  { icon: "zap", shape: "hazards", color: "#dc2626", name: "Gefahren & Störquellen (nur in CH)", desc: "Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender – Karte: Blitz" },
+  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Amateurfunk-Relais", desc: "FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen, Radius-Filter und Notstrom-Info – Karte: Turm mit Blitzsymbol, farbig nach Modulation" },
+  { icon: "wifi", shape: "private_node", color: "#8b5cf6", name: "APRS", desc: "Alle APRS-Stationen: Digipeater, IGates, Wetter, Hotspots und mobile Nutzer – Symbole nach APRS-Standard: Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetter), Stern mit I (IGate) – farbig nach Node-Typ" }
 ];
 
 // UI-Icons auf der Karte – Lucide-Icon-Namen wie in der App
@@ -254,12 +255,13 @@ export const SECTIONS = [
         links: [
           { label: "SOTA – Berggipfel", url: LINKS.sota },
           { label: "POTA – Parks und Schutzgebiete", url: LINKS.pota },
-          { label: "HBFF – Flora und Fauna", url: LINKS.hbff },
+          { label: "WWFF – Flora und Fauna", url: "https://wwff.co/directory/" },
           { label: "WWBOTA – Bunker", url: LINKS.wwbota },
           { label: "WCA/COTA – Burgen und Schlösser", url: LINKS.wca },
           { label: "IOTA – Inseln", url: LINKS.iota },
-          { label: "ARLHS WLOL – Leuchttürme", url: LINKS.arlhs },
-          { label: "BLN – Bundesinventare", url: LINKS.bafu }
+          { label: "WLOTA/ARLHS – Leuchttürme", url: LINKS.arlhs },
+          { label: "BLN – Natur Zonen (nur in CH)", url: LINKS.bafu },
+          { label: "Gefahren & Störquellen (nur in CH)", url: LINKS.geoAdmin }
         ]
       }
     ]
@@ -622,17 +624,16 @@ export const SECTIONS = [
     shortTitle: "Relais",
     color: [59, 130, 246],
     letter: "R",
-    description: "Das Relais-Overlay zeigt weltweite Amateurfunk-Relais von RepeaterBook.com auf der Karte – farbcodiert nach Modulation (FM, C4FM, DMR, D-STAR etc.), mit Verlinkungen zwischen Relais, Laenderfilter, Distanzanzeige und Google-Maps-Navigation.",
+    description: "Das Relais-Overlay zeigt Amateurfunk-Relais auf der Karte – farbcodiert nach Modulation (FM, C4FM, DMR, D-STAR etc.), mit Verlinkungen zwischen Relais, Laenderfilter, Distanzanzeige und Google-Maps-Navigation.",
     items: [
       {
         title: "Relais-Overlay aktivieren",
-        body: "Oeffnen Sie das Ebenen-Menue (Layer-Icon rechts oben) und aktivieren Sie die Ebene «Amateurfunk-Relais (RepeaterBook)». Weltweite Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart. Die Daten stammen von RepeaterBook.com und umfassen 80+ Laender weltweit: Europa, Asien, Ozeanien sowie Nordamerika (USA mit 50 Bundesstaaten + DC, Kanada mit 13 Provinzen).",
+        body: "Oeffnen Sie das Ebenen-Menue (Layer-Icon rechts oben) und aktivieren Sie die Ebene «Amateurfunk-Relais». Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart.",
         steps: [
           { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
           { icon: "radioTower", text: "«Amateurfunk-Relais» aktivieren" },
           { icon: "eye", text: "Relais erscheinen als farbige Kreise auf der Karte" }
-        ],
-        links: [{ label: "RepeaterBook weltweit", url: LINKS.repeaterbook }]
+        ]
       },
       {
         title: "Modulationsart erkennen",

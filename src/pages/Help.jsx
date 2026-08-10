@@ -37,7 +37,7 @@ const SECTIONS = [
       },
       {
         title: "Layer ein-/ausschalten",
-        body: "Über das Ebenen-Menü (rechts oben, Layer-Icon) können Sie verschiedene Referenz-Typen ein- und ausschalten: SOTA, POTA, HBFF, WWBOTA, Burgen, IOTA, Leuchttürme und Bundesinventare. Ausserdem können Sie die Hintergrundkarte wechseln (Strassenkarte, Satellit, SwissTopo). Das Menü öffnet sich immer ganz oben und liegt über allen anderen Elementen.",
+        body: "Über das Ebenen-Menü (rechts oben, Layer-Icon) können Sie verschiedene Referenz-Typen ein- und ausschalten: SOTA, POTA, WWFF, WWBOTA, WCA/COTA, IOTA, WLOTA/ARLHS, BLN – Natur Zonen (nur in CH), Gefahren & Störquellen (nur in CH), Amateurfunk-Relais und APRS. Ausserdem können Sie die Hintergrundkarte wechseln (Strassenkarte, Satellit, SwissTopo). Das Menü öffnet sich immer ganz oben und liegt über allen anderen Elementen.",
         example: "Nur SOTA-Gipfel anzeigen: Alle anderen Layer ausschalten, nur SOTA aktiv lassen."
       },
       {
@@ -71,12 +71,14 @@ const SECTIONS = [
         list: [
           { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Berg mit Gipfelkreuz (Dreieck) – Berggipfel ab 150 m Prominenz" },
           { icon: Trees, color: "#27ae60", name: "POTA", desc: "Baum – Nationalparks und Schutzgebiete" },
-          { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Blume – Flora & Fauna Naturreservate (weltweit)" },
-          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Halbkuppel mit Schiessscharte) – Militärische Bunker weltweit, farbig nach Land" },
-          { icon: Castle, color: "#e67e22", name: "Burgen/Schlösser", desc: "Burg mit Zinnen und Tor – WCA/COTA Referenzen" },
-          { icon: Diamond, color: "#3498db", name: "IOTA", desc: "Raute mit Welle – Inseln (Schweiz hat keine IOTA-Referenzen)" },
-          { icon: Anchor, color: "#f39c12", name: "Leuchttürme", desc: "Leuchtturm mit Lichtstrahlen – ARLHS WLOL Referenzen" },
-          { icon: Hexagon, color: "#16a085", name: "BLN/Moor", desc: "Sechseck mit Blatt – Bundesinventare / Naturzonen" },
+          { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Blume – Flora & Fauna Naturreservate" },
+          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Halbkuppel mit Schiessscharte) – Militärische Bunker, farbig nach Land" },
+          { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Burg mit Zinnen und Tor – Burgen und Schlösser" },
+          { icon: Diamond, color: "#3498db", name: "IOTA", desc: "Raute mit Welle – Inseln" },
+          { icon: Anchor, color: "#f39c12", name: "WLOTA/ARLHS", desc: "Leuchtturm mit Lichtstrahlen – Leuchttürme" },
+          { icon: Hexagon, color: "#16a085", name: "BLN – Natur Zonen (nur in CH)", desc: "Sechseck mit Blatt – Bundesinventare / Naturzonen" },
+          { icon: Zap, color: "#dc2626", name: "Gefahren & Störquellen (nur in CH)", desc: "Blitz – Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender" },
+          { icon: Radio, color: "#3b82f6", name: "Amateurfunk-Relais", desc: "Turm mit Blitz – FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen, farbig nach Modulation" },
           { icon: Wifi, color: "#8b5cf6", name: "APRS", desc: "APRS-Standard-Symbole – Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetterstation), Stern mit I (IGate) – farbig nach Node-Typ" }
         ]
       },
@@ -102,7 +104,7 @@ const SECTIONS = [
       },
       {
         title: "Daten für Offline-Nutzung speichern",
-        body: "Wenn Sie den Offline-Modus zum ersten Mal aktivieren (Wifi-Icon auf der Karte oder Schalter in den Einstellungen), werden alle aktuell geladenen Referenzdaten (SOTA, POTA, WWFF, WWBOTA, Burgen) sowie alle Namens-Anpassungen lokal im Browser gespeichert. So können Sie die Karte, Referenzen und das Logbuch auch ohne Internetverbindung nutzen. In den Einstellungen sehen Sie einen Status, ob die App offline-bereit ist und wann die Daten zuletzt gespeichert wurden.",
+        body: "Wenn Sie den Offline-Modus zum ersten Mal aktivieren (Wifi-Icon auf der Karte oder Schalter in den Einstellungen), werden alle aktuell geladenen Referenzdaten (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme) sowie alle Namens-Anpassungen lokal im Browser gespeichert. So können Sie die Karte, Referenzen und das Logbuch auch ohne Internetverbindung nutzen. In den Einstellungen sehen Sie einen Status, ob die App offline-bereit ist und wann die Daten zuletzt gespeichert wurden.",
         example: "Wifi-Icon auf Karte klicken → «Daten für Offline-Nutzung gespeichert» → alle Referenzen und Logbuch offline nutzbar."
       },
       {
@@ -114,15 +116,17 @@ const SECTIONS = [
         title: "Referenz-Typen",
         body: "Folgende Referenz-Typen werden unterstützt. Klicken Sie auf den Namen, um die aktuelle Referenzliste zu öffnen:",
         list: [
-          { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Summits on the Air – Berggipfel ab 150m Prominenz", url: "https://www.sotadata.org.uk/summitlist.aspx" },
+          { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Summits on the Air – Berggipfel ab 150 m Prominenz", url: "https://www.sotadata.org.uk/summitlist.aspx" },
           { icon: Trees, color: "#27ae60", name: "POTA", desc: "Parks on the Air – Nationalparks und Schutzgebiete", url: "https://pota.app/#/park/CH" },
-          { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Worldwide Flora & Fauna – Naturreservate weltweit", url: "https://wwff.co/directory/" },
-          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker weltweit", url: "https://wwbota.net/map/" },
-          { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser weltweit", url: "https://wcagroup.org/?page_id=207" },
-          { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Meer Inseln (Schweiz hat keine IOTA-Referenzen, da Binnenland)", url: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html" },
-          { icon: Anchor, color: "#f39c12", name: "WLOTA/ARLHS", desc: "Lighthouses on the Air – Leuchttürme (ARLHS WLOL Referenzen)", url: "https://wlol.arlhs.com/" },
-          { icon: Trees, color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare – Auengebiete, Moore etc.", url: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html" },
-          { icon: Zap, color: "#dc2626", name: "Gefahren & Störquellen", desc: "Hochspannungsleitungen und Starkstromanlagen (map.geo.admin.ch)", url: "https://map.geo.admin.ch/" }
+          { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Worldwide Flora & Fauna – Naturreservate", url: "https://wwff.co/directory/" },
+          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker, farbig nach Land", url: "https://wwbota.net/map/" },
+          { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser", url: "https://wcagroup.org/?page_id=207" },
+          { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Inseln", url: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html" },
+          { icon: Anchor, color: "#f39c12", name: "WLOTA/ARLHS", desc: "Lighthouses on the Air – Leuchttürme", url: "https://wlol.arlhs.com/" },
+          { icon: Trees, color: "#16a085", name: "BLN – Natur Zonen (nur in CH)", desc: "Bundesinventare – Auengebiete, Moore etc. (nur in CH — map.geo.admin.ch)", url: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html" },
+          { icon: Zap, color: "#dc2626", name: "Gefahren & Störquellen (nur in CH)", desc: "Hochspannungsleitungen und Starkstromanlagen (nur in CH — map.geo.admin.ch)", url: "https://map.geo.admin.ch/" },
+          { icon: Radio, color: "#3b82f6", name: "Amateurfunk-Relais", desc: "FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen", url: "https://www.repeaterbook.com/" },
+          { icon: Wifi, color: "#8b5cf6", name: "APRS", desc: "Amateur Radio Positioning – Digipeater, IGates, Wetter, Hotspots und mobile Nutzer", url: "https://aprs.fi/" }
         ]
       },
       {
@@ -260,7 +264,7 @@ const SECTIONS = [
       },
       {
         title: "Daten aktualisieren",
-        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt. Bei den Burgen wird zusätzlich angezeigt, wie viele erfolgreich georeferenziert wurden und über welche Methode (OSM/Wikidata, map.admin.ch, Locator, Nominatim). Diese Funktion ist nur für Administratoren verfügbar.",
+        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, WWFF, WWBOTA, Burgen, Leuchttürme, IOTA) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt. Bei den Burgen wird zusätzlich angezeigt, wie viele erfolgreich georeferenziert wurden und über welche Methode (OSM/Wikidata, map.admin.ch, Locator, Nominatim). Diese Funktion ist nur für Administratoren verfügbar.",
         example: "Neue SOTA-Gipfel verfügbar: «Alle Daten aktualisieren» klicken → warten bis Status «Erfolgreich»."
       },
       {
@@ -275,7 +279,7 @@ const SECTIONS = [
       },
       {
         title: "Tägliche Automatik",
-        body: "Mit dem Schalter «Tägliche Automatik» können Administratoren die automatische tägliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, HBFF etc. einmal pro Tag (nachts) automatisch aktualisiert. Wenn deaktiviert, müssen die Daten manuell über «Jetzt aktualisieren» neu geladen werden. Diese Funktion ist nur für Administratoren verfügbar.",
+        body: "Mit dem Schalter «Tägliche Automatik» können Administratoren die automatische tägliche Aktualisierung der Referenzdaten ein- oder ausschalten. Wenn aktiviert, werden SOTA, POTA, WWFF etc. einmal pro Tag (nachts) automatisch aktualisiert. Wenn deaktiviert, müssen die Daten manuell über «Jetzt aktualisieren» neu geladen werden. Diese Funktion ist nur für Administratoren verfügbar.",
         example: "Automatik ausschalten → Daten werden nur bei manueller Aktualisierung erneuert."
       },
       {
