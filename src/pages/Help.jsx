@@ -102,7 +102,7 @@ const SECTIONS = [
       },
       {
         title: "Daten für Offline-Nutzung speichern",
-        body: "Wenn Sie den Offline-Modus zum ersten Mal aktivieren (Wifi-Icon auf der Karte oder Schalter in den Einstellungen), werden alle aktuell geladenen Referenzdaten (SOTA, POTA, HBFF, WWBOTA, Burgen) sowie alle Namens-Anpassungen lokal im Browser gespeichert. So können Sie die Karte, Referenzen und das Logbuch auch ohne Internetverbindung nutzen. In den Einstellungen sehen Sie einen Status, ob die App offline-bereit ist und wann die Daten zuletzt gespeichert wurden.",
+        body: "Wenn Sie den Offline-Modus zum ersten Mal aktivieren (Wifi-Icon auf der Karte oder Schalter in den Einstellungen), werden alle aktuell geladenen Referenzdaten (SOTA, POTA, WWFF, WWBOTA, Burgen) sowie alle Namens-Anpassungen lokal im Browser gespeichert. So können Sie die Karte, Referenzen und das Logbuch auch ohne Internetverbindung nutzen. In den Einstellungen sehen Sie einen Status, ob die App offline-bereit ist und wann die Daten zuletzt gespeichert wurden.",
         example: "Wifi-Icon auf Karte klicken → «Daten für Offline-Nutzung gespeichert» → alle Referenzen und Logbuch offline nutzbar."
       },
       {
@@ -118,7 +118,7 @@ const SECTIONS = [
           { icon: Trees, color: "#27ae60", name: "POTA", desc: "Parks on the Air – Nationalparks und Schutzgebiete", url: "https://pota.app/#/park/CH" },
           { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Worldwide Flora & Fauna – Naturreservate weltweit", url: "https://wwff.co/directory/" },
           { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker weltweit", url: "https://wwbota.net/map/" },
-          { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser", url: "https://wcagroup.org/?page_id=207" },
+          { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser weltweit", url: "https://wcagroup.org/?page_id=207" },
           { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Meer Inseln (Schweiz hat keine IOTA-Referenzen, da Binnenland)", url: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html" },
           { icon: Anchor, color: "#f39c12", name: "WLOTA/ARLHS", desc: "Lighthouses on the Air – Leuchttürme (ARLHS WLOL Referenzen)", url: "https://wlol.arlhs.com/" },
           { icon: Trees, color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare – Auengebiete, Moore etc.", url: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html" },
@@ -151,8 +151,8 @@ const SECTIONS = [
         example: "«Neuen Vorschlag machen» → Titel «Dunkelmodus» → Kategorie «Verbesserung» → Beschreibung → Einreichen → Status in der Liste verfolgen."
       },
       {
-        title: "Bunker-Details (WWBOTA)",
-        body: "Bei WWBOTA-Bunkern führt der «Mehr Infos»-Link zur allgemeinen HBBOTA-Seite (wwbota.net), da keine einzelnen Bunker-Detailseiten existieren. Zusätzlich gibt es einen Wikipedia-Link, der nach dem spezifischen Bunkernamen sucht und so weitere Informationen zum jeweiligen Bunker liefert.",
+        title: "Bunker-Details (WWBOTA weltweit)",
+        body: "Bei WWBOTA-Bunkern führt der «Mehr Infos»-Link zur allgemeinen WWBOTA-Seite (wwbota.net), da keine einzelnen Bunker-Detailseiten existieren. Die Daten umfassen alle nationalen Schemata (HBBOTA, DLBOTA, F-BOTA, GBBOTA etc.). Zusätzlich gibt es einen Wikipedia-Link, der nach dem spezifischen Bunkernamen sucht und so weitere Informationen zum jeweiligen Bunker liefert.",
         example: "Bunker anklicken → «Mehr Infos» öffnet wwbota.net → «Wikipedia» sucht nach dem Bunkernamen."
       },
       {
