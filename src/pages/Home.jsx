@@ -38,6 +38,7 @@ import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { getWwbotaColor } from "@/lib/wwbotaSchemes";
 import VersionChangelogPopup, { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed, resetChangelog } from "@/components/map/VersionChangelogPopup";
+import { boundsToObj, boundsContained, unionBounds, mergeRefs, REF_TYPES } from "@/lib/boundsLoading";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -102,7 +103,7 @@ function MapEventHandler({ onMove, onZoom, onMapClick, clickMode }) {
   const map = useMapEvents({
     moveend: () => {
       const c = map.getCenter();
-      onMove([c.lat, c.lng]);
+      onMove([c.lat, c.lng], map.getBounds());
     },
     zoomend: () => {
       onZoom(map.getZoom());
@@ -116,12 +117,13 @@ function MapEventHandler({ onMove, onZoom, onMapClick, clickMode }) {
   return null;
 }
 
-function MapController({ lockedScale, mapRef }) {
+function MapController({ lockedScale, mapRef, onReady }) {
   const map = useMap();
 
   useEffect(() => {
     mapRef.current = map;
-  }, [map, mapRef]);
+    if (onReady) onReady();
+  }, [map, mapRef, onReady]);
 
   useEffect(() => {
     if (!lockedScale) return;
@@ -179,6 +181,9 @@ export default function Home() {
     return saved ? parseInt(saved) : null;
   });
   const mapRef = useRef(null);
+  const loadedBoundsRef = useRef({});
+  const [mapReady, setMapReady] = useState(false);
+  const [mapBounds, setMapBounds] = useState(null);
 
   // GPS / fixed position
   const [gpsPosition, setGpsPosition] = useState(null);
@@ -241,6 +246,32 @@ export default function Home() {
       toast({ title: "Speichern fehlgeschlagen", description: "Position lokal gespeichert, Server-Speicherung fehlgeschlagen: " + (e.message || "Unbekannter Fehler"), variant: "destructive" });
     }
   }, [isAdmin, toast]);
+
+  // Bounds-based reference loading: only fetch references visible on the map
+  const fetchRefsInBounds = useCallback(async (bnds, typesToFetch) => {
+    if (!bnds || isOffline || typesToFetch.length === 0) return;
+    try {
+      const res = await base44.functions.invoke("getReferencesInBounds", { bounds: bnds, types: typesToFetch });
+      if (res.data?.references) {
+        const refs = res.data.references;
+        if (refs.sota) setSotaData(prev => mergeRefs(prev, refs.sota));
+        if (refs.pota) setPotaData(prev => mergeRefs(prev, refs.pota));
+        if (refs.hbff) setHbffData(prev => mergeRefs(prev, refs.hbff));
+        if (refs.wwbota) setWwbotaData(prev => mergeRefs(prev, refs.wwbota));
+        if (refs.castle) setCastleData(prev => mergeRefs(prev, refs.castle));
+        if (refs.iota) setIotaData(prev => mergeRefs(prev, refs.iota));
+        if (refs.lighthouse) setLighthouseData(prev => mergeRefs(prev, refs.lighthouse));
+        typesToFetch.forEach(t => {
+          loadedBoundsRef.current[t] = unionBounds(loadedBoundsRef.current[t], bnds);
+        });
+      }
+    } catch (e) { /* silent — local cache or fallback data still shows */ }
+  }, [isOffline]);
+
+  const handleMapMove = useCallback((center, bnds) => {
+    setMapCenter(center);
+    if (bnds) setMapBounds(boundsToObj(bnds));
+  }, []);
 
   // Persist map settings to localStorage
   useEffect(() => {
@@ -468,66 +499,55 @@ export default function Home() {
     };
   }, []);
 
-  // Load reference data on mount — local cache FIRST (instant display), then server in background
+  // Load reference data on mount — offline uses local cache; online uses bounds-based loading
   useEffect(() => {
-    // Step 1: Load local cache instantly for immediate marker display
-    const localCache = loadCachedReferenceData();
-    if (localCache) {
-      if (localCache.sota) setSotaData(localCache.sota);
-      if (localCache.pota) setPotaData(localCache.pota);
-      if (localCache.hbff) setHbffData(localCache.hbff);
-      if (localCache.wwbota) setWwbotaData(localCache.wwbota);
-      if (localCache.castle) setCastleData(localCache.castle);
-      if (localCache.iota) setIotaData(localCache.iota);
-      if (localCache.lighthouse) setLighthouseData(localCache.lighthouse);
-    }
     setServerOverrides(loadCachedOverrides());
     setCacheLoaded(true);
 
-    // Step 2: Offline mode — local cache is all we have
+    // Offline mode: local cache is all we have
     if (isOffline) {
+      const localCache = loadCachedReferenceData();
+      if (localCache) {
+        if (localCache.sota) setSotaData(localCache.sota);
+        if (localCache.pota) setPotaData(localCache.pota);
+        if (localCache.hbff) setHbffData(localCache.hbff);
+        if (localCache.wwbota) setWwbotaData(localCache.wwbota);
+        if (localCache.castle) setCastleData(localCache.castle);
+        if (localCache.iota) setIotaData(localCache.iota);
+        if (localCache.lighthouse) setLighthouseData(localCache.lighthouse);
+      }
       setServerCacheLoaded(true);
       setServerCacheLoading(false);
       return;
     }
+    // Online mode: bounds-based effect (below) fetches only visible references
+  }, [isOffline]);
 
-    // Step 3: Fetch from server in background (non-blocking, updates markers when ready)
-    // CRITICAL: Only overwrite state if server data is non-empty — otherwise local cache
-    // data that's already displayed would be wiped, causing markers to appear then vanish.
-    setServerCacheLoading(true);
-    base44.entities.ReferenceData.list()
-      .then(cached => {
-        if (!cached) return;
-        const data = {};
-        cached.forEach(entry => {
-          if (!entry.references || entry.references.length === 0) return;
-          if (entry.type === 'sota') { setSotaData(entry.references); data.sota = entry.references; }
-          if (entry.type === 'pota') { setPotaData(entry.references); data.pota = entry.references; }
-          if (entry.type === 'hbff') { setHbffData(entry.references); data.hbff = entry.references; }
-          if (entry.type === 'wwbota') { setWwbotaData(entry.references); data.wwbota = entry.references; }
-          if (entry.type === 'castle') { setCastleData(entry.references); data.castle = entry.references; }
-          if (entry.type === 'iota') { setIotaData(entry.references); data.iota = entry.references; }
-          if (entry.type === 'lighthouse') { setLighthouseData(entry.references); data.lighthouse = entry.references; }
-        });
-        // Only update the local cache with types that actually had data from server
-        if (Object.keys(data).length > 0) {
-          cacheReferenceData({ sota: data.sota || sotaData, pota: data.pota || potaData, hbff: data.hbff || hbffData, wwbota: data.wwbota || wwbotaData, castle: data.castle || castleData, iota: data.iota || iotaData, lighthouse: data.lighthouse || lighthouseData });
-        }
-      })
-      .catch(() => {
-        // Server failed but local cache already loaded above — try offline areas as last resort
-        if (!localCache) {
-          loadOfflineReferences().then(refs => {
-            if (refs.sota?.length) setSotaData(refs.sota);
-            if (refs.pota?.length) setPotaData(refs.pota);
-            if (refs.hbff?.length) setHbffData(refs.hbff);
-            if (refs.wwbota?.length) setWwbotaData(refs.wwbota);
-            if (refs.castle?.length) setCastleData(refs.castle);
-          }).catch(() => {});
-        }
-      })
-      .finally(() => { setServerCacheLoaded(true); setServerCacheLoading(false); });
-  }, []);
+  // Bounds-based fetch: load only references within the current map viewport.
+  // Fires on map ready, pan/zoom (debounced 500ms), and layer toggle. Accumulates loaded data.
+  useEffect(() => {
+    if (!mapReady || isOffline || !cacheLoaded) return;
+
+    const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+    if (!bnds) return;
+
+    const typesToFetch = activeLayers
+      .filter(l => REF_TYPES.includes(l))
+      .filter(l => !boundsContained(bnds, loadedBoundsRef.current[l]));
+
+    if (typesToFetch.length === 0) {
+      if (!serverCacheLoaded) { setServerCacheLoaded(true); setServerCacheLoading(false); }
+      return;
+    }
+
+    const t = setTimeout(() => {
+      setServerCacheLoading(true);
+      fetchRefsInBounds(bnds, typesToFetch)
+        .catch(() => {})
+        .finally(() => { setServerCacheLoaded(true); setServerCacheLoading(false); });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [mapReady, mapBounds, activeLayers, isOffline, cacheLoaded, serverCacheLoaded, fetchRefsInBounds]);
 
   // Dismiss splash after minimum 3s AND server cache loaded — uses the time to fetch data in background
   const mountTime = useRef(Date.now());
@@ -565,15 +585,11 @@ export default function Home() {
     base44.functions.invoke("fetchSOTA", { associations: "all" })
       .then(res => {
         if (res.data?.saved) {
-          // Function saved to ReferenceData — reload from server cache
-          return base44.entities.ReferenceData.list();
+          // Server cache updated — reset loaded bounds and re-fetch viewport from fresh data
+          loadedBoundsRef.current.sota = null;
+          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          if (bnds) fetchRefsInBounds(bnds, ['sota']);
         }
-        return null;
-      })
-      .then(cached => {
-        if (!cached) return;
-        const sotaEntry = cached.find(e => e.type === 'sota');
-        if (sotaEntry?.references?.length > 0) setSotaData(sotaEntry.references);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, sota: false })));
@@ -591,14 +607,10 @@ export default function Home() {
     base44.functions.invoke("fetchPOTA", { entities: "all" })
       .then(res => {
         if (res.data?.saved) {
-          return base44.entities.ReferenceData.list();
+          loadedBoundsRef.current.pota = null;
+          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          if (bnds) fetchRefsInBounds(bnds, ['pota']);
         }
-        return null;
-      })
-      .then(cached => {
-        if (!cached) return;
-        const potaEntry = cached.find(e => e.type === 'pota');
-        if (potaEntry?.references?.length > 0) setPotaData(potaEntry.references);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, pota: false })));
@@ -631,14 +643,10 @@ export default function Home() {
     base44.functions.invoke("fetchCastles", {})
       .then(res => {
         if (res.data?.saved) {
-          return base44.entities.ReferenceData.list();
+          loadedBoundsRef.current.castle = null;
+          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          if (bnds) fetchRefsInBounds(bnds, ['castle']);
         }
-        return null;
-      })
-      .then(cached => {
-        if (!cached) return;
-        const castleEntry = cached.find(e => e.type === 'castle');
-        if (castleEntry?.references?.length > 0) setCastleData(castleEntry.references);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
@@ -651,14 +659,10 @@ export default function Home() {
     base44.functions.invoke("fetchIOTA", {})
       .then(res => {
         if (res.data?.saved) {
-          return base44.entities.ReferenceData.list();
+          loadedBoundsRef.current.iota = null;
+          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          if (bnds) fetchRefsInBounds(bnds, ['iota']);
         }
-        return null;
-      })
-      .then(cached => {
-        if (!cached) return;
-        const iotaEntry = cached.find(e => e.type === 'iota');
-        if (iotaEntry?.references?.length > 0) setIotaData(iotaEntry.references);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, iota: false })));
@@ -671,14 +675,10 @@ export default function Home() {
     base44.functions.invoke("fetchLighthouses", {})
       .then(res => {
         if (res.data?.saved) {
-          return base44.entities.ReferenceData.list();
+          loadedBoundsRef.current.lighthouse = null;
+          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          if (bnds) fetchRefsInBounds(bnds, ['lighthouse']);
         }
-        return null;
-      })
-      .then(cached => {
-        if (!cached) return;
-        const lighthouseEntry = cached.find(e => e.type === 'lighthouse');
-        if (lighthouseEntry?.references?.length > 0) setLighthouseData(lighthouseEntry.references);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, lighthouse: false })));
@@ -1167,12 +1167,12 @@ export default function Home() {
             key={isOffline ? "offline" : swisstopoConfig.layer}
           />
           <MapEventHandler
-            onMove={setMapCenter}
+            onMove={handleMapMove}
             onZoom={setMapZoom}
             onMapClick={handleMapClick}
             clickMode={pickingPosition}
           />
-          <MapController lockedScale={lockedScale} mapRef={mapRef} />
+          <MapController lockedScale={lockedScale} mapRef={mapRef} onReady={() => setMapReady(true)} />
 
           {currentPosition && (
             <PositionMarker position={currentPosition} fixed={positionFixed} radius={positionRadius} onRadiusChange={setPositionRadius} onPositionChange={handlePositionChange} />
