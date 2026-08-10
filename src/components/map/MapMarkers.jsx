@@ -4,8 +4,10 @@ import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
-// Hard cap on markers rendered at once — prevents "page not responding" on extreme loads
-const MAX_RENDER_MARKERS = 2000;
+// Hard cap on markers rendered at once — prevents "page not responding" on extreme loads.
+// Canvas mode (CircleMarkers) is far cheaper than SVG divIcons, so allow 5x more.
+const MAX_RENDER_MARKERS_SVG = 2000;
+const MAX_RENDER_MARKERS_CANVAS = 10000;
 
 // Cache divIcons per (layerType, color) — creating L.divIcon for every marker is extremely expensive
 const iconCache = new Map();
@@ -75,12 +77,13 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   // Canvas mode: performance mode OR auto-canvas (time-based, triggered by parent)
   const useCanvasMode = performanceMode || autoCanvasActive;
 
-  // Hard cap: never render more than MAX_RENDER_MARKERS.
+  // Hard cap: never render more than the mode-specific limit.
   // When capping, sort by distance from map center FIRST — this ensures markers
   // closest to the viewport center (e.g. Swiss summits when zoomed to CH) are
   // prioritized over distant ones that happen to be earlier in the data array.
+  const maxRender = useCanvasMode ? MAX_RENDER_MARKERS_CANVAS : MAX_RENDER_MARKERS_SVG;
   let cappedMarkers;
-  if (visibleMarkers.length > MAX_RENDER_MARKERS) {
+  if (visibleMarkers.length > maxRender) {
     const center = map.getCenter();
     const clat = center.lat, clng = center.lng;
     // Add distance sort key, sort, then strip it — O(n log n) is fast for <100k items
@@ -89,7 +92,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
       d: (m.lat - clat) ** 2 + (m.lng - clng) ** 2,
     }));
     withDist.sort((a, b) => a.d - b.d);
-    cappedMarkers = withDist.slice(0, MAX_RENDER_MARKERS).map(x => x.m);
+    cappedMarkers = withDist.slice(0, maxRender).map(x => x.m);
   } else {
     cappedMarkers = visibleMarkers;
   }

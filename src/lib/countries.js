@@ -164,6 +164,35 @@ export function getCountriesByContinent(continentId) {
   return COUNTRIES.filter(c => c.continent === continentId);
 }
 
+// WWBOTA scheme → ISO2 country code mapping.
+// WWBOTA schemes use a mix of DXCC prefixes (HB, DL, F, OK, ON, SP, EA, EI, etc.)
+// and ISO2-like codes (UK→GB, US, CA, RO, ITA→IT). This mapping covers all known schemes.
+const WWBOTA_SCHEME_TO_ISO = {
+  'HBBOTA': 'CH', 'DLBOTA': 'DE', 'FBOTA': 'FR', 'UKBOTA': 'GB',
+  'OKBOTA': 'CZ', 'ONBOTA': 'BE', 'SPBOTA': 'PL', 'S5BOTA': 'SI',
+  'EABOTA': 'ES', 'EIBOTA': 'IE', 'ITABOTA': 'IT', 'ROBOTA': 'RO',
+  'CABOTA': 'CA', 'USBOTA': 'US', 'PABOTA': 'NL', 'OEBOTA': 'AT',
+  'LABOTA': 'NO', 'LXBOTA': 'LU', 'E7BOTA': 'BA', 'ERBOTA': 'MD',
+  'CXBOTA': 'UY', 'YUBOTA': 'RS', 'Z3BOTA': 'MK', 'ZABOTA': 'AL',
+  '9ABOTA': 'HR', '9MBOTA': 'MY', 'SMBOTA': 'SE',
+};
+
+// Get ISO2 country code from a WWBOTA scheme name (e.g., "DLBOTA" → "DE")
+export function getCountryFromWwbotaScheme(scheme) {
+  if (!scheme) return null;
+  return WWBOTA_SCHEME_TO_ISO[scheme.toUpperCase()] || null;
+}
+
+// Get ISO2 country code from a WWFF reference code (e.g., "DLFF-0001" → "DE")
+// WWFF refs use DXCC prefix + "FF" + number. The DXCC prefix maps to ISO2 via SOTA_TO_ISO.
+export function getCountryFromWwffCode(code) {
+  if (!code) return null;
+  const refPart = code.split('-')[0].toUpperCase();
+  const dxcc = refPart.replace(/FF$/, '');
+  if (!dxcc) return null;
+  return SOTA_TO_ISO[dxcc] || null;
+}
+
 // Check if a marker matches the selected countries
 // activeCountries: array of ISO2 codes. Empty = no country filter (show all).
 export function isInCountries(marker, activeCountries) {
@@ -178,8 +207,10 @@ export function isInCountries(marker, activeCountries) {
     iso2 = marker.country_code;
   } else if (marker.layerType === 'castle' || marker.layerType === 'lighthouse' || marker.layerType === 'iota') {
     iso2 = getCountryByName(marker.country);
-  } else if (marker.layerType === 'hbff' || marker.layerType === 'wwbota') {
-    iso2 = 'CH'; // Swiss-only layers
+  } else if (marker.layerType === 'hbff') {
+    iso2 = getCountryFromWwffCode(marker.code || marker.reference);
+  } else if (marker.layerType === 'wwbota') {
+    iso2 = getCountryFromWwbotaScheme(marker.scheme);
   }
 
   // When a country filter is active, hide markers whose country can't be determined.
