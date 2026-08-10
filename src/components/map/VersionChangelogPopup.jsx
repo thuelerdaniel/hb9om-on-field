@@ -27,6 +27,9 @@ export const VERSION_CHANGELOG = [
       "POTA: Inkrementelles Speichern nach jedem Batch — keine Datenverluste mehr bei Timeout",
       "Splash-Screen und Hilfe aktualisiert für weltweite Abdeckung",
       "Sicherheits-Audit: Auth-Checks für alle Backend-Funktionen",
+      "Restore-Point-System: Admins können Wiederherstellungspunkte erstellen und zurückspielen",
+      "Relais-Datenquelle erweitert: ukrepeater.net (751 UK-Relais mit Koordinaten via Maidenhead-Locator)",
+      "Relais-Refresh optimiert: Timeout-Fehler behoben, mehr Länder mit Koordinaten",
     ],
   },
 ];
