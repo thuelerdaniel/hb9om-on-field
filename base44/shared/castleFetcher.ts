@@ -433,55 +433,23 @@ function matchWcaToGeo(wcaEntries: any[], geoSources: any[]): any[] {
   return castles;
 }
 
-// --- Main entry point: fetch ALL castles worldwide (WCA list + OSM + Wikidata) ---
+// --- Main entry point: fetch ALL castles worldwide (WCA list + Maidenhead locators) ---
+// Simplified: skips OSM/Wikidata matching to avoid timeouts.
+// WCA ODS provides ~69k entries with Maidenhead locators (~5km accuracy).
 export async function fetchCastleDataComplete(castleOverrides?: Map<string, any>): Promise<any[]> {
   console.log('[castleFetcher] Step 1: Parsing WCA ODS worldwide...');
   const wcaEntries = await parseWcaOdsWorldwide();
   console.log(`[castleFetcher] Step 1 done: ${wcaEntries.length} WCA entries`);
 
-  // 2. Fetch Swiss OSM + worldwide Wikidata castles for matching.
-  //    OSM is bounded to Swiss bbox (fast, 15s timeout). Wikidata is worldwide (LIMIT 5000).
-  //    Both run in parallel to minimize wall time.
-  console.log('[castleFetcher] Step 2: Fetching OSM + Wikidata...');
-  const [osmResult, wdResult] = await Promise.allSettled([
-    fetchOsmCastlesInBbox(45.8, 5.9, 48.0, 10.6),
-    fetchWikidataCastles(null),  // worldwide
-  ]);
-  const osmCastles = osmResult.status === 'fulfilled' ? osmResult.value : [];
-  const wdCastles = wdResult.status === 'fulfilled' ? wdResult.value : [];
-  const geoSources = [...osmCastles, ...wdCastles];
-  console.log(`[castleFetcher] Step 2 done: ${osmCastles.length} OSM, ${wdCastles.length} Wikidata`);
-
-  // 3. Build name index for direct matching (O(1) lookup — no expensive O(n×m) fallback)
-  const nameIndex = new Map<string, any>();
-  for (const geo of geoSources) {
-    const key = normalizeName(geo.name);
-    if (!key) continue;
-    if (!nameIndex.has(key)) nameIndex.set(key, geo);
-    // Also index flattened (no spaces) version
-    const flat = key.replace(/\s+/g, '');
-    if (flat !== key && !nameIndex.has(flat)) nameIndex.set(flat, geo);
-  }
-
-  // 4. Build castle records: direct name match → Maidenhead locator → null
+  // 2. Build castle records using Maidenhead locator from WCA ODS (~5km accuracy)
+  //    Skips OSM/Wikidata matching entirely — avoids platform timeouts.
   const castles = wcaEntries.map(wca => {
     let lat: number | null = null;
     let lng: number | null = null;
     let matchSource: string | null = null;
 
-    // Try direct name match against OSM/Wikidata
-    const wcaNameNorm = normalizeName(wca.name);
-    if (wcaNameNorm) {
-      const match = nameIndex.get(wcaNameNorm) || nameIndex.get(wcaNameNorm.replace(/\s+/g, ''));
-      if (match) {
-        lat = match.lat;
-        lng = match.lng;
-        matchSource = 'osm-wikidata';
-      }
-    }
-
-    // Fallback: Maidenhead locator from WCA ODS (~5km accuracy)
-    if (lat === null && wca.locator && wca.locator.length >= 4) {
+    // Use Maidenhead locator from WCA ODS
+    if (wca.locator && wca.locator.length >= 4) {
       const coords = maidenheadToLatLng(wca.locator);
       if (coords) {
         lat = coords.lat;
@@ -502,7 +470,7 @@ export async function fetchCastleDataComplete(castleOverrides?: Map<string, any>
       matchSource,
     };
   });
-  console.log(`[castleFetcher] Step 3 done: ${castles.length} castles, ${castles.filter(c => c.lat !== null).length} with coords`);
+  console.log(`[castleFetcher] Step 2 done: ${castles.length} castles, ${castles.filter(c => c.lat !== null).length} with coords`);
 
   // 5. Apply manual overrides
   for (const c of castles) {

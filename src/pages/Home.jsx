@@ -278,6 +278,8 @@ export default function Home() {
   const [hbffData, setHbffData] = useState([]);
   const [wwbotaData, setWwbotaData] = useState([]);
   const [castleData, setCastleData] = useState([]);
+  const [iotaData, setIotaData] = useState([]);
+  const [lighthouseData, setLighthouseData] = useState([]);
   const [cacheLoaded, setCacheLoaded] = useState(false);
   const [serverCacheLoaded, setServerCacheLoaded] = useState(false);
   const [serverCacheLoading, setServerCacheLoading] = useState(true);
@@ -472,6 +474,8 @@ export default function Home() {
       if (localCache.hbff) setHbffData(localCache.hbff);
       if (localCache.wwbota) setWwbotaData(localCache.wwbota);
       if (localCache.castle) setCastleData(localCache.castle);
+      if (localCache.iota) setIotaData(localCache.iota);
+      if (localCache.lighthouse) setLighthouseData(localCache.lighthouse);
     }
     setServerOverrides(loadCachedOverrides());
     setCacheLoaded(true);
@@ -498,10 +502,12 @@ export default function Home() {
           if (entry.type === 'hbff') { setHbffData(entry.references); data.hbff = entry.references; }
           if (entry.type === 'wwbota') { setWwbotaData(entry.references); data.wwbota = entry.references; }
           if (entry.type === 'castle') { setCastleData(entry.references); data.castle = entry.references; }
+          if (entry.type === 'iota') { setIotaData(entry.references); data.iota = entry.references; }
+          if (entry.type === 'lighthouse') { setLighthouseData(entry.references); data.lighthouse = entry.references; }
         });
         // Only update the local cache with types that actually had data from server
         if (Object.keys(data).length > 0) {
-          cacheReferenceData({ sota: data.sota || sotaData, pota: data.pota || potaData, hbff: data.hbff || hbffData, wwbota: data.wwbota || wwbotaData, castle: data.castle || castleData });
+          cacheReferenceData({ sota: data.sota || sotaData, pota: data.pota || potaData, hbff: data.hbff || hbffData, wwbota: data.wwbota || wwbotaData, castle: data.castle || castleData, iota: data.iota || iotaData, lighthouse: data.lighthouse || lighthouseData });
         }
       })
       .catch(() => {
@@ -619,9 +625,59 @@ export default function Home() {
     if (!serverCacheLoaded || !activeLayers.includes("castle") || castleData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, castle: true }));
     base44.functions.invoke("fetchCastles", {})
-      .then(res => { if (res.data?.castles?.length > 0) setCastleData(res.data.castles); })
+      .then(res => {
+        if (res.data?.saved) {
+          return base44.entities.ReferenceData.list();
+        }
+        return null;
+      })
+      .then(cached => {
+        if (!cached) return;
+        const castleEntry = cached.find(e => e.type === 'castle');
+        if (castleEntry?.references?.length > 0) setCastleData(castleEntry.references);
+      })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
+  }, [activeLayers, serverCacheLoaded, isOffline]);
+
+  // Load IOTA from API if not cached
+  useEffect(() => {
+    if (!serverCacheLoaded || !activeLayers.includes("iota") || iotaData.length > 0 || isOffline) return;
+    setLoading(prev => ({ ...prev, iota: true }));
+    base44.functions.invoke("fetchIOTA", {})
+      .then(res => {
+        if (res.data?.saved) {
+          return base44.entities.ReferenceData.list();
+        }
+        return null;
+      })
+      .then(cached => {
+        if (!cached) return;
+        const iotaEntry = cached.find(e => e.type === 'iota');
+        if (iotaEntry?.references?.length > 0) setIotaData(iotaEntry.references);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(prev => ({ ...prev, iota: false })));
+  }, [activeLayers, serverCacheLoaded, isOffline]);
+
+  // Load Lighthouses from API if not cached
+  useEffect(() => {
+    if (!serverCacheLoaded || !activeLayers.includes("lighthouse") || lighthouseData.length > 0 || isOffline) return;
+    setLoading(prev => ({ ...prev, lighthouse: true }));
+    base44.functions.invoke("fetchLighthouses", {})
+      .then(res => {
+        if (res.data?.saved) {
+          return base44.entities.ReferenceData.list();
+        }
+        return null;
+      })
+      .then(cached => {
+        if (!cached) return;
+        const lighthouseEntry = cached.find(e => e.type === 'lighthouse');
+        if (lighthouseEntry?.references?.length > 0) setLighthouseData(lighthouseEntry.references);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(prev => ({ ...prev, lighthouse: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
 
   // Load repeaters from DB when repeater layer is active
@@ -693,10 +749,12 @@ export default function Home() {
       castles.forEach(c => { if (c.lat && c.lng) markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }); });
     }
     if (activeLayers.includes("iota")) {
-      IOTA_DATA.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
+      const iota = iotaData.length > 0 ? iotaData : IOTA_DATA;
+      iota.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
     }
     if (activeLayers.includes("lighthouse")) {
-      LIGHTHOUSE_DATA.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
+      const lighthouses = lighthouseData.length > 0 ? lighthouseData : LIGHTHOUSE_DATA;
+      lighthouses.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
     }
 
     return markers
@@ -802,8 +860,10 @@ export default function Home() {
     wwbota.forEach(b => markers.push({ ...b, layerType: "wwbota", color: LAYER_COLORS.wwbota, layerLabel: "WWBOTA" }));
     const castles = castleData.length > 0 ? castleData : CASTLE_DATA;
     castles.forEach(c => { if (c.lat && c.lng) markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }); });
-    IOTA_DATA.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
-    LIGHTHOUSE_DATA.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
+    const iotaAvail = iotaData.length > 0 ? iotaData : IOTA_DATA;
+    iotaAvail.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
+    const lighthousesAvail = lighthouseData.length > 0 ? lighthouseData : LIGHTHOUSE_DATA;
+    lighthousesAvail.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
     // Include repeaters for QSO form worldwide search
     if (repeaters.length > 0) {
       repeaters.forEach(r => {
@@ -962,7 +1022,7 @@ export default function Home() {
   const currentPosition = positionMode === "fixed" ? fixedPosition : (positionMode === "gps" ? gpsPosition : null);
   const positionFixed = positionMode === "fixed";
 
-  const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0;
+  const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0 || iotaData.length > 0 || lighthouseData.length > 0;
   const isLoading = !loadingCancelled && (Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline));
 
   // Cancel loading — aborts the loading indicator and lets the user interact with already-loaded data
@@ -1329,7 +1389,7 @@ export default function Home() {
               localStorage.setItem("hb9om_force_offline", String(newVal));
               if (newVal) {
                 // Cache all current data for offline use
-                cacheReferenceData({ sota: sotaData, pota: potaData, hbff: hbffData, wwbota: wwbotaData, castle: castleData });
+                cacheReferenceData({ sota: sotaData, pota: potaData, hbff: hbffData, wwbota: wwbotaData, castle: castleData, iota: iotaData, lighthouse: lighthouseData });
                 cacheOverrides(serverOverrides);
                 // Cache QRZ lookups for offline use
                 base44.entities.QrzLookup.list("-created_date", 200)
@@ -1432,7 +1492,7 @@ export default function Home() {
           baseLayer={baseLayer}
           baseTileUrl={baseTileUrl}
           tileKeyPrefix={tileKeyPrefix}
-          referenceData={{ sota: sotaData, pota: potaData, hbff: hbffData, wwbota: wwbotaData, castle: castleData }}
+          referenceData={{ sota: sotaData, pota: potaData, hbff: hbffData, wwbota: wwbotaData, castle: castleData, iota: iotaData, lighthouse: lighthouseData }}
           onClose={() => setShowOfflineDialog(false)}
           onDownloaded={() => {
             getOfflineAreas().then(areas => setOfflineAreas(areas));

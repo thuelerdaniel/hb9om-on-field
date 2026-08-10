@@ -73,7 +73,7 @@ export async function cacheFromServer() {
       base44.entities.QrzLookup.list("-created_date", 200)
     ]);
 
-    const data = { sota: [], pota: [], hbff: [], wwbota: [], castle: [] };
+    const data = { sota: [], pota: [], hbff: [], wwbota: [], castle: [], iota: [], lighthouse: [] };
     (cached || []).forEach(entry => {
       if (!entry.references) return;
       if (entry.type === 'sota') data.sota = entry.references;
@@ -81,6 +81,8 @@ export async function cacheFromServer() {
       if (entry.type === 'hbff') data.hbff = entry.references;
       if (entry.type === 'wwbota') data.wwbota = entry.references;
       if (entry.type === 'castle') data.castle = entry.references;
+      if (entry.type === 'iota') data.iota = entry.references;
+      if (entry.type === 'lighthouse') data.lighthouse = entry.references;
     });
     cacheReferenceData(data);
 

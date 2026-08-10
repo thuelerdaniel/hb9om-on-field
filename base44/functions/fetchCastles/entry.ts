@@ -2,8 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { fetchCastleDataComplete } from '../../shared/castleFetcher.ts';
 
 // WCA castles worldwide — uses shared castleFetcher module (also used by refreshAllData).
-// Parses ALL country tables from the WCA ODS file, geocodes with Swiss-specific methods
-// for HB- entries and worldwide Nominatim for non-Swiss, plus OSM/Wikidata worldwide.
+// Parses ALL country tables from the WCA ODS file, uses Maidenhead locators for coordinates.
+// Stores the full dataset in ReferenceData entity.
 
 Deno.serve(async (req) => {
   try {
@@ -27,24 +27,57 @@ Deno.serve(async (req) => {
     console.log('[fetchCastles] fetchCastleDataComplete done:', allCastles.length, 'castles');
     const withCoords = allCastles.filter(c => c.lat !== null).length;
 
-    // Count by country prefix
-    const byCountry: Record<string, number> = {};
-    const byMatchSource: Record<string, number> = {};
-    for (const c of allCastles) {
-      const prefix = c.code?.split('-')[0] || 'OSM';
-      byCountry[prefix] = (byCountry[prefix] || 0) + 1;
-      const ms = c.matchSource || 'unmatched';
-      byMatchSource[ms] = (byMatchSource[ms] || 0) + 1;
+    // Strip to essential fields to avoid MongoDB 16MB document size limit
+    const stripped = allCastles
+      .filter(c => c.lat !== null && c.lng !== null)
+      .map(c => ({
+        code: c.code,
+        name: c.name,
+        lat: c.lat,
+        lng: c.lng,
+        canton: c.canton || '',
+        link: c.link || 'https://wcagroup.org/?page_id=207',
+        countryPrefix: c.countryPrefix || '',
+      }));
+
+    console.log(`[fetchCastles] Storing ${stripped.length} castles in ReferenceData...`);
+
+    // Upsert into ReferenceData
+    const now = new Date().toISOString();
+    const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'castle' });
+    if (existing.length > 0) {
+      await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
+        references: stripped,
+        total_count: stripped.length,
+        source: 'WCA list (worldwide) + Maidenhead locators',
+        last_updated: now
+      });
+    } else {
+      await base44.asServiceRole.entities.ReferenceData.create({
+        type: 'castle',
+        references: stripped,
+        total_count: stripped.length,
+        source: 'WCA list (worldwide) + Maidenhead locators',
+        last_updated: now
+      });
     }
 
-    // Return summary stats only — the full array (23MB+) is too large for the response.
-    // The actual data is stored in the ReferenceData entity by refreshAllData.
+    // Count by country prefix
+    const byCountry: Record<string, number> = {};
+    for (const c of stripped) {
+      const prefix = c.code?.split('-')[0] || 'OSM';
+      byCountry[prefix] = (byCountry[prefix] || 0) + 1;
+    }
+
+    console.log('[fetchCastles] DONE:', stripped.length, 'castles stored');
+
     return Response.json({
-      count: allCastles.length,
+      saved: true,
+      count: stripped.length,
+      totalParsed: allCastles.length,
       matchedWithCoords: withCoords,
       byCountry,
-      byMatchSource,
-      source: 'WCA list (worldwide) + OSM + Wikidata'
+      source: 'WCA list (worldwide) + Maidenhead locators'
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

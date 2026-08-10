@@ -199,7 +199,7 @@ export async function downloadTiles(tiles, tileKeyPrefix, urlTemplate, onProgres
 
 export async function loadOfflineReferences() {
   const areas = await getAreas();
-  const refs = { sota: [], pota: [], hbff: [], wwbota: [], castle: [] };
+  const refs = { sota: [], pota: [], hbff: [], wwbota: [], castle: [], iota: [], lighthouse: [] };
   for (const area of areas) {
     if (area.references) {
       for (const type of Object.keys(refs)) {
