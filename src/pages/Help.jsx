@@ -18,7 +18,7 @@ const SECTIONS = [
     icon: MapPin,
     title: "Karte & Referenzen",
     color: "#3b82f6",
-    description: "Die interaktive Karte zeigt Amateurfunk-Referenzpunkte in der ganzen Schweiz und Umgebung.",
+    description: "Die interaktive Karte zeigt Amateurfunk-Referenzpunkte weltweit (SOTA, POTA, WWFF, WWBOTA, Burgen, Leuchttürme, IOTA).",
     items: [
       {
         title: "Bildschirm-Aufbau der Karte",
@@ -71,8 +71,8 @@ const SECTIONS = [
         list: [
           { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Berg mit Gipfelkreuz (Dreieck) – Berggipfel ab 150 m Prominenz" },
           { icon: Trees, color: "#27ae60", name: "POTA", desc: "Baum – Nationalparks und Schutzgebiete" },
-          { icon: Trees, color: "#8e44ad", name: "HBFF", desc: "Blume – Flora & Fauna Naturreservate" },
-          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Halbkuppel mit Schiessscharte) – Militärische Bunker" },
+          { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Blume – Flora & Fauna Naturreservate (weltweit)" },
+          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Halbkuppel mit Schiessscharte) – Militärische Bunker (weltweit)" },
           { icon: Castle, color: "#e67e22", name: "Burgen/Schlösser", desc: "Burg mit Zinnen und Tor – WCA/COTA Referenzen" },
           { icon: Diamond, color: "#3498db", name: "IOTA", desc: "Raute mit Welle – Inseln (Schweiz hat keine IOTA-Referenzen)" },
           { icon: Anchor, color: "#f39c12", name: "Leuchttürme", desc: "Leuchtturm mit Lichtstrahlen – ARLHS WLOL Referenzen" },
@@ -116,8 +116,8 @@ const SECTIONS = [
         list: [
           { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Summits on the Air – Berggipfel ab 150m Prominenz", url: "https://www.sotadata.org.uk/summitlist.aspx" },
           { icon: Trees, color: "#27ae60", name: "POTA", desc: "Parks on the Air – Nationalparks und Schutzgebiete", url: "https://pota.app/#/park/CH" },
-          { icon: Trees, color: "#8e44ad", name: "HBFF", desc: "Flora & Fauna Schweiz – Naturreservate", url: "https://hbff.ch/Refs/HBFFReferenceSlim.html" },
-          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker", url: "https://wwbota.net/map/" },
+          { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Worldwide Flora & Fauna – Naturreservate weltweit", url: "https://wwff.co/directory/" },
+          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker weltweit", url: "https://wwbota.net/map/" },
           { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser", url: "https://wcagroup.org/?page_id=207" },
           { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Meer Inseln (Schweiz hat keine IOTA-Referenzen, da Binnenland)", url: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html" },
           { icon: Anchor, color: "#f39c12", name: "WLOTA/ARLHS", desc: "Lighthouses on the Air – Leuchttürme (ARLHS WLOL Referenzen)", url: "https://wlol.arlhs.com/" },
@@ -668,8 +668,8 @@ export default function Help() {
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">
           <p className="font-semibold mb-1">Willkommen bei HB9OM On Field!</p>
           <p className="text-blue-700 text-xs leading-relaxed">
-            Diese App unterstützt Sie beim Aktivieren von Amateurfunk-Referenzen (SOTA, POTA, HBFF, etc.) 
-            in der Schweiz. Sie können Referenzen auf der Karte finden, QSOs loggen und als ADIF exportieren.
+            Diese App unterstützt Sie beim Aktivieren von Amateurfunk-Referenzen (SOTA, POTA, WWFF, WWBOTA, etc.) 
+            weltweit. Sie können Referenzen auf der Karte finden, QSOs loggen und als ADIF exportieren.
             Unten finden Sie alle Funktionen mit Erklärungen und Beispielen.
           </p>
         </div>

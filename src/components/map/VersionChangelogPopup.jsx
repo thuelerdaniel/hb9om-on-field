@@ -7,6 +7,18 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "1.0",
+    title: "Weltweite Referenzen & Performance-Optimierung",
+    changes: [
+      "SOTA, POTA, WWFF, WWBOTA und Burgen jetzt weltweit — keine Schweizer-Begrenzung mehr",
+      "WWFF ersetzt HBFF: 40'000+ Flora-Fauna-Referenzen weltweit mit Koordinaten von wwff.co",
+      "WWBOTA weltweit: Alle Bunker-Schemata (HBBOTA, DFBOTA, GBBOTA etc.) geladen",
+      "Marker-Sortierung nach Distanz: Schweizer Gipfel werden zuverlässig angezeigt auch bei 180'000+ weltweiten Referenzen",
+      "Lade-Indikator mit Abbrechen-Button: Datenladung kann jederzeit abgebrochen werden",
+      "Splash-Screen und Hilfe aktualisiert für weltweite Abdeckung",
+    ],
+  },
+  {
     version: "0.9",
     title: "Nordamerika-Relais & POTA-Weltabdeckung",
     changes: [

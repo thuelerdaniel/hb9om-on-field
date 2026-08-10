@@ -41,7 +41,7 @@ export default function SplashScreen({ onDismiss }) {
           </h1>
 
           <p className="text-lg text-slate-300 mb-1">
-            Amateurfunk Referenzen der Schweiz
+            Amateurfunk Referenzen weltweit
           </p>
 
           <p className="text-sm text-slate-400 mb-6">

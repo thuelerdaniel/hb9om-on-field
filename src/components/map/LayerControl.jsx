@@ -21,14 +21,14 @@ const LAYER_GROUPS = [
   },
   {
     id: "hbff",
-    label: "HBFF – Flora & Fauna",
+    label: "WWFF – Flora & Fauna (Weltweit)",
     icon: Trees,
     color: "#8e44ad",
     description: "Flora-Fauna-Referenzen (weltweit)"
   },
   {
     id: "wwbota",
-    label: "WWBOTA – Bunkers on the Air",
+    label: "WWBOTA – Bunkers on the Air (Weltweit)",
     icon: Building,
     color: "#795548",
     description: "Bunker-Referenzen weltweit"
