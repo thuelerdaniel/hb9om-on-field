@@ -191,8 +191,21 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         </a>
       )}
 
+      {hasCoords && (
+        <a
+          href={`https://www.iz8wnh.it/rpts/?lat=${repeater.lat}&lng=${repeater.lng}&call=${encodeURIComponent(repeater.callsign)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50"
+        >
+          <Signal className="w-3 h-3" />
+          RadioMobile-Abdeckung (iz8wnh.it)
+          <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+        </a>
+      )}
+
       <div className="text-[9px] text-gray-300 mt-2 pt-1 border-t border-gray-100">
-        Quelle: RepeaterBook.com
+        Quelle: RepeaterBook.com{repeater.coverage_source === "aprs_refined" && " · Abdeckung verfeinert (APRS)"}
       </div>
     </div>
   );

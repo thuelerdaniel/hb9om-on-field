@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal } from "lucide-react";
+import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLink } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 
 export default function RepeaterFilter({
@@ -220,7 +220,10 @@ export default function RepeaterFilter({
               </span>
             </button>
             <p className="text-[10px] text-gray-400 mt-1 ml-2">
-              Geschätzte Reichweite pro Relais (basierend auf Band: 2m ~35 km, 70cm ~25 km). Für exakte RadioMobile-Abdeckung siehe iz8wnh.it.
+              Geschätzte Reichweite pro Relais (basierend auf Band: 2m ~35 km, 70cm ~25 km). Wird im Hintergrund verfeinert. Für exakte RadioMobile-Abdeckung siehe{" "}
+              <a href="https://www.iz8wnh.it/rpts/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-0.5">
+                iz8wnh.it <ExternalLink className="w-2.5 h-2.5" />
+              </a>.
             </p>
           </div>
 

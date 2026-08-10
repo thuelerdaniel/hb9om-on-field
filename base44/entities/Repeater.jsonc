@@ -103,6 +103,25 @@
         "type": "string"
       },
       "description": "Verlinkte Rufzeichen (nur permanente Crosslinks aus RepeaterBook)"
+    },
+    "coverage_radius_km": {
+      "type": "number",
+      "description": "Berechnete Abdeckung in km (wird im Hintergrund verfeinert)"
+    },
+    "coverage_source": {
+      "type": "string",
+      "enum": [
+        "band_estimate",
+        "aprs_refined",
+        "manual"
+      ],
+      "default": "band_estimate",
+      "description": "Quelle der Abdeckungsdaten"
+    },
+    "coverage_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Abdeckungs-Berechnung"
     }
   },
   "required": [

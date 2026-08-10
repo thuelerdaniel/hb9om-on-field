@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Bell, UserPlus, AlertTriangle, Users, User, KeyRound, Lightbulb, MapPin, RadioTower } from "lucide-react";
+import { ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Bell, UserPlus, AlertTriangle, Users, User, KeyRound, Lightbulb, MapPin, RadioTower, Signal } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
@@ -33,7 +33,23 @@ export default function AdminPanel({
 }) {
   const [aprsLoading, setAprsLoading] = useState(false);
   const [aprsResult, setAprsResult] = useState(null);
+  const [coverageLoading, setCoverageLoading] = useState(false);
+  const [coverageResult, setCoverageResult] = useState(null);
   const { toast } = useToast();
+
+  const handleCalcCoverage = async () => {
+    setCoverageLoading(true);
+    setCoverageResult(null);
+    try {
+      const res = await base44.functions.invoke("calculateRepeaterCoverage", { force: true });
+      setCoverageResult(res.data);
+      toast({ title: "Abdeckung berechnet", description: `${res.data?.updated || 0} Relais aktualisiert (${res.data?.aprsRefined || 0} APRS-verfeinert)`, duration: 5000 });
+    } catch (e) {
+      toast({ title: "Fehler", description: e.message || "Unbekannter Fehler", variant: "destructive" });
+    } finally {
+      setCoverageLoading(false);
+    }
+  };
 
   const handleFetchAprsFi = async () => {
     setAprsLoading(true);
@@ -388,6 +404,33 @@ export default function AdminPanel({
               ? `Fehler: ${aprsResult.error}`
               : `${aprsResult.aprs_stations_found || 0} Stationen gefunden, ${aprsResult.private_nodes_saved || 0} Nodes gespeichert, ${aprsResult.repeaters_updated_with_coords || 0} Relais mit Koordinaten aktualisiert (${(aprsResult.duration_ms / 1000).toFixed(1)}s)`
             }
+          </div>
+        )}
+      </section>
+
+      {/* Repeater Coverage Calculator */}
+      <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <Signal className="w-4 h-4 text-green-600" /> Relais-Abdeckung berechnen
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+ Berechnet die Abdeckung pro Relais (Band-Schätzung + APRS-Verfeinerung). Läuft täglich automatisch um 03:00, kann hier manuell getriggert werden.
+            </p>
+          </div>
+          <button
+            onClick={handleCalcCoverage}
+            disabled={coverageLoading}
+            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-40 flex items-center gap-2"
+          >
+            {coverageLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Signal className="w-4 h-4" />}
+            {coverageLoading ? "Berechnet..." : "Jetzt berechnen"}
+          </button>
+        </div>
+        {coverageResult && (
+          <div className="mt-3 p-3 rounded-lg text-sm bg-green-50 text-green-700">
+            {coverageResult.total} Relais gesamt · {coverageResult.bandEstimated} Band-Schätzungen · {coverageResult.aprsRefined} APRS-verfeinert · {coverageResult.updated} aktualisiert
           </div>
         )}
       </section>

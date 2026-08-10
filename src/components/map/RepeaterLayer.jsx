@@ -2,7 +2,7 @@ import React, { memo, useMemo } from "react";
 import { CircleMarker, Polyline, Popup, useMap, Marker, Circle } from "react-leaflet";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
-import { getModeColor, repeaterMatchesMode } from "@/lib/repeaterModes";
+import { getModeColor, repeaterMatchesMode, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
 // Approximate coverage radius (km) by band — based on typical VHF/UHF propagation
@@ -39,9 +39,11 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     if (filterCountry && filterCountry !== "all") {
       result = result.filter(r => r.country_code === filterCountry);
     }
-    if (filterModes && filterModes.length > 0) {
+    if (filterModes && filterModes.length > 0 && filterModes.length < FILTER_MODES.length) {
+      // Some (but not all) modes selected: filter to matching repeaters
       result = result.filter(r => filterModes.some(m => repeaterMatchesMode(r, m)));
     }
+    // When ALL modes selected or NONE selected: no mode filter (show all including unknown)
     if (searchQuery && searchQuery.length >= 2) {
       const q = searchQuery.toLowerCase();
       result = result.filter(r =>
@@ -147,7 +149,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       {(showCoverage || (individualCoverage && individualCoverage.size > 0)) && cappedRepeaters.map((r, idx) => {
         const showThis = showCoverage || (individualCoverage && individualCoverage.has(r.id));
         if (!showThis) return null;
-        const radiusKm = COVERAGE_RADIUS_KM[r.band] || COVERAGE_RADIUS_KM["Other"];
+        const radiusKm = r.coverage_radius_km || COVERAGE_RADIUS_KM[r.band] || COVERAGE_RADIUS_KM["Other"];
         const color = getModeColor(r.primary_mode);
         return (
           <Circle
