@@ -680,6 +680,71 @@ export const SECTIONS = [
           { icon: "headphones", text: "Gruenes Kopfhoerer-Icon im Popup = auf FM-Funknetz.de anhoerbar" },
           { icon: "radioTower", text: "Nur FM-Relais koennen auf FM-Funknetz.de verfuegbar sein" }
         ]
+      },
+      {
+        title: "EchoLink-Filter",
+        body: "Im Relais-Filter gibt es einen EchoLink-Filter (Feature-Filter). EchoLink ist keine eigene Modulationsart, sondern ein Feature – ein Relais kann FM oder DMR sein und gleichzeitig EchoLink unterstuetzen. Der EchoLink-Filter zeigt alle Relais mit EchoLink-Zugang, unabhaengig vom Hauptmodus. EchoLink-Relais sind weltweit ueber das EchoLink-Netzwerk verlinkt.",
+        steps: [
+          { icon: "radioTower", text: "Relais-Filter oeffnen (oben links)" },
+          { icon: "filter", text: "EchoLink im Modulationsart-Filter einschalten" },
+          { icon: "link2", text: "Alle Relais mit EchoLink werden angezeigt (unabhaengig von FM/DMR/etc.)" }
+        ],
+        tip: "Tipp: EchoLink-Filter kann mit anderen Filtern kombiniert werden – z.B. EchoLink + DMR zeigt nur DMR-Relais mit EchoLink."
+      },
+      {
+        title: "Abdeckung pro Relais anzeigen",
+        body: "Neben der globalen Abdeckungs-Anzeige (alle Relais) koennen Sie die Abdeckung auch fuer ein einzelnes Relais im Popup ein- und ausschalten. Tippen Sie auf «Abdeckung» im Popup, um die geschaetzte Reichweite fuer dieses Relais als Kreis anzuzeigen. Die Reichweite basiert auf dem Band (2m ~35 km, 70cm ~25 km, etc.).",
+        steps: [
+          { icon: "mapPin", text: "Relais-Marker antippen – Popup oeffnet sich" },
+          { icon: "signal", text: "«Abdeckung»-Button im Popup antippen" },
+          { icon: "signal", text: "Gruener Kreis zeigt geschaetzte Reichweite" },
+          { icon: "signal", text: "Erneut antippen zum Ausblenden" }
+        ],
+        tip: "Tipp: Die globale Abdeckung (alle Relais) im Relais-Filter bleibt davon unberuehrt. Pro-Relais-Abdeckung ist zusaetzlich."
+      },
+      {
+        title: "Verlinkung melden (fehlende/existente)",
+        body: "Im Relais-Popup koennen Sie Verlinkungen zwischen Relais melden – sowohl fehlende als auch existierende. Tippen Sie auf «Verlinkung» im Popup, waehlen Sie das Ziel-Relais (nach Distanz sortiert), und geben Sie Netzwerk (Brandmeister, XLX, EchoLink) und Beschreibung an. Ihr Vorschlag wird als «ausstehend» gespeichert und von einem Admin geprueft.",
+        steps: [
+          { icon: "mapPin", text: "Relais-Marker antippen – Popup oeffnet sich" },
+          { icon: "link2", text: "«Verlinkung»-Button antippen" },
+          { icon: "link2", text: "Ziel-Relais aus Liste waehlen (nach Distanz)" },
+          { icon: "pencil", text: "Netzwerk und Beschreibung eingeben" },
+          { icon: "clipboardList", text: "Einreichen – Admin prueft den Vorschlag" }
+        ],
+        tip: "Tipp: Melden Sie Crosslinks, EchoLink-Verbindungen, Brandmeister-Talkgroups oder andere Netzwerk-Verlinkungen."
+      },
+      {
+        title: "Private Nodes & Hotspots",
+        body: "Die Ebene «Private Nodes & Hotspots» zeigt private Knoten, Hotspots, AllStar- und EchoLink-Nodes auf der Karte. Die Daten stammen von RepeaterBook und APRS.fi. Private Nodes werden mit einem violetten Viereck (Doppelblitz) dargestellt. APRS.fi liefert zusaetzliche Stationen wie Digipeater, IGates und Hotspots weltweit.",
+        steps: [
+          { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
+          { icon: "wifi", text: "«Private Nodes & Hotspots» aktivieren" },
+          { icon: "mapPin", text: "Violette Vierecke zeigen Nodes an" },
+          { icon: "mapPin", text: "Popup antippen fuer Node-Details" }
+        ],
+        tip: "Tipp: Admins koennen APRS.fi-Daten ueber das Admin-Panel aktualisieren (APRS.fi-Button)."
+      },
+      {
+        title: "Kontinent-Filter",
+        body: "Im Ebenen-Menue gibt es einen Kontinent-Filter, mit dem Sie Overlay-Ebenen nach Kontinent ein- und ausblenden koennen. Waehlen Sie «Alle Welt» (Standard) oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.). Der Filter wirkt sich auf alle Referenz-Ebenen aus (SOTA, POTA, HBFF, etc.).",
+        steps: [
+          { icon: "layers", text: "Ebenen-Menue oeffnen (Layer-Icon rechts oben)" },
+          { icon: "globe", text: "Bereich «Kontinent-Filter» aufklappen" },
+          { icon: "globe", text: "«Alle Welt» oder einzelne Kontinente waehlen" },
+          { icon: "check", text: "Marker ausserhalb der Auswahl werden ausgeblendet" }
+        ],
+        tip: "Tipp: Der Kontinent-Filter hilft bei Uebersichtlichkeit – blenden Sie z.B. nur Europa ein, wenn Sie nur europaeische Referenzen sehen moechten."
+      },
+      {
+        title: "Weltweite Referenz-Erweiterung",
+        body: "Alle Referenz-Ebenen sind weltweit erweiterbar: SOTA unterstuetzt alle Assoziationen weltweit, POTA alle Entitaeten. Die App ruft standardmaessig Schweizer Daten ab, kann aber vom Admin auf weltweite Daten erweitert werden. Burgen, Leuchttuerme und WWBOTA sind bereits weltweit verfuegbar.",
+        steps: [
+          { icon: "layers", text: "Layer aktivieren – Schweizer Daten werden geladen" },
+          { icon: "globe", text: "Kontinent-Filter auf andere Kontinente erweitern" },
+          { icon: "radioTower", text: "Relais sind bereits weltweit (68+ Laender)" }
+        ],
+        tip: "Tipp: Admins koennen die weltweite Aktualisierung im Admin-Panel ausloesen."
       }
     ]
   }

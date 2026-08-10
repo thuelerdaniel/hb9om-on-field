@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Bell, UserPlus, AlertTriangle, Users, User, KeyRound, Lightbulb, MapPin } from "lucide-react";
+import { ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Bell, UserPlus, AlertTriangle, Users, User, KeyRound, Lightbulb, MapPin, RadioTower } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { useToast } from "@/components/ui/use-toast";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
 import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
@@ -28,6 +30,25 @@ export default function AdminPanel({
   demoSettingUp, demoSetupResult, demoOtpCode, setDemoOtpCode, demoVerifying,
   handleSetupDemo, handleVerifyDemoOtp,
 }) {
+  const [aprsLoading, setAprsLoading] = useState(false);
+  const [aprsResult, setAprsResult] = useState(null);
+  const { toast } = useToast();
+
+  const handleFetchAprsFi = async () => {
+    setAprsLoading(true);
+    setAprsResult(null);
+    try {
+      const res = await base44.functions.invoke("fetchAprsFi", {});
+      if (res.data?.error) throw new Error(res.data.error);
+      setAprsResult(res.data);
+      toast({ title: "APRS.fi aktualisiert", description: `${res.data?.private_nodes_saved || 0} Nodes, ${res.data?.repeaters_updated_with_coords || 0} Relais mit Koordinaten` });
+    } catch (err) {
+      setAprsResult({ error: err.message });
+      toast({ title: "Fehler", description: err.message, variant: "destructive" });
+    }
+    setAprsLoading(false);
+  };
+
   return (
     <>
       {/* Change Request Review */}
@@ -339,6 +360,36 @@ export default function AdminPanel({
 
       {/* External Data Check */}
       <ExternalDataCheck />
+
+      {/* APRS.fi Data Fetch */}
+      <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <RadioTower className="w-4 h-4 text-purple-600" /> APRS.fi Daten
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Ruft APRS-Stationen (Digipeater, IGates, Relais, Hotspots) weltweit von aprs.fi ab und speichert sie als Private Nodes. Aktualisiert auch fehlende Relais-Koordinaten.
+            </p>
+          </div>
+          <button
+            onClick={handleFetchAprsFi}
+            disabled={aprsLoading}
+            className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-40 flex items-center gap-2"
+          >
+            {aprsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RadioTower className="w-4 h-4" />}
+            {aprsLoading ? "Lädt..." : "APRS.fi abrufen"}
+          </button>
+        </div>
+        {aprsResult && (
+          <div className={`mt-3 p-3 rounded-lg text-sm ${aprsResult.error ? 'bg-red-50 text-red-700' : 'bg-purple-50 text-purple-700'}`}>
+            {aprsResult.error
+              ? `Fehler: ${aprsResult.error}`
+              : `${aprsResult.aprs_stations_found || 0} Stationen gefunden, ${aprsResult.private_nodes_saved || 0} Nodes gespeichert, ${aprsResult.repeaters_updated_with_coords || 0} Relais mit Koordinaten aktualisiert (${(aprsResult.duration_ms / 1000).toFixed(1)}s)`
+            }
+          </div>
+        )}
+      </section>
 
       {/* Repeater Link Management */}
       <RepeaterLinkManager />

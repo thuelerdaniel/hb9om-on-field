@@ -3,32 +3,68 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const body = await req.json();
+    const { entities, maxEntities } = body;
 
-    // POTA API: entity code for Switzerland is "CH" (ISO 3166-1 alpha-2)
-    // Reference: https://api.pota.app/program/parks/{entityCode}
-    for (const entityCode of ['CH', 'HB']) {
+    // Determine which entity codes to fetch:
+    // - Default: CH, HB (Switzerland) for backward compatibility
+    // - If `entities` is an array, fetch those codes
+    // - If `entities` is "all", fetch all entities worldwide
+    let entityCodes: string[] = ['CH', 'HB'];
+    if (entities === 'all') {
+      try {
+        const listResp = await fetch('https://api.pota.app/program/entities', {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' }
+        });
+        if (listResp.ok) {
+          const listData = await listResp.json();
+          const allCodes = (Array.isArray(listData) ? listData : (listData.entities || []))
+            .map(e => e.entityCode || e.code || e)
+            .filter(c => typeof c === 'string' && c.length > 0);
+          if (allCodes.length > 0) {
+            entityCodes = allCodes;
+            if (maxEntities && maxEntities > 0) {
+              entityCodes = entityCodes.slice(0, maxEntities);
+            }
+          }
+        }
+      } catch {
+        // fallback to CH, HB
+      }
+    } else if (Array.isArray(entities) && entities.length > 0) {
+      entityCodes = entities;
+    }
+
+    const allParks: any[] = [];
+
+    for (const entityCode of entityCodes) {
       try {
         const resp = await fetch(`https://api.pota.app/program/parks/${entityCode}`, {
           headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' }
         });
-        if (resp.ok) {
-          const parks = await resp.json();
-          const arr = Array.isArray(parks) ? parks : (parks.parks || []);
-          const valid = arr.filter(p => p.latitude && p.longitude).map(p => ({
-            reference: p.reference || p.parkId,
-            name: p.name || p.parkName || '',
-            lat: parseFloat(p.latitude),
-            lng: parseFloat(p.longitude),
-            locationDesc: p.locationDesc || p.location || '',
-            parkType: p.parkType || p.entity || '',
-            active: p.active !== false
-          }));
-          if (valid.length > 0) return Response.json({ parks: valid, source: 'api' });
-        }
-      } catch (_) { /* try next */ }
+        if (!resp.ok) continue;
+        const parks = await resp.json();
+        const arr = Array.isArray(parks) ? parks : (parks.parks || []);
+        const valid = arr.filter(p => p.latitude && p.longitude).map(p => ({
+          reference: p.reference || p.parkId,
+          name: p.name || p.parkName || '',
+          lat: parseFloat(p.latitude),
+          lng: parseFloat(p.longitude),
+          locationDesc: p.locationDesc || p.location || '',
+          parkType: p.parkType || p.entity || '',
+          active: p.active !== false
+        }));
+        allParks.push(...valid);
+      } catch {
+        // skip failed entities
+      }
     }
 
-    // Fallback: curated Swiss POTA parks (20 nature parks from pota.app)
+    if (allParks.length > 0) {
+      return Response.json({ parks: allParks, source: 'api', entity_count: entityCodes.length });
+    }
+
+    // Fallback: curated Swiss POTA parks
     const swissParks = [
       { reference: "HB-0001", name: "Schweizerischer Nationalpark", lat: 46.6600, lng: 10.1700, parkType: "National Park" },
       { reference: "HB-0002", name: "UNESCO Biosphäre Entlebuch", lat: 46.9400, lng: 8.0400, parkType: "Biosphere Reserve" },
