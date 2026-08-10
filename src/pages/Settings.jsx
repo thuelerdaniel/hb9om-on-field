@@ -37,6 +37,8 @@ export default function Settings() {
   const [profileSaved, setProfileSaved] = useState(false);
   const [qrzTesting, setQrzTesting] = useState(false);
   const [qrzTestResult, setQrzTestResult] = useState(null);
+  const [aprsApiKey, setAprsApiKey] = useState("");
+  const [aprsKeyConfigured, setAprsKeyConfigured] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState("");
@@ -166,6 +168,10 @@ export default function Settings() {
         setQrzPassword(p);
         setQrzConfigured(!!u && !!p);
       }
+      // Load APRS.fi API key
+      const aprsKey = me?.aprs_fi_api_key || "";
+      setAprsApiKey(aprsKey);
+      setAprsKeyConfigured(!!aprsKey);
     } catch (e) { }
   };
 
@@ -201,9 +207,11 @@ export default function Settings() {
       try {
         await base44.auth.updateMe({
           qrz_username: qrzUsername.trim(),
-          qrz_password: qrzPassword
+          qrz_password: qrzPassword,
+          aprs_fi_api_key: aprsApiKey.trim()
         });
         setQrzConfigured(!!qrzUsername.trim() && !!qrzPassword);
+        setAprsKeyConfigured(!!aprsApiKey.trim());
       } catch (e) { }
     }
     setTimeout(() => {
@@ -497,6 +505,34 @@ export default function Settings() {
                 <p className="text-xs text-gray-500 mt-2">
                   QRZ-Abfrage {!qrzConfigured ? 'nicht konfiguriert' : 'deaktiviert'}. Rufzeichen-Daten manuell im QSO-Formular eingeben.
                 </p>
+              )}
+            </div>
+
+            {/* APRS.fi API Key */}
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <KeyRound className="w-4 h-4" /> APRS.fi API-Key
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">Für APRS-Datenabfrage (Private Nodes & Relais-Koordinaten)</p>
+              {usesClubCredentials ? (
+                <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Globaler API-Key des Clubs ist hinterlegt und einsatzbereit
+                </p>
+              ) : (
+                <div className="mt-2">
+                  <input
+                    type="password"
+                    value={aprsApiKey}
+                    onChange={e => setAprsApiKey(e.target.value)}
+                    placeholder="Ihr persönlicher APRS.fi API-Key"
+                    autoComplete="off"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                    Kostenloser API-Key unter <a href="https://aprs.fi/page/api" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">aprs.fi/page/api</a> erhältlich. Ohne Key sind APRS-Relais und Private Nodes nicht verfügbar.
+                  </p>
+                </div>
               )}
             </div>
 

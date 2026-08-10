@@ -127,16 +127,19 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
   const circleRadius = performanceMode ? (isTouch ? 8 : 6) : (isTouch ? 10 : 8);
   const circleWeight = isTouch ? 3 : 2;
 
-  // Custom antenna-on-mountain icon for non-performance mode
-  const repeaterIcon = useMemo(() => {
-    if (performanceMode) return null;
-    return L.divIcon({
+  // Custom antenna-on-mountain icon for non-performance mode — cached per color
+  const iconCache = useMemo(() => new Map(), []);
+  const getRepeaterIcon = (color) => {
+    if (iconCache.has(color)) return iconCache.get(color);
+    const icon = L.divIcon({
       className: "repeater-marker-icon",
-      html: (color) => `<div style="width:24px;height:24px;">${getMarkerSvg("repeater", color)}</div>`,
+      html: `<div style="width:24px;height:24px;">${getMarkerSvg("repeater", color)}</div>`,
       iconSize: [24, 24],
       iconAnchor: [12, 24],
     });
-  }, [performanceMode]);
+    iconCache.set(color, icon);
+    return icon;
+  };
 
   return (
     <>
@@ -176,33 +179,47 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         />
       ))}
 
-      {/* Repeater markers */}
+      {/* Repeater markers — antenna icon in full mode, circle in performance mode */}
       {cappedRepeaters.map((r, idx) => {
         const color = getModeColor(r.primary_mode);
         const linked = r.linked_callsigns || [];
+        const popup = (
+          <Popup>
+            <RepeaterPopup
+              repeater={r}
+              linkedRepeaters={linked}
+              userPosition={userPosition}
+              onSuggestLink={onSuggestLink}
+              onToggleCoverage={onToggleCoverage}
+              showCoverageForThis={individualCoverage && individualCoverage.has(r.id)}
+            />
+          </Popup>
+        );
+        if (performanceMode) {
+          return (
+            <CircleMarker
+              key={`rep-${r.id || idx}`}
+              center={[r.lat, r.lng]}
+              radius={circleRadius}
+              pathOptions={{
+                color: "#ffffff",
+                weight: circleWeight,
+                fillColor: color,
+                fillOpacity: r.status === "off-air" ? 0.3 : 0.85,
+              }}
+            >
+              {popup}
+            </CircleMarker>
+          );
+        }
         return (
-          <CircleMarker
+          <Marker
             key={`rep-${r.id || idx}`}
-            center={[r.lat, r.lng]}
-            radius={circleRadius}
-            pathOptions={{
-              color: "#ffffff",
-              weight: circleWeight,
-              fillColor: color,
-              fillOpacity: r.status === "off-air" ? 0.3 : 0.85,
-            }}
+            position={[r.lat, r.lng]}
+            icon={getRepeaterIcon(color)}
           >
-            <Popup>
-              <RepeaterPopup
-                repeater={r}
-                linkedRepeaters={linked}
-                userPosition={userPosition}
-                onSuggestLink={onSuggestLink}
-                onToggleCoverage={onToggleCoverage}
-                showCoverageForThis={individualCoverage && individualCoverage.has(r.id)}
-              />
-            </Popup>
-          </CircleMarker>
+            {popup}
+          </Marker>
         );
       })}
     </>

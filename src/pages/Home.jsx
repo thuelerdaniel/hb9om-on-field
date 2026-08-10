@@ -504,7 +504,7 @@ export default function Home() {
   useEffect(() => {
     if (!serverCacheLoaded || !activeLayers.includes("sota") || sotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, sota: true }));
-    base44.functions.invoke("fetchSOTA", { region: "HB" })
+    base44.functions.invoke("fetchSOTA", { associations: "all" })
       .then(res => {
         if (res.data?.summits?.length > 0) setSotaData(res.data.summits);
       })
@@ -516,7 +516,7 @@ export default function Home() {
   useEffect(() => {
     if (!serverCacheLoaded || !activeLayers.includes("pota") || potaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, pota: true }));
-    base44.functions.invoke("fetchPOTA", {})
+    base44.functions.invoke("fetchPOTA", { entities: "all" })
       .then(res => {
         if (res.data?.parks?.length > 0) setPotaData(res.data.parks);
       })

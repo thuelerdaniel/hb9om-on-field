@@ -12,6 +12,18 @@
       "type": "string",
       "format": "date-time",
       "description": "Zeitpunkt der letzten Anmeldung"
+    },
+    "qrz_username": {
+      "type": "string",
+      "description": "QRZ.com Benutzername (pers\u00f6nlich, f\u00fcr nicht-Admin/Demo User)"
+    },
+    "qrz_password": {
+      "type": "string",
+      "description": "QRZ.com Passwort (pers\u00f6nlich, f\u00fcr nicht-Admin/Demo User)"
+    },
+    "aprs_fi_api_key": {
+      "type": "string",
+      "description": "Pers\u00f6nlicher APRS.fi API-Key"
     }
   },
   "required": [
