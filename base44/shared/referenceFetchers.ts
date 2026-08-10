@@ -133,6 +133,54 @@ export async function fetchHbffData(): Promise<any[]> {
   return fetchWwffData();
 }
 
+// Proper CSV line parser — handles quoted fields containing commas (e.g., "Chisholm, AB, Red Deer Filter Centre")
+// The WWBOTA CSV has ~2'800 rows with quoted Name/Type fields that the naive split(',') would break.
+function parseCsvLineWWBOTA(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if (char === ',' && !inQuotes) {
+      fields.push(current); current = '';
+    } else { current += char; }
+  }
+  fields.push(current);
+  return fields;
+}
+
+// Maidenhead grid locator → lat/lng (for WWBOTA entries without decimal coordinates)
+function maidenheadToLatLngWWBOTA(locator: string): { lat: number; lng: number } | null {
+  if (!locator || locator.length < 4) return null;
+  const loc = locator.toUpperCase().trim();
+  const c1 = loc.charCodeAt(0) - 65;
+  const c2 = loc.charCodeAt(1) - 65;
+  if (c1 < 0 || c1 > 17 || c2 < 0 || c2 > 17) return null;
+  let lng = c1 * 20 - 180;
+  let lat = c2 * 10 - 90;
+  const s1 = parseInt(loc[2]);
+  const s2 = parseInt(loc[3]);
+  if (isNaN(s1) || isNaN(s2)) return null;
+  lng += s1 * 2;
+  lat += s2;
+  if (loc.length >= 6) {
+    const ss1 = loc.charCodeAt(4) - 65;
+    const ss2 = loc.charCodeAt(5) - 65;
+    if (ss1 < 0 || ss1 > 23 || ss2 < 0 || ss2 > 23) return null;
+    lng += ss1 * (5 / 60);
+    lat += ss2 * (2.5 / 60);
+    lng += 2.5 / 60;
+    lat += 1.25 / 60;
+  } else {
+    lng += 1;
+    lat += 0.5;
+  }
+  return { lat, lng };
+}
+
 export async function fetchWwbotaData(): Promise<any[]> {
   const resp = await fetch('https://api.wwbota.org/bunkers/?format=CSV');
   if (!resp.ok) throw new Error('WWBOTA API failed');
@@ -140,18 +188,31 @@ export async function fetchWwbotaData(): Promise<any[]> {
   const lines = csv.trim().split('\n');
   const bunkers: any[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',');
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = parseCsvLineWWBOTA(line);
     if (cols.length < 8) continue;
-    // Worldwide: include ALL schemes (HBBOTA, DLBOTA, F-BOTA, etc.), not just Swiss
+    // Worldwide: include ALL schemes (HBBOTA, DLBOTA, F-BOTA, CABOTA, USBOTA, etc.), not just Swiss
     const scheme = cols[0];
     const lat = parseFloat(cols[5]);
     const lng = parseFloat(cols[6]);
+    const locator = cols[7];
     if (!isNaN(lat) && !isNaN(lng)) {
       bunkers.push({
         code: cols[2], name: cols[3], lat, lng,
         parkType: cols[4], scheme,
         link: `https://wwbota.net/map/`
       });
+    } else if (locator) {
+      // Fallback: use Maidenhead locator for entries without decimal coordinates
+      const coords = maidenheadToLatLngWWBOTA(locator);
+      if (coords) {
+        bunkers.push({
+          code: cols[2], name: cols[3], lat: coords.lat, lng: coords.lng,
+          parkType: cols[4], scheme,
+          link: `https://wwbota.net/map/`
+        });
+      }
     }
   }
   return bunkers;
