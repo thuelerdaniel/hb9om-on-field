@@ -26,6 +26,14 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Build a canonical link key from two endpoints (callsign + frequency).
+// Used to match the same link across sources (RepeaterBook, USKA, admin).
+function linkKey(fromCall, fromFreq, toCall, toFreq) {
+  const a = (fromCall || '') + (fromFreq != null ? fromFreq : '');
+  const b = (toCall || '') + (toFreq != null ? toFreq : '');
+  return [a, b].sort().join('→');
+}
+
 // Parse a linked_callsigns entry like "HB9W 145.3250 MHz (2m)" → { callsign, frequency, band }
 // Returns null if the string doesn't contain a recognizable callsign.
 function parseLinkedString(str) {
@@ -53,6 +61,42 @@ const LINE_DASH_ARRAYS = {
 
 function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
   const map = useMap();
+
+  // Build a map of linkKey → Set of sources ('repeaterbook', 'uska', 'admin').
+  // A link is only displayed if it's confirmed by 2+ sources — exception: admin links always shown.
+  const linkSourceMap = useMemo(() => {
+    const map = new Map();
+    // Source 1: RepeaterBook linked_callsigns
+    for (const r of repeaters) {
+      if (!r.linked_callsigns || r.linked_callsigns.length === 0) continue;
+      for (const linkedStr of r.linked_callsigns) {
+        const parsed = parseLinkedString(linkedStr);
+        if (!parsed) continue;
+        const key = linkKey(r.callsign, r.frequency, parsed.callsign, parsed.frequency);
+        if (!map.has(key)) map.set(key, new Set());
+        map.get(key).add('repeaterbook');
+      }
+    }
+    // Sources 2 & 3: USKA + admin from RepeaterLink entries
+    if (adminLinks) {
+      for (const l of adminLinks) {
+        if (l.status !== 'approved' || l.link_type !== 'permanent') continue;
+        const key = linkKey(l.from_callsign, l.from_frequency, l.to_callsign, l.to_frequency);
+        if (!map.has(key)) map.set(key, new Set());
+        const source = (l.description || '').includes('USKA') ? 'uska' : 'admin';
+        map.get(key).add(source);
+      }
+    }
+    return map;
+  }, [repeaters, adminLinks]);
+
+  // A link is displayable if it's an admin link OR confirmed by 2+ sources.
+  const isLinkDisplayable = useCallback((key) => {
+    const sources = linkSourceMap.get(key);
+    if (!sources) return false;
+    if (sources.has('admin')) return true;
+    return sources.size >= 2;
+  }, [linkSourceMap]);
 
   // Filter repeaters by continent, country, mode, search, and radius
   const filteredRepeaters = useMemo(() => {
@@ -100,16 +144,28 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     // an approved admin link (or it has RepeaterBook crosslinks on its own record).
     if (showOnlyLinked) {
       const linkedIds = new Set();
-      // From RepeaterBook crosslinks — per-repeater field, already specific
+      // From RepeaterBook crosslinks — only count displayable links (2+ sources or admin)
       for (const r of result) {
-        if (r.linked_callsigns && r.linked_callsigns.length > 0) {
-          if (r.id) linkedIds.add(r.id);
+        if (!r.linked_callsigns || r.linked_callsigns.length === 0) continue;
+        for (const linkedStr of r.linked_callsigns) {
+          const parsed = parseLinkedString(linkedStr);
+          if (!parsed) continue;
+          const srcKey = linkKey(r.callsign, r.frequency, parsed.callsign, parsed.frequency);
+          if (isLinkDisplayable(srcKey)) {
+            if (r.id) linkedIds.add(r.id);
+            break;
+          }
         }
       }
-      // From admin-managed links — match by callsign + frequency + coordinates
+      // From admin-managed links — admin links always count; USKA links need 2+ sources
       if (adminLinks) {
         for (const l of adminLinks) {
           if (l.status !== "approved" || l.link_type !== "permanent") continue;
+          const isUSKA = (l.description || '').includes('USKA');
+          if (isUSKA) {
+            const srcKey = linkKey(l.from_callsign, l.from_frequency, l.to_callsign, l.to_frequency);
+            if (!isLinkDisplayable(srcKey)) continue;
+          }
           // Find matching "from" repeaters
           const allFrom = repeaters.filter(r => r.callsign === l.from_callsign);
           for (const r of allFrom) {
@@ -133,7 +189,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       result = result.filter(r => linkedIds.has(r.id));
     }
     return result;
-  }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks]);
+  }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks, isLinkDisplayable]);
 
   // Build callsign→repeaters map from ALL repeaters (not just filtered) so link lines
   // connect to targets even when the target is filtered out by mode/country/etc.
@@ -161,6 +217,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       for (const linkedStr of r.linked_callsigns) {
         const parsed = parseLinkedString(linkedStr);
         if (!parsed) continue;
+        // Multi-source filter: only show if confirmed by 2+ sources (or admin link)
+        const srcKey = linkKey(r.callsign, r.frequency, parsed.callsign, parsed.frequency);
+        if (!isLinkDisplayable(srcKey)) continue;
         const targets = byCallsignAll.get(parsed.callsign) || [];
         for (const target of targets) {
           if (target.callsign === r.callsign && target.frequency === r.frequency) continue;
@@ -178,7 +237,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       }
     }
     return lines;
-  }, [filteredRepeaters, byCallsignAll, showLinks]);
+  }, [filteredRepeaters, byCallsignAll, showLinks, isLinkDisplayable]);
 
   // Resolve linked_callsigns strings to actual repeater objects for popup display.
   // Returns array of { callsign, frequency, band, location_name, lat, lng, distance }.
@@ -189,6 +248,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     for (const linkedStr of repeater.linked_callsigns) {
       const parsed = parseLinkedString(linkedStr);
       if (!parsed) continue;
+      // Multi-source filter: only show if confirmed by 2+ sources (or admin link)
+      const srcKey = linkKey(repeater.callsign, repeater.frequency, parsed.callsign, parsed.frequency);
+      if (!isLinkDisplayable(srcKey)) continue;
       const targets = byCallsignAll.get(parsed.callsign) || [];
       // Find the specific target by frequency, or fall back to first match
       const target = parsed.frequency != null
@@ -210,7 +272,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       });
     }
     return resolved;
-  }, [byCallsignAll]);
+  }, [byCallsignAll, isLinkDisplayable]);
 
   // Admin-managed links (from RepeaterLink entity, approved + permanent only).
   // Uses from_frequency / to_frequency to match the EXACT repeater — not all
@@ -220,6 +282,12 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     return adminLinks
       .filter(l => l.status === "approved" && l.link_type === "permanent")
       .flatMap(l => {
+        // Multi-source filter: USKA-only links need 2+ sources; admin links always pass
+        const isUSKA = (l.description || '').includes('USKA');
+        if (isUSKA) {
+          const srcKey = linkKey(l.from_callsign, l.from_frequency, l.to_callsign, l.to_frequency);
+          if (!isLinkDisplayable(srcKey)) return [];
+        }
         // Match specific repeaters by callsign + frequency (if frequency is set)
         const allFrom = byCallsignAll.get(l.from_callsign) || [];
         const allTo = byCallsignAll.get(l.to_callsign) || [];
@@ -273,7 +341,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         }
         return lines;
       });
-  }, [adminLinks, showLinks, byCallsignAll]);
+  }, [adminLinks, showLinks, byCallsignAll, isLinkDisplayable]);
 
   // Resolve admin-managed links for a repeater (for popup display).
   // Returns array of linked repeater objects with details.
@@ -283,6 +351,12 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     const seen = new Set();
     for (const l of adminLinks) {
       if (l.status !== "approved" || l.link_type !== "permanent") continue;
+      // Multi-source filter: USKA-only links need 2+ sources; admin links always pass
+      const isUSKA = (l.description || '').includes('USKA');
+      if (isUSKA) {
+        const srcKey = linkKey(l.from_callsign, l.from_frequency, l.to_callsign, l.to_frequency);
+        if (!isLinkDisplayable(srcKey)) continue;
+      }
       const isFrom = l.from_callsign === repeater.callsign &&
         (l.from_frequency == null || Math.abs(l.from_frequency - repeater.frequency) < 0.001) &&
         (l.from_lat == null || l.from_lng == null || repeater.lat == null ||
@@ -317,7 +391,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       });
     }
     return resolved;
-  }, [adminLinks, byCallsignAll]);
+  }, [adminLinks, byCallsignAll, isLinkDisplayable]);
 
   // Dedicated SVG renderer for link lines — enables CSS animations (canvas renderer can't animate)
   const linkRenderer = useMemo(() => L.svg({ pane: 'overlayPane' }), []);
