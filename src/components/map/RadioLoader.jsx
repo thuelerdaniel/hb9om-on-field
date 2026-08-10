@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Loader2, ZoomIn, Layers, Settings as SettingsIcon } from "lucide-react";
+import { Loader2, ZoomIn, Layers, Settings as SettingsIcon, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 function RadioWaves() {
@@ -30,7 +30,7 @@ function RadioWaves() {
   );
 }
 
-export default function RadioLoader({ isLoading }) {
+export default function RadioLoader({ isLoading, onCancel }) {
   const [showTips, setShowTips] = useState(false);
   const [visible, setVisible] = useState(false);
   const minVisibleUntil = useRef(0);
@@ -70,6 +70,16 @@ export default function RadioLoader({ isLoading }) {
       <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
         <RadioWaves />
         <span className="text-sm text-gray-600">Daten werden geladen…</span>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className="ml-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-medium transition-colors border border-red-200"
+            title="Abbrechen"
+          >
+            <X className="w-3 h-3" />
+            Abbrechen
+          </button>
+        )}
       </div>
 
       {/* Extended tips panel — appears after 1.5s */}

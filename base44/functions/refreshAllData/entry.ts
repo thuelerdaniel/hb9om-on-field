@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { fetchSotaSummits } from '../../shared/sotaFetcher.ts';
 import { fetchPotaParks } from '../../shared/potaFetcher.ts';
-import { fetchCastleDataWorldwide } from '../../shared/referenceFetchers.ts';
+import { fetchCastleDataWorldwide, fetchWwffData, fetchWwbotaData as fetchWwbotaDataShared } from '../../shared/referenceFetchers.ts';
 import { fetchAprsData } from '../../shared/aprsFetcher.ts';
 
 // --- HBFF KMZ extraction helpers (inlined from fetchHBFF) ---
@@ -107,43 +107,10 @@ async function fetchPotaData() {
   return result.parks;
 }
 
-async function fetchHbffData() {
-  const resp = await fetch('https://hbff.ch/Refs/HBFFReferenceSlim.html');
-  if (!resp.ok) throw new Error('HBFF list fetch failed');
-  const html = await resp.text();
-  const allRefs = parseHBFFRefList(html);
-  const results = [];
-  const concurrencyLimit = 30;
-  for (let i = 0; i < allRefs.length; i += concurrencyLimit) {
-    const chunk = allRefs.slice(i, i + concurrencyLimit);
-    const chunkResults = await Promise.all(chunk.map(async (ref) => {
-      const coords = await extractCoordsFromKMZ(ref.kmzUrl);
-      return { code: ref.code, name: ref.name, lat: coords?.lat || null, lng: coords?.lng || null, parkType: ref.parkType, link: ref.detailUrl };
-    }));
-    results.push(...chunkResults);
-  }
-  return results.filter(r => r.lat !== null);
-}
-
-async function fetchWwbotaData() {
-  const resp = await fetch('https://api.wwbota.org/bunkers/?format=CSV');
-  if (!resp.ok) throw new Error('WWBOTA API failed');
-  const csv = await resp.text();
-  const lines = csv.trim().split('\n');
-  const bunkers = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',');
-    if (cols.length < 8) continue;
-    if (cols[0] === 'HBBOTA') {
-      const lat = parseFloat(cols[5]);
-      const lng = parseFloat(cols[6]);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        bunkers.push({ code: cols[2], name: cols[3], lat, lng, parkType: cols[4], link: 'https://wwbota.net/map/' });
-      }
-    }
-  }
-  return bunkers;
-}
+// WWFF (worldwide) replaces Swiss-only HBFF — shared fetcher in referenceFetchers.ts
+const fetchHbffData = fetchWwffData;
+// WWBOTA worldwide — shared fetcher in referenceFetchers.ts (no HBBOTA filter)
+const fetchWwbotaData = fetchWwbotaDataShared;
 
 async function fetchLighthouseData() {
   const resp = await fetch('https://wllw.org/ILLW-flat.txt', { headers: { 'User-Agent': 'HB9OM-OnField/1.0' } });

@@ -66,39 +66,71 @@ function parseHBFFRefList(html: string): any[] {
   return refs;
 }
 
-export async function fetchHbffData(): Promise<any[]> {
-  const resp = await fetch('https://hbff.ch/Refs/HBFFReferenceSlim.html');
-  if (!resp.ok) throw new Error('HBFF list fetch failed');
-  const html = await resp.text();
-  const allRefs = parseHBFFRefList(html);
-  const results: any[] = [];
-  const concurrencyLimit = 30;
-  for (let i = 0; i < allRefs.length; i += concurrencyLimit) {
-    const chunk = allRefs.slice(i, i + concurrencyLimit);
-    const chunkResults = await Promise.all(chunk.map(async (ref) => {
-      try {
-        const kmzResp = await fetch(ref.kmzUrl);
-        if (!kmzResp.ok) return { code: ref.code, name: ref.name, lat: null, lng: null, parkType: ref.parkType, link: ref.detailUrl };
-        const buffer = await kmzResp.arrayBuffer();
-        const kmlText = await extractKmlFromKmz(buffer);
-        if (!kmlText) return { code: ref.code, name: ref.name, lat: null, lng: null, parkType: ref.parkType, link: ref.detailUrl };
-        const coordMatches = kmlText.matchAll(/<coordinates>([\d.\-,\s]+)<\/coordinates>/g);
-        let sumLat = 0, sumLng = 0, count = 0;
-        for (const m of coordMatches) {
-          const pairs = m[1].trim().split(/\s+/);
-          for (const pair of pairs) {
-            const parts = pair.split(',');
-            const lng = parseFloat(parts[0]);
-            const lat = parseFloat(parts[1]);
-            if (!isNaN(lat) && !isNaN(lng)) { sumLat += lat; sumLng += lng; count++; }
-          }
-        }
-        return { code: ref.code, name: ref.name, lat: count > 0 ? sumLat / count : null, lng: count > 0 ? sumLng / count : null, parkType: ref.parkType, link: ref.detailUrl };
-      } catch { return { code: ref.code, name: ref.name, lat: null, lng: null, parkType: ref.parkType, link: ref.detailUrl }; }
-    }));
-    results.push(...chunkResults);
+// WWFF (World Wide Flora & Fauna) — worldwide data source.
+// Replaces the Swiss-only HBFF source with the global WWFF directory CSV.
+// CSV columns: reference,status,name,program,dxcc,state,county,continent,iota,
+//              iaruLocator,latitude,longitude,IUCNcat,validFrom,validTo,notes,
+//              lastMod,changeLog,reviewFlag,specialFlags,website,country,region,...
+function parseCsvLineWWFF(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if (char === ',' && !inQuotes) {
+      fields.push(current); current = '';
+    } else { current += char; }
   }
-  return results.filter(r => r.lat !== null);
+  fields.push(current);
+  return fields;
+}
+
+export async function fetchWwffData(): Promise<any[]> {
+  const resp = await fetch('https://wwff.co/wwff-data/wwff_directory.csv', {
+    headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' }
+  });
+  if (!resp.ok) throw new Error('WWFF CSV fetch failed');
+  const text = await resp.text();
+  const lines = text.split('\n');
+  if (lines.length < 2) return [];
+
+  const refs: any[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = parseCsvLineWWFF(line);
+    if (cols.length < 12) continue;
+
+    const reference = cols[0];
+    const status = cols[1];
+    const name = cols[2];
+    const lat = parseFloat(cols[10]);
+    const lng = parseFloat(cols[11]);
+    const website = cols[20] || '';
+
+    if (!reference || !name) continue;
+    if (isNaN(lat) || isNaN(lng)) continue;
+    // Skip inactive references
+    if (status && status !== 'active') continue;
+
+    refs.push({
+      code: reference,
+      name: name,
+      lat: lat,
+      lng: lng,
+      parkType: 'WWFF',
+      link: website || 'https://wwff.co/directory/'
+    });
+  }
+  return refs;
+}
+
+// Keep fetchHbffData as alias for backward compatibility (fetchHBFF function, refreshAllData)
+export async function fetchHbffData(): Promise<any[]> {
+  return fetchWwffData();
 }
 
 export async function fetchWwbotaData(): Promise<any[]> {
@@ -110,12 +142,16 @@ export async function fetchWwbotaData(): Promise<any[]> {
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(',');
     if (cols.length < 8) continue;
-    if (cols[0] === 'HBBOTA') {
-      const lat = parseFloat(cols[5]);
-      const lng = parseFloat(cols[6]);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        bunkers.push({ code: cols[2], name: cols[3], lat, lng, parkType: cols[4], link: 'https://wwbota.net/map/' });
-      }
+    // Worldwide: include ALL schemes (HBBOTA, DLBOTA, F-BOTA, etc.), not just Swiss
+    const scheme = cols[0];
+    const lat = parseFloat(cols[5]);
+    const lng = parseFloat(cols[6]);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      bunkers.push({
+        code: cols[2], name: cols[3], lat, lng,
+        parkType: cols[4], scheme,
+        link: `https://wwbota.net/map/`
+      });
     }
   }
   return bunkers;
@@ -357,8 +393,8 @@ export async function fetchReferenceSource(source: string, overrides?: Map<strin
 export const SOURCE_LABELS: Record<string, string> = {
   sota: 'SOTA',
   pota: 'POTA',
-  hbff: 'HBFF',
-  wwbota: 'WWBOTA',
+  hbff: 'Flora-Fauna (WWFF)',
+  wwbota: 'WWBOTA (Weltweit)',
   castle: 'Burgen/Schlösser (Weltweit)',
   lighthouse: 'Leuchttürme',
   iota: 'IOTA (Weltweit)',

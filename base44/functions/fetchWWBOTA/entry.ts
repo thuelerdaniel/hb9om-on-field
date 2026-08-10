@@ -29,21 +29,19 @@ Deno.serve(async (req) => {
       const lng = parseFloat(cols[6]);
       const locator = cols[7];
 
-      // Filter for Swiss WWBOTA (HBBOTA scheme covers HB and HB0)
-      if (scheme === 'HBBOTA') {
-        if (!isNaN(lat) && !isNaN(lng)) {
-          bunkers.push({
-            code: reference,
-            name: name,
-            type: type,
-            lat: lat,
-            lng: lng,
-            locator: locator,
-            scheme: scheme,
-            dxcc: dxcc,
-            link: `https://wwbota.net/hbbota/`
-          });
-        }
+      // Worldwide: include ALL schemes (HBBOTA, DLBOTA, F-BOTA, etc.)
+      if (!isNaN(lat) && !isNaN(lng)) {
+        bunkers.push({
+          code: reference,
+          name: name,
+          type: type,
+          lat: lat,
+          lng: lng,
+          locator: locator,
+          scheme: scheme,
+          dxcc: dxcc,
+          link: `https://wwbota.net/map/`
+        });
       }
     }
 

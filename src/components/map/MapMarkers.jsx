@@ -75,10 +75,24 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   // Canvas mode: performance mode OR auto-canvas (time-based, triggered by parent)
   const useCanvasMode = performanceMode || autoCanvasActive;
 
-  // Hard cap: never render more than MAX_RENDER_MARKERS (takes first N within viewport)
-  const cappedMarkers = visibleMarkers.length > MAX_RENDER_MARKERS
-    ? visibleMarkers.slice(0, MAX_RENDER_MARKERS)
-    : visibleMarkers;
+  // Hard cap: never render more than MAX_RENDER_MARKERS.
+  // When capping, sort by distance from map center FIRST — this ensures markers
+  // closest to the viewport center (e.g. Swiss summits when zoomed to CH) are
+  // prioritized over distant ones that happen to be earlier in the data array.
+  let cappedMarkers;
+  if (visibleMarkers.length > MAX_RENDER_MARKERS) {
+    const center = map.getCenter();
+    const clat = center.lat, clng = center.lng;
+    // Add distance sort key, sort, then strip it — O(n log n) is fast for <100k items
+    const withDist = visibleMarkers.map(m => ({
+      m,
+      d: (m.lat - clat) ** 2 + (m.lng - clng) ** 2,
+    }));
+    withDist.sort((a, b) => a.d - b.d);
+    cappedMarkers = withDist.slice(0, MAX_RENDER_MARKERS).map(x => x.m);
+  } else {
+    cappedMarkers = visibleMarkers;
+  }
 
   // Drag mode: always use draggable markers
   if (dragMode) {

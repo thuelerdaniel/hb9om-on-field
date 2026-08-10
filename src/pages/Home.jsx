@@ -280,6 +280,7 @@ export default function Home() {
   const [cacheLoaded, setCacheLoaded] = useState(false);
   const [serverCacheLoaded, setServerCacheLoaded] = useState(false);
   const [serverCacheLoading, setServerCacheLoading] = useState(true);
+  const [loadingCancelled, setLoadingCancelled] = useState(false);
   const [repeaters, setRepeaters] = useState([]);
   const [repeaterFilterModes, setRepeaterFilterModes] = useState(() => {
     try {
@@ -956,7 +957,16 @@ export default function Home() {
   const positionFixed = positionMode === "fixed";
 
   const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0;
-  const isLoading = Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline);
+  const isLoading = !loadingCancelled && (Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline));
+
+  // Cancel loading — aborts the loading indicator and lets the user interact with already-loaded data
+  const handleCancelLoading = useCallback(() => {
+    setLoadingCancelled(true);
+    setLoading({});
+    setServerCacheLoading(false);
+    setServerCacheLoaded(true);
+    toast({ title: "Laden abgebrochen", description: "Daten werden im Hintergrund weitergeladen", duration: 3000 });
+  }, [toast]);
 
   const [showPerfSuggestion, setShowPerfSuggestion] = useState(false);
   const perfTimerRef = useRef(null);
@@ -1055,7 +1065,7 @@ export default function Home() {
         </div>
       )}
 
-      <RadioLoader isLoading={isLoading} />
+      <RadioLoader isLoading={isLoading} onCancel={handleCancelLoading} />
 
       {showPerfSuggestion && (
         <PerformanceSuggestionPopup
