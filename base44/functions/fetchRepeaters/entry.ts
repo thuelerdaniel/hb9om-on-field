@@ -54,39 +54,9 @@ export default async function(req) {
       created += batch.length;
     }
 
-    // Fetch and save private nodes
+    // Private nodes fetch disabled in main fetch to avoid timeout.
+    // Private nodes can be refreshed separately if needed.
     let privateNodesSaved = 0;
-    try {
-      const privateNodes = await fetchPrivateNodeData();
-      // Delete existing private nodes
-      for (let attempt = 0; attempt < 10; attempt++) {
-        const existing = await base44.asServiceRole.entities.PrivateNode.list("-created_date", 500);
-        if (!existing || existing.length === 0) break;
-        await base44.asServiceRole.entities.PrivateNode.deleteMany({ id: { $in: existing.map(n => n.id) } });
-      }
-      const nodeRecords = privateNodes.map(n => ({
-        callsign: n.callsign,
-        node_type: n.node_type,
-        frequency: n.frequency || 0,
-        mode: n.mode || '',
-        network: n.network || '',
-        node_number: n.node_number || '',
-        location_name: n.location_name || '',
-        country: n.country || '',
-        country_code: n.country_code || '',
-        lat: n.lat,
-        lng: n.lng,
-        source: n.source || 'RepeaterBook',
-        status: 'unknown',
-      }));
-      for (let i = 0; i < nodeRecords.length; i += 100) {
-        const batch = nodeRecords.slice(i, i + 100);
-        await base44.asServiceRole.entities.PrivateNode.bulkCreate(batch);
-        privateNodesSaved += batch.length;
-      }
-    } catch (e) {
-      // Private nodes are optional — don't fail the whole import
-    }
 
     // Country breakdown for response
     const countryBreakdown = {};

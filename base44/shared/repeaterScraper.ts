@@ -10,11 +10,31 @@ const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
 
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 10000;
-const MAX_PER_COUNTRY = 150;
-const MAX_PER_US_CA_REGION = 50;
-const LIST_CONCURRENCY = 8;
-const DETAIL_CONCURRENCY = 25;
+const MAX_DETAIL_FETCH = 2500;
+const MAX_PER_COUNTRY = 100;
+const MAX_PER_US_CA_REGION = 35;
+const LIST_CONCURRENCY = 12;
+const DETAIL_CONCURRENCY = 40;
+const FETCH_TIMEOUT_MS = 6000;
+const DETAIL_DEADLINE_MS = 20000; // hard time limit for detail fetches
+
+// Fetch with timeout — prevents a single slow/stuck response from blocking the whole batch.
+// Aborts after FETCH_TIMEOUT_MS and returns null (caller treats as failed fetch).
+async function fetchWithTimeout(url: string, opts?: any): Promise<Response | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const resp = await fetch(url, {
+      ...opts,
+      signal: controller.signal,
+    });
+    return resp;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // Country list from RepeaterBook row_repeaters index.
 // Priority 1: Switzerland + neighbors (always fetch detail pages first)
@@ -458,10 +478,151 @@ export function parseLinkedCallsigns(networkLinks: string, ownCallsign?: string)
   return matches;
 }
 
+// ─── UK Repeater source (ukrepeater.net / RSGB ETCC) ───
+// Fetches UK repeater list pages by band. Each band page contains a full HTML table
+// with callsign, frequency, mode, location, and coordinates — no per-repeater detail
+// fetches needed, so this is much faster than RepeaterBook's per-repeater scraping.
+
+const UK_BANDS = [
+  { band: '10M', url: 'https://ukrepeater.net/listband22.html?bands=10M' },
+  { band: '6M', url: 'https://ukrepeater.net/listband22.html?bands=6M' },
+  { band: '4M', url: 'https://ukrepeater.net/listband22.html?bands=4M' },
+  { band: '2M', url: 'https://ukrepeater.net/listband22.html?bands=2-M' },
+  { band: '70CM', url: 'https://ukrepeater.net/listband22.html?bands=70CM' },
+];
+
+export function parseUkRepeaterList(html: string): any[] {
+  const repeaters: any[] = [];
+  // UK repeater table rows: <tr> with <td> cells containing callsign, frequency, mode, locator, etc.
+  // The table has columns: Channel, Callsign, Output, Input, Mode, Locator, NGR, Status, Trust
+  const rows = html.split(/<tr[\s>]/);
+  for (const row of rows) {
+    const cells: string[] = [];
+    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
+    let tdMatch;
+    while ((tdMatch = tdRegex.exec(row)) !== null) {
+      const content = tdMatch[1]
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .trim();
+      cells.push(content);
+    }
+    if (cells.length < 5) continue;
+
+    // UK repeater callsigns start with GB3, MB6, or are like GB3XXX
+    const callsign = cells[1] || '';
+    if (!callsign || !callsign.match(/^GB3|^MB6|^GB7/i)) continue;
+
+    const freqStr = cells[2] || '';
+    const frequency = parseFloat(freqStr);
+    if (!frequency || isNaN(frequency)) continue;
+
+    const modeStr = (cells[4] || '').toUpperCase();
+    const modes: string[] = [];
+    if (modeStr.includes('DMR')) modes.push('DMR');
+    if (modeStr.includes('D-STAR') || modeStr.includes('DSTAR')) modes.push('D-STAR');
+    if (modeStr.includes('FUSION') || modeStr.includes('YSF') || modeStr.includes('C4FM')) modes.push('Fusion');
+    if (modeStr.includes('FM') || modes.length === 0) modes.push('FM');
+    if (modeStr.includes('ECHO')) modes.push('EchoLink');
+
+    // Maidenhead locator (e.g. IO91WM) → convert to lat/lng
+    const locator = cells[5] || '';
+    let lat: number | null = null;
+    let lng: number | null = null;
+    if (locator && locator.match(/^[A-R]{2}[0-9]{2}[A-X]{2}/i)) {
+      const coords = maidenheadToLatLng(locator);
+      if (coords) { lat = coords[0]; lng = coords[1]; }
+    }
+
+    const band = getBand(frequency);
+    const offsetMag = band === '2m' ? 0.6 : band === '70cm' ? 7.6 : band === '6m' ? 1.0 : band === '10m' ? 0.5 : 0;
+    const status = (cells[8] || '').toLowerCase().includes('off') ? 'off-air' : 'on-air';
+
+    repeaters.push({
+      sourceId: 'uk-' + callsign,
+      detailUrl: null,
+      _entryCode: 'GB',
+      frequency,
+      offsetSign: '-',
+      offset_mhz: -offsetMag,
+      tone: '',
+      modes,
+      primary_mode: getPrimaryMode(modes),
+      location_name: cells[7] || locator || '',
+      callsign,
+      country: 'United Kingdom',
+      country_code: 'GB',
+      band,
+      status,
+      lat,
+      lng,
+      web_url: null,
+      echolink_node: null,
+      fm_funknetz: false,
+    });
+  }
+  return repeaters;
+}
+
+// Convert Maidenhead grid locator to lat/lng (approximate — 6-char precision ~5km)
+function maidenheadToLatLng(locator: string): [number, number] | null {
+  const loc = locator.toUpperCase();
+  if (loc.length < 4) return null;
+  const A = 'A'.charCodeAt(0);
+  const lonField = (loc.charCodeAt(0) - A) * 20;
+  const latField = (loc.charCodeAt(1) - A) * 10;
+  const lonSquare = parseInt(loc[2]) * 2;
+  const latSquare = parseInt(loc[3]);
+  let lonSub = 0, latSub = 0;
+  if (loc.length >= 6) {
+    lonSub = (loc.charCodeAt(4) - A) * (2 / 24);
+    latSub = (loc.charCodeAt(5) - A) * (1 / 24);
+  }
+  const lng = -180 + lonField + lonSquare + lonSub;
+  const lat = -90 + latField + latSquare + latSub;
+  return [lat, lng];
+}
+
+export async function fetchUkRepeaterData(): Promise<any[]> {
+  const allRepeaters: any[] = [];
+  const results = await Promise.all(UK_BANDS.map(async (bandInfo) => {
+    try {
+      const resp = await fetchWithTimeout(bandInfo.url, {
+        headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
+      });
+      if (!resp || !resp.ok) return [];
+      const html = await resp.text();
+      return parseUkRepeaterList(html);
+    } catch {
+      return [];
+    }
+  }));
+  for (const reps of results) {
+    allRepeaters.push(...reps);
+  }
+  // Deduplicate by callsign+frequency (bands may overlap)
+  const seen = new Set<string>();
+  return allRepeaters.filter(r => {
+    const key = r.callsign + '_' + r.frequency;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // ─── Main fetch function ───
 
 export async function fetchRepeaterData(): Promise<any[]> {
   const countryPriority = new Map(COUNTRIES.map(c => [c.code, c.priority]));
+
+  // 0. Fetch UK repeaters from ukrepeater.net (fast — 5 band pages, no detail fetches)
+  let ukRepeaters: any[] = [];
+  try {
+    ukRepeaters = await fetchUkRepeaterData();
+  } catch {
+    // UK source is optional — don't fail the whole import
+  }
 
   // 1. Fetch list pages for all countries (concurrency 8)
   const allRepeaters: any[] = [];
@@ -475,10 +636,10 @@ export async function fetchRepeaterData(): Promise<any[]> {
         const url = isNA
           ? `${NA_LIST_BASE}?state_id=${stateId}&country_code=${cc}&${LIST_PARAMS}`
           : `${LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}`;
-        const resp = await fetch(url, {
+        const resp = await fetchWithTimeout(url, {
           headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
         });
-        if (!resp.ok) return [];
+        if (!resp || !resp.ok) return [];
         const html = await resp.text();
         return parseRepeaterList(html, cc, country.name, {
           hasCountyColumn: isNA,
@@ -493,6 +654,18 @@ export async function fetchRepeaterData(): Promise<any[]> {
     for (const reps of results) {
       allRepeaters.push(...reps);
     }
+  }
+
+  // 1b. Merge UK repeaters from ukrepeater.net (already have coordinates from Maidenhead locator)
+  // Remove any UK repeaters from RepeaterBook that are already in the UK source (dedup by callsign+freq)
+  if (ukRepeaters.length > 0) {
+    const ukKeys = new Set(ukRepeaters.map(r => r.callsign + '_' + r.frequency));
+    for (let i = allRepeaters.length - 1; i >= 0; i--) {
+      if (allRepeaters[i].country_code === 'GB' && ukKeys.has(allRepeaters[i].callsign + '_' + allRepeaters[i].frequency)) {
+        allRepeaters.splice(i, 1);
+      }
+    }
+    allRepeaters.push(...ukRepeaters);
   }
 
   // 2. Sort by country priority (priority 1 first), then on-air first
@@ -542,15 +715,18 @@ export async function fetchRepeaterData(): Promise<any[]> {
   // Hard cap
   toFetch.splice(MAX_DETAIL_FETCH);
 
-  // 4. Fetch detail pages (concurrency 20)
+  // 4. Fetch detail pages (concurrency 40) — with a hard time deadline
+  const detailStartTime = Date.now();
   for (let i = 0; i < toFetch.length; i += DETAIL_CONCURRENCY) {
+    // Stop if we've exceeded the detail fetch time budget
+    if (Date.now() - detailStartTime > DETAIL_DEADLINE_MS) break;
     const chunk = toFetch.slice(i, i + DETAIL_CONCURRENCY);
     await Promise.all(chunk.map(async (rep) => {
       try {
-        const resp = await fetch(rep.detailUrl, {
+        const resp = await fetchWithTimeout(rep.detailUrl, {
           headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
         });
-        if (!resp.ok) return;
+        if (!resp || !resp.ok) return;
         const html = await resp.text();
         const detail = parseRepeaterDetail(html);
         if (detail.lat !== null) rep.lat = detail.lat;
@@ -624,10 +800,10 @@ export async function fetchPrivateNodeData(): Promise<any[]> {
         const url = isNA
           ? `${listBase}?state_id=${stateId}&country_code=${cc}&${LIST_PARAMS}&system=Node`
           : `${listBase}?state_id=${country.code}&${LIST_PARAMS}&system=Node`;
-        const resp = await fetch(url, {
+        const resp = await fetchWithTimeout(url, {
           headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
         });
-        if (!resp.ok) return [];
+        if (!resp || !resp.ok) return [];
         const html = await resp.text();
         // Parse nodes from the table — same structure as repeaters but with node type
         const rows = html.split(/<tr[\s>]/);
@@ -685,10 +861,10 @@ export async function fetchPrivateNodeData(): Promise<any[]> {
     const chunk = toFetch.slice(i, i + DETAIL_CONCURRENCY);
     await Promise.all(chunk.map(async (node) => {
       try {
-        const resp = await fetch(node.detailUrl, {
+        const resp = await fetchWithTimeout(node.detailUrl, {
           headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
         });
-        if (!resp.ok) return;
+        if (!resp || !resp.ok) return;
         const html = await resp.text();
         const detail = parseRepeaterDetail(html);
         if (detail.lat !== null) node.lat = detail.lat;
