@@ -16,7 +16,7 @@ const MAX_PER_US_CA_REGION = 35;
 const LIST_CONCURRENCY = 12;
 const DETAIL_CONCURRENCY = 40;
 const FETCH_TIMEOUT_MS = 6000;
-const DETAIL_DEADLINE_MS = 20000; // hard time limit for detail fetches
+const DETAIL_DEADLINE_MS = 25000; // hard time limit for detail fetches
 
 // Fetch with timeout — prevents a single slow/stuck response from blocking the whole batch.
 // Aborts after FETCH_TIMEOUT_MS and returns null (caller treats as failed fetch).
@@ -489,67 +489,75 @@ const UK_BANDS = [
   { band: '4M', url: 'https://ukrepeater.net/listband22.html?bands=4M' },
   { band: '2M', url: 'https://ukrepeater.net/listband22.html?bands=2-M' },
   { band: '70CM', url: 'https://ukrepeater.net/listband22.html?bands=70CM' },
+  { band: '70CM-RBW', url: 'https://ukrepeater.net/listband22.html?bands=70CM&channels=RBW' },
+  { band: '70CM-RU', url: 'https://ukrepeater.net/listband22.html?bands=70CM&channels=RU' },
+  { band: '70-DVU', url: 'https://ukrepeater.net/listband22.html?bands=70-DVU' },
 ];
 
+// UK repeater data is embedded in JavaScript L.marker() calls for a Leaflet map.
+// Each marker has coordinates in L.marker([lat, lng]) and popup content with all
+// repeater details: callsign, frequency, mode, CTCSS, location, Maidenhead locator, status.
 export function parseUkRepeaterList(html: string): any[] {
   const repeaters: any[] = [];
-  // UK repeater table rows: <tr> with <td> cells containing callsign, frequency, mode, locator, etc.
-  // The table has columns: Channel, Callsign, Output, Input, Mode, Locator, NGR, Status, Trust
-  const rows = html.split(/<tr[\s>]/);
-  for (const row of rows) {
-    const cells: string[] = [];
-    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
-    let tdMatch;
-    while ((tdMatch = tdRegex.exec(row)) !== null) {
-      const content = tdMatch[1]
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .trim();
-      cells.push(content);
-    }
-    if (cells.length < 5) continue;
+  // Match: L.marker([lat, lng],{icon: ...}).addTo(map) .bindPopup('...')
+  const markerRegex = /L\.marker\(\[([\d.-]+),\s*([\d.-]+)\][^)]*\)[^;]*\.bindPopup\('([^']*)'\)/g;
+  let match;
+  while ((match = markerRegex.exec(html)) !== null) {
+    const lat = parseFloat(match[1]);
+    const lng = parseFloat(match[2]);
+    const popup = match[3];
 
-    // UK repeater callsigns start with GB3, MB6, or are like GB3XXX
-    const callsign = cells[1] || '';
-    if (!callsign || !callsign.match(/^GB3|^MB6|^GB7/i)) continue;
+    // Extract callsign from <b>CALLSIGN</b>
+    const callMatch = popup.match(/<b>([^<]+)<\/b>/);
+    if (!callMatch) continue;
+    const callsign = callMatch[1].trim();
+    if (!callsign.match(/^GB3|^GB7|^MB6|^MR|^G[0-9]/i)) continue;
 
-    const freqStr = cells[2] || '';
-    const frequency = parseFloat(freqStr);
+    // Extract TX frequency (output): TX:145.6625MHz
+    const txMatch = popup.match(/TX:([\d.]+)\s*MHz/i);
+    if (!txMatch) continue;
+    const frequency = parseFloat(txMatch[1]);
     if (!frequency || isNaN(frequency)) continue;
 
-    const modeStr = (cells[4] || '').toUpperCase();
-    const modes: string[] = [];
-    if (modeStr.includes('DMR')) modes.push('DMR');
-    if (modeStr.includes('D-STAR') || modeStr.includes('DSTAR')) modes.push('D-STAR');
-    if (modeStr.includes('FUSION') || modeStr.includes('YSF') || modeStr.includes('C4FM')) modes.push('Fusion');
-    if (modeStr.includes('FM') || modes.length === 0) modes.push('FM');
-    if (modeStr.includes('ECHO')) modes.push('EchoLink');
+    // Extract RX frequency (input) for offset calculation: RX:145.0625MHz
+    const rxMatch = popup.match(/RX:([\d.]+)\s*MHz/i);
+    const rxFreq = rxMatch ? parseFloat(rxMatch[1]) : null;
+    const offset_mhz = rxFreq != null ? rxFreq - frequency : 0;
 
-    // Maidenhead locator (e.g. IO91WM) → convert to lat/lng
-    const locator = cells[5] || '';
-    let lat: number | null = null;
-    let lng: number | null = null;
-    if (locator && locator.match(/^[A-R]{2}[0-9]{2}[A-X]{2}/i)) {
-      const coords = maidenheadToLatLng(locator);
-      if (coords) { lat = coords[0]; lng = coords[1]; }
-    }
+    // Extract mode from "Type/s: AnalogueVoice" or "Type/s: DMR|DSTAR"
+    const typeMatch = popup.match(/Type\/s:\s*([^<\n]+)/i);
+    const typeStr = (typeMatch ? typeMatch[1] : '').toUpperCase();
+    const modes: string[] = [];
+    if (typeStr.includes('DMR')) modes.push('DMR');
+    if (typeStr.includes('D-STAR') || typeStr.includes('DSTAR')) modes.push('D-STAR');
+    if (typeStr.includes('FUSION') || typeStr.includes('YSF') || typeStr.includes('C4FM')) modes.push('Fusion');
+    if (typeStr.includes('ANALOG') || typeStr.includes('VOICE') || typeStr.includes('FM') || modes.length === 0) modes.push('FM');
+
+    // Extract CTCSS tone
+    const ctcssMatch = popup.match(/CTCSS:\s*([\d.]+)/i);
+    const tone = ctcssMatch ? ctcssMatch[1] : '';
+
+    // Extract location name + Maidenhead locator from "LOCATION [IO81]"
+    const locMatch = popup.match(/([A-Z][A-Z\s]+?)\s*\[([A-R]{2}[0-9]{2}[A-X]{2}?)\]/i);
+    const locationName = locMatch ? locMatch[1].trim() : '';
+    const locator = locMatch ? locMatch[2].toUpperCase() : '';
+
+    // Extract status: OPERATIONAL / NOT OPERATIONAL
+    const status = popup.toUpperCase().includes('NOT OPERATIONAL') ? 'off-air' : 'on-air';
 
     const band = getBand(frequency);
-    const offsetMag = band === '2m' ? 0.6 : band === '70cm' ? 7.6 : band === '6m' ? 1.0 : band === '10m' ? 0.5 : 0;
-    const status = (cells[8] || '').toLowerCase().includes('off') ? 'off-air' : 'on-air';
 
     repeaters.push({
       sourceId: 'uk-' + callsign,
       detailUrl: null,
       _entryCode: 'GB',
       frequency,
-      offsetSign: '-',
-      offset_mhz: -offsetMag,
-      tone: '',
+      offsetSign: offset_mhz >= 0 ? '+' : '-',
+      offset_mhz,
+      tone,
       modes,
       primary_mode: getPrimaryMode(modes),
-      location_name: cells[7] || locator || '',
+      location_name: locationName || locator,
       callsign,
       country: 'United Kingdom',
       country_code: 'GB',
