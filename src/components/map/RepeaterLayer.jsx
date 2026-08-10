@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useRef, useEffect } from "react";
+import React, { memo, useMemo, useRef, useEffect, useCallback } from "react";
 import { CircleMarker, Polyline, Popup, useMap, Marker, Circle } from "react-leaflet";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
@@ -24,6 +24,25 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Parse a linked_callsigns entry like "HB9W 145.3250 MHz (2m)" → { callsign, frequency, band }
+// Returns null if the string doesn't contain a recognizable callsign.
+function parseLinkedString(str) {
+  const s = String(str).trim();
+  const match = s.match(/^(\S+)\s+([\d.]+)\s*MHz\s*(?:\(([^)]+)\))?/);
+  if (match) {
+    return {
+      callsign: match[1].split('/')[0],
+      frequency: parseFloat(match[2]),
+      band: match[3] || null,
+    };
+  }
+  // Fallback: just a callsign with no frequency
+  if (s.length >= 3 && /^[A-Z0-9]{3,}/.test(s.split(/\s+/)[0])) {
+    return { callsign: s.split(/\s+/)[0].split('/')[0], frequency: null, band: null };
+  }
+  return null;
 }
 
 const LINE_DASH_ARRAYS = {
@@ -111,7 +130,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
   }, [repeaters]);
 
   // Build linking lines from RepeaterBook crosslinks (linked_callsigns).
-  // Lines are drawn FROM filtered (visible) repeaters TO any matching target in the full DB.
+  // linked_callsigns entries are pre-resolved strings like "HB9W 145.3250 MHz (2m)".
+  // We parse callsign AND frequency to match the EXACT target repeater — not all
+  // repeaters sharing the same callsign (same callsign on different bands ≠ linked).
   const linkLines = useMemo(() => {
     if (!showLinks) return [];
     const lines = [];
@@ -120,10 +141,13 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       if (r.lat == null || r.lng == null) continue;
       if (!r.linked_callsigns || r.linked_callsigns.length === 0) continue;
       for (const linkedStr of r.linked_callsigns) {
-        const linkedCall = String(linkedStr).split(/\s+/)[0].split('/')[0];
-        const targets = byCallsignAll.get(linkedCall) || [];
+        const parsed = parseLinkedString(linkedStr);
+        if (!parsed) continue;
+        const targets = byCallsignAll.get(parsed.callsign) || [];
         for (const target of targets) {
           if (target.callsign === r.callsign && target.frequency === r.frequency) continue;
+          // Match by callsign AND frequency (within 1 kHz tolerance) — the specific repeater
+          if (parsed.frequency != null && Math.abs(target.frequency - parsed.frequency) > 0.001) continue;
           const key = [r.callsign + r.frequency, target.callsign + target.frequency].sort().join('→');
           if (drawn.has(key)) continue;
           drawn.add(key);
@@ -138,16 +162,56 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     return lines;
   }, [filteredRepeaters, byCallsignAll, showLinks]);
 
+  // Resolve linked_callsigns strings to actual repeater objects for popup display.
+  // Returns array of { callsign, frequency, band, location_name, lat, lng, distance }.
+  const resolveLinkedRepeaters = useCallback((repeater) => {
+    if (!repeater.linked_callsigns || repeater.linked_callsigns.length === 0) return [];
+    const resolved = [];
+    const seen = new Set();
+    for (const linkedStr of repeater.linked_callsigns) {
+      const parsed = parseLinkedString(linkedStr);
+      if (!parsed) continue;
+      const targets = byCallsignAll.get(parsed.callsign) || [];
+      // Find the specific target by frequency, or fall back to first match
+      const target = parsed.frequency != null
+        ? targets.find(t => Math.abs(t.frequency - parsed.frequency) < 0.001)
+        : targets[0];
+      const key = parsed.callsign + (parsed.frequency || '');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      resolved.push({
+        callsign: parsed.callsign,
+        frequency: parsed.frequency,
+        band: parsed.band,
+        location_name: target?.location_name,
+        lat: target?.lat,
+        lng: target?.lng,
+        distance: target && repeater.lat != null && repeater.lng != null && target.lat != null
+          ? haversineKm(repeater.lat, repeater.lng, target.lat, target.lng)
+          : null,
+      });
+    }
+    return resolved;
+  }, [byCallsignAll]);
+
   // Admin-managed links (from RepeaterLink entity, approved + permanent only).
-  // Connects ALL repeaters with matching from_callsign to ALL with matching to_callsign,
-  // so multiple repeaters sharing a callsign (different frequencies/locations) all get lines.
+  // Uses from_frequency / to_frequency to match the EXACT repeater — not all
+  // repeaters sharing the same callsign. Falls back to callsign-only if no frequency set.
   const adminLinkLines = useMemo(() => {
     if (!showLinks || !adminLinks) return [];
     return adminLinks
       .filter(l => l.status === "approved" && l.link_type === "permanent")
       .flatMap(l => {
-        const fromReps = byCallsignAll.get(l.from_callsign) || [];
-        const toReps = byCallsignAll.get(l.to_callsign) || [];
+        // Match specific repeaters by callsign + frequency (if frequency is set)
+        const allFrom = byCallsignAll.get(l.from_callsign) || [];
+        const allTo = byCallsignAll.get(l.to_callsign) || [];
+        const fromReps = l.from_frequency != null
+          ? allFrom.filter(r => Math.abs(r.frequency - l.from_frequency) < 0.001)
+          : allFrom;
+        const toReps = l.to_frequency != null
+          ? allTo.filter(r => Math.abs(r.frequency - l.to_frequency) < 0.001)
+          : allTo;
+
         // Fallback: use stored coordinates if no matching repeaters in DB
         if (fromReps.length === 0 && toReps.length === 0 &&
             l.from_lat != null && l.from_lng != null && l.to_lat != null && l.to_lng != null) {
@@ -157,7 +221,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
             lineStyle: l.line_style || "dashed",
           }];
         }
-        // Draw lines between every from×to combination (deduped)
+        // Draw lines between matched from×to repeaters (deduped)
         const lines = [];
         const drawn = new Set();
         for (const fr of fromReps) {
@@ -176,6 +240,46 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         return lines;
       });
   }, [adminLinks, showLinks, byCallsignAll]);
+
+  // Resolve admin-managed links for a repeater (for popup display).
+  // Returns array of linked repeater objects with details.
+  const resolveAdminLinks = useCallback((repeater) => {
+    if (!adminLinks) return [];
+    const resolved = [];
+    const seen = new Set();
+    for (const l of adminLinks) {
+      if (l.status !== "approved" || l.link_type !== "permanent") continue;
+      const isFrom = l.from_callsign === repeater.callsign &&
+        (l.from_frequency == null || Math.abs(l.from_frequency - repeater.frequency) < 0.001);
+      const isTo = l.to_callsign === repeater.callsign &&
+        (l.to_frequency == null || Math.abs(l.to_frequency - repeater.frequency) < 0.001);
+      if (!isFrom && !isTo) continue;
+      // Find the linked target repeater
+      const targetCall = isFrom ? l.to_callsign : l.from_callsign;
+      const targetFreq = isFrom ? l.to_frequency : l.from_frequency;
+      const allTargets = byCallsignAll.get(targetCall) || [];
+      const target = targetFreq != null
+        ? allTargets.find(t => Math.abs(t.frequency - targetFreq) < 0.001)
+        : allTargets[0];
+      const key = targetCall + (targetFreq || '');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      resolved.push({
+        callsign: targetCall,
+        frequency: targetFreq,
+        band: target?.band,
+        location_name: target?.location_name,
+        lat: target?.lat,
+        lng: target?.lng,
+        distance: target && repeater.lat != null && repeater.lng != null && target.lat != null
+          ? haversineKm(repeater.lat, repeater.lng, target.lat, target.lng)
+          : null,
+        network: l.network,
+        source: 'admin',
+      });
+    }
+    return resolved;
+  }, [adminLinks, byCallsignAll]);
 
   // Dedicated SVG renderer for link lines — enables CSS animations (canvas renderer can't animate)
   const linkRenderer = useMemo(() => L.svg({ pane: 'overlayPane' }), []);
@@ -289,12 +393,13 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       {/* Repeater markers — antenna icon in full mode, circle in performance mode */}
       {cappedRepeaters.map((r, idx) => {
         const color = getModeColor(r.primary_mode);
-        const linked = r.linked_callsigns || [];
+        // Combine RepeaterBook crosslinks + admin-managed links for popup display
+        const linkedResolved = [...resolveLinkedRepeaters(r), ...resolveAdminLinks(r)];
         const popup = (
           <Popup>
             <RepeaterPopup
               repeater={r}
-              linkedRepeaters={linked}
+              linkedRepeaters={linkedResolved}
               userPosition={userPosition}
               onSuggestLink={onSuggestLink}
               onToggleCoverage={onToggleCoverage}

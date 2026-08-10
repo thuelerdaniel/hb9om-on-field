@@ -176,13 +176,37 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
       {linkedRepeaters.length > 0 && (
         <div className="mb-2 border-t border-gray-100 pt-2">
           <div className="text-[10px] text-gray-400 uppercase mb-1 flex items-center gap-1">
-            <Link2 className="w-3 h-3" /> Permanente Verlinkungen ({linkedRepeaters.length})
+            <Link2 className="w-3 h-3" /> Verlinkungen ({linkedRepeaters.length})
           </div>
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {linkedRepeaters.map((lr, i) => (
-              <div key={i} className="text-[11px] font-mono text-gray-600 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                {lr}
+              <div key={i} className="text-[11px] bg-blue-50 rounded px-1.5 py-1 border border-blue-100">
+                <div className="flex items-center gap-1 font-mono font-bold text-blue-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                  {lr.callsign}
+                  {lr.frequency != null && (
+                    <span className="font-normal text-gray-600 ml-0.5">
+                      {lr.frequency.toFixed(4)} MHz
+                    </span>
+                  )}
+                  {lr.source === 'admin' && (
+                    <span className="ml-auto text-[8px] text-gray-400 font-sans font-normal italic">Admin</span>
+                  )}
+                </div>
+                {lr.band && (
+                  <div className="text-[10px] text-gray-400 ml-3">Band: {lr.band}</div>
+                )}
+                {lr.location_name && (
+                  <div className="text-[10px] text-gray-500 ml-3 truncate">{lr.location_name}</div>
+                )}
+                {lr.distance != null && (
+                  <div className="text-[10px] text-blue-500 ml-3 flex items-center gap-0.5">
+                    <MapPin className="w-2.5 h-2.5" /> {formatDistance(lr.distance)} entfernt
+                  </div>
+                )}
+                {lr.network && (
+                  <div className="text-[10px] text-gray-400 ml-3">Netz: {lr.network}</div>
+                )}
               </div>
             ))}
           </div>
