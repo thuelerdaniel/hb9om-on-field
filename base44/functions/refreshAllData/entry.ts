@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { fetchRepeaterData } from '../../shared/repeaterScraper.ts';
+import { fetchSotaSummits } from '../../shared/sotaFetcher.ts';
+import { fetchPotaParks } from '../../shared/potaFetcher.ts';
 
 // --- HBFF KMZ extraction helpers (inlined from fetchHBFF) ---
 async function extractKmlFromKmz(buffer) {
@@ -88,42 +90,15 @@ async function extractCoordsFromKMZ(kmzUrl) {
 // --- Data fetchers ---
 
 async function fetchSotaData() {
-  const resp = await fetch('https://api2.sota.org.uk/api/associations/HB', { headers: { 'Accept': 'application/json' } });
-  if (!resp.ok) throw new Error('SOTA API failed');
-  const data = await resp.json();
-  const summits = [];
-  if (data.regions) {
-    for (const region of data.regions) {
-      try {
-        const regionResp = await fetch(`https://api2.sota.org.uk/api/regions/HB/${region.regionCode}`, { headers: { 'Accept': 'application/json' } });
-        if (regionResp.ok) {
-          const regionData = await regionResp.json();
-          if (regionData.summits) {
-            for (const s of regionData.summits) {
-              summits.push({ code: s.summitCode, name: s.name, lat: s.latitude, lng: s.longitude, alt: s.altM, points: s.points });
-            }
-          }
-        }
-      } catch {}
-    }
-  }
-  return summits;
+  // Worldwide: fetch all SOTA associations globally
+  const result = await fetchSotaSummits('all');
+  return result.summits;
 }
 
 async function fetchPotaData() {
-  for (const entityCode of ['CH', 'HB']) {
-    try {
-      const resp = await fetch(`https://api.pota.app/program/parks/${entityCode}`, { headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' } });
-      if (resp.ok) {
-        const parks = await resp.json();
-        const arr = Array.isArray(parks) ? parks : (parks.parks || []);
-        return arr.filter(p => p.latitude && p.longitude).map(p => ({
-          code: p.reference || p.parkId, name: p.name || '', lat: parseFloat(p.latitude), lng: parseFloat(p.longitude), parkType: p.parkType || ''
-        }));
-      }
-    } catch {}
-  }
-  return [];
+  // Worldwide: fetch all POTA entities globally
+  const result = await fetchPotaParks('all');
+  return result.parks;
 }
 
 async function fetchHbffData() {

@@ -7,6 +7,7 @@ import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
 import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
 import RepeaterLinkManager from "@/components/admin/RepeaterLinkManager";
+import ExternalSourcesList from "@/components/admin/ExternalSourcesList";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -446,6 +447,9 @@ export default function AdminPanel({
           </div>
         )}
       </section>
+
+      {/* External Sources List with PDF Export */}
+      <ExternalSourcesList />
     </>
   );
 }

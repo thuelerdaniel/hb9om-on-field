@@ -16,6 +16,7 @@ import GpsTracker from "@/components/map/GpsTracker";
 import RadioLoader from "@/components/map/RadioLoader";
 import { LIGHTHOUSE_DATA } from "@/data/lighthouses";
 import { CASTLE_DATA } from "@/data/castles";
+import { IOTA_WORLDWIDE_DATA } from "@/data/iota-worldwide";
 import { Loader2, Radio, Plus, LocateFixed, MapPin, Move, Download, WifiOff, Wifi, ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -56,9 +57,8 @@ const HBFF_DATA = [
   { code: "HBFF-0489", name: "Vanil Noir Federal Reserve", lat: 46.5200, lng: 7.1300, canton: "FR", parkType: "Fed. Reserve", link: "https://hbff.ch/geo/HBFF-0489.htm" },
 ];
 
-// IOTA covers oceanic islands only — Switzerland is landlocked with no IOTA references.
-// EU-165 was incorrect (Sardinia's Coastal Islands). Layer kept for potential border-region data.
-const IOTA_DATA = [];
+// Worldwide IOTA island groups (curated subset of ~1200 IOTA groups from iota-world.org)
+const IOTA_DATA = IOTA_WORLDWIDE_DATA;
 
 // Swiss WWBOTA bunkers
 const WWBOTA_DATA = [
@@ -269,6 +269,8 @@ export default function Home() {
   // API-loaded data
   const [sotaData, setSotaData] = useState([]);
   const [potaData, setPotaData] = useState([]);
+  const sotaWorldwideFetched = useRef(false);
+  const potaWorldwideFetched = useRef(false);
   const [hbffData, setHbffData] = useState([]);
   const [wwbotaData, setWwbotaData] = useState([]);
   const [castleData, setCastleData] = useState([]);
@@ -500,9 +502,14 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [showSplash, serverCacheLoaded, isOffline]);
 
-  // Load SOTA from API if not cached (wait for server cache check to avoid duplicate fetches)
+  // Load SOTA from API — worldwide fetch if cached data is Swiss-only
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("sota") || sotaData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || !activeLayers.includes("sota") || isOffline) return;
+    if (sotaWorldwideFetched.current) return;
+    // Check if cached data is already worldwide (has summits outside Switzerland bbox)
+    const isWorldwide = sotaData.length > 0 && sotaData.some(s => s.lat < 45 || s.lat > 48 || s.lng < 5 || s.lng > 11);
+    if (isWorldwide) { sotaWorldwideFetched.current = true; return; }
+    sotaWorldwideFetched.current = true;
     setLoading(prev => ({ ...prev, sota: true }));
     base44.functions.invoke("fetchSOTA", { associations: "all" })
       .then(res => {
@@ -510,11 +517,16 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, sota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline, sotaData]);
 
-  // Load POTA from API if not cached
+  // Load POTA from API — worldwide fetch if cached data is Swiss-only
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("pota") || potaData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || !activeLayers.includes("pota") || isOffline) return;
+    if (potaWorldwideFetched.current) return;
+    // Check if cached data is already worldwide (has parks outside Switzerland bbox)
+    const isWorldwide = potaData.length > 0 && potaData.some(p => p.lat < 45 || p.lat > 48 || p.lng < 5 || p.lng > 11);
+    if (isWorldwide) { potaWorldwideFetched.current = true; return; }
+    potaWorldwideFetched.current = true;
     setLoading(prev => ({ ...prev, pota: true }));
     base44.functions.invoke("fetchPOTA", { entities: "all" })
       .then(res => {
@@ -522,7 +534,7 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, pota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline, potaData]);
 
   // Load HBFF from API if not cached
   useEffect(() => {
