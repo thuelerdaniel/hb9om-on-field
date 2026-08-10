@@ -7,6 +7,7 @@ import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
 import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
 import RepeaterLinkManager from "@/components/admin/RepeaterLinkManager";
+import RepeaterCorrectionManager from "@/components/admin/RepeaterCorrectionManager";
 import ExternalSourcesList from "@/components/admin/ExternalSourcesList";
 import IndividualSourceReload from "@/components/admin/IndividualSourceReload";
 
@@ -668,6 +669,9 @@ export default function AdminPanel({
 
       {/* Repeater Link Management */}
       <RepeaterLinkManager />
+
+      {/* Repeater Correction Reports */}
+      <RepeaterCorrectionManager />
 
       {/* Unmatched Castles Editor */}
       <UnmatchedCastles />

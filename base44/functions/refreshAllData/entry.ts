@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { fetchSotaSummits } from '../../shared/sotaFetcher.ts';
 import { fetchPotaParks } from '../../shared/potaFetcher.ts';
 import { fetchCastleDataWorldwide } from '../../shared/referenceFetchers.ts';
+import { fetchAprsData } from '../../shared/aprsFetcher.ts';
 
 // --- HBFF KMZ extraction helpers (inlined from fetchHBFF) ---
 async function extractKmlFromKmz(buffer) {
@@ -800,6 +801,35 @@ Deno.serve(async (req) => {
     // Including it here caused worker crashes (thousands of HTTP requests exhaust memory/time).
     // The daily automation should call fetchRepeaters separately if repeater refresh is needed.
 
+    // APRS.fi fetch — update repeater coordinates and refresh APRS nodes worldwide.
+    // Uses the shared aprsFetcher module (same logic as the admin-triggered fetchAprsFi function).
+    let aprsResult = null;
+    try {
+      const aprsApiKey = process.env.APRS_FI_API_KEY;
+      if (aprsApiKey) {
+        aprsResult = await fetchAprsData(base44, aprsApiKey);
+        results.push({
+          type: 'aprs',
+          status: 'success',
+          count: aprsResult.private_nodes_saved,
+          duration_ms: aprsResult.duration_ms,
+          aprsStats: {
+            repeaters_queried: aprsResult.repeaters_queried,
+            repeaters_updated: aprsResult.repeaters_updated_with_coords,
+            aprs_nodes_found: aprsResult.aprs_nodes_found,
+            private_nodes_saved: aprsResult.private_nodes_saved,
+            brandmeister_links: aprsResult.brandmeister_links,
+            bbox_queries: aprsResult.bbox_queries,
+            bbox_stations_found: aprsResult.bbox_stations_found,
+          },
+        });
+      } else {
+        results.push({ type: 'aprs', status: 'failed', count: 0, error: 'APRS_FI_API_KEY not set', duration_ms: 0 });
+      }
+    } catch (e) {
+      results.push({ type: 'aprs', status: 'failed', count: 0, error: e.message || String(e), duration_ms: 0 });
+    }
+
     const totalDuration = Date.now() - startTime;
     const successCount = results.filter(r => r.status === 'success').length;
     const overallStatus = successCount === results.length ? 'success' : successCount > 0 ? 'partial' : 'failed';
@@ -826,7 +856,13 @@ Deno.serve(async (req) => {
       }
 
       const successCount = results.filter(r => r.status === 'success').length;
-      const summary = results.map(r => `${r.type}: ${r.status} (${r.count})`).join('\n');
+      const summary = results.map(r => {
+        if (r.type === 'aprs' && r.status === 'success' && r.aprsStats) {
+          const s = r.aprsStats;
+          return `aprs: ${r.status} (${r.count} Nodes gespeichert, ${s.repeaters_updated_with_coords} Relais-Koordinaten aktualisiert, ${s.brandmeister_links} BM-Links, ${s.bbox_stations_found} bbox-Stationen)`;
+        }
+        return `${r.type}: ${r.status} (${r.count})`;
+      }).join('\n');
 
       for (const admin of admins) {
         if (!admin.email) continue;
@@ -835,7 +871,7 @@ Deno.serve(async (req) => {
           await base44.asServiceRole.integrations.Core.SendEmail({
             to: admin.email,
             subject: `Datenbank-Update - HB9OM On Field - ${overallStatus}`,
-            body: `Hallo,\n\ndie Referenzdatenbank wurde aktualisiert:\n\nStatus: ${overallStatus}\nDauer: ${(totalDuration / 1000).toFixed(1)}s\nErfolgreich: ${successCount}/${results.length}\n\nDetails:\n${summary}\n\n73,\nHB9OM On Field`
+            body: `Hallo,\n\ndie Referenzdatenbank wurde aktualisiert:\n\nStatus: ${overallStatus}\nDauer: ${(totalDuration / 1000).toFixed(1)}s\nErfolgreich: ${successCount}/${results.length}\n\nDetails:\n${summary}\n\nDie Aktualisierung umfasst nun auch APRS-Stationen (Digipeater, IGates, Wetterstationen) sowie BrandMeister-DMR-Verlinkungen.\n\n73,\nHB9OM On Field`
           });
         } catch (e) {}
       }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Link2, Trash2, Check, X, Plus, Loader2, Edit3, Palette } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Link2, Trash2, Check, X, Plus, Loader2, Edit3, Palette, Search, MapPin } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -10,6 +10,96 @@ const LINE_STYLES = [
 ];
 
 const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#6b7280"];
+
+// Repeater search dropdown — shows matching repeaters from DB as admin types
+function RepeaterSearchInput({ value, onSelect, placeholder, label }) {
+  const [query, setQuery] = useState(value || "");
+  const [results, setResults] = useState([]);
+  const [showResults, setShowResults] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [allRepeaters, setAllRepeaters] = useState([]);
+  const loadedRef = useRef(false);
+  const { toast } = useToast();
+
+  // Load all repeaters once on mount for client-side filtering
+  useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const repeaters = await base44.entities.Repeater.list("-created_date", 5000);
+        setAllRepeaters(repeaters || []);
+      } catch (e) {
+        toast({ title: "Fehler beim Laden der Relais", description: e.message, variant: "destructive" });
+      }
+      setLoading(false);
+    })();
+  }, [toast]);
+
+  // Filter repeaters by query (callsign, location, frequency, country)
+  useEffect(() => {
+    if (!query || query.length < 2) {
+      setResults([]);
+      setShowResults(false);
+      return;
+    }
+    const q = query.toLowerCase();
+    const filtered = allRepeaters
+      .filter(r =>
+        (r.callsign || "").toLowerCase().includes(q) ||
+        (r.location_name || "").toLowerCase().includes(q) ||
+        (r.country || "").toLowerCase().includes(q) ||
+        String(r.frequency || "").includes(q)
+      )
+      .slice(0, 20);
+    setResults(filtered);
+    setShowResults(filtered.length > 0);
+  }, [query, allRepeaters]);
+
+  const handleSelect = (repeater) => {
+    setQuery(repeater.callsign);
+    setShowResults(false);
+    onSelect(repeater);
+  };
+
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-1 mb-1">
+        <Search className="w-3 h-3 text-gray-400" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => { if (results.length > 0) setShowResults(true); }}
+          onBlur={() => setTimeout(() => setShowResults(false), 200)}
+          placeholder={placeholder}
+          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded"
+        />
+      </div>
+      {loading && <div className="text-[10px] text-gray-400">Lade Relais...</div>}
+      {showResults && results.length > 0 && (
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+          {results.map(r => (
+            <button
+              key={r.id}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(r); }}
+              className="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 border-b border-gray-50 last:border-0"
+            >
+              <div className="flex items-center gap-1">
+                <MapPin className="w-2.5 h-2.5 text-gray-400 flex-shrink-0" />
+                <span className="font-mono font-medium text-gray-900">{r.callsign}</span>
+                {r.frequency && <span className="text-gray-500">{r.frequency.toFixed(4)} MHz</span>}
+              </div>
+              <div className="text-[10px] text-gray-400 ml-3.5 truncate">
+                {r.location_name || r.country || "—"}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function RepeaterLinkManager() {
   const [links, setLinks] = useState([]);
@@ -38,7 +128,7 @@ export default function RepeaterLinkManager() {
     setLoading(true);
     try {
       const res = await base44.functions.invoke("manageRepeaterLinks", { action: "listAll" });
-      setLinks(res.data?.links || []);
+      setLinks(res.data?.links || res.links || []);
     } catch (e) {
       toast({ title: "Fehler beim Laden", description: e.message, variant: "destructive" });
     }
@@ -76,6 +166,26 @@ export default function RepeaterLinkManager() {
     } catch (e) {
       toast({ title: "Fehler", description: e.message, variant: "destructive" });
     }
+  };
+
+  // Auto-fill from/to fields when a repeater is selected from the dropdown
+  const handleSelectFrom = (r) => {
+    setForm(f => ({
+      ...f,
+      from_callsign: r.callsign || "",
+      from_frequency: r.frequency ? String(r.frequency) : "",
+      from_lat: r.lat != null ? String(r.lat) : "",
+      from_lng: r.lng != null ? String(r.lng) : "",
+    }));
+  };
+  const handleSelectTo = (r) => {
+    setForm(f => ({
+      ...f,
+      to_callsign: r.callsign || "",
+      to_frequency: r.frequency ? String(r.frequency) : "",
+      to_lat: r.lat != null ? String(r.lat) : "",
+      to_lng: r.lng != null ? String(r.lng) : "",
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -151,10 +261,18 @@ export default function RepeaterLinkManager() {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+          <div className="text-[10px] text-blue-600 bg-blue-50 rounded px-2 py-1">
+            Tipp: Suchen Sie nach Rufzeichen, Ort oder Frequenz — die Felder werden automatisch ausgefüllt.
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <h4 className="text-xs font-bold text-gray-700 mb-1">Quell-Relais</h4>
-              <input value={form.from_callsign} onChange={e => setForm({...form, from_callsign: e.target.value})} placeholder="Rufzeichen" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded mb-1" required />
+              <RepeaterSearchInput
+                value={form.from_callsign}
+                onSelect={handleSelectFrom}
+                placeholder="Rufzeichen suchen..."
+                label="Quelle"
+              />
               <input value={form.from_frequency} onChange={e => setForm({...form, from_frequency: e.target.value})} placeholder="Freq MHz" type="number" step="0.001" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded mb-1" />
               <div className="flex gap-1">
                 <input value={form.from_lat} onChange={e => setForm({...form, from_lat: e.target.value})} placeholder="Lat" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded" />
@@ -163,7 +281,12 @@ export default function RepeaterLinkManager() {
             </div>
             <div>
               <h4 className="text-xs font-bold text-gray-700 mb-1">Ziel-Relais</h4>
-              <input value={form.to_callsign} onChange={e => setForm({...form, to_callsign: e.target.value})} placeholder="Rufzeichen" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded mb-1" required />
+              <RepeaterSearchInput
+                value={form.to_callsign}
+                onSelect={handleSelectTo}
+                placeholder="Rufzeichen suchen..."
+                label="Ziel"
+              />
               <input value={form.to_frequency} onChange={e => setForm({...form, to_frequency: e.target.value})} placeholder="Freq MHz" type="number" step="0.001" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded mb-1" />
               <div className="flex gap-1">
                 <input value={form.to_lat} onChange={e => setForm({...form, to_lat: e.target.value})} placeholder="Lat" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded" />

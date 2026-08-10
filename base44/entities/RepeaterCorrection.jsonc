@@ -1,0 +1,83 @@
+{
+  "name": "RepeaterCorrection",
+  "type": "object",
+  "properties": {
+    "repeater_id": {
+      "type": "string",
+      "description": "ID des betroffenen Relais"
+    },
+    "callsign": {
+      "type": "string",
+      "description": "Rufzeichen des Relais"
+    },
+    "field_name": {
+      "type": "string",
+      "enum": [
+        "frequency",
+        "offset_mhz",
+        "tone",
+        "location_name",
+        "lat_lng",
+        "status",
+        "modes",
+        "band",
+        "country",
+        "web_url",
+        "other"
+      ],
+      "default": "other",
+      "description": "Welches Feld ist falsch"
+    },
+    "current_value": {
+      "type": "string",
+      "description": "Aktueller Wert (wie er in der DB steht)"
+    },
+    "corrected_value": {
+      "type": "string",
+      "description": "Korrekter Wert (Vorschlag des Melders)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung / Begruendung der Korrektur"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Status der Meldung"
+    },
+    "submitted_by_name": {
+      "type": "string",
+      "description": "Rufzeichen/Name des Melders"
+    },
+    "reviewed_by_name": {
+      "type": "string",
+      "description": "Name des pruefenden Admins"
+    },
+    "admin_comment": {
+      "type": "string",
+      "description": "Kommentar des Admins bei Genehmigung/Ablehnung"
+    }
+  },
+  "required": [
+    "repeater_id",
+    "callsign",
+    "field_name"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

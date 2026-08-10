@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus, CircleDot, Mountain, RefreshCw, Activity, Edit3, Loader2, Check, X } from "lucide-react";
+import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus, CircleDot, Mountain, RefreshCw, Activity, Edit3, Loader2, Check, X, AlertTriangle, BookOpen } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { MODE_COLORS, MODE_LABELS, STATUS_LABELS } from "@/lib/repeaterModes";
+import RepeaterCorrectionDialog from "@/components/map/RepeaterCorrectionDialog";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -30,6 +31,16 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
   const [urlInput, setUrlInput] = useState(repeater.web_url || "");
   const [savingUrl, setSavingUrl] = useState(false);
   const [calcLoading, setCalcLoading] = useState(false);
+  const [showCorrection, setShowCorrection] = useState(false);
+
+  // Build RepeaterBook source link from source_id and country_code
+  // Non-North-America: row_repeaters/details.php?state_id=CH&ID=12345
+  // North-America (US/CA): repeaters/details.php?state_id=06&country_code=US&ID=12345
+  const repeaterBookUrl = repeater.source_id
+    ? (repeater.country_code === 'US' || repeater.country_code === 'CA'
+      ? `https://www.repeaterbook.com/repeaters/details.php?country_code=${repeater.country_code}&ID=${repeater.source_id}`
+      : `https://www.repeaterbook.com/row_repeaters/details.php?state_id=${repeater.country_code || ''}&ID=${repeater.source_id}`)
+    : null;
   const statusInfo = STATUS_LABELS[repeater.status] || STATUS_LABELS.unknown;
   const hasCoords = repeater.lat != null && repeater.lng != null;
   const navUrl = hasCoords
@@ -354,9 +365,39 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         )}
       </div>
 
+      {/* Source link to RepeaterBook + report incorrect data */}
+      <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+        {repeaterBookUrl && (
+          <a
+            href={repeaterBookUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            <BookOpen className="w-3 h-3" />
+            Quelle bei RepeaterBook
+            <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+          </a>
+        )}
+        <button
+          onClick={() => setShowCorrection(true)}
+          className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50"
+        >
+          <AlertTriangle className="w-3 h-3" />
+          Falsche Angaben melden
+        </button>
+      </div>
+
       <div className="text-[9px] text-gray-300 mt-2 pt-1 border-t border-gray-100">
         Quelle: RepeaterBook.com
       </div>
+
+      {showCorrection && (
+        <RepeaterCorrectionDialog
+          repeater={repeater}
+          onClose={() => setShowCorrection(false)}
+        />
+      )}
     </div>
   );
 }

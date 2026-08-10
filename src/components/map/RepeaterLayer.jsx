@@ -187,15 +187,15 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         );
       })}
 
-      {/* Linking lines (RepeaterBook crosslinks + admin-managed) */}
+      {/* Linking lines (RepeaterBook crosslinks + admin-managed) — visible at higher weight/opacity */}
       {visibleLines.map((line, i) => (
         <Polyline
           key={`link-${i}`}
           positions={line.positions}
           pathOptions={{
             color: line.color,
-            weight: 1.5,
-            opacity: 0.6,
+            weight: 3.5,
+            opacity: 0.85,
             dashArray: LINE_DASH_ARRAYS[line.lineStyle] || LINE_DASH_ARRAYS.dashed,
           }}
         />
