@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
 const LAYER_GROUPS = [
@@ -65,6 +65,13 @@ const LAYER_GROUPS = [
     icon: Zap,
     color: "#dc2626",
     description: "Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender (map.geo.admin.ch)"
+  },
+  {
+    id: "repeater",
+    label: "Amateurfunk-Relais (RepeaterBook)",
+    icon: Radio,
+    color: "#3b82f6",
+    description: "FM, C4FM, DMR, D-STAR Relais mit Verlinkungen und Filter"
   }
 ];
 

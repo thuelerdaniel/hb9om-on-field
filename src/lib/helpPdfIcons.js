@@ -67,6 +67,12 @@ export const HELP_PDF_ICONS = {
   mail: (c) => wrap(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>`, c),
   save: (c) => wrap(`<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>`, c),
   globe: (c) => wrap(`<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>`, c),
+
+  // ─── Relais (RepeaterLayer / RepeaterFilter) ───
+  headphones: (c) => wrap(`<path d="M3 14h3a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5a9 9 0 0 1 18 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3"/>`, c),
+  link2: (c) => wrap(`<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/>`, c),
+  signal: (c) => wrap(`<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>`, c),
+  radioTower: (c) => wrap(`<path d="M4.9 16.1C1 15.2 1 8.8 4.9 7.9"/><path d="M7.8 12.3c-.8-.5-.8-1.6 0-2.1"/><path d="M16.2 12.3c.8-.5.8-1.6 0-2.1"/><path d="M19.1 16.1c3.9-.9 3.9-7.3 0-8.2"/><path d="M12 12 7.5 4.5"/><path d="M12 12l4.5-7.5"/><path d="M8 20h8"/><path d="M12 20v-8"/>`, c),
 };
 
 // Hilfsfunktion: SVG-String fuer ein Icon abrufen

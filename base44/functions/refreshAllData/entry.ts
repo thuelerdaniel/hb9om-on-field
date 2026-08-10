@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { fetchRepeaterData } from '../../shared/repeaterScraper.ts';
 
 // --- HBFF KMZ extraction helpers (inlined from fetchHBFF) ---
 async function extractKmlFromKmz(buffer) {
@@ -804,6 +805,31 @@ Deno.serve(async (req) => {
       if (settled[i].status === 'fulfilled') return settled[i].value;
       return { type: t.type, status: 'failed', count: 0, error: settled[i].reason?.message || String(settled[i].reason), duration_ms: 0 };
     });
+
+    // Sync repeaters to Repeater entity (separate from ReferenceData)
+    try {
+      const repStart = Date.now();
+      const repeaters = await fetchRepeaterData();
+      const withCoords = repeaters.filter(r => r.lat !== null && r.lng !== null);
+      const existingReps = await base44.asServiceRole.entities.Repeater.list("-created_date", 500);
+      for (let i = 0; i < (existingReps || []).length; i += 100) {
+        const batch = existingReps.slice(i, i + 100);
+        await Promise.all(batch.map(r => base44.asServiceRole.entities.Repeater.delete(r.id)));
+      }
+      const repRecords = withCoords.map(r => ({
+        callsign: r.callsign, frequency: r.frequency, offset_mhz: r.offset_mhz || 0,
+        tone: r.tone || '', modes: r.modes, primary_mode: r.primary_mode,
+        location_name: r.location_name, country: 'Switzerland', lat: r.lat, lng: r.lng,
+        band: r.band, status: r.status, web_url: r.web_url || '', echolink_node: r.echolink_node || '',
+        fm_netzwerk: false, source_id: r.sourceId, linked_callsigns: r.linked_callsigns || [],
+      }));
+      for (let i = 0; i < repRecords.length; i += 100) {
+        await base44.asServiceRole.entities.Repeater.bulkCreate(repRecords.slice(i, i + 100));
+      }
+      results.push({ type: 'repeater', status: 'success', count: withCoords.length, duration_ms: Date.now() - repStart });
+    } catch (e) {
+      results.push({ type: 'repeater', status: 'failed', count: 0, error: e.message, duration_ms: 0 });
+    }
 
     const totalDuration = Date.now() - startTime;
     const successCount = results.filter(r => r.status === 'success').length;

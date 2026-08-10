@@ -87,6 +87,30 @@ const REFERENCE_SOURCES = [
       return { ok: true, detail: 'ODS-Datei abrufbar' };
     },
   },
+  {
+    type: 'repeaterbook',
+    label: 'RepeaterBook (Relais-Daten)',
+    source: 'repeaterbook.com',
+    url: 'https://www.repeaterbook.com/row_repeaters/Display_SS.php?state_id=CH&band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25',
+    auto_updated: true,
+    check: async (resp) => {
+      const html = await resp.text();
+      if (!html.includes('details.php?state_id=CH')) return { ok: false, detail: 'Keine Relais-Einträge in HTML gefunden' };
+      return { ok: true, detail: 'Relais-Liste abrufbar' };
+    },
+  },
+  {
+    type: 'fm_netzwerk',
+    label: 'FM-Netzwerk.de (Relais-Stream)',
+    source: 'fm-netzwerk.de',
+    url: 'https://www.fm-netzwerk.de',
+    auto_updated: false,
+    check: async (resp) => {
+      const text = await resp.text();
+      if (!text || text.length < 100) return { ok: false, detail: 'Antwort leer oder zu kurz' };
+      return { ok: true, detail: 'Seite erreichbar' };
+    },
+  },
 ];
 
 // Geocoding helper sources used by the castle pipeline to supplement coordinates.

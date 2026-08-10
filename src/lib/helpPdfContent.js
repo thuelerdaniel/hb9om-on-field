@@ -14,7 +14,8 @@ export const LINKS = {
   bafu: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html",
   bakom: "https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html",
   paypal: "https://paypal.me/Thueler",
-  email: "mailto:hb9om@hb9om.ch"
+  email: "mailto:hb9om@hb9om.ch",
+  repeaterbook: "https://www.repeaterbook.com/row_repeaters/?state_id=CH"
 };
 
 // Screenshot URLs (echte App-Screenshots)
@@ -38,7 +39,8 @@ export const MARKER_SYMBOLS = [
   { icon: "castle", shape: "castle", color: "#e67e22", name: "Burgen/Schlösser", desc: "WCA/COTA Referenzen – Karte: Burg mit Zinnen" },
   { icon: "diamond", shape: "iota", color: "#3498db", name: "IOTA", desc: "Inseln (Schweiz hat keine IOTA) – Karte: Raute mit Welle" },
   { icon: "anchor", shape: "lighthouse", color: "#f39c12", name: "Leuchttürme", desc: "ARLHS WLOL Referenzen – Karte: Leuchtturm mit Licht" },
-  { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" }
+  { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" },
+  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais", desc: "Amateurfunk-Relais (FM, C4FM, DMR, D-STAR) – Karte: farbige Kreise nach Modulation" }
 ];
 
 // UI-Icons auf der Karte – Lucide-Icon-Namen wie in der App
@@ -579,6 +581,74 @@ export const SECTIONS = [
           { icon: "cloud", text: "Daten sind auf jedem Gerät verfügbar" }
         ],
         tip: "Tipp: Ein Cloud-Icon neben der Eintragsanzahl zeigt den Synchronisationsstatus an."
+      }
+    ]
+  },
+  {
+    title: "RELAIS & VERLINKUNGEN",
+    shortTitle: "Relais",
+    color: [59, 130, 246],
+    letter: "R",
+    description: "Das Relais-Overlay zeigt alle Schweizer Amateurfunk-Relais von RepeaterBook.com auf der Karte – farbcodiert nach Modulation (FM, C4FM, DMR, D-STAR etc.), mit Verlinkungen zwischen Relais und Detail-Popups.",
+    items: [
+      {
+        title: "Relais-Overlay aktivieren",
+        body: "Oeffnen Sie das Ebenen-Menue (Layer-Icon rechts oben) und aktivieren Sie die Ebene «Amateurfunk-Relais (RepeaterBook)». Alle Schweizer Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart.",
+        steps: [
+          { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
+          { icon: "radioTower", text: "«Amateurfunk-Relais» aktivieren" },
+          { icon: "eye", text: "Relais erscheinen als farbige Kreise auf der Karte" }
+        ],
+        links: [{ label: "RepeaterBook Schweiz", url: LINKS.repeaterbook }]
+      },
+      {
+        title: "Modulationsart erkennen",
+        body: "Jeder Relais-Marker ist nach seiner Hauptmodulation farbcodiert: Rot = FM, Gruen = C4FM (Fusion), Blau = DMR, Violett = D-STAR, Orange = P-25, Tuerkis = NXDN, Pink = M17. In der Legende unten links werden die aktiven Modulationsarten angezeigt.",
+        steps: [
+          { icon: "eye", text: "Farbe des Kreises pruefen" },
+          { icon: "signal", text: "Rot = FM, Gruen = C4FM, Blau = DMR, Violett = D-STAR" },
+          { icon: "layers", text: "Legende unten links zeigt alle aktiven Farben" }
+        ],
+        tip: "Tipp: Ein Relais kann mehrere Modulationsarten unterstuetzen (z.B. FM + Fusion + EchoLink). Die Hauptfarbe zeigt die digitale Modulation."
+      },
+      {
+        title: "Relais-Filter verwenden",
+        body: "Wenn das Relais-Overlay aktiv ist, erscheint oben links ein Relais-Filter-Button. Tippen Sie darauf, um nach Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten.",
+        steps: [
+          { icon: "radioTower", text: "Relais-Filter-Button (oben links) antippen" },
+          { icon: "filter", text: "Modulationsarten ein-/ausschalten (FM, C4FM, DMR, etc.)" },
+          { icon: "search", text: "Suchfeld: Rufzeichen, Ort oder Frequenz eingeben" },
+          { icon: "link2", text: "Verlinkungen ein-/ausschalten" }
+        ],
+        tip: "Tipp: «Alle» aktiviert alle Modulationsarten, «Keine» blendet alle aus. Der Filter bleibt beim Neustart erhalten."
+      },
+      {
+        title: "Relais-Details abrufen",
+        body: "Tippen Sie auf einen Relais-Marker, um Details zu sehen: Rufzeichen, Frequenz mit Offset, Zugangston (CTCSS/CC), Modulationsarten, Band, Status (On Air/Off Air), EchoLink-Knotennummer, Web-Link und verlinkte Relais.",
+        steps: [
+          { icon: "mapPin", text: "Relais-Marker auf der Karte antippen" },
+          { icon: "eye", text: "Popup zeigt Rufzeichen, Frequenz, Offset und Zugang" },
+          { icon: "signal", text: "Modulationsart-Badges und Band werden angezeigt" },
+          { icon: "globe", text: "Web-Link antippen fuer Relais-Homepage" }
+        ]
+      },
+      {
+        title: "Verlinkungen zwischen Relais",
+        body: "Relais mit demselben Rufzeichen auf verschiedenen Baendern (z.B. HB9LU auf 2m und 70cm) sind miteinander verlinkt. Die App zeichnet blaue gestrichelte Linien zwischen diesen Relais. Im Popup werden alle verlinkten Frequenzen aufgelistet.",
+        steps: [
+          { icon: "link2", text: "Blaue gestrichelte Linien zeigen verlinkte Relais" },
+          { icon: "mapPin", text: "Relais antippen – verlinkte Frequenzen im Popup" },
+          { icon: "link2", text: "Verlinkungen im Filter ein-/ausschaltbar" }
+        ],
+        tip: "Tipp: EchoLink-Relais sind weltweit ueber das EchoLink-Netzwerk verlinkt. Die Knotennummer im Popup zeigt die Verbindung an."
+      },
+      {
+        title: "FM-Netzwerk.de Hinweis",
+        body: "Relais, die auf FM-Netzwerk.de online anhoerbar sind, werden mit einem gruenen Kopfhoerer-Badge im Popup markiert. Die Verfuegbarkeit wird regelmmaessig geprueft.",
+        steps: [
+          { icon: "headphones", text: "Gruenes Kopfhoerer-Icon im Popup = auf FM-Netzwerk.de anhoerbar" },
+          { icon: "radioTower", text: "Nur FM-Relais koennen auf FM-Netzwerk.de verfuegbar sein" }
+        ]
       }
     ]
   }

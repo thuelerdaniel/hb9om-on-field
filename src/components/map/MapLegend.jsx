@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronUp, X, Layers } from "lucide-react";
 import { LAYER_GROUPS } from "./LayerControl";
 import { getMarkerSvg } from "@/lib/markerShapes";
+import { MODE_COLORS, FILTER_MODES, MODE_LABELS } from "@/lib/repeaterModes";
 
 export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -49,10 +50,24 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
         <div className="px-3 pb-2 flex items-center gap-3 flex-wrap border-t border-gray-100 pt-2 relative">
           {activeItems.map(lg => (
             <span key={lg.id} className="flex items-center gap-1 text-xs">
-              <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: getMarkerSvg(lg.id, lg.color) }} />
+              {lg.id === "repeater" ? (
+                <span className="w-3 h-3 rounded-full flex-shrink-0 border-2 border-white shadow-sm" style={{ backgroundColor: lg.color }} />
+              ) : (
+                <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: getMarkerSvg(lg.id, lg.color) }} />
+              )}
               <span className="text-gray-600">{lg.label.split("–")[0].trim()}</span>
             </span>
           ))}
+          {activeLayers.includes("repeater") && (
+            <span className="flex items-center gap-1.5 flex-wrap">
+              {FILTER_MODES.map(mode => (
+                <span key={mode} className="flex items-center gap-0.5 text-[10px]">
+                  <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: MODE_COLORS[mode] }} />
+                  <span className="text-gray-500">{MODE_LABELS[mode]}</span>
+                </span>
+              ))}
+            </span>
+          )}
           <button
             onClick={() => setHidden(true)}
             className="absolute top-1 right-1 p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"

@@ -1,0 +1,99 @@
+{
+  "name": "Repeater",
+  "type": "object",
+  "properties": {
+    "callsign": {
+      "type": "string",
+      "description": "Rufzeichen des Relais"
+    },
+    "frequency": {
+      "type": "number",
+      "description": "Frequenz in MHz"
+    },
+    "offset_mhz": {
+      "type": "number",
+      "description": "Offset in MHz (negativ oder positiv)"
+    },
+    "tone": {
+      "type": "string",
+      "description": "Subton / Zugang (CTCSS, DCS, CC, etc.)"
+    },
+    "modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Modulationsarten (FM, Fusion, DMR, D-STAR, P-25, NXDN, M17, EchoLink, WIRES-X)"
+    },
+    "primary_mode": {
+      "type": "string",
+      "description": "Hauptmodulationsart fuer Farbgebung"
+    },
+    "location_name": {
+      "type": "string",
+      "description": "Standort-Name"
+    },
+    "country": {
+      "type": "string",
+      "default": "Switzerland",
+      "description": "Land"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "band": {
+      "type": "string",
+      "description": "Band (10m, 6m, 4m, 2m, 70cm, 23cm)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "on-air",
+        "off-air",
+        "testing",
+        "unknown"
+      ],
+      "default": "unknown",
+      "description": "Betriebsstatus"
+    },
+    "web_url": {
+      "type": "string",
+      "description": "Web-URL des Relais"
+    },
+    "echolink_node": {
+      "type": "string",
+      "description": "EchoLink-Knotennummer"
+    },
+    "fm_netzwerk": {
+      "type": "boolean",
+      "default": false,
+      "description": "Auf FM-Netzwerk.de anhoerbar"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "RepeaterBook-ID"
+    },
+    "linked_callsigns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Verlinkte Rufzeichen (gleiches Relais auf anderen Baendern)"
+    }
+  },
+  "required": [
+    "callsign",
+    "frequency"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

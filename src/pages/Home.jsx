@@ -24,6 +24,9 @@ import MapTileLayer from "@/components/map/MapTileLayer";
 import OfflineAreaDialog from "@/components/map/OfflineAreaDialog";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import PerformanceSuggestionPopup from "@/components/map/PerformanceSuggestionPopup";
+import RepeaterLayer from "@/components/map/RepeaterLayer";
+import RepeaterFilter from "@/components/map/RepeaterFilter";
+import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
 
@@ -268,6 +271,23 @@ export default function Home() {
   const [cacheLoaded, setCacheLoaded] = useState(false);
   const [serverCacheLoaded, setServerCacheLoaded] = useState(false);
   const [serverCacheLoading, setServerCacheLoading] = useState(true);
+  const [repeaters, setRepeaters] = useState([]);
+  const [repeaterFilterModes, setRepeaterFilterModes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_repeater_filter_modes");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [...REPEATER_FILTER_MODES];
+  });
+  const [repeaterSearchQuery, setRepeaterSearchQuery] = useState("");
+  const [repeaterShowLinks, setRepeaterShowLinks] = useState(() => localStorage.getItem("hb9om_repeater_show_links") !== "false");
+
+  useEffect(() => {
+    localStorage.setItem("hb9om_repeater_filter_modes", JSON.stringify(repeaterFilterModes));
+  }, [repeaterFilterModes]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_repeater_show_links", String(repeaterShowLinks));
+  }, [repeaterShowLinks]);
 
   // Check admin status
   useEffect(() => {
@@ -478,6 +498,14 @@ export default function Home() {
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
   }, [activeLayers, serverCacheLoaded, isOffline]);
 
+  // Load repeaters from DB when repeater layer is active
+  useEffect(() => {
+    if (!serverCacheLoaded || !activeLayers.includes("repeater") || repeaters.length > 0 || isOffline) return;
+    base44.entities.Repeater.list("-created_date", 500)
+      .then(data => { if (data && data.length > 0) setRepeaters(data); })
+      .catch(() => {});
+  }, [activeLayers, serverCacheLoaded, isOffline]);
+
   const handleEdit = useCallback((data, layerType) => {
     setEditTarget({ data, layerType });
   }, []);
@@ -543,6 +571,23 @@ export default function Home() {
     const matched = castleData.filter(c => c.lat && c.lng).length;
     return { matched, total: castleData.length };
   }, [castleData]);
+
+  // Filtered repeater count for filter panel
+  const filteredRepeaterCount = useMemo(() => {
+    let result = repeaters;
+    if (repeaterFilterModes.length > 0) {
+      result = result.filter(r => repeaterFilterModes.includes(r.primary_mode));
+    }
+    if (repeaterSearchQuery.length >= 2) {
+      const q = repeaterSearchQuery.toLowerCase();
+      result = result.filter(r =>
+        (r.callsign || "").toLowerCase().includes(q) ||
+        (r.location_name || "").toLowerCase().includes(q) ||
+        String(r.frequency || "").includes(q)
+      );
+    }
+    return result.length;
+  }, [repeaters, repeaterFilterModes, repeaterSearchQuery]);
 
   // All available markers (regardless of active layers) — for QSO form nearby refs
   const allAvailableMarkers = useMemo(() => {
@@ -930,6 +975,16 @@ export default function Home() {
             autoCanvasActive={autoCanvasActive}
           />
 
+          {activeLayers.includes("repeater") && repeaters.length > 0 && (
+            <RepeaterLayer
+              repeaters={repeaters}
+              filterModes={repeaterFilterModes}
+              searchQuery={repeaterSearchQuery}
+              showLinks={repeaterShowLinks}
+              performanceMode={performanceMode}
+            />
+          )}
+
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}
         </MapContainer>
 
@@ -943,6 +998,19 @@ export default function Home() {
           mapOpacity={mapOpacity}
           onChangeOpacity={handleChangeOpacity}
         />
+
+        {activeLayers.includes("repeater") && repeaters.length > 0 && (
+          <RepeaterFilter
+            filterModes={repeaterFilterModes}
+            onFilterModesChange={setRepeaterFilterModes}
+            searchQuery={repeaterSearchQuery}
+            onSearchQueryChange={setRepeaterSearchQuery}
+            showLinks={repeaterShowLinks}
+            onShowLinksChange={setRepeaterShowLinks}
+            repeaterCount={repeaters.length}
+            visibleCount={filteredRepeaterCount}
+          />
+        )}
 
         <MapControls
           lockedScale={lockedScale}
