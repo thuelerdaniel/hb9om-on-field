@@ -168,6 +168,11 @@ const SECTIONS = [
         title: "Schweizer Relais-Quellen & Verlinkungen",
         body: "Die Schweizer Amateurfunk-Relais werden aus drei Quellen angereichert: 1) RepeaterBook (weltweit, Basisdaten) liefert Frequenzen, Modi, Standorte und Koordinaten. 2) USKA HB Repeater Voice List (uska.ch) — die offizielle Liste der Schweizer Amateurfunk-Relais mit 308 Einträgen. Aus den Remarks werden Crosslinks extrahiert (z.B. <>Tamaro, <>Scura, >RX Chestenberg) und als Verlinkungen auf der Karte angezeigt. EchoLink-Node-Nummern (EL#), D-STAR CCS-Nummern und C4FM/Wires-X-IDs werden übernommen. 3) SWISS-ARTG (swiss-artg.ch) — Standortliste der SWISS-ARTG-Anlagen (HB9AK, HB9ZRH) mit DMR-, FM- und D-STAR-Relais sowie APRS-iGates und HAMNET. Die Funkwelt HB Repeater Map (funkwelt.net) dient als zusätzliche Referenz. Verlinkungen werden als animierte Linien auf der Karte angezeigt; im Relais-Popup sehen Sie die verlinkten Relais mit Frequenz, Standort und Entfernung.",
         example: "Relais anklicken → Popup zeigt «Verlinkungen (1)» → HB9W 438.4125 MHz, Brütten, 1.6 km entfernt → Linie auf der Karte."
+      },
+      {
+        title: "FM-Funknetz.de – Talkgroups (TGs) weltweit",
+        body: "FM-Funknetz.de ist ein SvxLink-basiertes Relais- und Hotspot-Netzwerk, das ursprünglich aus Deutschland stammt, aber weltweit genutzt wird. Das Live-Dashboard (dashboard.fm-funknetz.de) zeigt aktive Stationen und ihre Talkgroups (TGs) in Echtzeit. Die App ruft das Dashboard ab und gleicht die aktiven TGs mit den Relais in der Datenbank ab — weltweit. Im Relais-Popup sehen Sie dann die aktiven TGs mit Nummer, Name und letzter Aktivitätszeit. Zusätzlich gibt es Links zum Live-Dashboard und zur vollständigen TG-Übersicht (fm-funknetz.de/unsere-talkgroups-sprechgruppen/). Die TGs umfassen regionale Sprechgruppen (z.B. 262xx für Deutschland, 2280 für Schweiz, 232x für Österreich, 235 für UK) und weltweite TGs (z.B. TG 91 Worldwide, TG 92 Europa). Administratoren können die TG-Daten über «Einzelne Datenquelle neu laden» → «FM-Funknetz TGs» aktualisieren.",
+        example: "Relais anklicken → Popup zeigt «FM-Funknetz TGs (2)» → TG 2620 Berlin Brandenburg, TG 262 Deutschland → Link zum Live-Dashboard."
       }
     ]
   },
@@ -447,6 +452,11 @@ const ADMIN_SECTIONS = [
         title: "CH-Relais-Links aktualisieren (USKA)",
         body: "Im Admin-Bereich unter «Einzelne Datenquelle neu laden» finden Sie den Button «CH-Relais-Links». Dieser ruft die USKA HB Repeater Voice List (uska.ch) ab und reichert die vorhandenen RepeaterBook-Daten an: EchoLink-Node-Nummern, Höhen, Status und Modulationsarten werden ergänzt. Aus den Remarks der USKA-Liste werden Crosslinks extrahiert (<>Tamaro, <>Scura, <>HB9T, >RX Chestenberg etc.) und als genehmigte, permanente RepeaterLink-Einträge angelegt. Die Verlinkungen erscheinen als animierte Linien auf der Karte und im Relais-Popup. Quellen: USKA (uska.ch/hb-repeater-voice-list/), SWISS-ARTG (swiss-artg.ch), Funkwelt (funkwelt.net).",
         example: "Admin → «CH-Relais-Links» klicken → 308 USKA-Einträge werden geparst → EchoLink-Nodes und Crosslinks werden angelegt → Linien auf der Karte sichtbar."
+      },
+      {
+        title: "FM-Funknetz TGs aktualisieren (weltweit)",
+        body: "Im Admin-Bereich unter «Einzelne Datenquelle neu laden» finden Sie den Button «FM-Funknetz TGs». Dieser ruft das Live-Dashboard von dashboard.fm-funknetz.de ab und parst die «Zuletzt Aktiv»-Tabelle. Die dort gezeigten Stationen und ihre aktiven Talkgroups (TGs) werden mit den Relais in der Datenbank abgeglichen — weltweit, nicht nur in der Schweiz. Pro Treffer werden die TG-Nummer, der TG-Name und die letzte Aktivitätszeit gespeichert und im Relais-Popup angezeigt. Da das Dashboard nur kürzlich aktive Stationen zeigt, werden bei jedem Abruf unterschiedliche Relais erfasst — regelmässiges Aktualisieren empfohlen. Die TG-Liste umfasst regionale (262xx DL, 2280 CH, 232x AT, 235 UK) und weltweite Sprechgruppen (91 Worldwide, 92 Europa).",
+        example: "Admin → «FM-Funknetz TGs» klicken → Dashboard wird geparst → aktive TGs werden mit Relais abgeglichen → Popup zeigt TG-Info mit Link zum Live-Dashboard."
       }
     ]
   }

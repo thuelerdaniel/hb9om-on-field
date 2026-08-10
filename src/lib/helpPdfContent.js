@@ -740,6 +740,21 @@ export const SECTIONS = [
         tip: "Tipp: Nicht fuer alle Laender sind viele Relais verfuegbar. Die Datenbank wird laufend erweitert."
       },
       {
+        title: "FM-Funknetz.de – Talkgroups (TGs) weltweit",
+        body: "FM-Funknetz.de ist ein SvxLink-basiertes Relais- und Hotspot-Netzwerk, das weltweit genutzt wird. Das Live-Dashboard (dashboard.fm-funknetz.de) zeigt aktive Stationen und ihre Talkgroups in Echtzeit. Die App gleicht die aktiven TGs mit den Relais in der Datenbank ab – weltweit. Im Relais-Popup sehen Sie die aktiven TGs mit Nummer, Name und letzter Aktivitätszeit, plus Links zum Live-Dashboard und zur TG-Übersicht. Die TGs umfassen regionale Sprechgruppen (262xx DL, 2280 CH, 232x AT, 235 UK) und weltweite TGs (91 Worldwide, 92 Europa).",
+        steps: [
+          { icon: "radioTower", text: "Relais-Marker antippen – Popup öffnet sich" },
+          { icon: "headphones", text: "«FM-Funknetz TGs»-Abschnitt mit TG-Nummer und -Name" },
+          { icon: "externalLink", text: "Link zum Live-Dashboard (dashboard.fm-funknetz.de)" },
+          { icon: "externalLink", text: "Link zur TG-Übersicht (fm-funknetz.de/unsere-talkgroups-sprechgruppen/)" }
+        ],
+        links: [
+          { label: "FM-Funknetz Live-Dashboard", url: "https://dashboard.fm-funknetz.de/" },
+          { label: "FM-Funknetz Talkgroup-Übersicht", url: "https://fm-funknetz.de/unsere-talkgroups-sprechgruppen/" }
+        ],
+        tip: "Tipp: Da das Dashboard nur kürzlich aktive Stationen zeigt, werden bei jedem Abruf unterschiedliche Relais erfasst. Admins können die TG-Daten über «Einzelne Datenquelle neu laden» → «FM-Funknetz TGs» aktualisieren."
+      },
+      {
         title: "Abdeckung pro Relais anzeigen",
         body: "Neben der globalen Abdeckungs-Anzeige (alle Relais) koennen Sie die Abdeckung auch fuer ein einzelnes Relais im Popup ein- und ausschalten. Tippen Sie auf «Abdeckung» im Popup, um die geschaetzte Reichweite fuer dieses Relais als Kreis anzuzeigen. Die Reichweite basiert auf dem Band (2m ~35 km, 70cm ~25 km, etc.).",
         steps: [

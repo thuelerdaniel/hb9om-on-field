@@ -77,6 +77,28 @@
       "default": false,
       "description": "Auf FM-Funknetz.de anhoerbar"
     },
+    "fm_funknetz_tgs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tg_number": {
+            "type": "number",
+            "description": "Talkgroup-Nummer"
+          },
+          "tg_name": {
+            "type": "string",
+            "description": "Name der Sprechgruppe"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Letzte beobachtete Aktivitaet"
+          }
+        }
+      },
+      "description": "FM-Funknetz.de Talkgruppen mit letzter Aktivitaet (weltweit)"
+    },
     "has_emergency_power": {
       "type": "boolean",
       "default": false,

@@ -200,6 +200,21 @@ export const ADMIN_SECTIONS = [
         tip: "Tipp: Der Web-Link wird auch im QSO-Formular bei der Referenzsuche angezeigt."
       },
       {
+        title: "FM-Funknetz TGs aktualisieren (weltweit)",
+        body: "Im Admin-Bereich unter «Einzelne Datenquelle neu laden» finden Sie den Button «FM-Funknetz TGs». Dieser ruft das Live-Dashboard von dashboard.fm-funknetz.de ab und parst die «Zuletzt Aktiv»-Tabelle. Die dort gezeigten Stationen und ihre aktiven Talkgroups (TGs) werden mit den Relais in der Datenbank abgeglichen – weltweit, nicht nur in der Schweiz. Pro Treffer werden die TG-Nummer, der TG-Name und die letzte Aktivitätszeit gespeichert und im Relais-Popup angezeigt. Da das Dashboard nur kürzlich aktive Stationen zeigt, werden bei jedem Abruf unterschiedliche Relais erfasst – regelmässiges Aktualisieren empfohlen.",
+        steps: [
+          { icon: "settings", text: "Admin-Panel -> «Einzelne Datenquelle neu laden»" },
+          { icon: "headphones", text: "«FM-Funknetz TGs» antippen" },
+          { icon: "globe", text: "Dashboard wird gescrapet und mit Relais abgeglichen (weltweit)" },
+          { icon: "check", text: "TG-Info erscheint im Relais-Popup mit Link zum Live-Dashboard" }
+        ],
+        links: [
+          { label: "FM-Funknetz Live-Dashboard", url: "https://dashboard.fm-funknetz.de/" },
+          { label: "FM-Funknetz Talkgroup-Übersicht", url: "https://fm-funknetz.de/unsere-talkgroups-sprechgruppen/" }
+        ],
+        tip: "Tipp: Da das Dashboard nur kürzlich aktive Stationen zeigt, werden bei jedem Abruf unterschiedliche Relais erfasst. Regelmässiges Aktualisieren baut eine umfassende TG-Übersicht auf."
+      },
+      {
         title: "Externe Daten prüfen",
         body: "Mit «Anbindung prüfen» testen Sie, ob alle Datenquellen, aus denen die Karte ihre Referenzpunkte aufbaut, erreichbar und funktionsfähig sind. Geprüft werden die Referenzquellen (SOTA, POTA, WWFF, WWBOTA, Leuchttürme, Burgen, IOTA) sowie die Relais-Quellen und die Geokodierungs-Hilfsquellen (OpenStreetMap, Wikidata, map.geo.admin.ch), von denen die Burg-Zuordnung abhängt. Zusätzlich werden Referenzen ohne Koordinaten («Datenlücken») angezeigt, die nicht als Kartenpunkte erstellt werden können.",
         steps: [

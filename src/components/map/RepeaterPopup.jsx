@@ -152,6 +152,48 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         </div>
       )}
 
+      {repeater.fm_funknetz_tgs && repeater.fm_funknetz_tgs.length > 0 && (
+        <div className="mb-2 border-t border-gray-100 pt-2">
+          <div className="text-[10px] text-gray-400 uppercase mb-1 flex items-center gap-1">
+            <Radio className="w-3 h-3" /> FM-Funknetz TGs ({repeater.fm_funknetz_tgs.length})
+          </div>
+          <div className="space-y-1">
+            {repeater.fm_funknetz_tgs.map((tg, i) => (
+              <div key={i} className="text-[11px] bg-green-50 rounded px-1.5 py-1 border border-green-100">
+                <div className="flex items-center gap-1 font-mono font-bold text-green-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                  TG {tg.tg_number}
+                  <span className="font-normal text-gray-600 ml-0.5 truncate">{tg.tg_name}</span>
+                </div>
+                {tg.last_seen && (
+                  <div className="text-[9px] text-gray-400 ml-3">
+                    zuletzt aktiv: {new Date(tg.last_seen).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <a
+            href={`https://dashboard.fm-funknetz.de/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 flex items-center gap-1 text-[10px] text-green-700 hover:underline"
+          >
+            <ExternalLink className="w-2.5 h-2.5" />
+            Live-Dashboard fm-funknetz.de
+          </a>
+          <a
+            href="https://fm-funknetz.de/unsere-talkgroups-sprechgruppen/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[10px] text-green-700 hover:underline"
+          >
+            <ExternalLink className="w-2.5 h-2.5" />
+            Alle Talkgroups (Übersicht)
+          </a>
+        </div>
+      )}
+
       {powerInfo && (
         <div className="flex items-center gap-1 text-[11px] mb-1.5 rounded px-1.5 py-1" style={{ color: powerInfo.color, backgroundColor: powerInfo.color + "15" }}>
           <powerInfo.icon className="w-3 h-3" />

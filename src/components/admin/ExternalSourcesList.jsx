@@ -137,6 +137,18 @@ const DATA_SOURCES = [
     status: "Verfügbar (Referenz, nicht automatisiert)",
   },
   {
+    name: "FM-Funknetz.de – Talkgroups & Live-Dashboard",
+    type: "Relais-Talkgroups (weltweit)",
+    url: "https://dashboard.fm-funknetz.de/",
+    modality: "Web-Scraping (HTML-Tabelle, Live-Aktivität)",
+    scope: "Weltweit (SvxLink-Netzwerk, primär DACH + Europa)",
+    auth: "Keine (öffentlich)",
+    updateFrequency: "On-Demand (Admin-Panel: FM-Funknetz TGs)",
+    rateLimit: "Keine bekannt",
+    description: "FM-Funknetz.de ist ein SvxLink-basiertes Relais- und Hotspot-Netzwerk. Das Live-Dashboard zeigt aktive Stationen und ihre Talkgroups (TGs). Die TG-Nummern und -Namen werden gescraped und mit den Relais in der Datenbank abgeglichen. Im Relais-Popup werden die aktiven TGs mit Name und letzter Aktivitätszeit angezeigt. Link zum Live-Dashboard und zur TG-Übersicht (fm-funknetz.de/unsere-talkgroups-sprechgruppen/) im Popup. TGs umfassen regionale (262xx für DL, 2280 für CH, 232x für AT) und weltweite Sprechgruppen.",
+    status: "Aktiv",
+  },
+  {
     name: "APRS.fi – Koordinaten-Verfeinerung",
     type: "Relais-Koordinaten",
     url: "https://aprs.fi/api/",
