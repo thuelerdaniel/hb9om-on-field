@@ -26,6 +26,9 @@ import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import PerformanceSuggestionPopup from "@/components/map/PerformanceSuggestionPopup";
 import RepeaterLayer from "@/components/map/RepeaterLayer";
 import RepeaterFilter from "@/components/map/RepeaterFilter";
+import PrivateNodeLayer from "@/components/map/PrivateNodeLayer";
+import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
+import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
@@ -281,7 +284,16 @@ export default function Home() {
   });
   const [repeaterSearchQuery, setRepeaterSearchQuery] = useState("");
   const [repeaterShowLinks, setRepeaterShowLinks] = useState(() => localStorage.getItem("hb9om_repeater_show_links") !== "false");
+  const [repeaterShowCoverage, setRepeaterShowCoverage] = useState(() => localStorage.getItem("hb9om_repeater_show_coverage") === "true");
   const [repeaterFilterCountry, setRepeaterFilterCountry] = useState("all");
+  const [repeaterRadiusKm, setRepeaterRadiusKm] = useState(() => {
+    const saved = localStorage.getItem("hb9om_repeater_radius_km");
+    return saved ? parseInt(saved) : 0;
+  });
+  const [adminLinks, setAdminLinks] = useState([]);
+  const [privateNodes, setPrivateNodes] = useState([]);
+  const [linkSuggestTarget, setLinkSuggestTarget] = useState(null);
+  const [foxHuntingMode, setFoxHuntingMode] = useState(() => localStorage.getItem("hb9om_fox_hunting_mode") || "fox");
 
   useEffect(() => {
     localStorage.setItem("hb9om_repeater_filter_modes", JSON.stringify(repeaterFilterModes));
@@ -289,6 +301,15 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_repeater_show_links", String(repeaterShowLinks));
   }, [repeaterShowLinks]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_repeater_show_coverage", String(repeaterShowCoverage));
+  }, [repeaterShowCoverage]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_repeater_radius_km", String(repeaterRadiusKm));
+  }, [repeaterRadiusKm]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_fox_hunting_mode", foxHuntingMode);
+  }, [foxHuntingMode]);
 
   // Check admin status
   useEffect(() => {
@@ -504,6 +525,22 @@ export default function Home() {
     if (!serverCacheLoaded || !activeLayers.includes("repeater") || repeaters.length > 0 || isOffline) return;
     base44.entities.Repeater.list("-created_date", 5000)
       .then(data => { if (data && data.length > 0) setRepeaters(data); })
+      .catch(() => {});
+  }, [activeLayers, serverCacheLoaded, isOffline]);
+
+  // Load approved admin-managed repeater links when repeater layer is active
+  useEffect(() => {
+    if (!serverCacheLoaded || !activeLayers.includes("repeater") || isOffline) return;
+    base44.entities.RepeaterLink.list("-created_date", 500)
+      .then(data => { if (data) setAdminLinks(data); })
+      .catch(() => {});
+  }, [activeLayers, serverCacheLoaded, isOffline]);
+
+  // Load private nodes from DB when private_nodes layer is active
+  useEffect(() => {
+    if (!serverCacheLoaded || !activeLayers.includes("private_nodes") || privateNodes.length > 0 || isOffline) return;
+    base44.entities.PrivateNode.list("-created_date", 5000)
+      .then(data => { if (data && data.length > 0) setPrivateNodes(data); })
       .catch(() => {});
   }, [activeLayers, serverCacheLoaded, isOffline]);
 
@@ -998,8 +1035,20 @@ export default function Home() {
               filterModes={repeaterFilterModes}
               searchQuery={repeaterSearchQuery}
               showLinks={repeaterShowLinks}
+              showCoverage={repeaterShowCoverage}
               performanceMode={performanceMode}
               filterCountry={repeaterFilterCountry}
+              userPosition={currentPosition}
+              radiusKm={repeaterRadiusKm}
+              adminLinks={adminLinks}
+              onSuggestLink={(repeater) => setLinkSuggestTarget(repeater)}
+            />
+          )}
+
+          {activeLayers.includes("private_nodes") && privateNodes.length > 0 && (
+            <PrivateNodeLayer
+              nodes={privateNodes}
+              performanceMode={performanceMode}
               userPosition={currentPosition}
             />
           )}
@@ -1026,11 +1075,16 @@ export default function Home() {
             onSearchQueryChange={setRepeaterSearchQuery}
             showLinks={repeaterShowLinks}
             onShowLinksChange={setRepeaterShowLinks}
+            showCoverage={repeaterShowCoverage}
+            onShowCoverageChange={setRepeaterShowCoverage}
             filterCountry={repeaterFilterCountry}
             onFilterCountryChange={setRepeaterFilterCountry}
             countries={repeaterCountries}
             repeaterCount={repeaters.length}
             visibleCount={filteredRepeaterCount}
+            radiusKm={repeaterRadiusKm}
+            onRadiusKmChange={setRepeaterRadiusKm}
+            userPosition={currentPosition}
           />
         )}
 
@@ -1154,6 +1208,8 @@ export default function Home() {
         </button>
 
         <MapLegend activeLayers={activeLayers} markerCount={allMarkers.length} castleStats={castleStats} />
+
+        <FoxHuntingSwitch mode={foxHuntingMode} onModeChange={setFoxHuntingMode} />
       </div>
 
       {editTarget && (
@@ -1199,6 +1255,15 @@ export default function Home() {
           newPosition={pendingDragChange.newPosition}
           onClose={() => setPendingDragChange(null)}
           onSubmit={() => setPendingDragChange(null)}
+        />
+      )}
+
+      {linkSuggestTarget && (
+        <RepeaterLinkSuggestDialog
+          fromRepeater={linkSuggestTarget}
+          allRepeaters={repeaters}
+          onClose={() => setLinkSuggestTarget(null)}
+          onSubmit={() => setLinkSuggestTarget(null)}
         />
       )}
 

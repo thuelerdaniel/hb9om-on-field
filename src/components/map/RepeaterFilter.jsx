@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin } from "lucide-react";
+import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES } from "@/lib/repeaterModes";
 
 export default function RepeaterFilter({
@@ -9,6 +9,8 @@ export default function RepeaterFilter({
   onSearchQueryChange,
   showLinks,
   onShowLinksChange,
+  showCoverage,
+  onShowCoverageChange,
   filterCountry,
   onFilterCountryChange,
   countries,
@@ -197,6 +199,25 @@ export default function RepeaterFilter({
               )}
             </div>
           )}
+
+          {/* Coverage circles toggle */}
+          <div className="p-3 border-b border-gray-100">
+            <button
+              onClick={() => onShowCoverageChange(!showCoverage)}
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs hover:bg-gray-50"
+            >
+              <span className="flex items-center gap-2 text-gray-700">
+                <Signal className="w-3.5 h-3.5 text-green-500" />
+                Abdeckung anzeigen
+              </span>
+              <span className={`relative w-9 h-5 rounded-full transition-colors ${showCoverage ? "bg-green-500" : "bg-gray-300"}`}>
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${showCoverage ? "translate-x-4" : ""}`} />
+              </span>
+            </button>
+            <p className="text-[10px] text-gray-400 mt-1 ml-2">
+              Geschätzte Reichweite pro Relais (basierend auf Band: 2m ~35 km, 70cm ~25 km). Für exakte RadioMobile-Abdeckung siehe iz8wnh.it.
+            </p>
+          </div>
 
           {/* Linking lines toggle */}
           <div className="p-3 border-b border-gray-100">

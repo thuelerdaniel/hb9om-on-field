@@ -1,9 +1,20 @@
 import React, { memo, useMemo } from "react";
-import { CircleMarker, Polyline, Popup, useMap, Marker } from "react-leaflet";
+import { CircleMarker, Polyline, Popup, useMap, Marker, Circle } from "react-leaflet";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
 import { getModeColor } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
+
+// Approximate coverage radius (km) by band — based on typical VHF/UHF propagation
+const COVERAGE_RADIUS_KM = {
+  "10m": 80,
+  "6m": 60,
+  "4m": 50,
+  "2m": 35,
+  "70cm": 25,
+  "23cm": 15,
+  "Other": 30,
+};
 
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -19,7 +30,7 @@ const LINE_DASH_ARRAYS = {
   dotted: "1 4",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink }) {
+function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink }) {
   const map = useMap();
 
   // Filter repeaters by mode, country, search, and radius
@@ -129,6 +140,26 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, pe
 
   return (
     <>
+      {/* Coverage circles (approximate, based on band) */}
+      {showCoverage && cappedRepeaters.map((r, idx) => {
+        const radiusKm = COVERAGE_RADIUS_KM[r.band] || COVERAGE_RADIUS_KM["Other"];
+        const color = getModeColor(r.primary_mode);
+        return (
+          <Circle
+            key={`cov-${r.id || idx}`}
+            center={[r.lat, r.lng]}
+            radius={radiusKm * 1000}
+            pathOptions={{
+              color: color,
+              weight: 0.5,
+              opacity: 0.3,
+              fillColor: color,
+              fillOpacity: r.status === "off-air" ? 0.03 : 0.08,
+            }}
+          />
+        );
+      })}
+
       {/* Linking lines (RepeaterBook crosslinks + admin-managed) */}
       {visibleLines.map((line, i) => (
         <Polyline
@@ -175,6 +206,7 @@ function arePropsEqual(prev, next) {
     prev.filterModes === next.filterModes &&
     prev.searchQuery === next.searchQuery &&
     prev.showLinks === next.showLinks &&
+    prev.showCoverage === next.showCoverage &&
     prev.performanceMode === next.performanceMode &&
     prev.filterCountry === next.filterCountry &&
     prev.userPosition === next.userPosition &&

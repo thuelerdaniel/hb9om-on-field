@@ -340,6 +340,9 @@ export default function AdminPanel({
       {/* External Data Check */}
       <ExternalDataCheck />
 
+      {/* Repeater Link Management */}
+      <RepeaterLinkManager />
+
       {/* Unmatched Castles Editor */}
       <UnmatchedCastles />
 
