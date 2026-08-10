@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Landmark, Lightbulb, Globe, Mountain, TreePine, Shield, Flower } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Landmark, Lightbulb, Globe, Mountain, TreePine, Shield, Flower, Link2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -12,6 +12,7 @@ const SOURCES = [
   { key: "lighthouse", label: "Leuchttürme", icon: Lightbulb, color: "text-yellow-500" },
   { key: "iota", label: "IOTA (Welt)", icon: Globe, color: "text-blue-500" },
   { key: "repeater", label: "Relais", icon: Radio, color: "text-cyan-500" },
+  { key: "ch_repeater_links", label: "CH-Relais-Links", icon: Link2, color: "text-indigo-500", customFunction: "fetchCHRepeaterLinks" },
 ];
 
 export default function IndividualSourceReload() {
@@ -37,7 +38,9 @@ export default function IndividualSourceReload() {
     setLoadingSource(sourceKey);
     const startTime = Date.now();
     try {
-      const res = await base44.functions.invoke("refreshDataSource", { source: sourceKey });
+      const source = SOURCES.find(s => s.key === sourceKey);
+      const functionName = source?.customFunction || "refreshDataSource";
+      const res = await base44.functions.invoke(functionName, source?.customFunction ? {} : { source: sourceKey });
       const data = res.data;
       const duration = Date.now() - startTime;
 
