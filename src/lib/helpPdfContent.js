@@ -325,13 +325,15 @@ export const SECTIONS = [
       },
       {
         title: "Standort / Referenz erfassen",
-        body: "Im Formular können Sie Ihren eigenen Standort erfassen: Wählen Sie den Referenz-Typ (SOTA, POTA, etc.) und geben Sie den Code ein oder wählen Sie aus den in der Nähe befindlichen Referenzen. Für generelle Standorte ohne Referenz wählen Sie «Generell» und geben nur Ihren Maidenhead-Locator ein.",
+        body: "Im Formular können Sie Ihren eigenen Standort erfassen: Wählen Sie den Referenz-Typ (SOTA, POTA, etc.). Beim Wechsel des Referenz-Typs werden Code und Name automatisch geleert. Tippen Sie in das Feld «Referenz-Code» oder «Name der Referenz», öffnet sich automatisch eine Auswahlliste mit passenden Referenzen weltweit – gefiltert nach dem gewählten Typ. Ein Klick auf einen Eintrag füllt Code und Name automatisch aus. Alternativ können Sie aus den Referenzen in der Nähe wählen (25-km-Umkreis). Für generelle Standorte ohne Referenz wählen Sie «Generell» und geben nur Ihren Maidenhead-Locator ein.",
         steps: [
-          { icon: "chevronDown", text: "Referenz-Typ wählen (SOTA, POTA, etc.)" },
-          { icon: "pencil", text: "Code eingeben (z.B. HB/AG-001) ODER" },
-          { icon: "mapPin", text: "«Referenzen in der Nähe» antippen für Liste (5-km-Umkreis)" },
-          { icon: "check", text: "Name wird automatisch ergänzt" }
-        ]
+          { icon: "chevronDown", text: "Referenz-Typ wählen (SOTA, POTA, etc.) – Code und Name werden geleert" },
+          { icon: "pencil", text: "Tippen in «Referenz-Code» oder «Name der Referenz» → Auswahlliste erscheint" },
+          { icon: "search", text: "Namen oder Code tippen (z.B. «Bürkli») → passende Referenzen werden gefiltert" },
+          { icon: "check", text: "Eintrag antippen → Code und Name werden automatisch ausgefüllt" },
+          { icon: "mapPin", text: "Oder: «Referenzen in der Nähe» für Liste (25-km-Umkreis)" }
+        ],
+        tip: "Tipp: Die Auswahlliste beim Tippen in Code oder Name sucht weltweit – Sie finden auch Referenzen, die weit entfernt sind."
       },
       {
         title: "Suffix verwenden",

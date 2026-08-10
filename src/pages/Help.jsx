@@ -210,8 +210,8 @@ const SECTIONS = [
       },
       {
         title: "Standort / Referenz erfassen",
-        body: "Im Formular können Sie Ihren eigenen Standort erfassen: Wählen Sie den Referenz-Typ (SOTA, POTA, etc.), geben Sie den Referenz-Code ein oder wählen Sie aus den in der Nähe befindlichen Referenzen. Die Referenzen in der Nähe basieren auf Ihrer GPS-Position oder der fixierten Kartenposition (5-km-Umkreis). Für generelle Standorte ohne Referenz wählen Sie «Generell» und geben nur Ihren Maidenhead-Locator ein.",
-        example: "Auf dem Gipfel: Typ «SOTA» wählen, Code «HB/AG-001» eingeben, Name wird automatisch ergänzt."
+        body: "Im Formular können Sie Ihren eigenen Standort erfassen: Wählen Sie den Referenz-Typ (SOTA, POTA, etc.). Beim Wechsel des Referenz-Typs werden der Referenz-Code und der Referenz-Name automatisch geleert, damit Sie sauber neu beginnen können. Tippen Sie in das Feld «Referenz-Code» oder «Name der Referenz», öffnet sich automatisch eine Auswahlliste mit passenden Referenzen – weltweit, gefiltert nach dem gewählten Referenz-Typ. Geben Sie z.B. «Bürkli» im Namensfeld ein, erscheinen alle passenden Gipfel/Burgen/etc. zur Auswahl. Ein Klick auf einen Eintrag füllt sowohl Code als auch Name automatisch aus. Alternativ können Sie aus den in der Nähe befindlichen Referenzen wählen (basierend auf GPS-Position oder fixierter Kartenposition, 25-km-Umkreis). Für generelle Standorte ohne Referenz wählen Sie «Generell» und geben nur Ihren Maidenhead-Locator ein.",
+        example: "Auf dem Gipfel: Typ «SOTA» wählen → «Bürkli» im Namensfeld eingeben → Auswahlliste erscheint → Eintrag anklicken → Code und Name werden automatisch ausgefüllt."
       },
       {
         title: "Suffix verwenden",

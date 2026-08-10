@@ -170,8 +170,8 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (localStorage.getItem(PERSIST_KEYS.mySuffix) || ""));
   const [myGrid, setMyGrid] = useState(editEntry?.my_grid || (localStorage.getItem(PERSIST_KEYS.myGrid) || ""));
   const [showRefDropdown, setShowRefDropdown] = useState(false);
-  const [refSearchQuery, setRefSearchQuery] = useState("");
-  const [showRefSearch, setShowRefSearch] = useState(false);
+  const [showRefCodeDropdown, setShowRefCodeDropdown] = useState(false);
+  const [showRefNameDropdown, setShowRefNameDropdown] = useState(false);
 
   const wakeLockRef = useRef(null);
   const qrzInFlightRef = useRef(false);
@@ -237,20 +237,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       setMyGrid(latLngToGrid(positionCenter[0], positionCenter[1]));
     }
   }, [refType, positionCenter]);
-
-  // Worldwide reference search — searches ALL markers by name/code (not just nearby)
-  const refSearchResults = useMemo(() => {
-    if (refSearchQuery.length < 2) return [];
-    const q = refSearchQuery.toLowerCase();
-    return allMarkers
-      .filter(m => {
-        const name = (m.name || "").toLowerCase();
-        const code = (m.code || m.reference || "").toLowerCase();
-        const location = (m.location_name || m.country || m.canton || m.wcaLocation || "").toLowerCase();
-        return name.includes(q) || code.includes(q) || location.includes(q);
-      })
-      .slice(0, 50);
-  }, [refSearchQuery, allMarkers]);
 
   const handleQRZLookup = async () => {
     if (qrzInFlightRef.current) return;
@@ -320,7 +306,46 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     setRefCode(r.code || r.reference || "");
     setRefName(r.name || "");
     setShowRefDropdown(false);
+    setShowRefCodeDropdown(false);
+    setShowRefNameDropdown(false);
   };
+
+  // Clear refCode and refName when reference type changes — user is starting a new reference selection
+  const handleRefTypeChange = (newType) => {
+    setRefType(newType);
+    setRefCode("");
+    setRefName("");
+    setShowRefCodeDropdown(false);
+    setShowRefNameDropdown(false);
+  };
+
+  // Inline autocomplete for refCode — filter markers by code, narrowed to selected refType
+  const refCodeMatches = useMemo(() => {
+    if (!refCode || refCode.length < 2) return [];
+    const q = refCode.toLowerCase();
+    let result = allMarkers.filter(m => {
+      const code = (m.code || m.reference || "").toLowerCase();
+      return code.includes(q);
+    });
+    if (refType && refType !== "custom" && refType !== "generell") {
+      result = result.filter(m => m.layerType === refType);
+    }
+    return result.slice(0, 20);
+  }, [refCode, allMarkers, refType]);
+
+  // Inline autocomplete for refName — filter markers by name, narrowed to selected refType
+  const refNameMatches = useMemo(() => {
+    if (!refName || refName.length < 2) return [];
+    const q = refName.toLowerCase();
+    let result = allMarkers.filter(m => {
+      const name = (m.name || "").toLowerCase();
+      return name.includes(q);
+    });
+    if (refType && refType !== "custom" && refType !== "generell") {
+      result = result.filter(m => m.layerType === refType);
+    }
+    return result.slice(0, 20);
+  }, [refName, allMarkers, refType]);
 
   const persistFormValues = () => {
     localStorage.setItem(PERSIST_KEYS.frequency, frequency);
@@ -646,50 +671,10 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
               </div>
             )}
 
-            {/* Worldwide reference search — find any reference globally by name/code */}
-            <div className="mb-2">
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  value={refSearchQuery}
-                  onChange={e => {
-                    setRefSearchQuery(e.target.value);
-                    setShowRefSearch(e.target.value.length >= 2);
-                  }}
-                  placeholder="Referenz weltweit suchen (Name oder Code)..."
-                  className="flex-1 min-w-0 px-2.5 py-1.5 text-xs border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
-                <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-              </div>
-              {showRefSearch && refSearchResults.length > 0 && (
-                <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded-lg border border-gray-200 divide-y divide-gray-50">
-                  {refSearchResults.map((r, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        selectRef(r);
-                        setRefSearchQuery("");
-                        setShowRefSearch(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-xs"
-                    >
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.color }} />
-                      <span className="font-mono font-semibold text-gray-900">{r.code || r.reference}</span>
-                      <span className="flex-1 truncate text-gray-500">{r.name}</span>
-                      <span className="text-gray-400 capitalize">{r.layerLabel || r.layerType}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {showRefSearch && refSearchResults.length === 0 && refSearchQuery.length >= 2 && (
-                <p className="text-[10px] text-gray-400 mt-1">Keine Referenz gefunden</p>
-              )}
-            </div>
-
             <div className="grid grid-cols-2 gap-2">
               <MobileSelect
                 value={refType}
-                onValueChange={setRefType}
+                onValueChange={handleRefTypeChange}
                 triggerClassName="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
                 options={REF_TYPES.map(t => ({ value: t.value, label: t.label }))}
               />
@@ -716,20 +701,68 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
               </div>
             ) : (
               <>
-                <input
-                  type="text"
-                  value={refCode}
-                  onChange={e => setRefCode(e.target.value)}
-                  placeholder="Referenz-Code (z.B. HB/AG-001)"
-                  className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
-                <input
-                  type="text"
-                  value={refName}
-                  onChange={e => setRefName(e.target.value)}
-                  placeholder="Name der Referenz"
-                  className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
+                {/* refCode with inline autocomplete dropdown */}
+                <div className="relative mt-2">
+                  <input
+                    type="text"
+                    value={refCode}
+                    onChange={e => {
+                      setRefCode(e.target.value);
+                      setShowRefCodeDropdown(e.target.value.length >= 2);
+                    }}
+                    onFocus={() => refCode.length >= 2 && setShowRefCodeDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowRefCodeDropdown(false), 200)}
+                    placeholder="Referenz-Code (z.B. HB/AG-001)"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  {showRefCodeDropdown && refCodeMatches.length > 0 && (
+                    <div className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-lg divide-y divide-gray-50">
+                      {refCodeMatches.map((r, i) => (
+                        <button
+                          key={i}
+                          onMouseDown={(e) => { e.preventDefault(); selectRef(r); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left text-xs"
+                        >
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.color }} />
+                          <span className="font-mono font-semibold text-gray-900">{r.code || r.reference}</span>
+                          <span className="flex-1 truncate text-gray-500">{r.name}</span>
+                          <span className="text-gray-400 capitalize">{r.layerLabel || r.layerType}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* refName with inline autocomplete dropdown */}
+                <div className="relative mt-2">
+                  <input
+                    type="text"
+                    value={refName}
+                    onChange={e => {
+                      setRefName(e.target.value);
+                      setShowRefNameDropdown(e.target.value.length >= 2);
+                    }}
+                    onFocus={() => refName.length >= 2 && setShowRefNameDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowRefNameDropdown(false), 200)}
+                    placeholder="Name der Referenz"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  {showRefNameDropdown && refNameMatches.length > 0 && (
+                    <div className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-lg divide-y divide-gray-50">
+                      {refNameMatches.map((r, i) => (
+                        <button
+                          key={i}
+                          onMouseDown={(e) => { e.preventDefault(); selectRef(r); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left text-xs"
+                        >
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.color }} />
+                          <span className="font-mono font-semibold text-gray-900">{r.code || r.reference}</span>
+                          <span className="flex-1 truncate text-gray-500">{r.name}</span>
+                          <span className="text-gray-400 capitalize">{r.layerLabel || r.layerType}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
             {mapCenter && (
