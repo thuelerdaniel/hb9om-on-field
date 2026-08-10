@@ -1,13 +1,25 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 
-// APRS.fi API integration — fetches APRS station positions by callsign lookup.
-// The aprs.fi API only supports name-based queries (no geographic area search).
+// APRS.fi + APRS-IS API integration — fetches APRS station positions.
+// Combines name-based callsign lookups with area-based (bbox) queries to capture
+// digipeaters, IGates, weather stations, and nodes worldwide.
+// This covers the same APRS-IS data stream as aprs.world (which has no public API).
 // We query known repeater callsigns from our DB to:
 // 1. Update repeater coordinates from APRS data
 // 2. Create PrivateNode records for stations that are digipeaters/IGates
 // API docs: https://aprs.fi/page/api
 
 const APRS_API_BASE = 'https://api.aprs.fi/api/get';
+
+// Area-based query boxes for comprehensive worldwide APRS coverage
+const APRS_BBOXES = [
+  { name: 'Europe', bbox: '35,-15,72,30' },
+  { name: 'North America', bbox: '15,-170,75,-50' },
+  { name: 'South America', bbox: '-60,-85,15,-30' },
+  { name: 'Asia', bbox: '-10,25,75,180' },
+  { name: 'Africa', bbox: '-40,-20,40,55' },
+  { name: 'Oceania', bbox: '-50,110,0,180' },
+];
 
 function determineNodeType(entry: any): { node_type: string; network: string; mode: string } {
   const symbol = entry.symbol || '';
@@ -122,6 +134,50 @@ export default async function(req) {
       } catch {}
       // Rate limit: aprs.fi allows ~1 request per second
       if (i + 100 < repeaters.length) await new Promise(r => setTimeout(r, 1200));
+    }
+
+    // Step 1b: Area-based queries (bbox) — fetch additional APRS stations worldwide
+    // This captures digipeaters, IGates, and weather stations not in our repeater DB
+    for (const box of APRS_BBOXES) {
+      try {
+        const url = `${APRS_API_BASE}?bbox=${box.bbox}&what=loc&apikey=${apiKey}&format=json&limit=500`;
+        const resp = await fetch(url, {
+          headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
+        });
+        if (!resp.ok) continue;
+        const data = await resp.json();
+        if (data.result !== 'ok' || !data.entries) continue;
+
+        for (const entry of data.entries) {
+          if (!entry.lat || !entry.lng) continue;
+          // Only add stations that are digipeaters, IGates, or repeaters (not mobile stations)
+          if (entry.type === 'd' || entry.type === 'i' || entry.type === 'w' ||
+              (entry.symbol && ['/#', '/r', '/R', '/i', '/&', '/T', '/_', '/W'].includes(entry.symbol))) {
+            // Skip if we already have this callsign
+            if (nodeRecords.some(n => n.callsign === entry.name)) continue;
+            const { node_type, network, mode } = determineNodeType(entry);
+            nodeRecords.push({
+              callsign: entry.name,
+              node_type,
+              frequency: 0,
+              mode,
+              network,
+              node_number: '',
+              location_name: (entry.comment || '').substring(0, 100),
+              country: '',
+              country_code: '',
+              lat: parseFloat(entry.lat),
+              lng: parseFloat(entry.lng),
+              description: entry.comment || '',
+              source: 'aprs.fi',
+              status: 'active',
+            });
+            aprsNodesFound++;
+          }
+        }
+      } catch {}
+      // Rate limit between bbox queries
+      await new Promise(r => setTimeout(r, 1200));
     }
 
     // Step 2: Delete existing aprs.fi-sourced private nodes and bulk insert new ones

@@ -1,5 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { inflateRawSync } from 'node:zlib';
+import { fetchCastleDataWorldwide } from '../../shared/referenceFetchers.ts';
 
 function readUInt16LE(buf, offset) {
   return buf[offset] | (buf[offset + 1] << 8);
@@ -559,14 +560,32 @@ Deno.serve(async (req) => {
 
     const withCoords = castles.filter(c => c.lat !== null).length;
 
+    // Also fetch worldwide castles (non-Swiss) from OSM + Wikidata
+    let worldwideCastles: any[] = [];
+    let worldwideError: string | null = null;
+    try {
+      worldwideCastles = await fetchCastleDataWorldwide();
+    } catch (e: any) {
+      worldwideError = e.message;
+    }
+
+    // Combine Swiss WCA castles with worldwide castles
+    // Swiss WCA castles have codes like "HB-00001", worldwide have "OSM-00001"
+    const allCastles = [...castles, ...worldwideCastles];
+    const totalWithCoords = allCastles.filter(c => c.lat !== null).length;
+
     return Response.json({
-      castles,
-      count: castles.length,
+      castles: allCastles,
+      count: allCastles.length,
+      swissCount: castles.length,
+      worldwideCount: worldwideCastles.length,
       totalWCA: wcaEntries.length,
-      matchedWithCoords: withCoords,
+      matchedWithCoords: totalWithCoords,
+      swissWithCoords: withCoords,
       geoSourceCount: geoSources.length,
       placeCount: osmPlaces.length,
-      source: 'WCA list (wcagroup.org) + OSM + Wikidata'
+      worldwideError,
+      source: 'WCA list (Swiss) + OSM + Wikidata (Worldwide)'
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

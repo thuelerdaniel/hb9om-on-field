@@ -113,6 +113,7 @@
       "enum": [
         "band_estimate",
         "aprs_refined",
+        "terrain_adjusted",
         "manual"
       ],
       "default": "band_estimate",
@@ -127,6 +128,20 @@
       "type": "string",
       "format": "date-time",
       "description": "Letzte Abdeckungs-Berechnung"
+    },
+    "needs_recalc": {
+      "type": "boolean",
+      "default": false,
+      "description": "Admin-Markierung: Standort im naechsten Zyklus neu berechnen"
+    },
+    "elevation_m": {
+      "type": "number",
+      "description": "Standorthoehe in Metern ue.M. (von Open-Elevation API)"
+    },
+    "terrain_factor": {
+      "type": "number",
+      "description": "Gelaendefaktor (0.5-1.5) basierend auf Hoehe/Hindernissen",
+      "default": 1
     }
   },
   "required": [

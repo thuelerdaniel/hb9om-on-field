@@ -782,9 +782,17 @@ Deno.serve(async (req) => {
     });
 
     // Sync repeaters to Repeater entity (worldwide — separate from ReferenceData)
+    // Wrapped with timeout — repeater scraper makes thousands of HTTP requests and can
+    // exhaust the worker's memory/time budget, crashing the whole function with a 500.
     try {
       const repStart = Date.now();
-      const repeaters = await fetchRepeaterData();
+      const REPEATER_TIMEOUT_MS = 120000; // 2 min max for repeater scraping
+      const repeaters = await Promise.race([
+        fetchRepeaterData(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Repeater scrape timeout')), REPEATER_TIMEOUT_MS)
+        ),
+      ]);
       const withCoords = repeaters.filter(r => r.lat !== null && r.lng !== null);
       // Delete all existing repeaters (loop — may exceed single deleteMany limit)
       for (let attempt = 0; attempt < 50; attempt++) {

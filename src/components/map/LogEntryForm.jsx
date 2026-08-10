@@ -246,7 +246,8 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       .filter(m => {
         const name = (m.name || "").toLowerCase();
         const code = (m.code || m.reference || "").toLowerCase();
-        return name.includes(q) || code.includes(q);
+        const location = (m.location_name || m.country || m.canton || m.wcaLocation || "").toLowerCase();
+        return name.includes(q) || code.includes(q) || location.includes(q);
       })
       .slice(0, 50);
   }, [refSearchQuery, allMarkers]);

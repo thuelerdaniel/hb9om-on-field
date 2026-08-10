@@ -6,8 +6,8 @@ const DETAIL_BASE = 'https://www.repeaterbook.com/row_repeaters/details.php';
 
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 5000;
-const MAX_PER_COUNTRY = 200;
+const MAX_DETAIL_FETCH = 2000;
+const MAX_PER_COUNTRY = 150;
 const LIST_CONCURRENCY = 8;
 const DETAIL_CONCURRENCY = 20;
 

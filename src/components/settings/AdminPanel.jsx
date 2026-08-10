@@ -8,6 +8,7 @@ import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
 import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
 import RepeaterLinkManager from "@/components/admin/RepeaterLinkManager";
 import ExternalSourcesList from "@/components/admin/ExternalSourcesList";
+import IndividualSourceReload from "@/components/admin/IndividualSourceReload";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -38,6 +39,7 @@ export default function AdminPanel({
   const [coverageProgress, setCoverageProgress] = useState(null);
   const [coverageScope, setCoverageScope] = useState("CH");
   const [progressLoading, setProgressLoading] = useState(false);
+  const [markingRecalc, setMarkingRecalc] = useState(false);
   const { toast } = useToast();
 
   const fetchCoverageProgress = async () => {
@@ -55,6 +57,25 @@ export default function AdminPanel({
   useEffect(() => {
     fetchCoverageProgress();
   }, []);
+
+  const handleMarkForRecalc = async () => {
+    setMarkingRecalc(true);
+    try {
+      // Mark all repeaters in selected country for recalculation
+      const filter = coverageScope === "all" ? {} : { country_code: coverageScope };
+      await base44.asServiceRole.entities.Repeater.updateMany(filter, { $set: { needs_recalc: true } });
+      toast({
+        title: "Zur Neuberechnung markiert",
+        description: `Alle Relais in ${coverageScope === "all" ? "der Welt" : coverageScope} werden im nächsten Zyklus neu berechnet`,
+        duration: 5000,
+      });
+      fetchCoverageProgress();
+    } catch (e) {
+      toast({ title: "Fehler", description: e.message || "Unbekannter Fehler", variant: "destructive" });
+    } finally {
+      setMarkingRecalc(false);
+    }
+  };
 
   const handleCalcCoverage = async () => {
     setCoverageLoading(true);
@@ -398,6 +419,9 @@ export default function AdminPanel({
       {/* External Data Check */}
       <ExternalDataCheck />
 
+      {/* Individual Source Reload */}
+      <IndividualSourceReload />
+
       {/* APRS.fi Data Fetch */}
       <section className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between">
@@ -450,7 +474,7 @@ export default function AdminPanel({
                 {progressLoading ? "Aktualisiert..." : "Aktualisieren"}
               </button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-2">
               <div className="text-center">
                 <div className="text-lg font-bold text-gray-900">{coverageProgress.global.totalRepeaters}</div>
                 <div className="text-[10px] text-gray-400">Relais gesamt</div>
@@ -464,6 +488,10 @@ export default function AdminPanel({
                 <div className="text-[10px] text-gray-400">APRS-verfeinert</div>
               </div>
               <div className="text-center">
+                <div className="text-lg font-bold text-teal-600">{coverageProgress.global.terrainAdjusted || 0}</div>
+                <div className="text-[10px] text-gray-400">Gelände-adjustiert</div>
+              </div>
+              <div className="text-center">
                 <div className={`text-lg font-bold ${
                   coverageProgress.global.avgRefinementPct >= 60 ? 'text-green-600' :
                   coverageProgress.global.avgRefinementPct >= 30 ? 'text-amber-600' : 'text-gray-400'
@@ -471,6 +499,10 @@ export default function AdminPanel({
                   {coverageProgress.global.avgRefinementPct}%
                 </div>
                 <div className="text-[10px] text-gray-400">Ø Verfeinerung</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-amber-600">{coverageProgress.pendingRecalc || 0}</div>
+                <div className="text-[10px] text-gray-400">Neuberechnung offen</div>
               </div>
             </div>
             {/* Progress bar */}
@@ -512,6 +544,15 @@ export default function AdminPanel({
           >
             {coverageLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Signal className="w-4 h-4" />}
             {coverageLoading ? "Berechnet..." : "Jetzt berechnen"}
+          </button>
+          <button
+            onClick={handleMarkForRecalc}
+            disabled={markingRecalc}
+            className="px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-300 rounded-lg hover:bg-amber-100 disabled:opacity-40 flex items-center justify-center gap-1.5"
+            title="Alle Relais im ausgewählten Land für nächste Zyklus neu berechnen"
+          >
+            {markingRecalc ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {markingRecalc ? "..." : "Neu markieren"}
           </button>
         </div>
         {coverageResult && (
