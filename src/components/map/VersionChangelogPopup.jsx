@@ -7,41 +7,25 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
-    version: "1.0",
-    title: "Weltweite Referenzen & Performance-Optimierung",
+    version: "0.8",
+    title: "Weltweite Referenzen, Nordamerika-Relais & Performance",
     changes: [
       "SOTA, POTA, WWFF, WWBOTA und Burgen jetzt weltweit — keine Schweizer-Begrenzung mehr",
       "WWFF ersetzt HBFF: 40'000+ Flora-Fauna-Referenzen weltweit mit Koordinaten von wwff.co",
       "WWBOTA weltweit: Alle Bunker-Schemata (HBBOTA, DFBOTA, GBBOTA etc.) geladen",
-      "Marker-Sortierung nach Distanz: Schweizer Gipfel werden zuverlässig angezeigt auch bei 180'000+ weltweiten Referenzen",
-      "Lade-Indikator mit Abbrechen-Button: Datenladung kann jederzeit abgebrochen werden",
-      "Splash-Screen und Hilfe aktualisiert für weltweite Abdeckung",
-    ],
-  },
-  {
-    version: "0.9",
-    title: "Nordamerika-Relais & POTA-Weltabdeckung",
-    changes: [
       "RepeaterBook jetzt mit USA (50 Bundesstaaten + DC) und Kanada (13 Provinzen) — eigene Nordamerika-URL-Struktur",
       "Relais-Symbol aktualisiert: Turm mit Blitz — farbig nach Modulation",
-      "Admin: Pro-Relais Web-Link ergänzen und Abdeckungsberechnung anstossen (Button im Popup)",
-      "POTA: Inkrementelles Speichern nach jedem Batch — keine Datenverluste mehr bei Timeout, Asien & alle Kontinente jetzt vollständig",
-      "Kontinent-Filter «Ganze Welt» umbenannt (vorher «Alle Welt»)",
-      "Admin-Bereich: Abdeckungs-Berechnung um USA, Kanada, Japan, Australien, Brasilien erweitert",
-      "Externe Datenquellen-Liste aktualisiert mit APRS.fi Koordinaten-Verfeinerung",
-    ],
-  },
-  {
-    version: "0.8",
-    title: "Weltweite Daten & Länder-Filter",
-    changes: [
-      "SOTA-Gipfel und POTA-Parks jetzt weltweit (alle ~125'000 Gipfel und alle Parks)",
-      "Neues Relais-Symbol: Gekreuzte Dipole (Turnstile-Antenne) — klar vom SOTA-Berg unterscheidbar",
       "IOTA-Inseln weltweit integriert",
       "Kontinent-Filter um Länder erweitert — einzelne Länder oder Mix auswählbar",
-      "Pro-Butzer APRS.fi API-Key in den Einstellungen konfigurierbar",
+      "Marker-Sortierung nach Distanz: Schweizer Gipfel werden zuverlässig angezeigt auch bei 180'000+ weltweiten Referenzen",
+      "Lade-Indikator mit Abbrechen-Button: Datenladung kann jederzeit abgebrochen werden",
+      "Admin: Pro-Relais Web-Link ergänzen und Abdeckungsberechnung anstossen (Button im Popup)",
+      "Admin: Abdeckungs-Berechnung um USA, Kanada, Japan, Australien, Brasilien erweitert",
       "Admin: Externe Datenquellen-Liste mit PDF-Export",
+      "Pro-Benutzer APRS.fi API-Key in den Einstellungen konfigurierbar",
       "RepeaterBook-Daten für 68+ Länder (Spanien, Italien, UK, Irland u.v.m.)",
+      "POTA: Inkrementelles Speichern nach jedem Batch — keine Datenverluste mehr bei Timeout",
+      "Splash-Screen und Hilfe aktualisiert für weltweite Abdeckung",
       "Sicherheits-Audit: Auth-Checks für alle Backend-Funktionen",
     ],
   },
@@ -108,7 +92,7 @@ export default function VersionChangelogPopup({ onClose }) {
             </div>
             <div>
               <h2 className="text-white font-bold text-lg">Was ist neu in v{APP_VERSION}?</h2>
-              <p className="text-slate-400 text-xs">Massgebliche Anpassungen seit v0.8</p>
+              <p className="text-slate-400 text-xs">Massgebliche Anpassungen seit v0.75</p>
             </div>
           </div>
           <button

@@ -741,7 +741,7 @@ export default function Help() {
               Reaktivieren
             </button>
           </div>
-          <p className="text-xs text-blue-700 mt-1.5">Zeigt die Änderungen zwischen v0.8 und v0.9 nach dem Splash Screen.</p>
+          <p className="text-xs text-blue-700 mt-1.5">Zeigt die Änderungen seit v0.75 nach dem Splash Screen.</p>
         </div>
 
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
