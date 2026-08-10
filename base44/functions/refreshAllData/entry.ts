@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { fetchSotaSummits } from '../../shared/sotaFetcher.ts';
 import { fetchPotaParks } from '../../shared/potaFetcher.ts';
+import { fetchCastleDataWorldwide } from '../../shared/referenceFetchers.ts';
 
 // --- HBFF KMZ extraction helpers (inlined from fetchHBFF) ---
 async function extractKmlFromKmz(buffer) {
@@ -694,7 +695,14 @@ async function fetchCastleData(castleOverrides) {
     }
   }
 
-  return castles;
+  // Also fetch worldwide castles (non-Swiss) from OSM Overpass + Wikidata
+  let worldwideCastles = [];
+  try {
+    worldwideCastles = await fetchCastleDataWorldwide(castleOverrides);
+  } catch {}
+
+  // Combine Swiss WCA castles with worldwide castles
+  return [...castles, ...worldwideCastles];
 }
 
 Deno.serve(async (req) => {

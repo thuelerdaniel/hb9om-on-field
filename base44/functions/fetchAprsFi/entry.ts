@@ -44,6 +44,10 @@ function determineNodeType(entry: any): { node_type: string; network: string; mo
   const symbol = entry.symbol || '';
   const comment = (entry.comment || '').toLowerCase();
 
+  // Weather stations (symbol /W, /_ or type 'w') — major APRS category
+  if (symbol === '/W' || symbol === '/_' || entry.type === 'w' || comment.includes('weather')) {
+    return { node_type: 'weather_station', network: 'APRS Weather', mode: 'APRS' };
+  }
   if (symbol === '/i' || entry.type === 'i' || comment.includes('igate')) {
     return { node_type: 'echolink_node', network: 'APRS IGate', mode: 'APRS' };
   }
@@ -139,8 +143,9 @@ export default async function(req) {
           // Create PrivateNode records for fixed amateur radio stations (digipeaters, IGates,
           // nodes, weather stations, HF stations, satellites — NOT mobile stations like cars/aircraft)
           const FIXED_SYMBOLS = ['/#', '/r', '/R', '/i', '/I', '/&', '/T', '/n', '/H', '/h', '/N',
-            '/L', '/l', '/S', '/s', '/O', '/Y', '/y', '/`', '/d', '/o', '/W', '/_'];
-          if (entry.type === 'd' || entry.type === 'i' || entry.type === 'o' ||
+            '/L', '/l', '/S', '/s', '/O', '/Y', '/y', '/`', '/d', '/o', '/W', '/_',
+            '/x', '/a', '/A', '/f', '/F', '/m', '/M'];
+          if (entry.type === 'd' || entry.type === 'i' || entry.type === 'w' || entry.type === 'o' ||
               (entry.symbol && FIXED_SYMBOLS.includes(entry.symbol))) {
             const { node_type, network, mode } = determineNodeType(entry);
             nodeRecords.push({
@@ -193,8 +198,8 @@ export default async function(req) {
           // satellites, lighthouses — NOT mobile stations like cars/aircraft/bikes)
           const FIXED_SYMBOLS_BBOX = ['/#', '/r', '/R', '/i', '/I', '/&', '/T', '/n', '/H', '/h',
             '/N', '/L', '/l', '/S', '/s', '/O', '/Y', '/y', '/`', '/d', '/o', '/W', '/_',
-            '/p', '/P', '/s', '/m', '/M'];
-          if (entry.type === 'd' || entry.type === 'i' || entry.type === 'w' || entry.type === 'o' ||
+            '/p', '/P', '/s', '/m', '/M', '/x', '/a', '/A', '/f', '/F'];
+          if (entry.type === 'd' || entry.type === 'i' || entry.type === 'w' || entry.type === 'o' || entry.type === 's' ||
               (entry.symbol && FIXED_SYMBOLS_BBOX.includes(entry.symbol))) {
             const { node_type, network, mode } = determineNodeType(entry);
             nodeRecords.push({

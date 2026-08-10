@@ -10,7 +10,8 @@ const NODE_TYPE_LABELS = {
   repeater_node: "Repeater Node",
   allstar_node: "AllStar Node",
   echolink_node: "EchoLink Node",
-  other: "Node",
+  weather_station: "Wetterstation",
+  other: "Node / Sonstiges",
 };
 
 const NODE_COLORS = {
@@ -19,6 +20,7 @@ const NODE_COLORS = {
   repeater_node: "#3b82f6",
   allstar_node: "#f59e0b",
   echolink_node: "#6366f1",
+  weather_station: "#10b981",
   other: "#6b7280",
 };
 
@@ -118,15 +120,30 @@ function PrivateNodePopup({ node, userPosition }) {
   );
 }
 
-function PrivateNodeLayerInner({ nodes, performanceMode, userPosition }) {
+function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTypes, searchQuery }) {
   const map = useMap();
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   const circleRadius = performanceMode ? (isTouch ? 7 : 5) : (isTouch ? 9 : 7);
   const circleWeight = isTouch ? 3 : 2;
 
   const visibleNodes = useMemo(() => {
-    return nodes.filter(n => n.lat != null && n.lng != null);
-  }, [nodes]);
+    let result = nodes.filter(n => n.lat != null && n.lng != null);
+    // Filter by node type (null = all types, empty array = none, array = selected types only)
+    if (filterTypes && filterTypes.length === 0) return [];
+    if (filterTypes && filterTypes.length > 0) {
+      result = result.filter(n => filterTypes.includes(n.node_type));
+    }
+    // Filter by search query
+    if (searchQuery && searchQuery.length >= 2) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(n =>
+        (n.callsign || "").toLowerCase().includes(q) ||
+        (n.location_name || "").toLowerCase().includes(q) ||
+        (n.network || "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [nodes, filterTypes, searchQuery]);
 
   // Viewport culling — only render nodes within the current map bounds (padded)
   const bounds = map.getBounds();
@@ -194,7 +211,9 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition }) {
 function arePropsEqual(prev, next) {
   return prev.nodes === next.nodes &&
     prev.performanceMode === next.performanceMode &&
-    prev.userPosition === next.userPosition;
+    prev.userPosition === next.userPosition &&
+    prev.filterTypes === next.filterTypes &&
+    prev.searchQuery === next.searchQuery;
 }
 
 const PrivateNodeLayer = memo(PrivateNodeLayerInner, arePropsEqual);

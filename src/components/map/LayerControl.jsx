@@ -77,10 +77,10 @@ const LAYER_GROUPS = [
   },
   {
     id: "private_nodes",
-    label: "Private Nodes & Hotspots",
+    label: "APRS – Amateur Radio Positioning",
     icon: Wifi,
     color: "#8b5cf6",
-    description: "Private Nodes, Hotspots, AllStar/EchoLink-Nodes für Netzwerk-Zugang"
+    description: "APRS-Stationen weltweit: Digipeater, IGates, Hotspots, AllStar/EchoLink-Nodes, Wetterstationen"
   }
 ];
 

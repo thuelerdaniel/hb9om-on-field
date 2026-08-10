@@ -131,10 +131,14 @@ export function getCountryFromSotaCode(code) {
   return SOTA_TO_ISO[prefix] || null;
 }
 
-// Get ISO2 country code from a POTA park reference (e.g., "CH-0001" → "CH")
+// Get ISO2 country code from a POTA park reference (e.g., "DE-0001" → "DE")
+// POTA refs now use ISO 3166-1 alpha-2 country codes directly (after migration from DXCC prefixes).
 export function getCountryFromPotaRef(ref) {
   if (!ref) return null;
   const prefix = ref.split('-')[0].toUpperCase();
+  // POTA refs now use ISO 3166-1 alpha-2 country codes directly (e.g., "DE-0001")
+  if (prefix.length === 2 && COUNTRIES.some(c => c.iso2 === prefix)) return prefix;
+  // Fallback: try old DXCC prefix mapping (for backwards compatibility with cached data)
   return POTA_TO_ISO[prefix] || null;
 }
 
@@ -172,12 +176,14 @@ export function isInCountries(marker, activeCountries) {
     iso2 = getCountryFromPotaRef(marker.code || marker.reference);
   } else if (marker.layerType === 'repeater') {
     iso2 = marker.country_code;
-  } else if (marker.layerType === 'castle' || marker.layerType === 'lighthouse') {
+  } else if (marker.layerType === 'castle' || marker.layerType === 'lighthouse' || marker.layerType === 'iota') {
     iso2 = getCountryByName(marker.country);
   } else if (marker.layerType === 'hbff' || marker.layerType === 'wwbota') {
     iso2 = 'CH'; // Swiss-only layers
   }
 
-  if (!iso2) return true; // Unknown country → show (don't hide)
+  // When a country filter is active, hide markers whose country can't be determined.
+  // Previously these were shown regardless, making the filter appear broken.
+  if (!iso2) return false;
   return activeCountries.includes(iso2);
 }

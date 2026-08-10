@@ -27,6 +27,7 @@ import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import PerformanceSuggestionPopup from "@/components/map/PerformanceSuggestionPopup";
 import RepeaterLayer from "@/components/map/RepeaterLayer";
 import RepeaterFilter from "@/components/map/RepeaterFilter";
+import AprsFilter from "@/components/map/AprsFilter";
 import PrivateNodeLayer from "@/components/map/PrivateNodeLayer";
 import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
@@ -295,6 +296,14 @@ export default function Home() {
     const saved = localStorage.getItem("hb9om_repeater_radius_km");
     return saved ? parseInt(saved) : 0;
   });
+  const [aprsFilterTypes, setAprsFilterTypes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_aprs_filter_types");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+  const [aprsSearchQuery, setAprsSearchQuery] = useState("");
   const [adminLinks, setAdminLinks] = useState([]);
   const [privateNodes, setPrivateNodes] = useState([]);
   const [linkSuggestTarget, setLinkSuggestTarget] = useState(null);
@@ -330,6 +339,9 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_repeater_radius_km", String(repeaterRadiusKm));
   }, [repeaterRadiusKm]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_aprs_filter_types", JSON.stringify(aprsFilterTypes || []));
+  }, [aprsFilterTypes]);
   useEffect(() => {
     localStorage.setItem("hb9om_fox_hunting_mode", foxHuntingMode);
   }, [foxHuntingMode]);
@@ -736,6 +748,24 @@ export default function Home() {
     }
     return result.length;
   }, [repeaters, repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountry]);
+
+  // Filtered APRS node count for filter panel
+  const filteredAprsCount = useMemo(() => {
+    if (aprsFilterTypes && aprsFilterTypes.length === 0) return 0;
+    let result = privateNodes;
+    if (aprsFilterTypes && aprsFilterTypes.length > 0) {
+      result = result.filter(n => aprsFilterTypes.includes(n.node_type));
+    }
+    if (aprsSearchQuery.length >= 2) {
+      const q = aprsSearchQuery.toLowerCase();
+      result = result.filter(n =>
+        (n.callsign || "").toLowerCase().includes(q) ||
+        (n.location_name || "").toLowerCase().includes(q) ||
+        (n.network || "").toLowerCase().includes(q)
+      );
+    }
+    return result.length;
+  }, [privateNodes, aprsFilterTypes, aprsSearchQuery]);
 
   // Country list for filter dropdown
   const repeaterCountries = useMemo(() => {
@@ -1179,6 +1209,8 @@ export default function Home() {
               nodes={privateNodes}
               performanceMode={performanceMode}
               userPosition={currentPosition}
+              filterTypes={aprsFilterTypes}
+              searchQuery={aprsSearchQuery}
             />
           )}
 
@@ -1199,6 +1231,17 @@ export default function Home() {
           activeCountries={activeCountries}
           onToggleCountry={handleToggleCountry}
         />
+
+        {activeLayers.includes("private_nodes") && privateNodes.length > 0 && (
+          <AprsFilter
+            filterTypes={aprsFilterTypes}
+            onFilterTypesChange={setAprsFilterTypes}
+            searchQuery={aprsSearchQuery}
+            onSearchQueryChange={setAprsSearchQuery}
+            nodeCount={privateNodes.length}
+            visibleCount={filteredAprsCount}
+          />
+        )}
 
         {activeLayers.includes("repeater") && repeaters.length > 0 && (
           <RepeaterFilter
