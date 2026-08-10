@@ -133,9 +133,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     if (iconCache.has(color)) return iconCache.get(color);
     const icon = L.divIcon({
       className: "repeater-marker-icon",
-      html: `<div style="width:24px;height:24px;">${getMarkerSvg("repeater", color)}</div>`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
+      html: `<div style="width:28px;height:28px;">${getMarkerSvg("repeater", color)}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
     });
     iconCache.set(color, icon);
     return icon;

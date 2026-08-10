@@ -79,16 +79,16 @@ export const MARKER_SHAPES = {
     name: "Sechseck"
   },
   repeater: {
-    // Radio antenna on a mountain
+    // Crossed dipole (turnstile antenna) in circle — distinct from SOTA mountain
     svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-      <path d="M2 24 L10 12 L14 18 L18 10 L26 24 Z" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-      <path d="M10 12 L14 18 L18 10" stroke="white" stroke-width="1" fill="none" opacity="0.4"/>
-      <line x1="18" y1="10" x2="18" y2="4" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
-      <circle cx="18" cy="4" r="1.5" fill="${color}" stroke="white" stroke-width="1"/>
-      <path d="M15 7 Q18 4 21 7" stroke="${color}" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.7"/>
-      <path d="M14 5 Q18 1 22 5" stroke="${color}" stroke-width="0.8" fill="none" stroke-linecap="round" opacity="0.4"/>
+      <circle cx="14" cy="14" r="11" fill="#253140" stroke="${color}" stroke-width="2.5"/>
+      <g stroke="#EBF1F5" stroke-width="2.2" stroke-linecap="round" fill="none">
+        <line x1="14" y1="14" x2="7" y2="7"/>
+        <line x1="14" y1="14" x2="21" y2="7"/>
+        <line x1="14" y1="14" x2="14" y2="23"/>
+      </g>
     </svg>`,
-    name: "Funkantenne auf Berg"
+    name: "Gekreuzte Dipole"
   },
   private_node: {
     // Private node / hotspot — square with double lightning bolt inside
