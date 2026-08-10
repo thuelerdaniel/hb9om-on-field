@@ -2,7 +2,7 @@ import React, { memo, useMemo } from "react";
 import { CircleMarker, Popup, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import { Radio, Globe, Signal, Network, MapPin, Navigation, Hash } from "lucide-react";
-import { getMarkerSvg } from "@/lib/markerShapes";
+import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
 
 const NODE_TYPE_LABELS = {
   hotspot: "Hotspot",
@@ -156,15 +156,17 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
   // Custom SVG icon for private nodes — square with double lightning bolt
   // Cached per color to avoid re-creating L.divIcon on every render
   const iconCache = useMemo(() => new Map(), []);
-  const getNodeIcon = (color) => {
-    if (iconCache.has(color)) return iconCache.get(color);
+  const getNodeIcon = (nodeType, color) => {
+    const cacheKey = `${nodeType}:${color}`;
+    if (iconCache.has(cacheKey)) return iconCache.get(cacheKey);
+    const symbol = APRS_SYMBOLS[nodeType] || APRS_SYMBOLS.other;
     const icon = L.divIcon({
       className: "private-node-marker-icon",
-      html: `<div style="width:28px;height:28px;">${getMarkerSvg("private_node", color)}</div>`,
+      html: `<div style="width:28px;height:28px;">${symbol.svg(color)}</div>`,
       iconSize: [28, 28],
       iconAnchor: [14, 14],
     });
-    iconCache.set(color, icon);
+    iconCache.set(cacheKey, icon);
     return icon;
   };
 
@@ -198,7 +200,7 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
           <Marker
             key={`pn-${n.id || idx}`}
             position={[n.lat, n.lng]}
-            icon={getNodeIcon(color)}
+            icon={getNodeIcon(n.node_type, color)}
           >
             {popup}
           </Marker>

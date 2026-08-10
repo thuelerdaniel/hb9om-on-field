@@ -76,7 +76,8 @@ const SECTIONS = [
           { icon: Castle, color: "#e67e22", name: "Burgen/Schlösser", desc: "Burg mit Zinnen und Tor – WCA/COTA Referenzen" },
           { icon: Diamond, color: "#3498db", name: "IOTA", desc: "Raute mit Welle – Inseln (Schweiz hat keine IOTA-Referenzen)" },
           { icon: Anchor, color: "#f39c12", name: "Leuchttürme", desc: "Leuchtturm mit Lichtstrahlen – ARLHS WLOL Referenzen" },
-          { icon: Hexagon, color: "#16a085", name: "BLN/Moor", desc: "Sechseck mit Blatt – Bundesinventare / Naturzonen" }
+          { icon: Hexagon, color: "#16a085", name: "BLN/Moor", desc: "Sechseck mit Blatt – Bundesinventare / Naturzonen" },
+          { icon: Wifi, color: "#8b5cf6", name: "APRS", desc: "APRS-Standard-Symbole – Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetterstation), Stern mit I (IGate) – farbig nach Node-Typ" }
         ]
       },
       {
@@ -740,7 +741,7 @@ export default function Help() {
               Reaktivieren
             </button>
           </div>
-          <p className="text-xs text-blue-700 mt-1.5">Zeigt die Änderungen zwischen v0.75 und v0.8 nach dem Splash Screen.</p>
+          <p className="text-xs text-blue-700 mt-1.5">Zeigt die Änderungen zwischen v0.8 und v0.9 nach dem Splash Screen.</p>
         </div>
 
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">

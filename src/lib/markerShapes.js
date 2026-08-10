@@ -92,12 +92,11 @@ export const MARKER_SHAPES = {
     name: "Turm mit Blitzsymbol"
   },
   private_node: {
-    // Private node / hotspot — square with double lightning bolt inside
+    // APRS Digipeater — 4-zackiger Stern (APRS-Standard-Symbol)
     svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3" y="3" width="22" height="22" rx="3" fill="${color}" stroke="white" stroke-width="1.5"/>
-      <path d="M15 6 L9 15 L13 15 L11 22 L19 12 L15 12 Z" fill="white"/>
+      <path d="M14 2 L17 11 L26 14 L17 17 L14 26 L11 17 L2 14 L11 11 Z" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
     </svg>`,
-    name: "Viereck mit Doppelblitz"
+    name: "APRS-Stern (Digipeater)"
   },
   custom: {
     // Default circle pin

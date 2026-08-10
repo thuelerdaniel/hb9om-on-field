@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Gift, Check, Eye } from "lucide-react";
+import { X, Gift, Check, Eye, AlertTriangle } from "lucide-react";
 import { APP_VERSION } from "@/lib/constants";
 
 const STORAGE_KEY = "hb9om_changelog_seen";
@@ -127,6 +127,16 @@ export default function VersionChangelogPopup({ onClose }) {
               </ul>
             </div>
           ))}
+        </div>
+
+        {/* Data sources note */}
+        <div className="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-100 dark:border-amber-900">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+              <strong>Hinweis:</strong> Es sind noch nicht alle Datenquellen eingefügt und abgefragt. Es ist möglich, dass für bestimmte Kontinente oder Länder noch keine Informationen verfügbar sind. Die Datenbank wird laufend erweitert.
+            </p>
+          </div>
         </div>
 
         {/* Footer */}

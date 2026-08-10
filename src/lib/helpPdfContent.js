@@ -42,7 +42,8 @@ export const MARKER_SYMBOLS = [
   { icon: "diamond", shape: "iota", color: "#3498db", name: "IOTA", desc: "Inseln (Schweiz hat keine IOTA) – Karte: Raute mit Welle" },
   { icon: "anchor", shape: "lighthouse", color: "#f39c12", name: "Leuchttürme", desc: "ARLHS WLOL Referenzen – Karte: Leuchtturm mit Licht" },
   { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" },
-  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais (Turm mit Blitz)", desc: "Amateurfunk-Relais weltweit – 80+ Laender inkl. USA (50 Bundesstaaten) & Kanada (13 Provinzen) – Karte: Turm mit Blitzsymbol, farbig nach Modulation" }
+  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais (Turm mit Blitz)", desc: "Amateurfunk-Relais weltweit – 80+ Laender inkl. USA (50 Bundesstaaten) & Kanada (13 Provinzen) – Karte: Turm mit Blitzsymbol, farbig nach Modulation" },
+  { icon: "wifi", shape: "private_node", color: "#8b5cf6", name: "APRS", desc: "APRS-Stationen weltweit – Symbole nach APRS-Standard: Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetter), Stern mit I (IGate) – farbig nach Node-Typ" }
 ];
 
 // UI-Icons auf der Karte – Lucide-Icon-Namen wie in der App
@@ -728,15 +729,16 @@ export const SECTIONS = [
         tip: "Tipp: Melden Sie Crosslinks, EchoLink-Verbindungen, Brandmeister-Talkgroups oder andere Netzwerk-Verlinkungen."
       },
       {
-        title: "Private Nodes & Hotspots",
-        body: "Die Ebene «Private Nodes & Hotspots» zeigt private Knoten, Hotspots, AllStar- und EchoLink-Nodes auf der Karte. Die Daten stammen von RepeaterBook und APRS.fi. Private Nodes werden mit einem violetten Viereck (Doppelblitz) dargestellt. APRS.fi liefert zusaetzliche Stationen wie Digipeater, IGates und Hotspots weltweit.",
+        title: "APRS – Amateur Radio Positioning",
+        body: "Die Ebene «APRS – Amateur Radio Positioning» zeigt APRS-Stationen weltweit auf der Karte: Digipeater, IGates, Hotspots, AllStar- und EchoLink-Nodes sowie Wetterstationen. Die Daten stammen von APRS.fi. Jeder Node-Typ wird mit dem entsprechenden APRS-Standard-Symbol dargestellt – farbig nach Typ. Ueber den APRS-Filter (Wifi-Icon oben links) koennen einzelne Node-Typen ein- und ausgeschaltet werden.",
         steps: [
           { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
-          { icon: "wifi", text: "«Private Nodes & Hotspots» aktivieren" },
-          { icon: "mapPin", text: "Violette Vierecke zeigen Nodes an" },
+          { icon: "wifi", text: "«APRS – Amateur Radio Positioning» aktivieren" },
+          { icon: "wifi", text: "APRS-Filter (Wifi-Icon oben links) fuer Node-Typ-Filter" },
+          { icon: "mapPin", text: "Symbole nach APRS-Standard: Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetter)" },
           { icon: "mapPin", text: "Popup antippen fuer Node-Details" }
         ],
-        tip: "Tipp: Admins koennen APRS.fi-Daten ueber das Admin-Panel aktualisieren (APRS.fi-Button)."
+        tip: "Tipp: Nicht fuer alle Kontinente/Laender sind bereits APRS-Daten verfuegbar. Die Datenbank wird laufend erweitert."
       },
       {
         title: "Kontinent-Filter",
@@ -864,6 +866,29 @@ export const REPEATER_LINKING_INFO = {
     "RepeaterBook-Crosslinks aus den Detailseiten werden geparst",
     "Admin-bestätigte Verlinkungen können manuell hinzugefügt werden",
     "Temporäre Verlinkungen werden nicht angezeigt (nur permanente)"
+  ]
+};
+
+// === APRS-Filter Erklärung ===
+export const APRS_FILTER_INFO = {
+  title: "APRS-Filter",
+  description: "Der APRS-Filter blendet APRS-Stationen nach Node-Typ ein und aus. Die Symbole entsprechen dem APRS-Standard (aprs.org).",
+  nodeTypes: [
+    { type: "hotspot", symbol: "Haus", aprsCode: "/H", desc: "Private Hotspots (DMR, D-STAR, Fusion)" },
+    { type: "simplex_node", symbol: "Radio", aprsCode: "/r", desc: "Simplex-Nodes mit fester Frequenz" },
+    { type: "repeater_node", symbol: "Stern (Digipeater)", aprsCode: "/#", desc: "Digipeater und Repeater-Nodes" },
+    { type: "allstar_node", symbol: "Stern mit A", aprsCode: "/n", desc: "AllStar-Link-Nodes" },
+    { type: "echolink_node", symbol: "Stern mit I (IGate)", aprsCode: "/i", desc: "EchoLink-IGates und EchoLink-Nodes" },
+    { type: "weather_station", symbol: "Quadrat mit W", aprsCode: "/W", desc: "APRS-Wetterstationen" },
+    { type: "other", symbol: "Kreis", aprsCode: "/O", desc: "Sonstige APRS-Stationen" }
+  ],
+  rules: [
+    "Node-Typ-Filter: einzelne Typen ein-/ausschalten (Hotspot, Digipeater, IGate, Wetter, etc.)",
+    "Suche: nach Rufzeichen, Ort oder Netzwerk suchen",
+    "Symbole entsprechen dem APRS-Standard (aprs.org)",
+    "Datenquelle: APRS.fi API (Digipeater, IGates, Wetterstationen, Hotspots weltweit)",
+    "Admin: APRS.fi-Daten ueber das Admin-Panel aktualisieren",
+    "Hinweis: Nicht fuer alle Kontinente/Laender sind bereits APRS-Daten verfuegbar"
   ]
 };
 

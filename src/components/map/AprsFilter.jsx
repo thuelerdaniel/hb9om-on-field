@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Wifi, Search, ChevronDown, X } from "lucide-react";
+import { Wifi, Search, ChevronDown, X, Info } from "lucide-react";
 import { NODE_TYPE_LABELS, NODE_COLORS } from "@/components/map/PrivateNodeLayer";
+import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
 
 const ALL_TYPES = Object.keys(NODE_TYPE_LABELS);
 
@@ -97,8 +98,8 @@ export default function AprsFilter({
                     }`}
                   >
                     <span
-                      className="w-3 h-3 flex-shrink-0 rounded-sm border-2 border-white shadow"
-                      style={{ backgroundColor: color }}
+                      className="w-6 h-6 flex-shrink-0"
+                      dangerouslySetInnerHTML={{ __html: (APRS_SYMBOLS[type] || APRS_SYMBOLS.other).svg(color) }}
                     />
                     <span className={`flex-1 text-left ${isActive ? "text-gray-900 font-medium" : "text-gray-500"}`}>
                       {NODE_TYPE_LABELS[type]}
@@ -113,6 +114,26 @@ export default function AprsFilter({
                 ⚠ Mindestens ein Node-Typ muss aktiv sein.
               </p>
             )}
+          </div>
+
+          <div className="p-3 border-b border-gray-100">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Info className="w-3.5 h-3.5 text-gray-400" />
+              <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">APRS-Symbole</h4>
+            </div>
+            <p className="text-[10px] text-gray-400 mb-2">Symbole nach APRS-Standard (aprs.org). Auf der Karte wird pro Node-Typ das entsprechende Symbol angezeigt.</p>
+            <div className="grid grid-cols-2 gap-1">
+              {ALL_TYPES.map(type => {
+                const color = NODE_COLORS[type] || NODE_COLORS.other;
+                const symbol = APRS_SYMBOLS[type] || APRS_SYMBOLS.other;
+                return (
+                  <div key={type} className="flex items-center gap-1.5 px-1.5 py-1 bg-gray-50 rounded">
+                    <span className="w-5 h-5 flex-shrink-0" dangerouslySetInnerHTML={{ __html: symbol.svg(color) }} />
+                    <span className="text-[10px] text-gray-600 truncate">{NODE_TYPE_LABELS[type]}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className="p-3">

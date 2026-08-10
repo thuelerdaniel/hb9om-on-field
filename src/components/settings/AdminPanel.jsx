@@ -40,7 +40,19 @@ export default function AdminPanel({
   const [coverageScope, setCoverageScope] = useState("CH");
   const [progressLoading, setProgressLoading] = useState(false);
   const [markingRecalc, setMarkingRecalc] = useState(false);
+  const [aprsCache, setAprsCache] = useState(null);
   const { toast } = useToast();
+
+  const fetchAprsCache = async () => {
+    try {
+      const nodes = await base44.asServiceRole.entities.PrivateNode.list("-created_date", 5000);
+      const byType = {};
+      for (const n of nodes) {
+        byType[n.node_type] = (byType[n.node_type] || 0) + 1;
+      }
+      setAprsCache({ total: nodes.length, byType });
+    } catch {}
+  };
 
   const fetchCoverageProgress = async () => {
     setProgressLoading(true);
@@ -56,6 +68,7 @@ export default function AdminPanel({
 
   useEffect(() => {
     fetchCoverageProgress();
+    fetchAprsCache();
   }, []);
 
   const handleMarkForRecalc = async () => {
@@ -289,6 +302,40 @@ export default function AdminPanel({
           <p className="text-[10px] text-gray-400 mt-1">
             {coverageProgress.global.countriesCovered || 0} Länder · {coverageProgress.global.calculated || 0} Relais berechnet
           </p>
+        </section>
+      )}
+
+      {/* APRS Cache Status */}
+      {aprsCache && aprsCache.total > 0 && (
+        <section className="bg-purple-50 rounded-xl border-2 border-purple-200 p-4">
+          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+            <Signal className="w-4 h-4 text-purple-600" /> APRS-Cache
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <div className="text-center">
+              <div className="text-xl font-bold text-purple-600">{aprsCache.total}</div>
+              <div className="text-[10px] text-gray-500">Stationen gesamt</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-600">{aprsCache.byType.repeater_node || 0}</div>
+              <div className="text-[10px] text-gray-500">Digipeater</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-indigo-600">{aprsCache.byType.echolink_node || 0}</div>
+              <div className="text-[10px] text-gray-500">IGates/EchoLink</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-green-600">{aprsCache.byType.weather_station || 0}</div>
+              <div className="text-[10px] text-gray-500">Wetterstationen</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {aprsCache.byType.hotspot > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Hotspots: {aprsCache.byType.hotspot}</span>}
+            {aprsCache.byType.simplex_node > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">Simplex: {aprsCache.byType.simplex_node}</span>}
+            {aprsCache.byType.allstar_node > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">AllStar: {aprsCache.byType.allstar_node}</span>}
+            {aprsCache.byType.other > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">Sonstige: {aprsCache.byType.other}</span>}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-2">Quelle: APRS.fi · Symbole nach APRS-Standard</p>
         </section>
       )}
 
