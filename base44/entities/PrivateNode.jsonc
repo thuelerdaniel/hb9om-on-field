@@ -1,0 +1,86 @@
+{
+  "name": "PrivateNode",
+  "type": "object",
+  "properties": {
+    "callsign": {
+      "type": "string",
+      "description": "Rufzeichen des Nodes/Hotspots"
+    },
+    "node_type": {
+      "type": "string",
+      "enum": [
+        "hotspot",
+        "simplex_node",
+        "repeater_node",
+        "allstar_node",
+        "echolink_node",
+        "other"
+      ],
+      "default": "hotspot",
+      "description": "Typ des Nodes"
+    },
+    "frequency": {
+      "type": "number",
+      "description": "Frequenz in MHz (bei Simplex/Repeater Nodes)"
+    },
+    "mode": {
+      "type": "string",
+      "description": "Modulationsart (DMR, D-STAR, Fusion, P25, etc.)"
+    },
+    "network": {
+      "type": "string",
+      "description": "Netzwerk (Brandmeister, DMR+, XLX, DCS, EchoLink, AllStar, etc.)"
+    },
+    "node_number": {
+      "type": "string",
+      "description": "Node-Nummer (DMR ID, EchoLink Node, AllStar Node, etc.)"
+    },
+    "location_name": {
+      "type": "string",
+      "description": "Standort-Name"
+    },
+    "country": {
+      "type": "string",
+      "description": "Land"
+    },
+    "country_code": {
+      "type": "string",
+      "description": "Laendercode (z.B. CH, DE, FR)"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "description": {
+      "type": "string",
+      "description": "Zusaetzliche Beschreibung"
+    },
+    "source": {
+      "type": "string",
+      "description": "Datenquelle"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "unknown"
+      ],
+      "default": "unknown",
+      "description": "Betriebsstatus"
+    }
+  },
+  "required": [
+    "callsign"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

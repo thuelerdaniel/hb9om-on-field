@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Radio, Search, Link2, ChevronDown, X, Globe } from "lucide-react";
+import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES } from "@/lib/repeaterModes";
 
 export default function RepeaterFilter({
@@ -14,6 +14,9 @@ export default function RepeaterFilter({
   countries,
   repeaterCount,
   visibleCount,
+  radiusKm,
+  onRadiusKmChange,
+  userPosition,
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -161,6 +164,40 @@ export default function RepeaterFilter({
             </div>
           </div>
 
+          {/* Radius filter from user position */}
+          {userPosition && (
+            <div className="p-3 border-b border-gray-100">
+              <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-2">
+                <MapPin className="w-3 h-3" /> Radius-Filter
+              </h4>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min="0"
+                  max="500"
+                  step="5"
+                  value={radiusKm || 0}
+                  onChange={e => onRadiusKmChange(parseInt(e.target.value))}
+                  className="flex-1 accent-blue-500"
+                />
+                <span className="text-xs font-mono text-gray-600 w-14 text-right">
+                  {radiusKm > 0 ? `${radiusKm} km` : "Alle"}
+                </span>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">
+                Nur Relais innerhalb dieses Radius von Ihrer Position anzeigen
+              </p>
+              {radiusKm > 0 && (
+                <button
+                  onClick={() => onRadiusKmChange(0)}
+                  className="text-[10px] text-blue-600 hover:underline mt-1"
+                >
+                  Filter zurücksetzen
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Linking lines toggle */}
           <div className="p-3 border-b border-gray-100">
             <button
@@ -176,7 +213,7 @@ export default function RepeaterFilter({
               </span>
             </button>
             <p className="text-[10px] text-gray-400 mt-1 ml-2">
-              Strichverbindungen zwischen Relais mit gleichem Rufzeichen auf verschiedenen Bändern
+              Permanente Verlinkungen: echte Crosslinks aus RepeaterBook + admin-bestätigte Verlinkungen. Temporäre Verlinkungen werden nicht angezeigt.
             </p>
           </div>
 

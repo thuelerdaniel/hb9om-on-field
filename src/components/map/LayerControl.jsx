@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
 const LAYER_GROUPS = [
@@ -8,21 +8,21 @@ const LAYER_GROUPS = [
     label: "SOTA – Summits on the Air",
     icon: Mountain,
     color: "#e74c3c",
-    description: "Gipfel-Referenzen für Amateurfunk"
+    description: "Berggipfel-Referenzen weltweit (SOTA)"
   },
   {
     id: "pota",
     label: "POTA – Parks on the Air",
     icon: Trees,
     color: "#27ae60",
-    description: "Park-Referenzen für Amateurfunk"
+    description: "Park- und Schutzgebiet-Referenzen weltweit (POTA)"
   },
   {
     id: "hbff",
     label: "HBFF – Flora & Fauna",
     icon: Trees,
     color: "#8e44ad",
-    description: "Schweizer Naturschutzgebiete"
+    description: "Flora-Fauna-Referenzen (weltweit)"
   },
   {
     id: "wwbota",
@@ -36,42 +36,49 @@ const LAYER_GROUPS = [
     label: "Burgen / Schlösser (WCA/COTA)",
     icon: Castle,
     color: "#e67e22",
-    description: "Burgen- und Schloss-Referenzen"
+    description: "Burgen- und Schloss-Referenzen weltweit"
   },
   {
     id: "iota",
     label: "IOTA – Islands on the Air",
     icon: MapPin,
     color: "#3498db",
-    description: "Insel-Referenzen"
+    description: "Insel-Referenzen weltweit"
   },
   {
     id: "lighthouse",
     label: "WLOTA / ILLW – Leuchttürme",
     icon: Anchor,
     color: "#f39c12",
-    description: "Leuchtturm-Referenzen"
+    description: "Leuchtturm-Referenzen weltweit"
   },
   {
     id: "swiss_protected",
-    label: "HBFF und Natur Zonen",
+    label: "HBFF und Natur Zonen (CH)",
     icon: Trees,
     color: "#16a085",
-    description: "BLN, Moore, Vogelreservate"
+    description: "BLN, Moore, Vogelreservate (nur Schweiz — map.geo.admin.ch)"
   },
   {
     id: "hazards",
-    label: "Gefahren & Störquellen",
+    label: "Gefahren & Störquellen (CH)",
     icon: Zap,
     color: "#dc2626",
-    description: "Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender (map.geo.admin.ch)"
+    description: "Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender (nur Schweiz — map.geo.admin.ch)"
   },
   {
     id: "repeater",
     label: "Amateurfunk-Relais (RepeaterBook)",
     icon: Radio,
     color: "#3b82f6",
-    description: "FM, C4FM, DMR, D-STAR Relais mit Verlinkungen und Filter"
+    description: "Weltweite FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen, Radius-Filter und Notstrom-Info"
+  },
+  {
+    id: "private_nodes",
+    label: "Private Nodes & Hotspots",
+    icon: Wifi,
+    color: "#8b5cf6",
+    description: "Private Nodes, Hotspots, AllStar/EchoLink-Nodes für Netzwerk-Zugang"
   }
 ];
 

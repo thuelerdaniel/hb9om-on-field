@@ -249,12 +249,14 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
 
 // ─── Detail page parser ───
 
-export function parseRepeaterDetail(html: string): { lat: number | null; lng: number | null; web_url: string | null; echolink_node: string | null; network_links: string } {
+export function parseRepeaterDetail(html: string): { lat: number | null; lng: number | null; web_url: string | null; echolink_node: string | null; network_links: string; has_emergency_power: boolean; power_source: string } {
   let lat: number | null = null;
   let lng: number | null = null;
   let web_url: string | null = null;
   let echolink_node: string | null = null;
   let network_links = '';
+  let has_emergency_power = false;
+  let power_source = 'unknown';
 
   const gmMatch = html.match(/google\.com\/maps\/search\/[^"]*query=([\d.-]+)(?:%2C|,)([\d.-]+)/);
   if (gmMatch) {
@@ -275,7 +277,10 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
     if (linkMatch) web_url = linkMatch[1];
   }
 
-  const elMatch = html.match(/Node Number[\s\S]*?(\d{4,7})\s/);
+  // EchoLink node number — try multiple patterns
+  const elMatch = html.match(/EchoLink[^]*?Node\s*(?:Number|#)?\s*[:>]?\s*(\d{3,7})/i)
+    || html.match(/Node Number[\s\S]*?(\d{4,7})\s/)
+    || html.match(/EL-\s*(\d{3,7})/);
   if (elMatch) echolink_node = elMatch[1];
 
   // Extract actual crosslink data from the "Crosslinked to / with" textarea
@@ -288,7 +293,22 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
       .trim();
   }
 
-  return { lat, lng, web_url, echolink_node, network_links };
+  // Parse power / backup power info from detail page
+  // RepeaterBook shows "Backup Power" and "Solar Power" as features
+  const lowerHtml = html.toLowerCase();
+  if (lowerHtml.includes('solar') || lowerHtml.includes('photovoltaic')) {
+    has_emergency_power = true;
+    power_source = 'solar';
+  }
+  if (lowerHtml.includes('backup power') || lowerHtml.includes('battery') || lowerHtml.includes('ups') || lowerHtml.includes('emergency power') || lowerHtml.includes('notstrom')) {
+    has_emergency_power = true;
+    if (power_source === 'unknown') power_source = 'notstrom';
+  }
+  if (lowerHtml.includes('ac power only') || lowerHtml.includes('grid only') || lowerHtml.includes('netzstrom')) {
+    if (power_source === 'unknown') power_source = 'netz';
+  }
+
+  return { lat, lng, web_url, echolink_node, network_links, has_emergency_power, power_source };
 }
 
 // Parse the free-text network_links field into a list of linked repeater identifiers.
@@ -361,6 +381,10 @@ export async function fetchRepeaterData(): Promise<any[]> {
         if (detail.web_url) rep.web_url = detail.web_url;
         if (detail.echolink_node) rep.echolink_node = detail.echolink_node;
         if (detail.network_links) rep.network_links = detail.network_links;
+        if (detail.has_emergency_power) {
+          rep.has_emergency_power = detail.has_emergency_power;
+          rep.power_source = detail.power_source;
+        }
       } catch {
         // skip failed detail pages
       }
@@ -398,4 +422,100 @@ export async function fetchRepeaterData(): Promise<any[]> {
   }
 
   return allRepeaters;
+}
+
+// ─── Private Nodes / Hotspots ───
+// Scrape RepeaterBook's "Nodes" section for AllStar, EchoLink, and private nodes.
+// These are standalone nodes (not repeaters) that provide access to networks.
+
+const NODE_LIST_BASE = 'https://www.repeaterbook.com/row_repeaters/Display_SS.php';
+
+export async function fetchPrivateNodeData(): Promise<any[]> {
+  const nodes: any[] = [];
+  // RepeaterBook doesn't have a dedicated "private nodes" page, but AllStar/EchoLink
+  // nodes appear in the repeater list with type "Node". We filter for those.
+  // Also check for AllStar nodes via the AllStar Network API.
+  for (let i = 0; i < COUNTRIES.length; i += LIST_CONCURRENCY) {
+    const chunk = COUNTRIES.slice(i, i + LIST_CONCURRENCY);
+    const results = await Promise.all(chunk.map(async (country) => {
+      try {
+        const url = `${NODE_LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}&system=Node`;
+        const resp = await fetch(url, {
+          headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
+        });
+        if (!resp.ok) return [];
+        const html = await resp.text();
+        // Parse nodes from the table — same structure as repeaters but with node type
+        const rows = html.split(/<tr[\s>]/);
+        const countryNodes: any[] = [];
+        for (const row of rows) {
+          const idMatch = row.match(/data-rpt-id="(\d+)"/);
+          if (!idMatch) continue;
+          const cells: string[] = [];
+          const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
+          let tdMatch;
+          while ((tdMatch = tdRegex.exec(row)) !== null) {
+            const content = tdMatch[1].replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
+            cells.push(content);
+          }
+          const callsign = cells[4] || '';
+          if (!callsign) continue;
+          const freqMatch = row.match(/<a[^>]*>\s*([\d.]+)\s*<\/a>/);
+          const frequency = freqMatch ? parseFloat(freqMatch[1]) : null;
+          const locationName = cells[3] || '';
+
+          // Try to get coords from detail page link
+          const detailId = idMatch[1];
+          const detailUrl = `${DETAIL_BASE}?state_id=${country.code}&ID=${detailId}`;
+
+          countryNodes.push({
+            callsign,
+            node_type: 'allstar_node',
+            frequency: frequency || 0,
+            mode: 'AllStar',
+            network: 'AllStar Link',
+            node_number: detailId,
+            location_name: locationName,
+            country: country.name,
+            country_code: country.code,
+            lat: null as number | null,
+            lng: null as number | null,
+            detailUrl,
+            source: 'RepeaterBook',
+          });
+        }
+        return countryNodes;
+      } catch {
+        return [];
+      }
+    }));
+    for (const cn of results) nodes.push(...cn);
+  }
+
+  // Fetch detail pages for coordinates (limited to first 500 for performance)
+  const toFetch = nodes.slice(0, 500);
+  for (let i = 0; i < toFetch.length; i += DETAIL_CONCURRENCY) {
+    const chunk = toFetch.slice(i, i + DETAIL_CONCURRENCY);
+    await Promise.all(chunk.map(async (node) => {
+      try {
+        const resp = await fetch(node.detailUrl, {
+          headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
+        });
+        if (!resp.ok) return;
+        const html = await resp.text();
+        const detail = parseRepeaterDetail(html);
+        if (detail.lat !== null) node.lat = detail.lat;
+        if (detail.lng !== null) node.lng = detail.lng;
+        if (detail.echolink_node) {
+          node.node_number = detail.echolink_node;
+          node.network = 'EchoLink';
+          node.node_type = 'echolink_node';
+          node.mode = 'EchoLink';
+        }
+      } catch {}
+    }));
+  }
+
+  // Only return nodes with coordinates
+  return nodes.filter(n => n.lat !== null && n.lng !== null);
 }

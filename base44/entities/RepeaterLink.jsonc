@@ -1,0 +1,106 @@
+{
+  "name": "RepeaterLink",
+  "type": "object",
+  "properties": {
+    "from_callsign": {
+      "type": "string",
+      "description": "Rufzeichen des Quell-Relais"
+    },
+    "from_frequency": {
+      "type": "number",
+      "description": "Frequenz des Quell-Relais in MHz"
+    },
+    "from_lat": {
+      "type": "number",
+      "description": "Breitengrad des Quell-Relais"
+    },
+    "from_lng": {
+      "type": "number",
+      "description": "Laengengrad des Quell-Relais"
+    },
+    "to_callsign": {
+      "type": "string",
+      "description": "Rufzeichen des Ziel-Relais"
+    },
+    "to_frequency": {
+      "type": "number",
+      "description": "Frequenz des Ziel-Relais in MHz"
+    },
+    "to_lat": {
+      "type": "number",
+      "description": "Breitengrad des Ziel-Relais"
+    },
+    "to_lng": {
+      "type": "number",
+      "description": "Laengengrad des Ziel-Relais"
+    },
+    "link_type": {
+      "type": "string",
+      "enum": [
+        "permanent",
+        "temporary"
+      ],
+      "default": "permanent",
+      "description": "Art der Verlinkung (nur permanente werden auf der Karte angezeigt)"
+    },
+    "color": {
+      "type": "string",
+      "default": "#3b82f6",
+      "description": "Farbe der Verbindungslinie (Hex-Code)"
+    },
+    "line_style": {
+      "type": "string",
+      "enum": [
+        "solid",
+        "dashed",
+        "dotted"
+      ],
+      "default": "dashed",
+      "description": "Strichart der Verbindungslinie"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Status des Verlinkungsvorschlags"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung der Verlinkung (z.B. Crosslink, EchoLink, Brandmeister)"
+    },
+    "network": {
+      "type": "string",
+      "description": "Netzwerk (z.B. Brandmeister, XLX, EchoLink, WIRES-X)"
+    },
+    "submitted_by_name": {
+      "type": "string",
+      "description": "Rufzeichen/Name des Antragstellers"
+    },
+    "reviewed_by_name": {
+      "type": "string",
+      "description": "Name des pruefenden Admins"
+    },
+    "admin_comment": {
+      "type": "string",
+      "description": "Kommentar des Admins bei Genehmigung/Ablehnung"
+    }
+  },
+  "required": [
+    "from_callsign",
+    "to_callsign"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

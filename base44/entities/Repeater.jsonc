@@ -77,6 +77,22 @@
       "default": false,
       "description": "Auf FM-Funknetz.de anhoerbar"
     },
+    "has_emergency_power": {
+      "type": "boolean",
+      "default": false,
+      "description": "Notstromversorgung vorhanden (Batterie/USV/Solar)"
+    },
+    "power_source": {
+      "type": "string",
+      "enum": [
+        "netz",
+        "notstrom",
+        "solar",
+        "unknown"
+      ],
+      "default": "unknown",
+      "description": "Stromversorgung (Netz, Notstrom, Solar)"
+    },
     "source_id": {
       "type": "string",
       "description": "RepeaterBook-ID"
@@ -86,7 +102,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Verlinkte Rufzeichen (gleiches Relais auf anderen Baendern)"
+      "description": "Verlinkte Rufzeichen (nur permanente Crosslinks aus RepeaterBook)"
     }
   },
   "required": [

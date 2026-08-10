@@ -78,6 +78,29 @@ export const MARKER_SHAPES = {
     </svg>`,
     name: "Sechseck"
   },
+  repeater: {
+    // Radio antenna on a mountain
+    svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 24 L10 12 L14 18 L18 10 L26 24 Z" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M10 12 L14 18 L18 10" stroke="white" stroke-width="1" fill="none" opacity="0.4"/>
+      <line x1="18" y1="10" x2="18" y2="4" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="18" cy="4" r="1.5" fill="${color}" stroke="white" stroke-width="1"/>
+      <path d="M15 7 Q18 4 21 7" stroke="${color}" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <path d="M14 5 Q18 1 22 5" stroke="${color}" stroke-width="0.8" fill="none" stroke-linecap="round" opacity="0.4"/>
+    </svg>`,
+    name: "Funkantenne auf Berg"
+  },
+  private_node: {
+    // Private node / hotspot — small house with antenna and signal waves
+    svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 24 L4 12 L14 4 L24 12 L24 24 Z" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <line x1="14" y1="4" x2="14" y2="1" stroke="${color}" stroke-width="1.2" stroke-linecap="round"/>
+      <circle cx="14" cy="1" r="1" fill="${color}"/>
+      <path d="M11 3 Q14 0 17 3" stroke="${color}" stroke-width="0.8" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <rect x="11" y="16" width="6" height="8" fill="white" opacity="0.3" rx="0.5"/>
+    </svg>`,
+    name: "Privater Node / Hotspot"
+  },
   custom: {
     // Default circle pin
     svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">

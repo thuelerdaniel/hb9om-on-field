@@ -4,6 +4,7 @@ import { ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCirc
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
 import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
+import RepeaterLinkManager from "@/components/admin/RepeaterLinkManager";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",

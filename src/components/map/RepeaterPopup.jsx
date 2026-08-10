@@ -1,5 +1,5 @@
-import React from "react";
-import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin } from "lucide-react";
+import React, { useState } from "react";
+import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, STATUS_LABELS } from "@/lib/repeaterModes";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -16,7 +16,15 @@ function formatDistance(km) {
   return `${Math.round(km)} km`;
 }
 
-export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosition }) {
+const POWER_INFO = {
+  netz: { icon: Zap, label: "Netzstrom", color: "#6b7280" },
+  notstrom: { icon: Battery, label: "Notstrom (Batterie/USV)", color: "#22c55e" },
+  solar: { icon: Sun, label: "Solar", color: "#f59e0b" },
+  unknown: null,
+};
+
+export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosition, onSuggestLink }) {
+  const [showSuggestHint, setShowSuggestHint] = useState(false);
   const statusInfo = STATUS_LABELS[repeater.status] || STATUS_LABELS.unknown;
   const hasCoords = repeater.lat != null && repeater.lng != null;
   const navUrl = hasCoords
@@ -25,6 +33,7 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
   const distance = hasCoords && userPosition
     ? haversineKm(userPosition[0], userPosition[1], repeater.lat, repeater.lng)
     : null;
+  const powerInfo = POWER_INFO[repeater.power_source] || null;
 
   return (
     <div className="text-xs min-w-[200px] max-w-[260px]">
@@ -95,10 +104,17 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         </div>
       )}
 
+      {powerInfo && (
+        <div className="flex items-center gap-1 text-[11px] mb-1.5 rounded px-1.5 py-1" style={{ color: powerInfo.color, backgroundColor: powerInfo.color + "15" }}>
+          <powerInfo.icon className="w-3 h-3" />
+          <span>Stromversorgung: <span className="font-medium">{powerInfo.label}</span></span>
+        </div>
+      )}
+
       {repeater.echolink_node && (
-        <div className="flex items-center gap-1 text-[11px] text-indigo-600 mb-1.5">
+        <div className="flex items-center gap-1 text-[11px] text-indigo-600 mb-1.5 bg-indigo-50 rounded px-1.5 py-1">
           <Link2 className="w-3 h-3" />
-          <span>EchoLink: <span className="font-mono font-medium">{repeater.echolink_node}</span></span>
+          <span>EchoLink-Node: <span className="font-mono font-bold">{repeater.echolink_node}</span></span>
         </div>
       )}
 
@@ -112,7 +128,7 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
       {linkedRepeaters.length > 0 && (
         <div className="mb-2 border-t border-gray-100 pt-2">
           <div className="text-[10px] text-gray-400 uppercase mb-1 flex items-center gap-1">
-            <Link2 className="w-3 h-3" /> Verlinkte Relais ({linkedRepeaters.length})
+            <Link2 className="w-3 h-3" /> Permanente Verlinkungen ({linkedRepeaters.length})
           </div>
           <div className="space-y-0.5">
             {linkedRepeaters.map((lr, i) => (
@@ -123,6 +139,16 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
             ))}
           </div>
         </div>
+      )}
+
+      {onSuggestLink && hasCoords && (
+        <button
+          onClick={() => onSuggestLink(repeater)}
+          className="mt-1 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
+        >
+          <Plus className="w-3 h-3" />
+          Verlinkung vorschlagen
+        </button>
       )}
 
       {repeater.web_url && (
