@@ -18,6 +18,16 @@ async function fetchSotaData() {
   }));
 }
 
+async function fetchCastleDataSlim(castleOverrides) {
+  // Worldwide WCA castles — strip to essential fields to stay under MongoDB's 16MB limit.
+  // The full castle objects include wcaName, wcaLocation, canton, matchSource, countryPrefix
+  // which add up to 23MB+ with 50k+ worldwide entries.
+  const castles = await fetchCastleDataComplete(castleOverrides);
+  return castles.map(c => ({
+    code: c.code, name: c.name, lat: c.lat, lng: c.lng
+  }));
+}
+
 async function fetchPotaData() {
   // Worldwide: fetch all POTA entities globally
   const result = await fetchPotaParks('all');
@@ -102,7 +112,7 @@ Deno.serve(async (req) => {
       { type: 'hbff', fn: fetchHbffData },
       { type: 'wwbota', fn: fetchWwbotaData },
       { type: 'lighthouse', fn: fetchLighthouseData },
-      { type: 'castle', fn: () => fetchCastleData(overridesByType.get('castle') || new Map()) },
+      { type: 'castle', fn: () => fetchCastleDataSlim(overridesByType.get('castle') || new Map()) },
     ];
 
     // Run tasks SEQUENTIALLY (not in parallel) to avoid peak memory exhaustion.

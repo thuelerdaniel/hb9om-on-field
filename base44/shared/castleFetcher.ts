@@ -3,7 +3,9 @@
 // geocodes Swiss entries with Swiss-specific methods (map.admin.ch, Swiss Nominatim),
 // non-Swiss entries with worldwide Nominatim, and combines with OSM/Wikidata worldwide.
 
-import { fetchCastleDataWorldwide } from './referenceFetchers.ts';
+// fetchCastleDataWorldwide (OSM + Wikidata worldwide in continental batches) is not used here
+// to avoid timeout. The WCA ODS list provides worldwide coverage; OSM/Wikidata matching uses
+// a single Swiss OSM bbox query + worldwide Wikidata (LIMIT 5000) for direct name matches only.
 
 // --- ODS ZIP parsing helpers ---
 function readUInt16LE(buf: Uint8Array, offset: number): number {
@@ -96,7 +98,7 @@ async function parseWcaOdsWorldwide(): Promise<any[]> {
 
 // --- OSM Overpass: castles within a bbox ---
 async function fetchOsmCastlesInBbox(south: number, west: number, north: number, east: number): Promise<any[]> {
-  const query = `[out:json][timeout:30];(
+  const query = `[out:json][timeout:15];(
     node["historic"~"castle|tower|fort|ruins|manor|city_gate|archaeological_site|fortification"](${south},${west},${north},${east});
     way["historic"~"castle|tower|fort|ruins|manor|city_gate|archaeological_site|fortification"](${south},${west},${north},${east});
   );out center 50000;`;
@@ -373,7 +375,10 @@ function matchWcaToGeo(wcaEntries: any[], geoSources: any[]): any[] {
     let candidates: any[] = [];
     if (wcaNameNorm && nameIndex.has(wcaNameNorm)) {
       candidates = nameIndex.get(wcaNameNorm)!;
-    } else if (!isGeneric) {
+    } else if (!isGeneric && wca.countryPrefix === 'HB') {
+      // Only do expensive O(n×m) fallback matching for Swiss entries,
+      // since geo sources (OSM + Wikidata) are Swiss-only. Skipping this
+      // for non-Swiss entries avoids 250M+ iterations with worldwide WCA data.
       const variations = generateCompoundVariations(wca.name);
       for (const v of variations) {
         if (nameIndex.has(v)) {
@@ -430,94 +435,76 @@ function matchWcaToGeo(wcaEntries: any[], geoSources: any[]): any[] {
 
 // --- Main entry point: fetch ALL castles worldwide (WCA list + OSM + Wikidata) ---
 export async function fetchCastleDataComplete(castleOverrides?: Map<string, any>): Promise<any[]> {
-  // 1. Parse ALL WCA tables (worldwide, not just Swiss HB-HB0)
+  console.log('[castleFetcher] Step 1: Parsing WCA ODS worldwide...');
   const wcaEntries = await parseWcaOdsWorldwide();
+  console.log(`[castleFetcher] Step 1 done: ${wcaEntries.length} WCA entries`);
 
-  // 2. Fetch Swiss OSM + Wikidata castles for matching with WCA entries.
-  //    Worldwide OSM/Wikidata castles are fetched separately by fetchCastleDataWorldwide
-  //    (which uses continental batches to avoid Overpass timeout).
-  const [osmSwissResult, wdSwissResult] = await Promise.allSettled([
+  // 2. Fetch Swiss OSM + worldwide Wikidata castles for matching.
+  //    OSM is bounded to Swiss bbox (fast, 15s timeout). Wikidata is worldwide (LIMIT 5000).
+  //    Both run in parallel to minimize wall time.
+  console.log('[castleFetcher] Step 2: Fetching OSM + Wikidata...');
+  const [osmResult, wdResult] = await Promise.allSettled([
     fetchOsmCastlesInBbox(45.8, 5.9, 48.0, 10.6),
-    fetchWikidataCastles('Q39'),  // Switzerland
+    fetchWikidataCastles(null),  // worldwide
   ]);
-
-  const osmCastles = osmSwissResult.status === 'fulfilled' ? osmSwissResult.value : [];
-  const wdCastles = wdSwissResult.status === 'fulfilled' ? wdSwissResult.value : [];
+  const osmCastles = osmResult.status === 'fulfilled' ? osmResult.value : [];
+  const wdCastles = wdResult.status === 'fulfilled' ? wdResult.value : [];
   const geoSources = [...osmCastles, ...wdCastles];
+  console.log(`[castleFetcher] Step 2 done: ${osmCastles.length} OSM, ${wdCastles.length} Wikidata`);
 
-  // 3. Match WCA entries to geo sources
-  const castles = matchWcaToGeo(wcaEntries, geoSources);
+  // 3. Build name index for direct matching (O(1) lookup — no expensive O(n×m) fallback)
+  const nameIndex = new Map<string, any>();
+  for (const geo of geoSources) {
+    const key = normalizeName(geo.name);
+    if (!key) continue;
+    if (!nameIndex.has(key)) nameIndex.set(key, geo);
+    // Also index flattened (no spaces) version
+    const flat = key.replace(/\s+/g, '');
+    if (flat !== key && !nameIndex.has(flat)) nameIndex.set(flat, geo);
+  }
 
-  // 4. Swiss-specific fallback: map.admin.ch for unmatched Swiss castles (HB- prefix)
-  const swissUnmatched = castles.filter(c =>
-    c.lat === null && c.countryPrefix === 'HB' && !GENERIC_NAMES.has((c.wcaName || '').trim())
-  );
-  if (swissUnmatched.length > 0) {
-    const adminResults = await batchSearchMapAdminCh(
-      swissUnmatched.map(c => ({ name: c.wcaName, location: c.wcaLocation }))
-    );
-    for (let i = 0; i < swissUnmatched.length; i++) {
-      if (adminResults[i]) {
-        swissUnmatched[i].lat = adminResults[i].lat;
-        swissUnmatched[i].lng = adminResults[i].lng;
-        swissUnmatched[i].matchSource = 'map.admin.ch';
+  // 4. Build castle records: direct name match → Maidenhead locator → null
+  const castles = wcaEntries.map(wca => {
+    let lat: number | null = null;
+    let lng: number | null = null;
+    let matchSource: string | null = null;
+
+    // Try direct name match against OSM/Wikidata
+    const wcaNameNorm = normalizeName(wca.name);
+    if (wcaNameNorm) {
+      const match = nameIndex.get(wcaNameNorm) || nameIndex.get(wcaNameNorm.replace(/\s+/g, ''));
+      if (match) {
+        lat = match.lat;
+        lng = match.lng;
+        matchSource = 'osm-wikidata';
       }
     }
-  }
 
-  // 5. Swiss-specific fallback: Wikipedia for remaining unmatched Swiss castles
-  const swissWikiUnmatched = castles.filter(c =>
-    c.lat === null && c.countryPrefix === 'HB' && !GENERIC_NAMES.has((c.wcaName || '').trim())
-  );
-  let wikiCount = 0;
-  for (const c of swissWikiUnmatched) {
-    if (wikiCount >= 50) break;
-    const coords = await searchWikipediaSwiss(c.wcaName, c.wcaLocation);
-    wikiCount++;
-    if (coords) {
-      c.lat = coords.lat;
-      c.lng = coords.lng;
-      c.matchSource = 'wikipedia';
-    }
-    await new Promise(r => setTimeout(r, 300));
-  }
-
-  // 6. Swiss-specific fallback: Nominatim (countrycodes=ch) for remaining Swiss castles
-  const swissNominatimUnmatched = castles.filter(c =>
-    c.lat === null && c.countryPrefix === 'HB' && !GENERIC_NAMES.has((c.wcaName || '').trim())
-  );
-  let swissNominatimCount = 0;
-  for (const c of swissNominatimUnmatched) {
-    if (swissNominatimCount >= 25) break;
-    const coords = await searchNominatimSwiss(c.wcaName, c.wcaLocation);
-    swissNominatimCount++;
-    if (coords) {
-      c.lat = coords.lat;
-      c.lng = coords.lng;
-      c.matchSource = 'geocoding-swiss';
-    }
-    await new Promise(r => setTimeout(r, 1000));
-  }
-
-  // 7. Worldwide fallback: Nominatim skipped for non-Swiss castles to avoid timeout.
-  //    Non-Swiss WCA entries use Maidenhead locator (step 8) or are matched via
-  //    OSM/Wikidata in fetchCastleDataWorldwide (step 10).
-
-  // 8. Final fallback: Maidenhead locator (all countries, imprecise ~5km)
-  for (const c of castles) {
-    if (c.lat !== null) continue;
-    const wca = wcaEntries.find(w => w.wca === c.code);
-    if (wca && wca.locator && wca.locator.length >= 6) {
+    // Fallback: Maidenhead locator from WCA ODS (~5km accuracy)
+    if (lat === null && wca.locator && wca.locator.length >= 4) {
       const coords = maidenheadToLatLng(wca.locator);
       if (coords) {
-        c.lat = coords.lat;
-        c.lng = coords.lng;
-        c.matchSource = 'locator-fallback';
+        lat = coords.lat;
+        lng = coords.lng;
+        matchSource = 'locator';
       }
     }
-  }
 
-  // 9. Apply manual overrides
+    return {
+      code: wca.wca,
+      name: wca.name.charAt(0) + wca.name.slice(1).toLowerCase(),
+      lat, lng,
+      canton: wca.location,
+      link: 'https://wcagroup.org/?page_id=207',
+      wcaName: wca.name,
+      wcaLocation: wca.location,
+      countryPrefix: wca.countryPrefix,
+      matchSource,
+    };
+  });
+  console.log(`[castleFetcher] Step 3 done: ${castles.length} castles, ${castles.filter(c => c.lat !== null).length} with coords`);
+
+  // 5. Apply manual overrides
   for (const c of castles) {
     if (!castleOverrides) continue;
     const override = castleOverrides.get(c.code);
@@ -533,8 +520,5 @@ export async function fetchCastleDataComplete(castleOverrides?: Map<string, any>
     if (override.web_reference) c.link = override.web_reference;
   }
 
-  // 10. OSM/Wikidata-only castles (not in WCA list) are NOT fetched here to avoid timeout.
-  //     The WCA list now contains ALL country tables worldwide, providing comprehensive coverage.
-  //     The separate fetchCastleDataWorldwide (OSM + Wikidata) can be called independently if needed.
   return castles;
 }

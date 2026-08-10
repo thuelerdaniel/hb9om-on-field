@@ -7,8 +7,10 @@ import { fetchCastleDataComplete } from '../../shared/castleFetcher.ts';
 
 Deno.serve(async (req) => {
   try {
+    console.log('[fetchCastles] START');
     const base44 = createClientFromRequest(req);
     const isAuthed = await base44.auth.isAuthenticated();
+    console.log('[fetchCastles] Auth checked:', isAuthed);
     if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     // Fetch admin overrides
@@ -20,21 +22,28 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log('[fetchCastles] Calling fetchCastleDataComplete...');
     const allCastles = await fetchCastleDataComplete(castleOverrides);
+    console.log('[fetchCastles] fetchCastleDataComplete done:', allCastles.length, 'castles');
     const withCoords = allCastles.filter(c => c.lat !== null).length;
 
     // Count by country prefix
     const byCountry: Record<string, number> = {};
+    const byMatchSource: Record<string, number> = {};
     for (const c of allCastles) {
       const prefix = c.code?.split('-')[0] || 'OSM';
       byCountry[prefix] = (byCountry[prefix] || 0) + 1;
+      const ms = c.matchSource || 'unmatched';
+      byMatchSource[ms] = (byMatchSource[ms] || 0) + 1;
     }
 
+    // Return summary stats only — the full array (23MB+) is too large for the response.
+    // The actual data is stored in the ReferenceData entity by refreshAllData.
     return Response.json({
-      castles: allCastles,
       count: allCastles.length,
       matchedWithCoords: withCoords,
       byCountry,
+      byMatchSource,
       source: 'WCA list (worldwide) + OSM + Wikidata'
     });
   } catch (error) {
