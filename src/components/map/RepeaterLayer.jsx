@@ -508,7 +508,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         // Combine RepeaterBook crosslinks + admin-managed links for popup display
         const linkedResolved = [...resolveLinkedRepeaters(r), ...resolveAdminLinks(r)];
         const popup = (
-          <Popup>
+          <Popup autoPan={false}>
             <RepeaterPopup
               repeater={r}
               linkedRepeaters={linkedResolved}

@@ -908,13 +908,34 @@ export default function Home() {
       return;
     }
     const q = debouncedQuery.toLowerCase();
-    const results = allMarkers.filter(m => {
+    const refResults = allMarkers.filter(m => {
       const name = (m.name || "").toLowerCase();
       const code = (m.code || m.reference || "").toLowerCase();
       return name.includes(q) || code.includes(q);
-    }).slice(0, 50);
-    setSearchResults(results);
-  }, [debouncedQuery, allMarkers]);
+    }).slice(0, 30);
+
+    // Also search repeaters by callsign, location, frequency
+    const repeaterResults = (activeLayers.includes("repeater") && repeaters.length > 0)
+      ? repeaters.filter(r => {
+          if (!r.lat || !r.lng) return false;
+          const callsign = (r.callsign || "").toLowerCase();
+          const location = (r.location_name || "").toLowerCase();
+          const country = (r.country || "").toLowerCase();
+          const freq = String(r.frequency || "");
+          return callsign.includes(q) || location.includes(q) || country.includes(q) || freq.includes(q);
+        }).slice(0, 20).map(r => ({
+          ...r,
+          name: `${r.callsign} ${r.frequency?.toFixed(4) || ""} MHz`.trim() + (r.location_name ? ` · ${r.location_name}` : ""),
+          code: r.callsign,
+          reference: r.callsign,
+          layerType: "repeater",
+          color: "#3b82f6",
+          layerLabel: "Relais"
+        }))
+      : [];
+
+    setSearchResults([...refResults, ...repeaterResults].slice(0, 50));
+  }, [debouncedQuery, allMarkers, activeLayers, repeaters]);
 
   const handleSelectResult = (item) => {
     setFlyTo([item.lat, item.lng]);
