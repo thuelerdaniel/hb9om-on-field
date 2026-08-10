@@ -28,8 +28,8 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 const LINE_DASH_ARRAYS = {
   solid: undefined,
-  dashed: "4 4",
-  dotted: "1 4",
+  dashed: "12 8",
+  dotted: "3 6",
 };
 
 function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
@@ -207,18 +207,31 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         );
       })}
 
-      {/* Linking lines (RepeaterBook crosslinks + admin-managed) — visible at higher weight/opacity */}
+      {/* Linking lines (RepeaterBook crosslinks + admin-managed) — halo + thick dashed line for visibility */}
       {visibleLines.map((line, i) => (
-        <Polyline
-          key={`link-${i}`}
-          positions={line.positions}
-          pathOptions={{
-            color: line.color,
-            weight: 3.5,
-            opacity: 0.85,
-            dashArray: LINE_DASH_ARRAYS[line.lineStyle] || LINE_DASH_ARRAYS.dashed,
-          }}
-        />
+        <React.Fragment key={`link-wrap-${i}`}>
+          {/* White halo for contrast against any map background */}
+          <Polyline
+            positions={line.positions}
+            pathOptions={{
+              color: "#ffffff",
+              weight: 7,
+              opacity: 0.7,
+              lineCap: "round",
+            }}
+          />
+          {/* Colored dashed line on top */}
+          <Polyline
+            positions={line.positions}
+            pathOptions={{
+              color: line.color,
+              weight: 4.5,
+              opacity: 0.95,
+              dashArray: LINE_DASH_ARRAYS[line.lineStyle] || LINE_DASH_ARRAYS.dashed,
+              lineCap: "round",
+            }}
+          />
+        </React.Fragment>
       ))}
 
       {/* Repeater markers — antenna icon in full mode, circle in performance mode */}
