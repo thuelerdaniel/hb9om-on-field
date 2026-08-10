@@ -10,11 +10,11 @@ const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
 
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 6000;
+const MAX_DETAIL_FETCH = 10000;
 const MAX_PER_COUNTRY = 150;
-const MAX_PER_US_CA_REGION = 40;
+const MAX_PER_US_CA_REGION = 50;
 const LIST_CONCURRENCY = 8;
-const DETAIL_CONCURRENCY = 20;
+const DETAIL_CONCURRENCY = 25;
 
 // Country list from RepeaterBook row_repeaters index.
 // Priority 1: Switzerland + neighbors (always fetch detail pages first)
@@ -105,6 +105,13 @@ const COUNTRIES = [
   { code: 'GT', name: 'Guatemala', priority: 3 },
   { code: 'NI', name: 'Nicaragua', priority: 3 },
   { code: 'PA', name: 'Panama', priority: 3 },
+  { code: 'MX', name: 'Mexico', priority: 3 },
+  { code: 'CU', name: 'Cuba', priority: 3 },
+  { code: 'BS', name: 'Bahamas', priority: 3 },
+  { code: 'BB', name: 'Barbados', priority: 3 },
+  { code: 'LC', name: 'Saint Lucia', priority: 3 },
+  { code: 'AG', name: 'Antigua and Barbuda', priority: 3 },
+  { code: 'DM', name: 'Dominica', priority: 3 },
   { code: 'BQ', name: 'Caribbean Netherlands', priority: 3 },
   { code: 'CW', name: 'Curaçao', priority: 3 },
   { code: 'DO', name: 'Dominican Republic', priority: 3 },

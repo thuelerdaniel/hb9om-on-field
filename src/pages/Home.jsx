@@ -687,7 +687,7 @@ export default function Home() {
   // Load repeaters from DB when repeater layer is active
   useEffect(() => {
     if (!serverCacheLoaded || !activeLayers.includes("repeater") || repeaters.length > 0 || isOffline) return;
-    base44.entities.Repeater.list("-created_date", 5000)
+    base44.entities.Repeater.list("-created_date", 10000)
       .then(data => { if (data && data.length > 0) setRepeaters(data); })
       .catch(() => {});
   }, [activeLayers, serverCacheLoaded, isOffline]);
