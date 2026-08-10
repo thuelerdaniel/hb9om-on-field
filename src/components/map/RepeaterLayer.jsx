@@ -5,7 +5,7 @@ import RepeaterPopup from "@/components/map/RepeaterPopup";
 import { getModeColor, repeaterMatchesMode, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { isInContinents } from "@/lib/continents";
-import { isInCountries } from "@/lib/countries";
+import { isInCountries, getCountriesByContinent } from "@/lib/countries";
 
 // Approximate coverage radius (km) by band — based on typical VHF/UHF propagation
 const COVERAGE_RADIUS_KM = {
@@ -46,7 +46,13 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       result = result.filter(r => isInCountries({ ...r, layerType: 'repeater' }, activeCountries));
     }
     if (filterCountry && filterCountry !== "all") {
-      result = result.filter(r => r.country_code === filterCountry);
+      if (filterCountry.startsWith("continent:")) {
+        const contId = filterCountry.split(":")[1];
+        const contCountries = getCountriesByContinent(contId).map(c => c.iso2);
+        result = result.filter(r => contCountries.includes(r.country_code));
+      } else {
+        result = result.filter(r => r.country_code === filterCountry);
+      }
     }
     // No modes selected = NO repeaters shown (user must actively choose at least one mode)
     if (!filterModes || filterModes.length === 0) {

@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLink } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
+import { CONTINENTS } from "@/lib/continents";
+import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 
 export default function RepeaterFilter({
   filterModes,
@@ -87,12 +89,12 @@ export default function RepeaterFilter({
             </div>
           </div>
 
-          {/* Country filter */}
+          {/* Continent + Country filter */}
           {sortedCountries.length > 1 && (
             <div className="p-3 border-b border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
-                  <Globe className="w-3 h-3" /> Land
+                  <Globe className="w-3 h-3" /> Region / Land
                 </h4>
                 {filterCountry !== "all" && (
                   <button
@@ -103,28 +105,56 @@ export default function RepeaterFilter({
                   </button>
                 )}
               </div>
-              <div className="max-h-32 overflow-y-auto space-y-0.5">
+              {/* Continent quick-filter buttons */}
+              <div className="grid grid-cols-3 gap-1 mb-2">
                 <button
                   onClick={() => onFilterCountryChange("all")}
-                  className={`w-full flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
-                    filterCountry === "all" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
+                  className={`px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                    filterCountry === "all" ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                   }`}
                 >
-                  <span>Alle Länder</span>
-                  <span className="text-[10px] text-gray-400">{repeaterCount}</span>
+                  Alle Welt
                 </button>
-                {sortedCountries.map(c => (
-                  <button
-                    key={c.code}
-                    onClick={() => onFilterCountryChange(c.code)}
-                    className={`w-full flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
-                      filterCountry === c.code ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="truncate">{c.name}</span>
-                    <span className="text-[10px] text-gray-400 flex-shrink-0 ml-1">{c.count}</span>
-                  </button>
-                ))}
+                {CONTINENTS.map(c => {
+                  const contCountries = getCountriesByContinent(c.id);
+                  const repCount = sortedCountries.filter(rc => contCountries.some(cc => cc.iso2 === rc.code)).reduce((sum, rc) => sum + rc.count, 0);
+                  const filterVal = `continent:${c.id}`;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => onFilterCountryChange(filterVal)}
+                      className={`px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                        filterCountry === filterVal ? "bg-blue-600 text-white" : repCount === 0 ? "bg-gray-50 text-gray-300" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Country list — filtered by selected continent if applicable */}
+              <div className="max-h-32 overflow-y-auto space-y-0.5">
+                {(() => {
+                  let displayCountries = sortedCountries;
+                  let continentFilter = null;
+                  if (filterCountry && filterCountry.startsWith("continent:")) {
+                    continentFilter = filterCountry.split(":")[1];
+                    const contCountries = getCountriesByContinent(continentFilter);
+                    displayCountries = sortedCountries.filter(rc => contCountries.some(cc => cc.iso2 === rc.code));
+                  }
+                  return displayCountries.map(c => (
+                    <button
+                      key={c.code}
+                      onClick={() => onFilterCountryChange(c.code)}
+                      className={`w-full flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
+                        filterCountry === c.code ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="truncate">{c.name}</span>
+                      <span className="text-[10px] text-gray-400 flex-shrink-0 ml-1">{c.count}</span>
+                    </button>
+                  ));
+                })()}
               </div>
             </div>
           )}

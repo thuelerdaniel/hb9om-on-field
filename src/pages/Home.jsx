@@ -707,7 +707,13 @@ export default function Home() {
   const filteredRepeaterCount = useMemo(() => {
     let result = repeaters;
     if (repeaterFilterCountry !== "all") {
-      result = result.filter(r => r.country_code === repeaterFilterCountry);
+      if (repeaterFilterCountry.startsWith("continent:")) {
+        const contId = repeaterFilterCountry.split(":")[1];
+        const contCountries = getCountriesByContinent(contId).map(c => c.iso2);
+        result = result.filter(r => contCountries.includes(r.country_code));
+      } else {
+        result = result.filter(r => r.country_code === repeaterFilterCountry);
+      }
     }
     // No modes selected = NO repeaters shown (user must actively choose at least one mode)
     if (repeaterFilterModes.length === 0) {

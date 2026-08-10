@@ -79,16 +79,17 @@ export const MARKER_SHAPES = {
     name: "Sechseck"
   },
   repeater: {
-    // Crossed dipole (turnstile antenna) in circle — distinct from SOTA mountain
+    // Tower with lightning bolt (Design #10 from towerDesigns.js)
     svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
       <circle cx="14" cy="14" r="11" fill="#253140" stroke="${color}" stroke-width="2.5"/>
-      <g stroke="#EBF1F5" stroke-width="2.2" stroke-linecap="round" fill="none">
-        <line x1="14" y1="14" x2="7" y2="7"/>
-        <line x1="14" y1="14" x2="21" y2="7"/>
-        <line x1="14" y1="14" x2="14" y2="23"/>
+      <g stroke="#EBF1F5" stroke-width="1.8" stroke-linecap="round" fill="none">
+        <line x1="11" y1="22" x2="14" y2="12"/>
+        <line x1="17" y1="22" x2="14" y2="12"/>
+        <line x1="11.5" y1="17" x2="16.5" y2="17"/>
       </g>
+      <path d="M15 5 L11 10 L14 10 L12 14 L17 8 L14 8 Z" fill="${color}" stroke="none"/>
     </svg>`,
-    name: "Gekreuzte Dipole"
+    name: "Turm mit Blitzsymbol"
   },
   private_node: {
     // Private node / hotspot — square with double lightning bolt inside

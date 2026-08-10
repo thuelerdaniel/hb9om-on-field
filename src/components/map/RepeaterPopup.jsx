@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus, CircleDot } from "lucide-react";
+import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus, CircleDot, Mountain, RefreshCw, Activity } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, STATUS_LABELS } from "@/lib/repeaterModes";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -204,19 +204,27 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         </a>
       )}
 
-      {/* Coverage refinement indicator */}
-      {repeater.coverage_radius_km != null && (
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-gray-400 uppercase">Abdeckungs-Verfeinerung</span>
+      {/* Coverage calculation status — always show */}
+      <div className="mt-2 pt-2 border-t border-gray-100">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-gray-400 uppercase">Abdeckungs-Status</span>
+          {repeater.needs_recalc ? (
+            <span className="text-[10px] font-bold text-amber-600 flex items-center gap-0.5">
+              <RefreshCw className="w-2.5 h-2.5" /> Neuberechnung offen
+            </span>
+          ) : repeater.coverage_radius_km != null ? (
             <span className={`text-[11px] font-bold ${
               (repeater.coverage_refinement_pct || 0) >= 60 ? 'text-green-600' :
               (repeater.coverage_refinement_pct || 0) >= 30 ? 'text-amber-600' : 'text-gray-400'
             }`}>
               {repeater.coverage_refinement_pct || 0}%
             </span>
-          </div>
-          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          ) : (
+            <span className="text-[10px] font-bold text-gray-400">Nicht berechnet</span>
+          )}
+        </div>
+        {repeater.coverage_radius_km != null && (
+          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1">
             <div
               className={`h-full rounded-full transition-all ${
                 (repeater.coverage_refinement_pct || 0) >= 60 ? 'bg-green-500' :
@@ -225,16 +233,34 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
               style={{ width: `${repeater.coverage_refinement_pct || 0}%` }}
             />
           </div>
-          <div className="text-[9px] text-gray-400 mt-0.5">
-            {repeater.coverage_source === "aprs_refined"
+        )}
+        <div className="text-[9px] text-gray-400 mt-0.5">
+          {repeater.coverage_radius_km != null
+            ? (repeater.coverage_source === "aprs_refined"
               ? "APRS-verfeinert (Stationsdichte)"
+              : repeater.coverage_source === "terrain_adjusted"
+              ? "Gelände-adjustiert (Höhe & Terrain)"
               : repeater.coverage_source === "manual"
               ? "Manuell gesetzt"
-              : "Band-Schätzung (noch nicht verfeinert)"}
-            {repeater.coverage_updated && ` · ${new Date(repeater.coverage_updated).toLocaleDateString('de-CH')}`}
-          </div>
+              : "Band-Schätzung (noch nicht verfeinert)")
+            : "Noch nicht berechnet — Admin kann Berechnung anstossen"}
+          {repeater.coverage_updated && ` · ${new Date(repeater.coverage_updated).toLocaleDateString('de-CH')}`}
         </div>
-      )}
+        {(repeater.elevation_m != null || repeater.terrain_factor != null) && (
+          <div className="flex items-center gap-2 mt-1 text-[9px] text-gray-400">
+            {repeater.elevation_m != null && (
+              <span className="flex items-center gap-0.5">
+                <Mountain className="w-2.5 h-2.5" /> {Math.round(repeater.elevation_m)} m ü.M.
+              </span>
+            )}
+            {repeater.terrain_factor != null && repeater.terrain_factor !== 1 && (
+              <span className="flex items-center gap-0.5">
+                <Activity className="w-2.5 h-2.5" /> Faktor {repeater.terrain_factor.toFixed(2)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="text-[9px] text-gray-300 mt-2 pt-1 border-t border-gray-100">
         Quelle: RepeaterBook.com

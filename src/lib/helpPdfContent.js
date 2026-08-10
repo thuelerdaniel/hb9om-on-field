@@ -40,7 +40,7 @@ export const MARKER_SYMBOLS = [
   { icon: "diamond", shape: "iota", color: "#3498db", name: "IOTA", desc: "Inseln (Schweiz hat keine IOTA) – Karte: Raute mit Welle" },
   { icon: "anchor", shape: "lighthouse", color: "#f39c12", name: "Leuchttürme", desc: "ARLHS WLOL Referenzen – Karte: Leuchtturm mit Licht" },
   { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" },
-  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais", desc: "Amateurfunk-Relais weltweit (FM, C4FM, DMR, D-STAR, P-25, NXDN, M17) – Karte: Radio-Turm-Symbol, farbig nach Modulation" }
+  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais (Turm mit Blitz)", desc: "Amateurfunk-Relais weltweit (FM, C4FM, DMR, D-STAR, P-25, NXDN, M17) – Karte: Turm mit Blitzsymbol, farbig nach Modulation" }
 ];
 
 // UI-Icons auf der Karte – Lucide-Icon-Namen wie in der App
