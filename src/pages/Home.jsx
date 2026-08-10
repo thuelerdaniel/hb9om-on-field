@@ -32,6 +32,7 @@ import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialo
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
+import { isInContinents, CONTINENTS } from "@/lib/continents";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -294,6 +295,16 @@ export default function Home() {
   const [privateNodes, setPrivateNodes] = useState([]);
   const [linkSuggestTarget, setLinkSuggestTarget] = useState(null);
   const [foxHuntingMode, setFoxHuntingMode] = useState(() => localStorage.getItem("hb9om_fox_hunting_mode") || "fox");
+  const [activeContinents, setActiveContinents] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_active_continents");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return []; // empty = all world
+  });
+  const [individualCoverage, setIndividualCoverage] = useState(() => new Set(
+    (() => { try { return JSON.parse(localStorage.getItem("hb9om_individual_coverage") || "[]"); } catch { return []; } })()
+  ));
 
   useEffect(() => {
     localStorage.setItem("hb9om_repeater_filter_modes", JSON.stringify(repeaterFilterModes));
@@ -310,6 +321,29 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_fox_hunting_mode", foxHuntingMode);
   }, [foxHuntingMode]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_active_continents", JSON.stringify(activeContinents));
+  }, [activeContinents]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_individual_coverage", JSON.stringify([...individualCoverage]));
+  }, [individualCoverage]);
+
+  const handleToggleContinent = useCallback((continentId) => {
+    setActiveContinents(prev => {
+      if (continentId === "__all") return [];
+      if (prev.includes(continentId)) return prev.filter(c => c !== continentId);
+      return [...prev, continentId];
+    });
+  }, []);
+
+  const handleToggleRepeaterCoverage = useCallback((repeater) => {
+    setIndividualCoverage(prev => {
+      const next = new Set(prev);
+      if (next.has(repeater.id)) next.delete(repeater.id);
+      else next.add(repeater.id);
+      return next;
+    });
+  }, []);
 
   // Check admin status
   useEffect(() => {
@@ -590,18 +624,20 @@ export default function Home() {
       LIGHTHOUSE_DATA.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
     }
 
-    return markers.map(m => {
-      const code = m.code || m.reference;
-      const ovKey = `${m.layerType}:${code}`;
-      const ov = serverOverrides[ovKey];
-      return {
-        ...m,
-        name: ov?.adjusted_name || m.name,
-        lat: ov?.manual_lat != null ? ov.manual_lat : (localOverrides[code]?.lat ?? m.lat),
-        lng: ov?.manual_lng != null ? ov.manual_lng : (localOverrides[code]?.lng ?? m.lng),
-      };
-    });
-  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides, serverOverrides]);
+    return markers
+      .filter(m => isInContinents(m.lat, m.lng, activeContinents))
+      .map(m => {
+        const code = m.code || m.reference;
+        const ovKey = `${m.layerType}:${code}`;
+        const ov = serverOverrides[ovKey];
+        return {
+          ...m,
+          name: ov?.adjusted_name || m.name,
+          lat: ov?.manual_lat != null ? ov.manual_lat : (localOverrides[code]?.lat ?? m.lat),
+          lng: ov?.manual_lng != null ? ov.manual_lng : (localOverrides[code]?.lng ?? m.lng),
+        };
+      });
+  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides, serverOverrides, activeContinents]);
 
   // Castle match statistics for legend
   const castleStats = useMemo(() => {
@@ -1042,6 +1078,8 @@ export default function Home() {
               radiusKm={repeaterRadiusKm}
               adminLinks={adminLinks}
               onSuggestLink={(repeater) => setLinkSuggestTarget(repeater)}
+              individualCoverage={individualCoverage}
+              onToggleCoverage={handleToggleRepeaterCoverage}
             />
           )}
 
@@ -1065,6 +1103,8 @@ export default function Home() {
           lockedScale={lockedScale}
           mapOpacity={mapOpacity}
           onChangeOpacity={handleChangeOpacity}
+          activeContinents={activeContinents}
+          onToggleContinent={handleToggleContinent}
         />
 
         {activeLayers.includes("repeater") && repeaters.length > 0 && (

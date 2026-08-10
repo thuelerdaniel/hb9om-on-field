@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal } from "lucide-react";
-import { MODE_COLORS, MODE_LABELS, FILTER_MODES } from "@/lib/repeaterModes";
+import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 
 export default function RepeaterFilter({
   filterModes,
@@ -144,6 +144,7 @@ export default function RepeaterFilter({
               {FILTER_MODES.map(mode => {
                 const isActive = filterModes.includes(mode);
                 const color = MODE_COLORS[mode];
+                const isFeature = FEATURE_MODES.includes(mode);
                 return (
                   <button
                     key={mode}
@@ -153,17 +154,21 @@ export default function RepeaterFilter({
                     }`}
                   >
                     <span
-                      className="w-3 h-3 rounded-full flex-shrink-0 border-2 border-white shadow"
+                      className={`w-3 h-3 flex-shrink-0 border-2 border-white shadow ${isFeature ? "rounded-sm" : "rounded-full"}`}
                       style={{ backgroundColor: color }}
                     />
                     <span className={`flex-1 text-left ${isActive ? "text-gray-900 font-medium" : "text-gray-500"}`}>
                       {MODE_LABELS[mode]}
+                      {isFeature && <span className="text-[9px] text-gray-400 ml-1">(Feature)</span>}
                     </span>
                     {isActive && <span className="text-[10px] text-gray-400">✓</span>}
                   </button>
                 );
               })}
             </div>
+            <p className="text-[10px] text-gray-400 mt-1.5">
+              EchoLink ist ein Feature-Filter: zeigt alle Relais mit EchoLink-Zugang unabhängig vom Hauptmodus.
+            </p>
           </div>
 
           {/* Radius filter from user position */}

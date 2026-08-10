@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus } from "lucide-react";
+import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus, CircleDot } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, STATUS_LABELS } from "@/lib/repeaterModes";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -23,7 +23,7 @@ const POWER_INFO = {
   unknown: null,
 };
 
-export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosition, onSuggestLink }) {
+export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosition, onSuggestLink, onToggleCoverage, showCoverageForThis }) {
   const [showSuggestHint, setShowSuggestHint] = useState(false);
   const statusInfo = STATUS_LABELS[repeater.status] || STATUS_LABELS.unknown;
   const hasCoords = repeater.lat != null && repeater.lng != null;
@@ -141,15 +141,30 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         </div>
       )}
 
-      {onSuggestLink && hasCoords && (
-        <button
-          onClick={() => onSuggestLink(repeater)}
-          className="mt-1 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
-        >
-          <Plus className="w-3 h-3" />
-          Verlinkung vorschlagen
-        </button>
-      )}
+      <div className="flex gap-1.5 mt-1">
+        {onToggleCoverage && hasCoords && (
+          <button
+            onClick={() => onToggleCoverage(repeater)}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium border rounded-lg ${
+              showCoverageForThis
+                ? "text-green-700 bg-green-50 border-green-300"
+                : "text-green-600 border-green-200 hover:bg-green-50"
+            }`}
+          >
+            <CircleDot className="w-3 h-3" />
+            {showCoverageForThis ? "Abdeckung an" : "Abdeckung"}
+          </button>
+        )}
+        {onSuggestLink && hasCoords && (
+          <button
+            onClick={() => onSuggestLink(repeater)}
+            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
+          >
+            <Plus className="w-3 h-3" />
+            Verlinkung
+          </button>
+        )}
+      </div>
 
       {repeater.web_url && (
         <a

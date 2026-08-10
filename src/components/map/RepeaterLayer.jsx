@@ -2,7 +2,7 @@ import React, { memo, useMemo } from "react";
 import { CircleMarker, Polyline, Popup, useMap, Marker, Circle } from "react-leaflet";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
-import { getModeColor } from "@/lib/repeaterModes";
+import { getModeColor, repeaterMatchesMode } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
 // Approximate coverage radius (km) by band — based on typical VHF/UHF propagation
@@ -30,7 +30,7 @@ const LINE_DASH_ARRAYS = {
   dotted: "1 4",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink }) {
+function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage }) {
   const map = useMap();
 
   // Filter repeaters by mode, country, search, and radius
@@ -40,7 +40,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       result = result.filter(r => r.country_code === filterCountry);
     }
     if (filterModes && filterModes.length > 0) {
-      result = result.filter(r => filterModes.includes(r.primary_mode));
+      result = result.filter(r => filterModes.some(m => repeaterMatchesMode(r, m)));
     }
     if (searchQuery && searchQuery.length >= 2) {
       const q = searchQuery.toLowerCase();
@@ -140,8 +140,10 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
 
   return (
     <>
-      {/* Coverage circles (approximate, based on band) */}
-      {showCoverage && cappedRepeaters.map((r, idx) => {
+      {/* Coverage circles (approximate, based on band) — global toggle OR per-repeater */}
+      {(showCoverage || (individualCoverage && individualCoverage.size > 0)) && cappedRepeaters.map((r, idx) => {
+        const showThis = showCoverage || (individualCoverage && individualCoverage.has(r.id));
+        if (!showThis) return null;
         const radiusKm = COVERAGE_RADIUS_KM[r.band] || COVERAGE_RADIUS_KM["Other"];
         const color = getModeColor(r.primary_mode);
         return (
@@ -191,7 +193,14 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
             }}
           >
             <Popup>
-              <RepeaterPopup repeater={r} linkedRepeaters={linked} userPosition={userPosition} onSuggestLink={onSuggestLink} />
+              <RepeaterPopup
+                repeater={r}
+                linkedRepeaters={linked}
+                userPosition={userPosition}
+                onSuggestLink={onSuggestLink}
+                onToggleCoverage={onToggleCoverage}
+                showCoverageForThis={individualCoverage && individualCoverage.has(r.id)}
+              />
             </Popup>
           </CircleMarker>
         );
@@ -212,7 +221,9 @@ function arePropsEqual(prev, next) {
     prev.userPosition === next.userPosition &&
     prev.radiusKm === next.radiusKm &&
     prev.adminLinks === next.adminLinks &&
-    prev.onSuggestLink === next.onSuggestLink
+    prev.onSuggestLink === next.onSuggestLink &&
+    prev.individualCoverage === next.individualCoverage &&
+    prev.onToggleCoverage === next.onToggleCoverage
   );
 }
 

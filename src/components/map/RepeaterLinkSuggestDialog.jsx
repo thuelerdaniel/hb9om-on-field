@@ -70,7 +70,7 @@ export default function RepeaterLinkSuggestDialog({ fromRepeater, allRepeaters, 
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-            <Link2 className="w-4 h-4 text-blue-600" /> Verlinkung vorschlagen
+            <Link2 className="w-4 h-4 text-blue-600" /> Verlinkung melden
           </h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-400"><X className="w-4 h-4" /></button>
         </div>
@@ -123,7 +123,7 @@ export default function RepeaterLinkSuggestDialog({ fromRepeater, allRepeaters, 
           <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Beschreibung / Kommentar" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded" />
 
           <div className="text-[10px] text-gray-400">
-            Ihr Vorschlag wird als «ausstehend» gespeichert und von einem Admin geprüft.
+            Melden Sie hier <span className="font-medium text-gray-600">fehlende</span> oder <span className="font-medium text-gray-600">existierende</span> Verlinkungen zwischen Relais (z.B. Crosslinks, EchoLink, Brandmeister-Verbindungen). Ihr Vorschlag wird als «ausstehend» gespeichert und von einem Admin geprüft.
           </div>
 
           <div className="flex gap-2 pt-2">

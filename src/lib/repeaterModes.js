@@ -30,8 +30,19 @@ export const MODE_LABELS = {
   Other: "Weitere",
 };
 
-// All modes that can be filtered (primary modes only — not features like EchoLink/WIRES-X)
-export const FILTER_MODES = ["FM", "Fusion", "DMR", "D-STAR", "P-25", "NXDN", "M17"];
+// All modes that can be filtered.
+// FEATURE_MODES are filtered by checking the modes array (not primary_mode).
+export const FEATURE_MODES = ["EchoLink", "AllStar", "IRLP", "WIRES-X"];
+export const FILTER_MODES = ["FM", "Fusion", "DMR", "D-STAR", "P-25", "NXDN", "M17", "EchoLink"];
+
+// Returns true if a repeater matches a given filter mode.
+// Feature modes (EchoLink etc.) are checked against the modes array, not primary_mode.
+export function repeaterMatchesMode(repeater, mode) {
+  if (FEATURE_MODES.includes(mode)) {
+    return (repeater.modes || []).includes(mode);
+  }
+  return repeater.primary_mode === mode;
+}
 
 export function getModeColor(primaryMode) {
   return MODE_COLORS[primaryMode] || MODE_COLORS.Other;

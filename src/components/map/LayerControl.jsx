@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Globe2 } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
+import { CONTINENTS } from "@/lib/continents";
 
 const LAYER_GROUPS = [
   {
@@ -95,7 +96,7 @@ const MAP_SCALES = [
   { id: "100000", label: "1:100'000" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity }) {
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -183,6 +184,40 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
               <span className="text-xs font-mono text-gray-600 w-10 text-right">{Math.round(mapOpacity * 100)}%</span>
             </div>
             <p className="text-[10px] text-gray-400 mt-1.5">Verringern Sie die Deckkraft, damit Referenzpunkte besser sichtbar werden.</p>
+          </div>
+
+          {/* Kontinent-Filter */}
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+              <Globe2 className="w-4 h-4" /> Kontinent-Filter
+            </h3>
+            <p className="text-[10px] text-gray-400 mb-2">Blendet Overlay-Ebenen nach Kontinent ein/aus. Alle Welt = keine Auswahl.</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                onClick={() => onToggleContinent && onToggleContinent("__all")}
+                className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  (!activeContinents || activeContinents.length === 0)
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                Alle Welt
+              </button>
+              {CONTINENTS.map(c => {
+                const isActive = activeContinents && activeContinents.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => onToggleContinent && onToggleContinent(c.id)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      isActive ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Overlay-Ebenen */}
