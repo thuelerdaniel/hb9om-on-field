@@ -716,7 +716,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                     className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                   {showRefCodeDropdown && refCodeMatches.length > 0 && (
-                    <div className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-lg divide-y divide-gray-50">
+                    <div className="mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
                       {refCodeMatches.map((r, i) => (
                         <button
                           key={i}
@@ -747,7 +747,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                     className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                   {showRefNameDropdown && refNameMatches.length > 0 && (
-                    <div className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-lg divide-y divide-gray-50">
+                    <div className="mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
                       {refNameMatches.map((r, i) => (
                         <button
                           key={i}
