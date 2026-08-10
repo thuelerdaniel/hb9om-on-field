@@ -379,6 +379,16 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
       .trim();
   }
 
+  // Extract "Notes" field — contains "Connected via NF link with X (loc) and Y (loc) in city"
+  const notesMatch = html.match(/<th[^>]*>\s*Notes\s*<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/i);
+  if (notesMatch) {
+    const notesText = notesMatch[1].replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim();
+    if (notesText) {
+      // Append notes to network_links so parseLinkedCallsigns can extract callsigns from it
+      network_links = network_links ? `${network_links}\n${notesText}` : notesText;
+    }
+  }
+
   // Parse power / backup power info from detail page
   // RepeaterBook shows "Backup Power" and "Solar Power" as features
   const lowerHtml = html.toLowerCase();
@@ -399,14 +409,21 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
 
 // Parse the free-text network_links field into a list of linked repeater identifiers.
 // Owners enter callsigns, sometimes with frequencies. We extract callsign-like tokens.
-export function parseLinkedCallsigns(networkLinks: string): string[] {
+export function parseLinkedCallsigns(networkLinks: string, ownCallsign?: string): string[] {
   if (!networkLinks) return [];
-  // Match amateur radio callsign patterns: letters/digits with optional suffix, e.g. DB0XYZ, HB9ABC, OE3XAA
-  const callsignRegex = /\b([A-Z]{1,2}\d[A-Z0-9]{1,4}(?:\/[A-Z0-9]+)?)\b/g;
-  const matches = [];
+  // Match amateur radio callsign patterns with optional -R/-L/-D/-P/-M suffix or /NN SSID
+  // e.g. DB0XYZ, HB9ABC-R, HB9GL-L, OE3XAA/2
+  const callsignRegex = /\b([A-Z]{1,2}\d[A-Z0-9]{1,4}(?:[-/][A-Z0-9]+)?)\b/g;
+  const matches: string[] = [];
   let m;
+  const ownBase = ownCallsign ? ownCallsign.replace(/[-/].*$/, '').toUpperCase() : null;
   while ((m = callsignRegex.exec(networkLinks.toUpperCase())) !== null) {
-    if (!matches.includes(m[1])) matches.push(m[1]);
+    const call = m[1];
+    // Skip own callsign (the source repeater itself)
+    if (ownBase && call.replace(/[-/].*$/, '') === ownBase) continue;
+    // Skip common false positives (2-letter region codes like "NF" in "NF link")
+    if (call.length < 4) continue;
+    if (!matches.includes(call)) matches.push(call);
   }
   return matches;
 }

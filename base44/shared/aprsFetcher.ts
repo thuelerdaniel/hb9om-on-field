@@ -99,17 +99,32 @@ function buildNodeRecord(entry: any, source: string = 'aprs.fi'): any {
 
 // Query aprs.fi API for a batch of callsigns (max 20 per request — API limit).
 // Returns array of entries with lat/lng. Does NOT filter by symbol/type — all stations stored.
+// Strip repeater suffixes (-R, -L, -D, -P, -M, -B) to get the base APRS callsign.
+// APRS uses base callsigns or numeric SSIDs (HB9GL, HB9GL-1), not repeater suffixes.
+function toAprsCallsign(callsign: string): string {
+  return callsign.replace(/-(R|L|D|P|M|B)$/i, '').toUpperCase();
+}
+
 async function queryAprsFiBatch(callsigns: string[], apiKey: string): Promise<any[]> {
   const names = callsigns.filter(Boolean).join(',');
   if (!names) return [];
   const url = `${APRS_API_BASE}?name=${encodeURIComponent(names)}&what=loc&apikey=${apiKey}&format=json`;
-  const resp = await fetch(url, {
-    headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
-  });
-  if (!resp.ok) return [];
-  const data = await resp.json();
-  if (data.result !== 'ok' || !data.entries) return [];
-  return data.entries.filter((e: any) => e.lat && e.lng);
+  // Retry on rate-limit with exponential backoff (aprs.fi returns code "ratelimit")
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    if (data.code === 'ratelimit') {
+      // Wait 5s / 10s before retrying
+      await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
+      continue;
+    }
+    if (data.result !== 'ok' || !data.entries) return [];
+    return data.entries.filter((e: any) => e.lat && e.lng);
+  }
+  return [];
 }
 
 // Core APRS fetch logic — takes a base44 service-role client and API key, returns result stats.
@@ -127,28 +142,36 @@ export async function fetchAprsData(base44: any, apiKey: string) {
   const repeaters = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
   const logs = await base44.asServiceRole.entities.Log.list("-created_date", 5000);
 
-  const repeaterByCallsign = new Map<string, any>();
+  // Map base callsign → array of repeaters (same base call on multiple bands)
+  const repeatersByBaseCall = new Map<string, any[]>();
   const allCallsigns = new Set<string>();
   for (const r of repeaters) {
     if (r.callsign) {
-      repeaterByCallsign.set(r.callsign, r);
+      const base = toAprsCallsign(r.callsign);
+      if (!repeatersByBaseCall.has(base)) repeatersByBaseCall.set(base, []);
+      repeatersByBaseCall.get(base)!.push(r);
       allCallsigns.add(r.callsign);
     }
   }
   for (const log of logs) {
     if (log.callsign) allCallsigns.add(log.callsign);
   }
-  totalCallsignsQueried = allCallsigns.size;
 
   const seenCallsigns = new Set<string>();
   const nodeRecords: any[] = [];
 
-  // Step 2: Query aprs.fi API in batches (API docs say max 20, but larger batches work and
-  // reduce the number of requests to avoid rate limiting). NO symbol/type filter — every
+  // Step 2: Query aprs.fi API in batches. Strip repeater suffixes (-R/-L/-D) to get valid
+  // APRS callsigns, then deduplicate to minimize requests. NO symbol/type filter — every
   // station with coordinates is stored (fixed AND mobile).
-  const callsignList = Array.from(allCallsigns);
-  const BATCH_SIZE = 80;
-  const BATCH_DELAY = 1500;
+  const aprsCallsigns = new Set<string>();
+  for (const cs of allCallsigns) {
+    const base = toAprsCallsign(cs);
+    if (base) aprsCallsigns.add(base);
+  }
+  const callsignList = Array.from(aprsCallsigns);
+  totalCallsignsQueried = callsignList.length;
+  const BATCH_SIZE = 150;
+  const BATCH_DELAY = 4000;
   for (let i = 0; i < callsignList.length; i += BATCH_SIZE) {
     const batch = callsignList.slice(i, i + BATCH_SIZE);
     try {
@@ -157,16 +180,18 @@ export async function fetchAprsData(base44: any, apiKey: string) {
         if (!entry.lat || !entry.lng) continue;
         seenCallsigns.add(entry.name);
 
-        // Update repeater coordinates if missing
-        const repeater = repeaterByCallsign.get(entry.name);
-        if (repeater && (repeater.lat == null || repeater.lng == null)) {
-          try {
-            await base44.asServiceRole.entities.Repeater.update(repeater.id, {
-              lat: parseFloat(entry.lat),
-              lng: parseFloat(entry.lng),
-            });
-            repeatersUpdated++;
-          } catch {}
+        // Update repeater coordinates if missing (match by base callsign)
+        const matchingReps = repeatersByBaseCall.get(entry.name.toUpperCase()) || [];
+        for (const rep of matchingReps) {
+          if (rep.lat == null || rep.lng == null) {
+            try {
+              await base44.asServiceRole.entities.Repeater.update(rep.id, {
+                lat: parseFloat(entry.lat),
+                lng: parseFloat(entry.lng),
+              });
+              repeatersUpdated++;
+            } catch {}
+          }
         }
 
         // Store as APRS node (every station — no filter)
