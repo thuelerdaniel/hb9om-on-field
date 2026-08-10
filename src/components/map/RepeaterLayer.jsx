@@ -193,6 +193,8 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
 
   // Build callsign→repeaters map from ALL repeaters (not just filtered) so link lines
   // connect to targets even when the target is filtered out by mode/country/etc.
+  // Map from ALL repeaters — used for popup resolution (popup shows linked repeaters
+  // even when the target is filtered out by mode/country/etc).
   const byCallsignAll = useMemo(() => {
     const map = new Map();
     for (const r of repeaters) {
@@ -202,6 +204,18 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     }
     return map;
   }, [repeaters]);
+
+  // Map from FILTERED repeaters only — used for link line drawing.
+  // Lines are only drawn when BOTH endpoints are visible (filtered in).
+  const byCallsignFiltered = useMemo(() => {
+    const map = new Map();
+    for (const r of filteredRepeaters) {
+      if (r.lat == null || r.lng == null) continue;
+      if (!map.has(r.callsign)) map.set(r.callsign, []);
+      map.get(r.callsign).push(r);
+    }
+    return map;
+  }, [filteredRepeaters]);
 
   // Build linking lines from RepeaterBook crosslinks (linked_callsigns).
   // linked_callsigns entries are pre-resolved strings like "HB9W 145.3250 MHz (2m)".
@@ -220,7 +234,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         // Multi-source filter: only show if confirmed by 2+ sources (or admin link)
         const srcKey = linkKey(r.callsign, r.frequency, parsed.callsign, parsed.frequency);
         if (!isLinkDisplayable(srcKey)) continue;
-        const targets = byCallsignAll.get(parsed.callsign) || [];
+        const targets = byCallsignFiltered.get(parsed.callsign) || [];
         for (const target of targets) {
           if (target.callsign === r.callsign && target.frequency === r.frequency) continue;
           // Match by callsign AND frequency (within 1 kHz tolerance) — the specific repeater
@@ -237,7 +251,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       }
     }
     return lines;
-  }, [filteredRepeaters, byCallsignAll, showLinks, isLinkDisplayable]);
+  }, [filteredRepeaters, byCallsignFiltered, showLinks, isLinkDisplayable]);
 
   // Resolve linked_callsigns strings to actual repeater objects for popup display.
   // Returns array of { callsign, frequency, band, location_name, lat, lng, distance }.
@@ -289,8 +303,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
           if (!isLinkDisplayable(srcKey)) return [];
         }
         // Match specific repeaters by callsign + frequency (if frequency is set)
-        const allFrom = byCallsignAll.get(l.from_callsign) || [];
-        const allTo = byCallsignAll.get(l.to_callsign) || [];
+        // Use FILTERED map so lines only show when both endpoints are visible
+        const allFrom = byCallsignFiltered.get(l.from_callsign) || [];
+        const allTo = byCallsignFiltered.get(l.to_callsign) || [];
         let fromReps = l.from_frequency != null
           ? allFrom.filter(r => Math.abs(r.frequency - l.from_frequency) < 0.001)
           : allFrom;
@@ -314,8 +329,14 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
           if (coordMatch.length > 0) toReps = coordMatch;
         }
 
-        // Fallback: use stored coordinates if no matching repeaters in DB
-        if (fromReps.length === 0 && toReps.length === 0 &&
+        // Fallback: use stored coordinates only if the repeaters don't exist in the
+        // DB at all (not in byCallsignAll). If they exist but are filtered out, skip
+        // the line — it would point to a location with no visible marker.
+        const existsFromAll = (byCallsignAll.get(l.from_callsign) || []).some(r =>
+          l.from_frequency == null || Math.abs(r.frequency - l.from_frequency) < 0.001);
+        const existsToAll = (byCallsignAll.get(l.to_callsign) || []).some(r =>
+          l.to_frequency == null || Math.abs(r.frequency - l.to_frequency) < 0.001);
+        if (fromReps.length === 0 && toReps.length === 0 && !existsFromAll && !existsToAll &&
             l.from_lat != null && l.from_lng != null && l.to_lat != null && l.to_lng != null) {
           return [{
             positions: [[l.from_lat, l.from_lng], [l.to_lat, l.to_lng]],
@@ -341,7 +362,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         }
         return lines;
       });
-  }, [adminLinks, showLinks, byCallsignAll, isLinkDisplayable]);
+  }, [adminLinks, showLinks, byCallsignFiltered, byCallsignAll, isLinkDisplayable]);
 
   // Resolve admin-managed links for a repeater (for popup display).
   // Returns array of linked repeater objects with details.
