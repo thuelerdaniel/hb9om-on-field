@@ -31,9 +31,11 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, pe
     return result;
   }, [repeaters, filterModes, searchQuery, filterCountry]);
 
-  // Build linking lines: group by callsign, draw lines between repeaters with same callsign at different bands
+  // Build linking lines: ONLY draw lines for repeaters with actual linked_callsigns
+  // (from RepeaterBook's "Crosslinked to / with" field). Same callsign ≠ linked.
   const linkLines = useMemo(() => {
     if (!showLinks) return [];
+    // Build lookup: callsign → repeaters (with coords) for resolving link targets
     const byCallsign = new Map();
     for (const r of filteredRepeaters) {
       if (r.lat == null || r.lng == null) continue;
@@ -41,33 +43,31 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, pe
       byCallsign.get(r.callsign).push(r);
     }
     const lines = [];
-    for (const [callsign, group] of byCallsign) {
-      if (group.length < 2) continue;
-      // Draw lines between all pairs in the group
-      for (let i = 0; i < group.length; i++) {
-        for (let j = i + 1; j < group.length; j++) {
+    const drawn = new Set();
+    for (const r of filteredRepeaters) {
+      if (r.lat == null || r.lng == null) continue;
+      if (!r.linked_callsigns || r.linked_callsigns.length === 0) continue;
+      // Parse linked callsign from the stored string "CALLSIGN freq MHz (band)"
+      for (const linkedStr of r.linked_callsigns) {
+        const linkedCall = linkedStr.split(/\s+/)[0].split('/')[0];
+        const targets = byCallsign.get(linkedCall) || [];
+        for (const target of targets) {
+          if (target.callsign === r.callsign && target.frequency === r.frequency) continue;
+          const key = [r.callsign + r.frequency, target.callsign + target.frequency].sort().join('→');
+          if (drawn.has(key)) continue;
+          drawn.add(key);
           lines.push({
             positions: [
-              [group[i].lat, group[i].lng],
-              [group[j].lat, group[j].lng],
+              [r.lat, r.lng],
+              [target.lat, target.lng],
             ],
-            callsign,
+            callsign: r.callsign,
           });
         }
       }
     }
     return lines;
   }, [filteredRepeaters, showLinks]);
-
-  // Build a map of callsign → linked repeaters for popup
-  const linkedByCallsign = useMemo(() => {
-    const map = new Map();
-    for (const r of filteredRepeaters) {
-      if (!map.has(r.callsign)) map.set(r.callsign, []);
-      map.get(r.callsign).push(r);
-    }
-    return map;
-  }, [filteredRepeaters]);
 
   // Viewport culling
   const bounds = map.getBounds();
@@ -108,9 +108,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, pe
       {/* Repeater markers */}
       {cappedRepeaters.map((r, idx) => {
         const color = getModeColor(r.primary_mode);
-        const linked = (linkedByCallsign.get(r.callsign) || [])
-          .filter(lr => lr.frequency !== r.frequency || lr.band !== r.band)
-          .map(lr => `${lr.callsign} ${lr.frequency.toFixed(4)} MHz (${lr.band})`);
+        const linked = r.linked_callsigns || [];
         return (
           <CircleMarker
             key={`rep-${r.id || idx}`}

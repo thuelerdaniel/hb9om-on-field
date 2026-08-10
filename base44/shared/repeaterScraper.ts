@@ -249,11 +249,12 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
 
 // ─── Detail page parser ───
 
-export function parseRepeaterDetail(html: string): { lat: number | null; lng: number | null; web_url: string | null; echolink_node: string | null } {
+export function parseRepeaterDetail(html: string): { lat: number | null; lng: number | null; web_url: string | null; echolink_node: string | null; network_links: string } {
   let lat: number | null = null;
   let lng: number | null = null;
   let web_url: string | null = null;
   let echolink_node: string | null = null;
+  let network_links = '';
 
   const gmMatch = html.match(/google\.com\/maps\/search\/[^"]*query=([\d.-]+)(?:%2C|,)([\d.-]+)/);
   if (gmMatch) {
@@ -277,7 +278,31 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
   const elMatch = html.match(/Node Number[\s\S]*?(\d{4,7})\s/);
   if (elMatch) echolink_node = elMatch[1];
 
-  return { lat, lng, web_url, echolink_node };
+  // Extract actual crosslink data from the "Crosslinked to / with" textarea
+  const crossMatch = html.match(/network_links[^>]*>([\s\S]*?)<\/textarea>/);
+  if (crossMatch) {
+    network_links = crossMatch[1]
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .trim();
+  }
+
+  return { lat, lng, web_url, echolink_node, network_links };
+}
+
+// Parse the free-text network_links field into a list of linked repeater identifiers.
+// Owners enter callsigns, sometimes with frequencies. We extract callsign-like tokens.
+export function parseLinkedCallsigns(networkLinks: string): string[] {
+  if (!networkLinks) return [];
+  // Match amateur radio callsign patterns: letters/digits with optional suffix, e.g. DB0XYZ, HB9ABC, OE3XAA
+  const callsignRegex = /\b([A-Z]{1,2}\d[A-Z0-9]{1,4}(?:\/[A-Z0-9]+)?)\b/g;
+  const matches = [];
+  let m;
+  while ((m = callsignRegex.exec(networkLinks.toUpperCase())) !== null) {
+    if (!matches.includes(m[1])) matches.push(m[1]);
+  }
+  return matches;
 }
 
 // ─── Main fetch function ───
@@ -335,23 +360,41 @@ export async function fetchRepeaterData(): Promise<any[]> {
         if (detail.lng !== null) rep.lng = detail.lng;
         if (detail.web_url) rep.web_url = detail.web_url;
         if (detail.echolink_node) rep.echolink_node = detail.echolink_node;
+        if (detail.network_links) rep.network_links = detail.network_links;
       } catch {
         // skip failed detail pages
       }
     }));
   }
 
-  // 5. Build linking: group by callsign, set linked_callsigns
+  // 5. Build linking ONLY from actual crosslink data (network_links field).
+  // Same callsign on different bands does NOT mean linked — many repeaters
+  // share a callsign but operate independently. Only the "Crosslinked to / with"
+  // field on RepeaterBook indicates an actual cross-band link.
+  // Build a lookup of callsign → repeaters (with coords) for resolving link targets.
   const byCallsign = new Map<string, any[]>();
   for (const rep of allRepeaters) {
+    if (rep.lat === null || rep.lng === null) continue;
     if (!byCallsign.has(rep.callsign)) byCallsign.set(rep.callsign, []);
     byCallsign.get(rep.callsign)!.push(rep);
   }
+
   for (const rep of allRepeaters) {
-    const group = byCallsign.get(rep.callsign) || [];
-    rep.linked_callsigns = group
-      .filter(r => r.frequency !== rep.frequency || r.band !== rep.band)
-      .map(r => `${r.callsign} ${r.frequency.toFixed(4)} MHz (${r.band})`);
+    const linkedCallsigns = parseLinkedCallsigns(rep.network_links || '');
+    // Resolve linked callsigns to actual repeaters in our dataset (with coords).
+    // Only show links to repeaters we actually have on the map.
+    const resolved = [];
+    for (const linkedCall of linkedCallsigns) {
+      // Match by base callsign (strip suffixes like /P, /M)
+      const baseCall = linkedCall.split('/')[0];
+      const targets = byCallsign.get(baseCall) || [];
+      for (const target of targets) {
+        if (target.callsign === rep.callsign && target.frequency === rep.frequency) continue;
+        resolved.push(`${target.callsign} ${target.frequency.toFixed(4)} MHz (${target.band})`);
+      }
+    }
+    // Deduplicate
+    rep.linked_callsigns = [...new Set(resolved)];
   }
 
   return allRepeaters;

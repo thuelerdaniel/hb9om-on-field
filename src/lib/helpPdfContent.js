@@ -583,6 +583,16 @@ export const SECTIONS = [
         tip: "Tipp: Kombinieren Sie den Clubstation-Filter mit dem Typ-Filter (z.B. SOTA) und dem Datums-Filter, um sehr spezifische Exporte zu erstellen."
       },
       {
+        title: "Relais-Verlinkungen",
+        body: "Relais-Verlinkungen (Linien zwischen Relais) werden nur angezeigt, wenn RepeaterBook.com tatsaechliche Crosslink-Daten fuer ein Relais enthaelt (Feld «Crosslinked to / with»). Gleiches Rufzeichen auf unterschiedlichen Baendern bedeutet NICHT automatisch, dass die Relais zusammengeschaltet sind. Viele Relais teilen sich ein Rufzeichen, arbeiten aber unabhaengig. Die Verlinkungs-Linien zeigen ausschliesslich echte, von der Quelle bestaetigte Querverbindungen.",
+        steps: [
+          { icon: "link2", text: "Verlinkungs-Button (Ketten-Icon) aktivieren" },
+          { icon: "check", text: "Linien erscheinen nur bei echten Crosslinks" },
+          { icon: "eye", text: "Im Popup werden verlinkte Relais nur bei echten Daten angezeigt" }
+        ],
+        tip: "Tipp: Da viele Relais-Betreiber das Crosslink-Feld nicht ausfuellen, werden oft keine Linien angezeigt. Das ist korrekt – es werden keine falschen Verlinkungen dargestellt."
+      },
+      {
         title: "Lokale Speicherung und Synchronisation",
         body: "Ihre QSO-Logeinträge werden lokal im Browser gespeichert (localStorage). Die Daten sind sofort verfügbar, auch ohne Internetverbindung. Beim Öffnen des Logbuchs werden zuerst die lokalen Daten angezeigt, dann wird im Hintergrund mit dem Server synchronisiert.",
         steps: [
