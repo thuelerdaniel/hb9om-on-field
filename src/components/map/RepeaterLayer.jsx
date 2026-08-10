@@ -32,7 +32,7 @@ const LINE_DASH_ARRAYS = {
   dotted: "1 4",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
+function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
   const map = useMap();
 
   // Filter repeaters by continent, country, mode, search, and radius
@@ -75,8 +75,28 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         return haversineKm(userPosition[0], userPosition[1], r.lat, r.lng) <= radiusKm;
       });
     }
+    // Only linked repeaters filter — show only repeaters with actual crosslinks
+    if (showOnlyLinked) {
+      const linkedCallsigns = new Set();
+      // From RepeaterBook crosslinks
+      for (const r of result) {
+        if (r.linked_callsigns && r.linked_callsigns.length > 0) {
+          linkedCallsigns.add(r.callsign);
+        }
+      }
+      // From admin-managed links
+      if (adminLinks) {
+        for (const l of adminLinks) {
+          if (l.status === "approved" && l.link_type === "permanent") {
+            linkedCallsigns.add(l.from_callsign);
+            linkedCallsigns.add(l.to_callsign);
+          }
+        }
+      }
+      result = result.filter(r => linkedCallsigns.has(r.callsign));
+    }
     return result;
-  }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition, activeContinents, activeCountries]);
+  }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks]);
 
   // Build linking lines from RepeaterBook crosslinks (linked_callsigns)
   const linkLines = useMemo(() => {
@@ -256,6 +276,7 @@ function arePropsEqual(prev, next) {
     prev.searchQuery === next.searchQuery &&
     prev.showLinks === next.showLinks &&
     prev.showCoverage === next.showCoverage &&
+    prev.showOnlyLinked === next.showOnlyLinked &&
     prev.performanceMode === next.performanceMode &&
     prev.filterCountry === next.filterCountry &&
     prev.userPosition === next.userPosition &&

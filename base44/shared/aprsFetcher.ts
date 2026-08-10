@@ -128,11 +128,15 @@ async function queryAprsFiBatch(callsigns: string[], apiKey: string): Promise<an
 }
 
 // Core APRS fetch logic — takes a base44 service-role client and API key, returns result stats.
+// INCREMENTAL: Existing APRS nodes are kept in the DB. Only NEW callsigns (not yet in DB) are
+// queried from aprs.fi. Existing nodes are re-queried periodically to update positions.
+// This grows the database incrementally — future queries only need to check for changes.
 export async function fetchAprsData(base44: any, apiKey: string) {
   const startTime = Date.now();
   let repeatersUpdated = 0;
   let aprsNodesFound = 0;
   let nodesSaved = 0;
+  let nodesUpdated = 0;
   let totalCallsignsQueried = 0;
   let brandmeisterLinks = 0;
 
@@ -157,31 +161,66 @@ export async function fetchAprsData(base44: any, apiKey: string) {
     if (log.callsign) allCallsigns.add(log.callsign);
   }
 
-  const seenCallsigns = new Set<string>();
-  const nodeRecords: any[] = [];
+  // Step 1b: Load existing APRS nodes from DB to determine which callsigns are already known.
+  // This is the incremental part — we only query NEW callsigns, not all of them every time.
+  const existingNodes = await base44.asServiceRole.entities.PrivateNode.list("-updated_date", 10000);
+  const existingByCallsign = new Map<string, any>();
+  for (const n of existingNodes) {
+    if (n.callsign) existingByCallsign.set(n.callsign.toUpperCase(), n);
+  }
 
-  // Step 2: Query aprs.fi API in batches. Strip repeater suffixes (-R/-L/-D) to get valid
-  // APRS callsigns, then deduplicate to minimize requests. NO symbol/type filter — every
-  // station with coordinates is stored (fixed AND mobile).
+  // Step 2: Build APRS callsign list. Split into NEW (not in DB) and EXISTING (in DB).
+  // NEW callsigns are always queried. EXISTING callsigns are re-queried to update positions
+  // (but only a subset each time — those not updated in the last 7 days — to reduce API load).
   const aprsCallsigns = new Set<string>();
   for (const cs of allCallsigns) {
     const base = toAprsCallsign(cs);
     if (base) aprsCallsigns.add(base);
   }
-  const callsignList = Array.from(aprsCallsigns);
+
+  const newCallsigns: string[] = [];
+  const existingCallsignsToRefresh: string[] = [];
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  for (const cs of aprsCallsigns) {
+    const existing = existingByCallsign.get(cs.toUpperCase());
+    if (!existing) {
+      newCallsigns.push(cs);
+    } else {
+      // Re-query existing nodes if they haven't been updated in 7 days
+      const lastUpdated = existing.updated_date ? new Date(existing.updated_date).getTime() : 0;
+      if (Date.now() - lastUpdated > SEVEN_DAYS_MS) {
+        existingCallsignsToRefresh.push(cs);
+      }
+    }
+  }
+
+  // Query NEW callsigns first (priority), then a subset of existing ones to refresh
+  const callsignList = [...newCallsigns, ...existingCallsignsToRefresh];
   totalCallsignsQueried = callsignList.length;
   const BATCH_SIZE = 150;
   const BATCH_DELAY = 4000;
+  const nodeRecords: any[] = [];
+  const updatesByCallsign = new Map<string, any>(); // callsign → new entry data
+
   for (let i = 0; i < callsignList.length; i += BATCH_SIZE) {
     const batch = callsignList.slice(i, i + BATCH_SIZE);
     try {
       const entries = await queryAprsFiBatch(batch, apiKey);
       for (const entry of entries) {
         if (!entry.lat || !entry.lng) continue;
-        seenCallsigns.add(entry.name);
+        const callsignUpper = entry.name.toUpperCase();
+        const existing = existingByCallsign.get(callsignUpper);
+        if (existing) {
+          // Update existing node with new position/data
+          updatesByCallsign.set(callsignUpper, entry);
+        } else {
+          // New node — will be bulk created
+          nodeRecords.push(buildNodeRecord(entry));
+          aprsNodesFound++;
+        }
 
         // Update repeater coordinates if missing (match by base callsign)
-        const matchingReps = repeatersByBaseCall.get(entry.name.toUpperCase()) || [];
+        const matchingReps = repeatersByBaseCall.get(callsignUpper) || [];
         for (const rep of matchingReps) {
           if (rep.lat == null || rep.lng == null) {
             try {
@@ -193,20 +232,30 @@ export async function fetchAprsData(base44: any, apiKey: string) {
             } catch {}
           }
         }
-
-        // Store as APRS node (every station — no filter)
-        nodeRecords.push(buildNodeRecord(entry));
-        aprsNodesFound++;
       }
     } catch {}
     if (i + BATCH_SIZE < callsignList.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
   }
 
-  // Step 3: Delete existing APRS-sourced private nodes and bulk insert ALL new ones
-  try {
-    await base44.asServiceRole.entities.PrivateNode.deleteMany({ source: 'aprs.fi' });
-  } catch {}
+  // Step 3: Update existing nodes with new positions (incremental update, no deletion)
+  for (const [callsign, entry] of updatesByCallsign) {
+    const existing = existingByCallsign.get(callsign);
+    if (!existing) continue;
+    try {
+      const updatedData = buildNodeRecord(entry);
+      await base44.asServiceRole.entities.PrivateNode.update(existing.id, {
+        lat: parseFloat(entry.lat),
+        lng: parseFloat(entry.lng),
+        location_name: (entry.comment || '').substring(0, 100),
+        description: entry.comment || '',
+        aprs_symbol: entry.symbol || '',
+        status: 'active',
+      });
+      nodesUpdated++;
+    } catch {}
+  }
 
+  // Step 4: Bulk insert only NEW nodes (don't delete existing ones — incremental growth)
   for (let i = 0; i < nodeRecords.length; i += 100) {
     const batch = nodeRecords.slice(i, i + 100);
     try {
@@ -275,9 +324,12 @@ export async function fetchAprsData(base44: any, apiKey: string) {
     repeaters_queried: repeaters.length,
     log_callsigns_queried: logs.length,
     total_callsigns_queried: totalCallsignsQueried,
+    new_callsigns_queried: newCallsigns.length,
+    existing_callsigns_refreshed: existingCallsignsToRefresh.length,
     repeaters_updated_with_coords: repeatersUpdated,
     aprs_nodes_found: aprsNodesFound,
     private_nodes_saved: nodesSaved,
+    private_nodes_updated: nodesUpdated,
     brandmeister_links: brandmeisterLinks,
     duration_ms: Date.now() - startTime,
   };

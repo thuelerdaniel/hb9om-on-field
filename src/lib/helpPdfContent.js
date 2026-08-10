@@ -17,7 +17,17 @@ export const LINKS = {
   email: "mailto:hb9om@hb9om.ch",
   repeaterbook: "https://www.repeaterbook.com/row_repeaters/?state_id=CH",
   repeaterbookUS: "https://www.repeaterbook.com/repeater.php?state_id=none&country=United+States",
-  repeaterbookCA: "https://www.repeaterbook.com/repeater.php?state_id=none&country=Canada"
+  repeaterbookCA: "https://www.repeaterbook.com/repeater.php?state_id=none&country=Canada",
+  repeaterbookSA: "https://www.repeaterbook.com/row_repeaters/?state_id=none&country=South+America",
+  repeaterbookAF: "https://www.repeaterbook.com/row_repeaters/?state_id=none&country=Africa",
+  repeaterbookOC: "https://www.repeaterbook.com/row_repeaters/?state_id=none&country=Oceania",
+  arrl: "https://www.arrl.org/repeater-directory",
+  wia: "https://www.wia.org.au/members/repeaters/",
+  iz8wnh: "https://www.iz8wnh.it/",
+  brandmeister: "https://brandmeister.network/",
+  dmrMarc: "https://www.dmr-marc.net/",
+  echolink: "https://www.echolink.org/",
+  allstar: "https://www.allstarlink.org/"
 };
 
 // Screenshot URLs (echte App-Screenshots)
@@ -695,6 +705,37 @@ export const SECTIONS = [
         tip: "Tipp: EchoLink-Filter kann mit anderen Filtern kombiniert werden – z.B. EchoLink + DMR zeigt nur DMR-Relais mit EchoLink."
       },
       {
+        title: "Nur verlinkte Relais anzeigen",
+        body: "Der Filter «Nur verlinkte Relais» blendet alle unverlinkten Relais aus und zeigt nur Relais mit echten Crosslinks an – analog zum EchoLink-Filter. Es werden nur Relais angezeigt, die tatsaechlich mit anderen Relais verlinkt sind (RepeaterBook-Crosslinks oder admin-bestätigte Verlinkungen). Das hilft, uebersichtlich nur vernetzte Relais zu sehen und die Verlinkungs-Linien besser zu erkennen.",
+        steps: [
+          { icon: "radioTower", text: "Relais-Filter oeffnen (oben links)" },
+          { icon: "link2", text: "Schalter «Nur verlinkte Relais» aktivieren" },
+          { icon: "link2", text: "Alle unverlinkten Relais werden ausgeblendet" },
+          { icon: "eye", text: "Nur Relais mit echten Crosslinks bleiben sichtbar" }
+        ],
+        tip: "Tipp: Kombinieren Sie «Nur verlinkte Relais» mit «Verlinkungen anzeigen», um das gesamte Verlinkungsnetzwerk auf einen Blick zu sehen."
+      },
+      {
+        title: "Relais-Quellen weltweit",
+        body: "Die Relais-Daten stammen von RepeaterBook.com und decken alle Kontinente ab: Europa (7928), Nordamerika (USA 50 Bundesstaaten + DC, Kanada 13 Provinzen), Suedamerika (1375), Afrika (166), Asien (517), Ozeanien (Australien, Neuseeland, Papua-Neuguinea, Fidschi). Zusaetzlich werden DMR-Verlinkungen von der BrandMeister Network API abgerufen. Weitere Referenz-Quellen: ARRL Repeater Directory (US/Kanada), WIA (Australien), iz8wnh.it (weltweite Echtzeit-Karte).",
+        steps: [
+          { icon: "globe", text: "RepeaterBook: 80+ Laender weltweit abgedeckt" },
+          { icon: "globe", text: "Nordamerika: USA (50 Bundesstaaten + DC) + Kanada (13 Provinzen)" },
+          { icon: "globe", text: "Suedamerika: Argentinien, Brasilien, Chile, Kolumbien, Ecuador, Peru, Uruguay, Venezuela, Bolivien, Paraguay, Guyana, Suriname" },
+          { icon: "globe", text: "Afrika: Suedafrika, Kenia, Marokko, Nigeria, Ghana, Aegypten, Namibia, Botswana, Simbabwe, Sambia, Mauritius, Reunion, Madagaskar, Senegal, Kamerun, Uganda, Tansania, Lesotho, Eswatini" },
+          { icon: "globe", text: "Ozeanien: Australien, Neuseeland, Papua-Neuguinea, Fidschi" },
+          { icon: "globe", text: "Asien: Japan, Suedkorea, China, Indien, Indonesien, Malaysia, Philippinen, Thailand u.v.m." }
+        ],
+        links: [
+          { label: "RepeaterBook weltweit", url: LINKS.repeaterbook },
+          { label: "ARRL Repeater Directory (US/Kanada)", url: LINKS.arrl },
+          { label: "WIA Repeaters (Australien)", url: LINKS.wia },
+          { label: "iz8wnh.it Echtzeit-Karte", url: LINKS.iz8wnh },
+          { label: "BrandMeister Network", url: LINKS.brandmeister }
+        ],
+        tip: "Tipp: Nicht fuer alle Laender sind viele Relais verfuegbar. Die Datenbank wird laufend erweitert."
+      },
+      {
         title: "Abdeckung pro Relais anzeigen",
         body: "Neben der globalen Abdeckungs-Anzeige (alle Relais) koennen Sie die Abdeckung auch fuer ein einzelnes Relais im Popup ein- und ausschalten. Tippen Sie auf «Abdeckung» im Popup, um die geschaetzte Reichweite fuer dieses Relais als Kreis anzuzeigen. Die Reichweite basiert auf dem Band (2m ~35 km, 70cm ~25 km, etc.).",
         steps: [
@@ -730,7 +771,7 @@ export const SECTIONS = [
       },
       {
         title: "APRS – Amateur Radio Positioning",
-        body: "Die Ebene «APRS – Amateur Radio Positioning» zeigt APRS-Stationen weltweit auf der Karte: Digipeater, IGates, Hotspots, AllStar- und EchoLink-Nodes sowie Wetterstationen. Die Daten stammen von APRS.fi. Jeder Node-Typ wird mit dem entsprechenden APRS-Standard-Symbol dargestellt – farbig nach Typ. Ueber den APRS-Filter (Wifi-Icon oben links) koennen einzelne Node-Typen ein- und ausgeschaltet werden.",
+        body: "Die Ebene «APRS – Amateur Radio Positioning» zeigt APRS-Stationen weltweit auf der Karte: Digipeater, IGates, Hotspots, AllStar- und EchoLink-Nodes sowie Wetterstationen. Die Daten stammen von APRS.fi. Die APRS-Datenbank waechst inkrementell: Bei jeder Aktualisierung werden nur neue Rufzeichen abgefragt und vorhandene Stationen werden aktualisiert. So wird die Datenbank mit jeder Abfrage groesser und spaeter muessen nur noch Aenderungen abgefragt werden. Jeder Node-Typ wird mit dem entsprechenden APRS-Standard-Symbol dargestellt – farbig nach Typ. Ueber den APRS-Filter (Wifi-Icon oben links) koennen einzelne Node-Typen ein- und ausgeschaltet werden.",
         steps: [
           { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
           { icon: "wifi", text: "«APRS – Amateur Radio Positioning» aktivieren" },
@@ -738,7 +779,7 @@ export const SECTIONS = [
           { icon: "mapPin", text: "Symbole nach APRS-Standard: Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetter)" },
           { icon: "mapPin", text: "Popup antippen fuer Node-Details" }
         ],
-        tip: "Tipp: Nicht fuer alle Kontinente/Laender sind bereits APRS-Daten verfuegbar. Die Datenbank wird laufend erweitert."
+        tip: "Tipp: Die APRS-Datenbank waechst mit jeder Aktualisierung – bestehende Stationen bleiben erhalten, neue werden hinzugefuegt. Spaeter werden nur noch Aenderungen abgefragt."
       },
       {
         title: "Kontinent-Filter",
@@ -899,6 +940,7 @@ export const REPEATER_FILTER_INFO = {
     "Mindestens eine Modulationsart muss aktiv sein, sonst werden keine Relais angezeigt",
     "FM, Fusion, DMR, D-STAR, P-25, NXDN, M17 sind Hauptmodulationsarten",
     "EchoLink ist ein Feature-Filter: zeigt alle Relais mit EchoLink-Zugang unabhängig vom Hauptmodus",
+    "Nur verlinkte Relais: blendet alle unverlinkten Relais aus, zeigt nur Relais mit echten Crosslinks (analog EchoLink-Filter)",
     "Kontinent-Filter: «Ganze Welt» oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.)",
     "Land-Filter: nach einzelnen Ländern filtern (alle Länder verfügbar)",
     "Radius-Filter: nur Relais innerhalb eines Radius von Ihrer GPS-Position",
@@ -906,5 +948,15 @@ export const REPEATER_FILTER_INFO = {
     "Abdeckung: geschätzte Reichweite pro Relais (verfeinert durch APRS-Dichte und Geländedaten)",
     "Verlinkungen: permanente Crosslinks als gestrichelte Linien anzeigen",
     "Admin: pro Relais Web-Link ergänzen und Abdeckungsberechnung anstossen"
+  ],
+  continentalSources: [
+    { continent: "Europa", source: "RepeaterBook (7928 Relais)", url: "https://www.repeaterbook.com/row_repeaters/" },
+    { continent: "Nordamerika", source: "RepeaterBook USA (50 Bundesstaaten + DC) & Kanada (13 Provinzen), ARRL Repeater Directory", url: "https://www.arrl.org/repeater-directory" },
+    { continent: "Südamerika", source: "RepeaterBook (1375 Relais): Argentinien, Brasilien, Chile, Kolumbien, Ecuador, Peru, Uruguay, Venezuela, Bolivien, Paraguay, Guyana, Suriname", url: "https://www.repeaterbook.com/row_repeaters/" },
+    { continent: "Afrika", source: "RepeaterBook (166 Relais): Südafrika, Kenia, Marokko, Nigeria, Ghana, Ägypten, Namibia, Botswana, Simbabwe, Sambia, Mauritius, Réunion, Madagaskar, Senegal, Kamerun, Uganda, Tansania, Lesotho, Eswatini", url: "https://www.repeaterbook.com/row_repeaters/" },
+    { continent: "Ozeanien", source: "RepeaterBook + WIA (Wireless Institute of Australia): Australien, Neuseeland, Papua-Neuguinea, Fidschi", url: "https://www.wia.org.au/members/repeaters/" },
+    { continent: "Asien", source: "RepeaterBook (517 Relais): Japan, Südkorea, China, Indien, Indonesien, Malaysia, Philippinen, Thailand, Singapur u.v.m.", url: "https://www.repeaterbook.com/row_repeaters/" },
+    { continent: "Weltweit", source: "iz8wnh.it – Interaktive Weltkarte aller Relais und Bake (Echtzeit)", url: "https://www.iz8wnh.it/" },
+    { continent: "DMR-Netzwerke", source: "BrandMeister Network API + DMR-MARC – weltweite DMR-Relais mit Verlinkungen", url: "https://brandmeister.network/" }
   ]
 };

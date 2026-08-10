@@ -295,6 +295,7 @@ export default function Home() {
   const [repeaterSearchQuery, setRepeaterSearchQuery] = useState("");
   const [repeaterShowLinks, setRepeaterShowLinks] = useState(() => localStorage.getItem("hb9om_repeater_show_links") !== "false");
   const [repeaterShowCoverage, setRepeaterShowCoverage] = useState(() => localStorage.getItem("hb9om_repeater_show_coverage") === "true");
+  const [repeaterShowOnlyLinked, setRepeaterShowOnlyLinked] = useState(() => localStorage.getItem("hb9om_repeater_show_only_linked") === "true");
   const [repeaterFilterCountry, setRepeaterFilterCountry] = useState("all");
   const [repeaterRadiusKm, setRepeaterRadiusKm] = useState(() => {
     const saved = localStorage.getItem("hb9om_repeater_radius_km");
@@ -340,6 +341,9 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_repeater_show_coverage", String(repeaterShowCoverage));
   }, [repeaterShowCoverage]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_repeater_show_only_linked", String(repeaterShowOnlyLinked));
+  }, [repeaterShowOnlyLinked]);
   useEffect(() => {
     localStorage.setItem("hb9om_repeater_radius_km", String(repeaterRadiusKm));
   }, [repeaterRadiusKm]);
@@ -1266,6 +1270,7 @@ export default function Home() {
               searchQuery={repeaterSearchQuery}
               showLinks={repeaterShowLinks}
               showCoverage={repeaterShowCoverage}
+              showOnlyLinked={repeaterShowOnlyLinked}
               performanceMode={performanceMode}
               filterCountry={repeaterFilterCountry}
               userPosition={currentPosition}
@@ -1329,6 +1334,8 @@ export default function Home() {
             onShowLinksChange={setRepeaterShowLinks}
             showCoverage={repeaterShowCoverage}
             onShowCoverageChange={setRepeaterShowCoverage}
+            showOnlyLinked={repeaterShowOnlyLinked}
+            onShowOnlyLinkedChange={setRepeaterShowOnlyLinked}
             filterCountry={repeaterFilterCountry}
             onFilterCountryChange={setRepeaterFilterCountry}
             countries={repeaterCountries}

@@ -4,6 +4,7 @@
 import { fetchSotaSummits } from './sotaFetcher.ts';
 import { fetchPotaParks } from './potaFetcher.ts';
 import { fetchRepeaterData } from './repeaterScraper.ts';
+import { IOTA_EMBEDDED_DATA } from './iotaData.ts';
 
 // --- HBFF KMZ extraction helpers ---
 async function extractKmlFromKmz(buffer: ArrayBuffer): Promise<string | null> {
@@ -219,21 +220,58 @@ export async function fetchWwbotaData(): Promise<any[]> {
 }
 
 export async function fetchLighthouseData(): Promise<any[]> {
-  const resp = await fetch('https://wllw.org/ILLW-flat.txt', { headers: { 'User-Agent': 'HB9OM-OnField/1.0' } });
-  if (!resp.ok) throw new Error('ILLW fetch failed');
-  const text = await resp.text();
-  const lighthouses: any[] = [];
-  for (const line of text.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith(';') || trimmed.startsWith('#')) continue;
-    const eqIdx = trimmed.indexOf('=');
-    if (eqIdx === -1) continue;
-    const code = trimmed.substring(0, eqIdx).trim();
-    const name = trimmed.substring(eqIdx + 1).trim();
-    // Parse coordinates from the name if available (format: "Name|lat,lng" or just store without coords)
-    lighthouses.push({ code, name, lat: null, lng: null, link: 'https://wllw.org/index.php/en/' });
+  // Fetch lighthouses worldwide from OSM Overpass API — 2 batches to avoid timeout
+  const BBOXES = [
+    [-60, -180, 85, 180],    // Europe + Asia + Africa (large batch)
+    [-60, -180, 15, -30],    // Americas + Oceania
+  ];
+  const allLighthouses: any[] = [];
+  const seen = new Set<string>();
+  for (const [south, west, north, east] of BBOXES) {
+    try {
+      const query = `[out:json][timeout:90];(
+        node["man_made"="lighthouse"](${south},${west},${north},${east});
+        way["man_made"="lighthouse"](${south},${west},${north},${east});
+      );out center 5000;`;
+      const resp = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'HB9OM-OnField/1.0' },
+        body: 'data=' + encodeURIComponent(query)
+      });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const e of (data.elements || [])) {
+        const lat = e.lat || e.center?.lat;
+        const lng = e.lon || e.center?.lon;
+        if (isNaN(lat) || isNaN(lng)) continue;
+        const name = e.tags?.name || e.tags?.['seamark:name'] || `Lighthouse ${lat.toFixed(4)},${lng.toFixed(4)}`;
+        const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        allLighthouses.push({
+          code: e.tags?.['seamark:light:reference'] || `OSM-LH-${allLighthouses.length + 1}`,
+          name, lat, lng,
+          country: e.tags?.['addr:country'] || '',
+          link: 'https://www.openstreetmap.org/',
+        });
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 2000));
   }
-  return lighthouses;
+  // Add curated Swiss ARLHS WLOL lighthouses (verified coordinates)
+  const swissLighthouses = [
+    { code: 'SWI-001', name: 'Phare des Pâquis (Genf)', lat: 46.2100, lng: 6.1570, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI1.html' },
+    { code: 'SWI-002', name: 'Genève Jetée du Sud (Genf)', lat: 46.2080, lng: 6.1560, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI2.html' },
+    { code: 'SWI-003', name: 'Morges Jetée du Sud', lat: 46.5061, lng: 6.4990, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI3.html' },
+    { code: 'SWI-004', name: 'Morges Jetée du Nord', lat: 46.5065, lng: 6.4991, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI4.html' },
+    { code: 'SWI-005', name: 'Romanshorn Leuchtturm', lat: 47.5668, lng: 9.3922, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI5.html' },
+    { code: 'SWI-006', name: 'Rorschach Hafen Leuchtturm', lat: 47.4794, lng: 9.4946, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI6.html' },
+  ];
+  for (const sl of swissLighthouses) {
+    const key = `${sl.lat.toFixed(3)},${sl.lng.toFixed(3)}`;
+    if (!seen.has(key)) allLighthouses.push(sl);
+  }
+  return allLighthouses;
 }
 
 // --- Worldwide castle fetcher (OSM Overpass + Wikidata, no bbox restriction) ---
@@ -421,7 +459,8 @@ export async function fetchIotaData(): Promise<any[]> {
     } catch {}
   }
 
-  throw new Error('IOTA data source unavailable — all URLs failed');
+  // Fallback: use embedded worldwide IOTA data (curated ~180 island groups)
+  return IOTA_EMBEDDED_DATA;
 }
 
 // --- Re-export shared fetchers for convenience ---

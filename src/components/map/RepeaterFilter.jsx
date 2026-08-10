@@ -13,6 +13,8 @@ export default function RepeaterFilter({
   onShowLinksChange,
   showCoverage,
   onShowCoverageChange,
+  showOnlyLinked,
+  onShowOnlyLinkedChange,
   filterCountry,
   onFilterCountryChange,
   countries,
@@ -276,6 +278,25 @@ export default function RepeaterFilter({
             </button>
             <p className="text-[10px] text-gray-400 mt-1 ml-2">
               Permanente Verlinkungen: echte Crosslinks aus RepeaterBook + admin-bestätigte Verlinkungen. Temporäre Verlinkungen werden nicht angezeigt.
+            </p>
+          </div>
+
+          {/* Only linked repeaters toggle */}
+          <div className="p-3 border-b border-gray-100">
+            <button
+              onClick={() => onShowOnlyLinkedChange(!showOnlyLinked)}
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs hover:bg-gray-50"
+            >
+              <span className="flex items-center gap-2 text-gray-700">
+                <Link2 className="w-3.5 h-3.5 text-purple-500" />
+                Nur verlinkte Relais
+              </span>
+              <span className={`relative w-9 h-5 rounded-full transition-colors ${showOnlyLinked ? "bg-purple-500" : "bg-gray-300"}`}>
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${showOnlyLinked ? "translate-x-4" : ""}`} />
+              </span>
+            </button>
+            <p className="text-[10px] text-gray-400 mt-1 ml-2">
+              Blendet alle unverlinkten Relais aus. Zeigt nur Relais mit echten Crosslinks (RepeaterBook) oder admin-bestätigten Verlinkungen – analog zum EchoLink-Filter.
             </p>
           </div>
 
