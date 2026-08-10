@@ -100,10 +100,10 @@ const REFERENCE_SOURCES = [
     },
   },
   {
-    type: 'fm_netzwerk',
-    label: 'FM-Netzwerk.de (Relais-Stream)',
-    source: 'fm-netzwerk.de',
-    url: 'https://www.fm-netzwerk.de',
+    type: 'fm_funknetz',
+    label: 'FM-Funknetz.de (Relais-Stream)',
+    source: 'fm-funknetz.de',
+    url: 'https://fm-funknetz.de',
     auto_updated: false,
     check: async (resp) => {
       const text = await resp.text();

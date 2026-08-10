@@ -1,10 +1,121 @@
 // Shared repeater scraping logic — imported by fetchRepeaters and refreshAllData.
-// Source: RepeaterBook.com (Switzerland / HB9 / HB0)
+// Source: RepeaterBook.com (worldwide — 68+ countries)
 
-const REPEATERBOOK_LIST_URL =
-  'https://www.repeaterbook.com/row_repeaters/Display_SS.php?state_id=CH&band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
+const LIST_BASE = 'https://www.repeaterbook.com/row_repeaters/Display_SS.php';
+const DETAIL_BASE = 'https://www.repeaterbook.com/row_repeaters/details.php';
 
-const DETAIL_BASE = 'https://www.repeaterbook.com/row_repeaters/details.php?state_id=CH&ID=';
+const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
+
+const MAX_DETAIL_FETCH = 1500;
+const LIST_CONCURRENCY = 8;
+const DETAIL_CONCURRENCY = 20;
+
+// Country list from RepeaterBook row_repeaters index.
+// Priority 1: Switzerland + neighbors (always fetch detail pages first)
+// Priority 2: Rest of Europe
+// Priority 3: Other continents
+const COUNTRIES = [
+  // Priority 1: Switzerland + neighbors
+  { code: 'CH', name: 'Switzerland', priority: 1 },
+  { code: 'LI', name: 'Liechtenstein', priority: 1 },
+  { code: 'AT', name: 'Austria', priority: 1 },
+  { code: 'FR', name: 'France', priority: 1 },
+  { code: 'DE', name: 'Germany', priority: 1 },
+  { code: 'IT', name: 'Italy', priority: 1 },
+  // Priority 2: Rest of Europe
+  { code: 'AL', name: 'Albania', priority: 2 },
+  { code: 'AD', name: 'Andorra', priority: 2 },
+  { code: 'BY', name: 'Belarus', priority: 2 },
+  { code: 'BE', name: 'Belgium', priority: 2 },
+  { code: 'BA', name: 'Bosnia and Herzegovina', priority: 2 },
+  { code: 'BG', name: 'Bulgaria', priority: 2 },
+  { code: 'HR', name: 'Croatia', priority: 2 },
+  { code: 'CY', name: 'Cyprus', priority: 2 },
+  { code: 'CZ', name: 'Czechia', priority: 2 },
+  { code: 'DK', name: 'Denmark', priority: 2 },
+  { code: 'EE', name: 'Estonia', priority: 2 },
+  { code: 'FO', name: 'Faroe Islands', priority: 2 },
+  { code: 'FI', name: 'Finland', priority: 2 },
+  { code: 'GE', name: 'Georgia', priority: 2 },
+  { code: 'GI', name: 'Gibraltar', priority: 2 },
+  { code: 'GG', name: 'Guernsey', priority: 2 },
+  { code: 'GR', name: 'Greece', priority: 2 },
+  { code: 'HU', name: 'Hungary', priority: 2 },
+  { code: 'IS', name: 'Iceland', priority: 2 },
+  { code: 'IM', name: 'Isle of Man', priority: 2 },
+  { code: 'IE', name: 'Ireland', priority: 2 },
+  { code: 'JE', name: 'Jersey', priority: 2 },
+  { code: 'XK', name: 'Kosovo', priority: 2 },
+  { code: 'LV', name: 'Latvia', priority: 2 },
+  { code: 'LT', name: 'Lithuania', priority: 2 },
+  { code: 'LU', name: 'Luxembourg', priority: 2 },
+  { code: 'MT', name: 'Malta', priority: 2 },
+  { code: 'MD', name: 'Moldova', priority: 2 },
+  { code: 'NL', name: 'Netherlands', priority: 2 },
+  { code: 'NO', name: 'Norway', priority: 2 },
+  { code: 'MK', name: 'North Macedonia', priority: 2 },
+  { code: 'PL', name: 'Poland', priority: 2 },
+  { code: 'PT', name: 'Portugal', priority: 2 },
+  { code: 'RO', name: 'Romania', priority: 2 },
+  { code: 'RU', name: 'Russian Federation', priority: 2 },
+  { code: 'SM', name: 'San Marino', priority: 2 },
+  { code: 'RS', name: 'Serbia', priority: 2 },
+  { code: 'SK', name: 'Slovakia', priority: 2 },
+  { code: 'SI', name: 'Slovenia', priority: 2 },
+  { code: 'ES', name: 'Spain', priority: 2 },
+  { code: 'SE', name: 'Sweden', priority: 2 },
+  { code: 'UA', name: 'Ukraine', priority: 2 },
+  { code: 'GB', name: 'United Kingdom', priority: 2 },
+  // Priority 3: Middle East, Asia, Americas, Africa, Oceania
+  { code: 'TR', name: 'Türkiye', priority: 3 },
+  { code: 'IL', name: 'Israel', priority: 3 },
+  { code: 'AE', name: 'United Arab Emirates', priority: 3 },
+  { code: 'KW', name: 'Kuwait', priority: 3 },
+  { code: 'OM', name: 'Oman', priority: 3 },
+  { code: 'AZ', name: 'Azerbaijan', priority: 3 },
+  { code: 'CN', name: 'China', priority: 3 },
+  { code: 'IN', name: 'India', priority: 3 },
+  { code: 'ID', name: 'Indonesia', priority: 3 },
+  { code: 'JP', name: 'Japan', priority: 3 },
+  { code: 'MY', name: 'Malaysia', priority: 3 },
+  { code: 'NP', name: 'Nepal', priority: 3 },
+  { code: 'PH', name: 'Philippines', priority: 3 },
+  { code: 'SG', name: 'Singapore', priority: 3 },
+  { code: 'KR', name: 'South Korea', priority: 3 },
+  { code: 'LK', name: 'Sri Lanka', priority: 3 },
+  { code: 'TH', name: 'Thailand', priority: 3 },
+  { code: 'AR', name: 'Argentina', priority: 3 },
+  { code: 'BR', name: 'Brazil', priority: 3 },
+  { code: 'CL', name: 'Chile', priority: 3 },
+  { code: 'CO', name: 'Colombia', priority: 3 },
+  { code: 'EC', name: 'Ecuador', priority: 3 },
+  { code: 'PY', name: 'Paraguay', priority: 3 },
+  { code: 'PE', name: 'Peru', priority: 3 },
+  { code: 'UY', name: 'Uruguay', priority: 3 },
+  { code: 'VE', name: 'Venezuela', priority: 3 },
+  { code: 'BZ', name: 'Belize', priority: 3 },
+  { code: 'CR', name: 'Costa Rica', priority: 3 },
+  { code: 'SV', name: 'El Salvador', priority: 3 },
+  { code: 'GT', name: 'Guatemala', priority: 3 },
+  { code: 'NI', name: 'Nicaragua', priority: 3 },
+  { code: 'PA', name: 'Panama', priority: 3 },
+  { code: 'BQ', name: 'Caribbean Netherlands', priority: 3 },
+  { code: 'CW', name: 'Curaçao', priority: 3 },
+  { code: 'DO', name: 'Dominican Republic', priority: 3 },
+  { code: 'GD', name: 'Grenada', priority: 3 },
+  { code: 'HT', name: 'Haiti', priority: 3 },
+  { code: 'HN', name: 'Honduras', priority: 3 },
+  { code: 'JM', name: 'Jamaica', priority: 3 },
+  { code: 'KN', name: 'Saint Kitts and Nevis', priority: 3 },
+  { code: 'VC', name: 'Saint Vincent and the Grenadines', priority: 3 },
+  { code: 'TT', name: 'Trinidad and Tobago', priority: 3 },
+  { code: 'KY', name: 'Cayman Islands', priority: 3 },
+  { code: 'KE', name: 'Kenya', priority: 3 },
+  { code: 'MA', name: 'Morocco', priority: 3 },
+  { code: 'ZA', name: 'South Africa', priority: 3 },
+  { code: 'AU', name: 'Australia', priority: 3 },
+  { code: 'NZ', name: 'New Zealand', priority: 3 },
+];
 
 // ─── Mode parsing ───
 
@@ -32,7 +143,6 @@ export function parseModes(modesStr: string): string[] {
       s = s.replace(feature, '');
     }
   }
-  // If nothing matched but string is non-empty, treat as FM
   if (modes.length === 0 && modesStr.trim().length > 0) {
     modes.push('FM');
   }
@@ -57,34 +167,30 @@ export function getBand(frequency: number): string {
   return 'Other';
 }
 
-function parseStatus(statusStr: string): string {
-  if (statusStr.includes('\uD83D\uDFE2') || statusStr.includes('🟢')) return 'on-air';
-  if (statusStr.includes('\uD83D\uDD34') || statusStr.includes('🔴')) return 'off-air';
-  if (statusStr.includes('\uD83D\uDFE1') || statusStr.includes('🟡')) return 'testing';
+function parseStatus(row: string): string {
+  if (row.includes('\uD83D\uDFE2') || row.includes('🟢')) return 'on-air';
+  if (row.includes('\uD83D\uDD34') || row.includes('🔴')) return 'off-air';
+  if (row.includes('\uD83D\uDFE1') || row.includes('🟡')) return 'testing';
   return 'unknown';
 }
 
 // ─── List page parser ───
 
-export function parseRepeaterList(html: string): any[] {
+export function parseRepeaterList(html: string, countryCode: string, countryName: string): any[] {
   const repeaters: any[] = [];
   const rows = html.split(/<tr[\s>]/);
   for (const row of rows) {
-    // Extract ID from data-rpt-id attribute (most reliable)
     const idMatch = row.match(/data-rpt-id="(\d+)"/);
     if (!idMatch) continue;
     const sourceId = idMatch[1];
 
-    // Extract frequency from <a> tag text
     const freqMatch = row.match(/<a[^>]*>\s*([\d.]+)\s*<\/a>/);
     if (!freqMatch) continue;
     const frequency = parseFloat(freqMatch[1]);
 
-    // Extract offset sign from <span class="text-muted">
     const offsetMatch = row.match(/<span class="text-muted">\s*([+\-])\s*<\/span>/);
     const offsetSign = offsetMatch ? offsetMatch[1] : '-';
 
-    // Extract modes from individual badge spans
     const modes: string[] = [];
     const badgeRegex = /<span class="badge[^"]*mode-badge">\s*([^<]+?)\s*<\/span>/g;
     let badgeMatch;
@@ -93,7 +199,6 @@ export function parseRepeaterList(html: string): any[] {
       if (mode) modes.push(mode);
     }
 
-    // Extract all <td> cell text contents for remaining fields
     const cells: string[] = [];
     const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
     let tdMatch;
@@ -106,14 +211,12 @@ export function parseRepeaterList(html: string): any[] {
       cells.push(content);
     }
 
-    // Cells: [checkbox, frequency+sign, tone, location, call, modes, status]
     const tone = cells[2] || '';
     const locationName = cells[3] || '';
     const callsign = cells[4] || '';
 
     if (!callsign || !frequency) continue;
 
-    // If modes not found from badges, try parsing from cell text
     const finalModes = modes.length > 0 ? modes : parseModes(cells[5] || '');
     const primaryMode = getPrimaryMode(finalModes);
     const band = getBand(frequency);
@@ -121,7 +224,7 @@ export function parseRepeaterList(html: string): any[] {
 
     repeaters.push({
       sourceId,
-      detailUrl: DETAIL_BASE + sourceId,
+      detailUrl: `${DETAIL_BASE}?state_id=${countryCode}&ID=${sourceId}`,
       frequency,
       offsetSign,
       offset_mhz: offsetSign === '+' ? offsetMag : -offsetMag,
@@ -130,13 +233,15 @@ export function parseRepeaterList(html: string): any[] {
       primary_mode: primaryMode,
       location_name: locationName,
       callsign,
+      country: countryName,
+      country_code: countryCode,
       band,
       status: parseStatus(row),
       lat: null as number | null,
       lng: null as number | null,
       web_url: null as string | null,
       echolink_node: null as string | null,
-      fm_netzwerk: false,
+      fm_funknetz: false,
     });
   }
   return repeaters;
@@ -150,14 +255,12 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
   let web_url: string | null = null;
   let echolink_node: string | null = null;
 
-  // Coordinates from Google Maps link: query=47.062500%2C8.375000
   const gmMatch = html.match(/google\.com\/maps\/search\/[^"]*query=([\d.-]+)(?:%2C|,)([\d.-]+)/);
   if (gmMatch) {
     lat = parseFloat(gmMatch[1]);
     lng = parseFloat(gmMatch[2]);
   }
   if (lat === null) {
-    // Fallback: Nearby Repeaters link: lat=47.06250000&long=8.37500000
     const nrMatch = html.match(/prox2_result\.php\?lat=([\d.-]+)&long=([\d.-]+)/);
     if (nrMatch) {
       lat = parseFloat(nrMatch[1]);
@@ -165,14 +268,12 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
     }
   }
 
-  // Web links — look for href in the "Web links" row
   const webMatch = html.match(/Web links<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/);
   if (webMatch) {
     const linkMatch = webMatch[1].match(/href=['"](https?:\/\/[^'"]+)['"]/);
     if (linkMatch) web_url = linkMatch[1];
   }
 
-  // EchoLink node number — look for "Node Number" followed by a number
   const elMatch = html.match(/Node Number[\s\S]*?(\d{4,7})\s/);
   if (elMatch) echolink_node = elMatch[1];
 
@@ -182,49 +283,76 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
 // ─── Main fetch function ───
 
 export async function fetchRepeaterData(): Promise<any[]> {
-  // 1. Fetch list page
-  const listResp = await fetch(REPEATERBOOK_LIST_URL, {
-    headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
-  });
-  if (!listResp.ok) throw new Error(`RepeaterBook list fetch failed: HTTP ${listResp.status}`);
-  const listHtml = await listResp.text();
-  const repeaters = parseRepeaterList(listHtml);
+  const countryPriority = new Map(COUNTRIES.map(c => [c.code, c.priority]));
 
-  // 2. Fetch detail pages with concurrency limit
-  const CONCURRENCY = 8;
-  for (let i = 0; i < repeaters.length; i += CONCURRENCY) {
-    const chunk = repeaters.slice(i, i + CONCURRENCY);
-    await Promise.all(chunk.map(async (rep) => {
+  // 1. Fetch list pages for all countries (concurrency 8)
+  const allRepeaters: any[] = [];
+  for (let i = 0; i < COUNTRIES.length; i += LIST_CONCURRENCY) {
+    const chunk = COUNTRIES.slice(i, i + LIST_CONCURRENCY);
+    const results = await Promise.all(chunk.map(async (country) => {
       try {
-        const detailResp = await fetch(rep.detailUrl, {
+        const url = `${LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}`;
+        const resp = await fetch(url, {
           headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
         });
-        if (!detailResp.ok) return;
-        const detailHtml = await detailResp.text();
-        const detail = parseRepeaterDetail(detailHtml);
+        if (!resp.ok) return [];
+        const html = await resp.text();
+        return parseRepeaterList(html, country.code, country.name);
+      } catch {
+        return [];
+      }
+    }));
+    for (const reps of results) {
+      allRepeaters.push(...reps);
+    }
+  }
+
+  // 2. Sort by country priority (priority 1 first), then on-air first
+  allRepeaters.sort((a, b) => {
+    const pa = countryPriority.get(a.country_code) || 99;
+    const pb = countryPriority.get(b.country_code) || 99;
+    if (pa !== pb) return pa - pb;
+    if (a.status === 'on-air' && b.status !== 'on-air') return -1;
+    if (a.status !== 'on-air' && b.status === 'on-air') return 1;
+    return 0;
+  });
+
+  // 3. Select top MAX_DETAIL_FETCH for detail page fetching (prioritized)
+  const toFetch = allRepeaters.slice(0, MAX_DETAIL_FETCH);
+
+  // 4. Fetch detail pages (concurrency 20)
+  for (let i = 0; i < toFetch.length; i += DETAIL_CONCURRENCY) {
+    const chunk = toFetch.slice(i, i + DETAIL_CONCURRENCY);
+    await Promise.all(chunk.map(async (rep) => {
+      try {
+        const resp = await fetch(rep.detailUrl, {
+          headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
+        });
+        if (!resp.ok) return;
+        const html = await resp.text();
+        const detail = parseRepeaterDetail(html);
         if (detail.lat !== null) rep.lat = detail.lat;
         if (detail.lng !== null) rep.lng = detail.lng;
         if (detail.web_url) rep.web_url = detail.web_url;
         if (detail.echolink_node) rep.echolink_node = detail.echolink_node;
       } catch {
-        // skip failed detail pages — coordinates stay null
+        // skip failed detail pages
       }
     }));
   }
 
-  // 3. Build linking: group by callsign, set linked_callsigns
+  // 5. Build linking: group by callsign, set linked_callsigns
   const byCallsign = new Map<string, any[]>();
-  for (const rep of repeaters) {
+  for (const rep of allRepeaters) {
     if (!byCallsign.has(rep.callsign)) byCallsign.set(rep.callsign, []);
     byCallsign.get(rep.callsign)!.push(rep);
   }
-  for (const rep of repeaters) {
+  for (const rep of allRepeaters) {
     const group = byCallsign.get(rep.callsign) || [];
     rep.linked_callsigns = group
       .filter(r => r.frequency !== rep.frequency || r.band !== rep.band)
       .map(r => `${r.callsign} ${r.frequency.toFixed(4)} MHz (${r.band})`);
   }
 
-  // 4. Filter out repeaters without coordinates (can't show on map)
-  return repeaters;
+  return allRepeaters;
 }

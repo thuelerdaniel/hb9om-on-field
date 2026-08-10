@@ -44,7 +44,7 @@ function getDraggableIcon(color) {
   return icon;
 }
 
-function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive }) {
+function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive, userPosition }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
@@ -128,7 +128,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
               }}
             >
               <Popup>
-                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} />
+                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} />
               </Popup>
             </CircleMarker>
           );
@@ -149,7 +149,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
             icon={getShapeIcon(m.layerType, m.color)}
           >
             <Popup>
-              <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} />
+              <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} />
             </Popup>
           </Marker>
         );
@@ -166,7 +166,8 @@ function arePropsEqual(prev, next) {
     prev.onMarkerDrag === next.onMarkerDrag &&
     prev.onEdit === next.onEdit &&
     prev.performanceMode === next.performanceMode &&
-    prev.autoCanvasActive === next.autoCanvasActive
+    prev.autoCanvasActive === next.autoCanvasActive &&
+    prev.userPosition === next.userPosition
   );
 }
 

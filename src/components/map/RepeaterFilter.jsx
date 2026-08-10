@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Radio, Search, Link2, ChevronDown, X } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Radio, Search, Link2, ChevronDown, X, Globe } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES } from "@/lib/repeaterModes";
 
 export default function RepeaterFilter({
@@ -9,6 +9,9 @@ export default function RepeaterFilter({
   onSearchQueryChange,
   showLinks,
   onShowLinksChange,
+  filterCountry,
+  onFilterCountryChange,
+  countries,
   repeaterCount,
   visibleCount,
 }) {
@@ -24,6 +27,10 @@ export default function RepeaterFilter({
 
   const allOn = filterModes.length === FILTER_MODES.length;
   const noneOn = filterModes.length === 0;
+
+  const sortedCountries = useMemo(() => {
+    return [...(countries || [])].sort((a, b) => a.name.localeCompare(b.name));
+  }, [countries]);
 
   return (
     <div className="absolute top-3 left-3 z-[1005]">
@@ -74,6 +81,48 @@ export default function RepeaterFilter({
               )}
             </div>
           </div>
+
+          {/* Country filter */}
+          {sortedCountries.length > 1 && (
+            <div className="p-3 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                  <Globe className="w-3 h-3" /> Land
+                </h4>
+                {filterCountry !== "all" && (
+                  <button
+                    onClick={() => onFilterCountryChange("all")}
+                    className="text-[10px] text-blue-600 hover:underline"
+                  >
+                    Alle
+                  </button>
+                )}
+              </div>
+              <div className="max-h-32 overflow-y-auto space-y-0.5">
+                <button
+                  onClick={() => onFilterCountryChange("all")}
+                  className={`w-full flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
+                    filterCountry === "all" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <span>Alle Länder</span>
+                  <span className="text-[10px] text-gray-400">{repeaterCount}</span>
+                </button>
+                {sortedCountries.map(c => (
+                  <button
+                    key={c.code}
+                    onClick={() => onFilterCountryChange(c.code)}
+                    className={`w-full flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
+                      filterCountry === c.code ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="truncate">{c.name}</span>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0 ml-1">{c.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Mode filters */}
           <div className="p-3 border-b border-gray-100">

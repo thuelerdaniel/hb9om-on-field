@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil, ChevronDown, ChevronUp } from "lucide-react";
+import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil, ChevronDown, ChevronUp, Navigation } from "lucide-react";
 
 const LAYER_META = {
   sota: { icon: Mountain, color: "#e74c3c", label: "SOTA", program: "Summits on the Air", linkBase: "https://sotl.as/summits/" },
@@ -12,12 +12,33 @@ const LAYER_META = {
   swiss_protected: { icon: Trees, color: "#16a085", label: "BLN/Moor", program: "Bundesinventar", linkBase: "https://map.geo.admin.ch/" }
 };
 
-export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode }) {
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(km) {
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 100) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
+export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode, userPosition }) {
   const [showDetails, setShowDetails] = useState(!performanceMode);
   const meta = LAYER_META[layerType] || {};
   const Icon = meta.icon || MapPin;
 
-  // Build external link based on layer type and data
+  const hasCoords = data.lat != null && data.lng != null;
+  const navUrl = hasCoords
+    ? `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}`
+    : null;
+  const distance = hasCoords && userPosition
+    ? haversineKm(userPosition[0], userPosition[1], data.lat, data.lng)
+    : null;
+
   const externalLink = (() => {
     if (layerType === "sota" && data.code) return meta.linkBase + data.code;
     if (layerType === "pota" && (data.reference || data.code)) return meta.linkBase + (data.reference || data.code);
@@ -58,6 +79,13 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
           {data.country && <p className="text-xs text-gray-500">Land: {data.country}</p>}
           {data.activationCount !== undefined && <p className="text-xs text-gray-500">Aktivierungen: {data.activationCount}</p>}
 
+          {distance != null && (
+            <div className="flex items-center gap-1 text-xs text-blue-600 mt-1.5 bg-blue-50 rounded px-2 py-1">
+              <MapPin className="w-3 h-3" />
+              <span>Entfernung: <span className="font-bold">{formatDistance(distance)}</span></span>
+            </div>
+          )}
+
           {externalLink && (
             <a href={externalLink} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:underline">
@@ -91,6 +119,18 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
               </a>
             );
           })()}
+
+          {navUrl && (
+            <a
+              href={navUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              <Navigation className="w-3 h-3" />
+              Navigieren (Google Maps)
+            </a>
+          )}
 
           {isAdmin && onEdit && (
             <button

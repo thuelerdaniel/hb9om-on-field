@@ -806,22 +806,24 @@ Deno.serve(async (req) => {
       return { type: t.type, status: 'failed', count: 0, error: settled[i].reason?.message || String(settled[i].reason), duration_ms: 0 };
     });
 
-    // Sync repeaters to Repeater entity (separate from ReferenceData)
+    // Sync repeaters to Repeater entity (worldwide — separate from ReferenceData)
     try {
       const repStart = Date.now();
       const repeaters = await fetchRepeaterData();
       const withCoords = repeaters.filter(r => r.lat !== null && r.lng !== null);
-      const existingReps = await base44.asServiceRole.entities.Repeater.list("-created_date", 500);
-      for (let i = 0; i < (existingReps || []).length; i += 100) {
-        const batch = existingReps.slice(i, i + 100);
-        await Promise.all(batch.map(r => base44.asServiceRole.entities.Repeater.delete(r.id)));
+      // Delete all existing repeaters (loop — may exceed single deleteMany limit)
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const existingReps = await base44.asServiceRole.entities.Repeater.list("-created_date", 500);
+        if (!existingReps || existingReps.length === 0) break;
+        await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existingReps.map(r => r.id) } });
       }
       const repRecords = withCoords.map(r => ({
         callsign: r.callsign, frequency: r.frequency, offset_mhz: r.offset_mhz || 0,
         tone: r.tone || '', modes: r.modes, primary_mode: r.primary_mode,
-        location_name: r.location_name, country: 'Switzerland', lat: r.lat, lng: r.lng,
-        band: r.band, status: r.status, web_url: r.web_url || '', echolink_node: r.echolink_node || '',
-        fm_netzwerk: false, source_id: r.sourceId, linked_callsigns: r.linked_callsigns || [],
+        location_name: r.location_name, country: r.country || '', country_code: r.country_code || '',
+        lat: r.lat, lng: r.lng, band: r.band, status: r.status,
+        web_url: r.web_url || '', echolink_node: r.echolink_node || '',
+        fm_funknetz: false, source_id: r.sourceId, linked_callsigns: r.linked_callsigns || [],
       }));
       for (let i = 0; i < repRecords.length; i += 100) {
         await base44.asServiceRole.entities.Repeater.bulkCreate(repRecords.slice(i, i + 100));

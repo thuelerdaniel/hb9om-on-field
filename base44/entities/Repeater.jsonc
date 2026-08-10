@@ -35,8 +35,11 @@
     },
     "country": {
       "type": "string",
-      "default": "Switzerland",
       "description": "Land"
+    },
+    "country_code": {
+      "type": "string",
+      "description": "Laendercode (z.B. CH, DE, FR)"
     },
     "lat": {
       "type": "number",
@@ -69,10 +72,10 @@
       "type": "string",
       "description": "EchoLink-Knotennummer"
     },
-    "fm_netzwerk": {
+    "fm_funknetz": {
       "type": "boolean",
       "default": false,
-      "description": "Auf FM-Netzwerk.de anhoerbar"
+      "description": "Auf FM-Funknetz.de anhoerbar"
     },
     "source_id": {
       "type": "string",

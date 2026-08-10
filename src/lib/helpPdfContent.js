@@ -573,6 +573,16 @@ export const SECTIONS = [
         ]
       },
       {
+        title: "Nach Clubstation filtern",
+        body: "Im Logbuch koennen Sie QSOs nach Quelle filtern: «Alle QSOs», «Persönlich» (nur eigene Rufzeichen) oder «Clubstation» (nur QSOs, die fuer eine Clubstation z.B. HB9OM geloggt wurden). Der Filter wirkt sich auch auf den ADIF-Export aus – so koennen Sie gezielt nur Clubstation-QSOs exportieren.",
+        steps: [
+          { icon: "filter", text: "Filter-Dropdown «Alle QSOs / Persönlich / Clubstation» waehlen" },
+          { icon: "list", text: "Liste zeigt nur gefilterte QSOs" },
+          { icon: "download", text: "Export (ADIF) exportiert nur die gefilterten QSOs" }
+        ],
+        tip: "Tipp: Kombinieren Sie den Clubstation-Filter mit dem Typ-Filter (z.B. SOTA) und dem Datums-Filter, um sehr spezifische Exporte zu erstellen."
+      },
+      {
         title: "Lokale Speicherung und Synchronisation",
         body: "Ihre QSO-Logeinträge werden lokal im Browser gespeichert (localStorage). Die Daten sind sofort verfügbar, auch ohne Internetverbindung. Beim Öffnen des Logbuchs werden zuerst die lokalen Daten angezeigt, dann wird im Hintergrund mit dem Server synchronisiert.",
         steps: [
@@ -589,17 +599,17 @@ export const SECTIONS = [
     shortTitle: "Relais",
     color: [59, 130, 246],
     letter: "R",
-    description: "Das Relais-Overlay zeigt alle Schweizer Amateurfunk-Relais von RepeaterBook.com auf der Karte – farbcodiert nach Modulation (FM, C4FM, DMR, D-STAR etc.), mit Verlinkungen zwischen Relais und Detail-Popups.",
+    description: "Das Relais-Overlay zeigt weltweite Amateurfunk-Relais von RepeaterBook.com auf der Karte – farbcodiert nach Modulation (FM, C4FM, DMR, D-STAR etc.), mit Verlinkungen zwischen Relais, Laenderfilter, Distanzanzeige und Google-Maps-Navigation.",
     items: [
       {
         title: "Relais-Overlay aktivieren",
-        body: "Oeffnen Sie das Ebenen-Menue (Layer-Icon rechts oben) und aktivieren Sie die Ebene «Amateurfunk-Relais (RepeaterBook)». Alle Schweizer Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart.",
+        body: "Oeffnen Sie das Ebenen-Menue (Layer-Icon rechts oben) und aktivieren Sie die Ebene «Amateurfunk-Relais (RepeaterBook)». Weltweite Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart. Die Daten stammen von RepeaterBook.com und umfassen 68+ Laender weltweit.",
         steps: [
           { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
           { icon: "radioTower", text: "«Amateurfunk-Relais» aktivieren" },
           { icon: "eye", text: "Relais erscheinen als farbige Kreise auf der Karte" }
         ],
-        links: [{ label: "RepeaterBook Schweiz", url: LINKS.repeaterbook }]
+        links: [{ label: "RepeaterBook weltweit", url: LINKS.repeaterbook }]
       },
       {
         title: "Modulationsart erkennen",
@@ -613,14 +623,15 @@ export const SECTIONS = [
       },
       {
         title: "Relais-Filter verwenden",
-        body: "Wenn das Relais-Overlay aktiv ist, erscheint oben links ein Relais-Filter-Button. Tippen Sie darauf, um nach Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten.",
+        body: "Wenn das Relais-Overlay aktiv ist, erscheint oben links ein Relais-Filter-Button. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten.",
         steps: [
           { icon: "radioTower", text: "Relais-Filter-Button (oben links) antippen" },
+          { icon: "globe", text: "Land filtern (alle Laender oder einzelnes Land waehlen)" },
           { icon: "filter", text: "Modulationsarten ein-/ausschalten (FM, C4FM, DMR, etc.)" },
-          { icon: "search", text: "Suchfeld: Rufzeichen, Ort oder Frequenz eingeben" },
+          { icon: "search", text: "Suchfeld: Rufzeichen, Ort, Land oder Frequenz eingeben" },
           { icon: "link2", text: "Verlinkungen ein-/ausschalten" }
         ],
-        tip: "Tipp: «Alle» aktiviert alle Modulationsarten, «Keine» blendet alle aus. Der Filter bleibt beim Neustart erhalten."
+        tip: "Tipp: Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais. Wahlen Sie ein Land, um nur Relais dieses Landes zu sehen."
       },
       {
         title: "Relais-Details abrufen",
@@ -643,11 +654,21 @@ export const SECTIONS = [
         tip: "Tipp: EchoLink-Relais sind weltweit ueber das EchoLink-Netzwerk verlinkt. Die Knotennummer im Popup zeigt die Verbindung an."
       },
       {
-        title: "FM-Netzwerk.de Hinweis",
-        body: "Relais, die auf FM-Netzwerk.de online anhoerbar sind, werden mit einem gruenen Kopfhoerer-Badge im Popup markiert. Die Verfuegbarkeit wird regelmmaessig geprueft.",
+        title: "Distanz und Navigation",
+        body: "Wenn Sie Ihre GPS-Position oder eine fixierte Position gesetzt haben, wird im Popup eines Relais oder Referenzpunktes die Distanz von Ihrem Standort angezeigt. Ausserdem koennen Sie direkt zu jedem Punkt mit Google Maps navigieren.",
         steps: [
-          { icon: "headphones", text: "Gruenes Kopfhoerer-Icon im Popup = auf FM-Netzwerk.de anhoerbar" },
-          { icon: "radioTower", text: "Nur FM-Relais koennen auf FM-Netzwerk.de verfuegbar sein" }
+          { icon: "mapPin", text: "GPS-Position oder fixierte Position setzen (links oben)" },
+          { icon: "mapPin", text: "Punkt antippen – Distanz wird im Popup angezeigt" },
+          { icon: "navigation", text: "«Navigieren (Google Maps)» antippen fuer Route" }
+        ],
+        tip: "Tipp: Die Distanz wird als Luftlinie berechnet. Google Maps oeffnet mit der Zielkoordinate und berechnet die Strassenroute."
+      },
+      {
+        title: "FM-Funknetz.de Hinweis",
+        body: "Relais, die auf FM-Funknetz.de online anhoerbar sind, werden mit einem gruenen Kopfhoerer-Badge im Popup markiert. Die Verfuegbarkeit wird regelmmaessig geprueft.",
+        steps: [
+          { icon: "headphones", text: "Gruenes Kopfhoerer-Icon im Popup = auf FM-Funknetz.de anhoerbar" },
+          { icon: "radioTower", text: "Nur FM-Relais koennen auf FM-Funknetz.de verfuegbar sein" }
         ]
       }
     ]

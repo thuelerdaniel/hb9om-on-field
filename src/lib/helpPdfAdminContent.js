@@ -123,13 +123,13 @@ export const ADMIN_SECTIONS = [
     items: [
       {
         title: "Alle Daten aktualisieren",
-        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) sowie die Amateurfunk-Relais von RepeaterBook.com neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt.",
+        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) sowie die weltweiten Amateurfunk-Relais von RepeaterBook.com (68+ Laender) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt.",
         steps: [
           { icon: "refreshCw", text: "«Alle Daten aktualisieren» antippen" },
           { icon: "clock", text: "Warten – kann einige Minuten dauern" },
           { icon: "check", text: "Status wird im Aktualisierungsprotokoll angezeigt" },
           { icon: "database", text: "Bei Burgen: Georeferenzierungs-Methode wird angezeigt" },
-          { icon: "radioTower", text: "Bei Relais: Standort und Verlinkungen werden von RepeaterBook aktualisiert" }
+          { icon: "radioTower", text: "Bei Relais: weltweite Standorte (68+ Laender) und Verlinkungen werden von RepeaterBook aktualisiert" }
         ],
         screenshot: "settings",
         tip: "Tipp: Bei den Burgen wird angezeigt, wie viele erfolgreich georeferenziert wurden und über welche Methode (OSM/Wikidata, map.admin.ch, Locator, Nominatim)."
@@ -146,7 +146,7 @@ export const ADMIN_SECTIONS = [
       },
       {
         title: "Externe Daten prüfen",
-        body: "Mit «Anbindung prüfen» testen Sie, ob alle Datenquellen, aus denen die Karte ihre Referenzpunkte aufbaut, erreichbar und funktionsfähig sind. Geprüft werden die Referenzquellen (SOTA, POTA, HBFF, WWBOTA, Leuchttürme, Burgen) sowie die Relais-Quellen (RepeaterBook, FM-Netzwerk.de) und die Geokodierungs-Hilfsquellen (OpenStreetMap, Wikidata, map.geo.admin.ch), von denen die Burg-Zuordnung abhängt. Zusätzlich werden Referenzen ohne Koordinaten («Datenlücken») angezeigt, die nicht als Kartenpunkte erstellt werden können.",
+        body: "Mit «Anbindung prüfen» testen Sie, ob alle Datenquellen, aus denen die Karte ihre Referenzpunkte aufbaut, erreichbar und funktionsfähig sind. Geprüft werden die Referenzquellen (SOTA, POTA, HBFF, WWBOTA, Leuchttürme, Burgen) sowie die Relais-Quellen (RepeaterBook weltweit, FM-Funknetz.de) und die Geokodierungs-Hilfsquellen (OpenStreetMap, Wikidata, map.geo.admin.ch), von denen die Burg-Zuordnung abhängt. Zusätzlich werden Referenzen ohne Koordinaten («Datenlücken») angezeigt, die nicht als Kartenpunkte erstellt werden können.",
         steps: [
           { icon: "settings", text: "Einstellungen -> «Externe Daten prüfen»" },
           { icon: "shieldCheck", text: "«Anbindung prüfen» antippen – dauert wenige Sekunden" },

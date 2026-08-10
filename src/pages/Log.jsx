@@ -20,6 +20,7 @@ export default function Log() {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("active");
+  const [filterSource, setFilterSource] = useState("all"); // all | club | personal
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(null);
   const [sortBy, setSortBy] = useState("date_desc");
@@ -51,11 +52,13 @@ export default function Log() {
     let result = [...entries];
     if (filterType !== "all") result = result.filter(e => e.my_reference_type === filterType);
     if (filterStatus !== "all") result = result.filter(e => e.status === filterStatus);
+    if (filterSource === "club") result = result.filter(e => e.is_clubstation === true);
+    if (filterSource === "personal") result = result.filter(e => !e.is_clubstation);
     if (sortBy === "date_desc") result.sort((a, b) => (b.qso_date || "").localeCompare(a.qso_date || ""));
     if (sortBy === "date_asc") result.sort((a, b) => (a.qso_date || "").localeCompare(b.qso_date || ""));
     if (sortBy === "callsign") result.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
     return result;
-  }, [entries, filterType, filterStatus, sortBy]);
+  }, [entries, filterType, filterStatus, sortBy, filterSource]);
 
   const handleExport = () => {
     const header = "HB9OM On Field - ADIF Export\n<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
@@ -222,6 +225,16 @@ export default function Log() {
               { value: "date_desc", label: "Datum (neueste zuerst)" },
               { value: "date_asc", label: "Datum (älteste zuerst)" },
               { value: "callsign", label: "Rufzeichen (A-Z)" }
+            ]}
+          />
+          <MobileSelect
+            value={filterSource}
+            onValueChange={setFilterSource}
+            triggerClassName="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+            options={[
+              { value: "all", label: "Alle QSOs" },
+              { value: "personal", label: "Persönlich" },
+              { value: "club", label: "Clubstation" }
             ]}
           />
 

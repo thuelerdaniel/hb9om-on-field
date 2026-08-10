@@ -4,12 +4,16 @@ import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
 import { getModeColor } from "@/lib/repeaterModes";
 
-function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, performanceMode }) {
+function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, performanceMode, filterCountry, userPosition }) {
   const map = useMap();
 
-  // Filter repeaters by mode and search
+  // Filter repeaters by mode, country, and search
   const filteredRepeaters = useMemo(() => {
     let result = repeaters;
+    // Filter by country
+    if (filterCountry && filterCountry !== "all") {
+      result = result.filter(r => r.country_code === filterCountry);
+    }
     // Filter by mode (primary_mode must be in filterModes)
     if (filterModes && filterModes.length > 0) {
       result = result.filter(r => filterModes.includes(r.primary_mode));
@@ -20,11 +24,12 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, pe
       result = result.filter(r =>
         (r.callsign || "").toLowerCase().includes(q) ||
         (r.location_name || "").toLowerCase().includes(q) ||
+        (r.country || "").toLowerCase().includes(q) ||
         String(r.frequency || "").includes(q)
       );
     }
     return result;
-  }, [repeaters, filterModes, searchQuery]);
+  }, [repeaters, filterModes, searchQuery, filterCountry]);
 
   // Build linking lines: group by callsign, draw lines between repeaters with same callsign at different bands
   const linkLines = useMemo(() => {
@@ -119,7 +124,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, pe
             }}
           >
             <Popup>
-              <RepeaterPopup repeater={r} linkedRepeaters={linked} />
+              <RepeaterPopup repeater={r} linkedRepeaters={linked} userPosition={userPosition} />
             </Popup>
           </CircleMarker>
         );
@@ -134,7 +139,9 @@ function arePropsEqual(prev, next) {
     prev.filterModes === next.filterModes &&
     prev.searchQuery === next.searchQuery &&
     prev.showLinks === next.showLinks &&
-    prev.performanceMode === next.performanceMode
+    prev.performanceMode === next.performanceMode &&
+    prev.filterCountry === next.filterCountry &&
+    prev.userPosition === next.userPosition
   );
 }
 

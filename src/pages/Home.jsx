@@ -281,6 +281,7 @@ export default function Home() {
   });
   const [repeaterSearchQuery, setRepeaterSearchQuery] = useState("");
   const [repeaterShowLinks, setRepeaterShowLinks] = useState(() => localStorage.getItem("hb9om_repeater_show_links") !== "false");
+  const [repeaterFilterCountry, setRepeaterFilterCountry] = useState("all");
 
   useEffect(() => {
     localStorage.setItem("hb9om_repeater_filter_modes", JSON.stringify(repeaterFilterModes));
@@ -501,7 +502,7 @@ export default function Home() {
   // Load repeaters from DB when repeater layer is active
   useEffect(() => {
     if (!serverCacheLoaded || !activeLayers.includes("repeater") || repeaters.length > 0 || isOffline) return;
-    base44.entities.Repeater.list("-created_date", 500)
+    base44.entities.Repeater.list("-created_date", 5000)
       .then(data => { if (data && data.length > 0) setRepeaters(data); })
       .catch(() => {});
   }, [activeLayers, serverCacheLoaded, isOffline]);
@@ -575,6 +576,9 @@ export default function Home() {
   // Filtered repeater count for filter panel
   const filteredRepeaterCount = useMemo(() => {
     let result = repeaters;
+    if (repeaterFilterCountry !== "all") {
+      result = result.filter(r => r.country_code === repeaterFilterCountry);
+    }
     if (repeaterFilterModes.length > 0) {
       result = result.filter(r => repeaterFilterModes.includes(r.primary_mode));
     }
@@ -583,11 +587,23 @@ export default function Home() {
       result = result.filter(r =>
         (r.callsign || "").toLowerCase().includes(q) ||
         (r.location_name || "").toLowerCase().includes(q) ||
+        (r.country || "").toLowerCase().includes(q) ||
         String(r.frequency || "").includes(q)
       );
     }
     return result.length;
-  }, [repeaters, repeaterFilterModes, repeaterSearchQuery]);
+  }, [repeaters, repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountry]);
+
+  // Country list for filter dropdown
+  const repeaterCountries = useMemo(() => {
+    const counts = {};
+    for (const r of repeaters) {
+      const cc = r.country_code || '?';
+      counts[cc] = counts[cc] || { code: cc, name: r.country || cc, count: 0 };
+      counts[cc].count++;
+    }
+    return Object.values(counts);
+  }, [repeaters]);
 
   // All available markers (regardless of active layers) — for QSO form nearby refs
   const allAvailableMarkers = useMemo(() => {
@@ -973,6 +989,7 @@ export default function Home() {
             onEdit={handleEdit}
             performanceMode={performanceMode}
             autoCanvasActive={autoCanvasActive}
+            userPosition={currentPosition}
           />
 
           {activeLayers.includes("repeater") && repeaters.length > 0 && (
@@ -982,6 +999,8 @@ export default function Home() {
               searchQuery={repeaterSearchQuery}
               showLinks={repeaterShowLinks}
               performanceMode={performanceMode}
+              filterCountry={repeaterFilterCountry}
+              userPosition={currentPosition}
             />
           )}
 
@@ -1007,6 +1026,9 @@ export default function Home() {
             onSearchQueryChange={setRepeaterSearchQuery}
             showLinks={repeaterShowLinks}
             onShowLinksChange={setRepeaterShowLinks}
+            filterCountry={repeaterFilterCountry}
+            onFilterCountryChange={setRepeaterFilterCountry}
+            countries={repeaterCountries}
             repeaterCount={repeaters.length}
             visibleCount={filteredRepeaterCount}
           />
