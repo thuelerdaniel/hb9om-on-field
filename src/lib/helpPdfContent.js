@@ -918,7 +918,9 @@ export const REPEATER_LINKING_INFO = {
     { name: "RepeaterBook", url: "https://www.repeaterbook.com/", desc: "Weltweite Repeater-Datenbank mit Crosslink-Informationen" },
     { name: "BrandMeister API", url: "https://api.brandmeister.network/", desc: "Echtzeit-Daten aller BrandMeister-DMR-Relais und deren Verlinkungen" },
     { name: "DMR-MARC", url: "https://www.dmr-marc.net/", desc: "DMR-MARC Repeater-Verzeichnis" },
-    { name: "APRS.fi", url: "https://aprs.fi/", desc: "APRS-Stationen inkl. Digipeater und IGates" }
+    { name: "APRS.fi", url: "https://aprs.fi/", desc: "APRS-Stationen inkl. Digipeater und IGates" },
+    { name: "SWISS-ARTG", url: "https://www.swiss-artg.ch/index.php?id=38", desc: "Schweizer Amateurfunk-Relais: DMR (HB9AK-1), D-STAR (HB9ZRH), FM/SVXLink (HB9AK-R, HB9AK-L), Winlink, APRS, HAMNET, DAPNET" },
+    { name: "FM-Funknetz", url: "https://dashboard.fm-funknetz.de/", desc: "SVXLink-basiertes FM-Repeater-Netzwerk (DACH) mit Talkgroups, Reflector-JSON mit allen Nodes + DefaultTG + monitoredTGs" }
   ],
   mapFeatures: [
     "Permanente Verlinkungen als gestrichelte Linien auf der Karte",
@@ -926,6 +928,86 @@ export const REPEATER_LINKING_INFO = {
     "RepeaterBook-Crosslinks aus den Detailseiten werden geparst",
     "Admin-bestätigte Verlinkungen können manuell hinzugefügt werden",
     "Temporäre Verlinkungen werden nicht angezeigt (nur permanente)"
+  ]
+};
+
+// === SWISS-ARTG Repeater-Details ===
+// Quelle: swiss-artg.ch/index.php?id=38 (Standorte)
+export const SWISS_ARTG_INFO = {
+  title: "SWISS-ARTG Relais-Details im Popup",
+  description: "Für Relais der SWISS-ARTG (swiss-artg.ch) zeigt das Popup eine eigene Sektion mit detaillierten Informationen aus der SWISS-ARTG-Webseite.",
+  repeaters: [
+    {
+      callsign: "HB9AK-R",
+      frequency: "438.400 MHz",
+      location: "Uf Alpen (SH) – Schleitheim",
+      description: "FM-Relais (SVXLink) mit Echolink-Anbindung im FM-Funknetz",
+      details: ["Echolink #326020", "CTCSS 88.5 Hz", "FM-Funknetz TG 2280 (CQ Deutschschweiz), TG 228010 (SWISS-ARTG)", "DTMF: 0# Help, 1# Parrot, 2# Echolink, 3# Metar", "DAPNET Paging 439.9875 MHz", "2m + LoRa APRS iGate"],
+      url: "https://www.swiss-artg.ch/index.php?id=166"
+    },
+    {
+      callsign: "HB9AK-1",
+      frequency: "438.600 MHz",
+      location: "Hörnli (ZH) – Fischenthal, 1133 m ü.M.",
+      description: "DMR Repeater (Brandmeister SwissDMR, Server BM 2281)",
+      details: ["DMR-ID 228809, Color Code 1, 25 W", "TS1: TG 228 (Schweiz national)", "TS2: TG 2280 (Schweiz deutsch), 2288 (Zürich), 2289 (Ostschweiz)", "Brandmeister Dashboard", "Notstromversorgung (4x 12V 100Ah)", "FM-Relais HB9AK-L 439.9 MHz, Winlink, KI-Gateway, HAMNET, DAPNET, Web RX"],
+      url: "https://www.swiss-artg.ch/index.php?id=72"
+    },
+    {
+      callsign: "HB9ZRH_C",
+      frequency: "145.575 MHz",
+      location: "Uetliberg (ZH) – Stallikon, 871 m ü.M.",
+      description: "D-STAR Repeater (XLX229 D, D-STAR Schweiz)",
+      details: ["TX 145.575, RX 144.975 (-0.6 MHz)", "Verbunden mit Reflector XLX229 D und SwissDMR TG 22822", "Packet Radio Digipeater (438.525/430.925 1k2, 438.550/430.950 9k6)", "HAMNET Gateway (AS 64723)", "LoRa APRS iGate HB9ZRH-10"],
+      url: "https://www.swiss-artg.ch/index.php?id=110"
+    },
+    {
+      callsign: "HB9AK (Landstuhl)",
+      frequency: "Kurzwellen-Gateway",
+      location: "Landstuhl (BE) – Neuenegg, 651 m ü.M.",
+      description: "WINLINK Kurzwellen-Gateway (80m–15m) mit Notstrom",
+      details: ["HF: 80m/40m/30m/20m/17m/15m (PACTOR, VARA, ARDOP)", "WSPR-Bake 160m–6m", "2m APRS iGate HB9AK-6", "HAMNET", "Notstrom (LiFePO4 300 Ah + 50 Ah)", "Sysop: HB9AUR Martin Spreng"],
+      url: "https://www.swiss-artg.ch/index.php?id=63"
+    },
+    {
+      callsign: "HB9AK-4",
+      frequency: "144.900 MHz",
+      location: "Bullet (VD), 1130 m ü.M.",
+      description: "WINLINK Gateway (VARA FM, Packet) + VarAC KI-Gateway",
+      details: ["VARA FM WIDE/NARROW, Packet 1200 Bd", "25 W, X-50 Antenne", "VarAC Chat mit Google Gemini KI-Assistent"],
+      url: "https://www.swiss-artg.ch/index.php?id=169"
+    },
+    {
+      callsign: "HB9SG",
+      frequency: "438.3625 / 1298.225 MHz",
+      location: "Hohe Buche (AR) – Brülisau",
+      description: "DMR + 23cm FM-Relais im FM-Funknetz (Partnerstandort USKA St. Gallen)",
+      details: ["23cm FM-Relais 1298.225 MHz im FM-Funknetz (TG 2280, 228020 St. Gallen)", "HAMNET Anbindung"],
+      url: "https://www.swiss-artg.ch/index.php?id=115"
+    }
+  ],
+  fmFunknetzTgs: [
+    { tg: 2280, name: "CQ-Aufruf (Deutschschweiz) – Schweizweit" },
+    { tg: 228010, name: "SWISS-ARTG – HB9AK-L und HB9AK-R" },
+    { tg: 228020, name: "St. Gallen – HB9SG, Hohe Buche AI (23 cm)" },
+    { tg: 228040, name: "Winterthur – HB9W (geplant)" },
+    { tg: 228050, name: "Gruppe HB9HD – HB9HD (geplant)" }
+  ],
+  popupFeatures: [
+    "Beschreibung der Anlage (DMR, D-STAR, FM/SVXLink, Winlink)",
+    "Standorthöhe und Locator",
+    "CTCSS-Ton",
+    "DMR-Talkgruppen mit Timeslot und TG-Nummer",
+    "FM-Funknetz-Talkgruppen (statisch aus SWISS-ARTG oder live aus Reflector-JSON)",
+    "Brandmeister-Dashboard-Link für DMR-Relais",
+    "D-STAR-Reflector-Link (z.B. XLX229)",
+    "EchoLink-Node-Nummer",
+    "DTMF-Steuerungscodes für SVXLink-Relais",
+    "Abdeckungsgebiet",
+    "Weitere Anlagen am Standort (HAMNET, APRS, Winlink, WSPR, DAPNET, WebSDR, KI-Gateway)",
+    "Notstrom- und Solar-Indikator",
+    "Sysop-Information",
+    "Direkter Link zur SWISS-ARTG-Webseite"
   ]
 };
 

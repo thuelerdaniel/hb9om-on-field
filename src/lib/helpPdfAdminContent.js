@@ -201,18 +201,33 @@ export const ADMIN_SECTIONS = [
       },
       {
         title: "FM-Funknetz TGs aktualisieren (weltweit)",
-        body: "Im Admin-Bereich unter «Einzelne Datenquelle neu laden» finden Sie den Button «FM-Funknetz TGs». Dieser ruft das Live-Dashboard von dashboard.fm-funknetz.de ab und parst die «Zuletzt Aktiv»-Tabelle. Die dort gezeigten Stationen und ihre aktiven Talkgroups (TGs) werden mit den Relais in der Datenbank abgeglichen – weltweit, nicht nur in der Schweiz. Pro Treffer werden die TG-Nummer, der TG-Name und die letzte Aktivitätszeit gespeichert und im Relais-Popup angezeigt. Da das Dashboard nur kürzlich aktive Stationen zeigt, werden bei jedem Abruf unterschiedliche Relais erfasst – regelmässiges Aktualisieren empfohlen.",
+        body: "Im Admin-Bereich unter «Einzelne Datenquelle neu laden» finden Sie den Button «FM-Funknetz TGs». Dieser ruft die Reflector-JSON-Dateien (reflector1.json, reflector2.json) von dashboard.fm-funknetz.de ab, die ALLE Nodes mit ihrer TG-Konfiguration enthalten (DefaultTG, monitoredTGs, Koordinaten, Typ). Die Nodes werden per Rufzeichen + Frequenz mit den Relais in der Datenbank abgeglichen – weltweit. Pro Treffer werden die TG-Nummer, der TG-Name (aus der TG-Datenbank mit 265 Einträgen) und der Abrufzeitpunkt gespeichert. Im Relais-Popup erscheint eine FM-Funknetz-Sektion mit aktiven TGs und Links zum Live-Dashboard. Relais die nicht mehr matchen, werden automatisch bereinigt (fm_funknetz-Flag wird entfernt).",
         steps: [
           { icon: "settings", text: "Admin-Panel -> «Einzelne Datenquelle neu laden»" },
           { icon: "headphones", text: "«FM-Funknetz TGs» antippen" },
-          { icon: "globe", text: "Dashboard wird gescrapet und mit Relais abgeglichen (weltweit)" },
+          { icon: "globe", text: "Reflector-JSON wird abgerufen (alle Nodes, nicht nur aktive)" },
           { icon: "check", text: "TG-Info erscheint im Relais-Popup mit Link zum Live-Dashboard" }
         ],
         links: [
           { label: "FM-Funknetz Live-Dashboard", url: "https://dashboard.fm-funknetz.de/" },
-          { label: "FM-Funknetz Talkgroup-Übersicht", url: "https://fm-funknetz.de/unsere-talkgroups-sprechgruppen/" }
+          { label: "FM-Funknetz Talkgroup-Übersicht", url: "https://fm-funknetz.de/unsere-talkgroups-sprechgruppen/" },
+          { label: "SWISS-ARTG FM-Funknetz Seite", url: "https://www.swiss-artg.ch/index.php?id=187" }
         ],
-        tip: "Tipp: Da das Dashboard nur kürzlich aktive Stationen zeigt, werden bei jedem Abruf unterschiedliche Relais erfasst. Regelmässiges Aktualisieren baut eine umfassende TG-Übersicht auf."
+        tip: "Tipp: Die Reflector-JSON enthält alle Nodes (Repeater, Simplex Links, Hotspots) mit ihrer statischen TG-Konfiguration. Das Matching per Rufzeichen + Frequenz (25 kHz Toleranz) verhindert falsche Treffer bei gleichen Rufzeichen auf unterschiedlichen Bändern."
+      },
+      {
+        title: "SWISS-ARTG-Details im Relais-Popup",
+        body: "Für Relais der SWISS-ARTG (swiss-artg.ch) zeigt das Popup eine eigene Sektion mit kuratierten Informationen: Beschreibung der Anlage, Standorthöhe, Locator, CTCSS, DMR-Talkgruppen (mit Timeslot), FM-Funknetz-Talkgruppen, EchoLink-Node, DTMF-Codes für SVXLink-Relais, Abdeckungsgebiet, weitere Anlagen am Standort (HAMNET, APRS, Winlink, WSPR, DAPNET, WebSDR, KI-Gateway), Notstrom/Solar-Indikator, Sysop und ein Link zur SWISS-ARTG-Webseite. Für DMR-Relais gibt es einen Brandmeister-Dashboard-Link, für D-STAR-Relais den Reflector-Link. Die Daten sind statisch in der App hinterlegt (src/data/swissArtgRepeaters.js) und werden per Rufzeichen + Frequenz zugeordnet. Eine Aktualisierung erfordert ein App-Update, keine Backend-Funktion.",
+        steps: [
+          { icon: "mapPin", text: "SWISS-ARTG-Relais auf der Karte antippen (HB9AK, HB9ZRH, HB9SG)" },
+          { icon: "server", text: "Popup zeigt SWISS-ARTG-Sektion mit allen Details" },
+          { icon: "externalLink", text: "Link zu swiss-artg.ch für weitere Informationen" }
+        ],
+        links: [
+          { label: "SWISS-ARTG Standorte", url: "https://www.swiss-artg.ch/index.php?id=38" },
+          { label: "SWISS-ARTG FM-Funknetz", url: "https://www.swiss-artg.ch/index.php?id=187" }
+        ],
+        tip: "Tipp: Die SWISS-ARTG-Daten umfassen 6 Standorte: Hörnli (DMR+FM), Uetliberg (D-STAR), Schleitheim (FM/SVXLink), Landstuhl (Winlink), Bullet (Winlink), Hohe Buche (23cm FM)."
       },
       {
         title: "Externe Daten prüfen",

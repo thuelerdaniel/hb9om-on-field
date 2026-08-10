@@ -3,6 +3,7 @@ import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapP
 import { base44 } from "@/api/base44Client";
 import { MODE_COLORS, MODE_LABELS, STATUS_LABELS } from "@/lib/repeaterModes";
 import RepeaterCorrectionDialog from "@/components/map/RepeaterCorrectionDialog";
+import SwissArtgInfo from "@/components/map/SwissArtgInfo";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -193,6 +194,8 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
           </a>
         </div>
       )}
+
+      <SwissArtgInfo repeater={repeater} />
 
       {powerInfo && (
         <div className="flex items-center gap-1 text-[11px] mb-1.5 rounded px-1.5 py-1" style={{ color: powerInfo.color, backgroundColor: powerInfo.color + "15" }}>
