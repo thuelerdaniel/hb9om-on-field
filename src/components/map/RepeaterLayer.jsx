@@ -94,25 +94,43 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         return haversineKm(userPosition[0], userPosition[1], r.lat, r.lng) <= radiusKm;
       });
     }
-    // Only linked repeaters filter — show only repeaters with actual crosslinks
+    // Only linked repeaters filter — show only repeaters with actual crosslinks.
+    // Uses the same coordinate-aware matching as the link line logic: a repeater
+    // counts as "linked" only if its callsign AND frequency AND coordinates match
+    // an approved admin link (or it has RepeaterBook crosslinks on its own record).
     if (showOnlyLinked) {
-      const linkedCallsigns = new Set();
-      // From RepeaterBook crosslinks
+      const linkedIds = new Set();
+      // From RepeaterBook crosslinks — per-repeater field, already specific
       for (const r of result) {
         if (r.linked_callsigns && r.linked_callsigns.length > 0) {
-          linkedCallsigns.add(r.callsign);
+          if (r.id) linkedIds.add(r.id);
         }
       }
-      // From admin-managed links
+      // From admin-managed links — match by callsign + frequency + coordinates
       if (adminLinks) {
         for (const l of adminLinks) {
-          if (l.status === "approved" && l.link_type === "permanent") {
-            linkedCallsigns.add(l.from_callsign);
-            linkedCallsigns.add(l.to_callsign);
+          if (l.status !== "approved" || l.link_type !== "permanent") continue;
+          // Find matching "from" repeaters
+          const allFrom = repeaters.filter(r => r.callsign === l.from_callsign);
+          for (const r of allFrom) {
+            if (l.from_frequency != null && Math.abs(r.frequency - l.from_frequency) > 0.001) continue;
+            if (l.from_lat != null && l.from_lng != null && r.lat != null && r.lng != null) {
+              if (Math.abs(r.lat - l.from_lat) > 0.001 || Math.abs(r.lng - l.from_lng) > 0.001) continue;
+            }
+            if (r.id) linkedIds.add(r.id);
+          }
+          // Find matching "to" repeaters
+          const allTo = repeaters.filter(r => r.callsign === l.to_callsign);
+          for (const r of allTo) {
+            if (l.to_frequency != null && Math.abs(r.frequency - l.to_frequency) > 0.001) continue;
+            if (l.to_lat != null && l.to_lng != null && r.lat != null && r.lng != null) {
+              if (Math.abs(r.lat - l.to_lat) > 0.001 || Math.abs(r.lng - l.to_lng) > 0.001) continue;
+            }
+            if (r.id) linkedIds.add(r.id);
           }
         }
       }
-      result = result.filter(r => linkedCallsigns.has(r.callsign));
+      result = result.filter(r => linkedIds.has(r.id));
     }
     return result;
   }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks]);
