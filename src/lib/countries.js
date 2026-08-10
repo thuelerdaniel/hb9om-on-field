@@ -48,6 +48,12 @@ export const COUNTRIES = [
   { iso2: 'AD', name: 'Andorra', continent: 'eu', sota: 'C31', pota: 'C31' },
   { iso2: 'SM', name: 'San Marino', continent: 'eu', sota: 'T7', pota: 'T7' },
   { iso2: 'MC', name: 'Monaco', continent: 'eu', sota: '3A', pota: '3A' },
+  { iso2: 'IM', name: 'Isle of Man', continent: 'eu', sota: 'GD', pota: 'IM' },
+  { iso2: 'FO', name: 'Färöer', continent: 'eu', sota: 'OY', pota: 'FO' },
+  { iso2: 'JE', name: 'Jersey', continent: 'eu', sota: 'GJ', pota: 'GJ' },
+  { iso2: 'GG', name: 'Guernsey', continent: 'eu', sota: 'GU', pota: 'GU' },
+  { iso2: 'XK', name: 'Kosovo', continent: 'eu', sota: 'YU', pota: 'YU' },
+  { iso2: 'GI', name: 'Gibraltar', continent: 'eu', sota: 'ZB', pota: 'ZB' },
   // North America
   { iso2: 'US', name: 'USA', continent: 'na', sota: 'W/K', pota: 'US' },
   { iso2: 'CA', name: 'Kanada', continent: 'na', sota: 'VE', pota: 'CA' },

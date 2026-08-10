@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useRef, useEffect } from "react";
 import { CircleMarker, Polyline, Popup, useMap, Marker, Circle } from "react-leaflet";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
@@ -98,23 +98,30 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     return result;
   }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks]);
 
-  // Build linking lines from RepeaterBook crosslinks (linked_callsigns)
+  // Build callsign→repeaters map from ALL repeaters (not just filtered) so link lines
+  // connect to targets even when the target is filtered out by mode/country/etc.
+  const byCallsignAll = useMemo(() => {
+    const map = new Map();
+    for (const r of repeaters) {
+      if (r.lat == null || r.lng == null) continue;
+      if (!map.has(r.callsign)) map.set(r.callsign, []);
+      map.get(r.callsign).push(r);
+    }
+    return map;
+  }, [repeaters]);
+
+  // Build linking lines from RepeaterBook crosslinks (linked_callsigns).
+  // Lines are drawn FROM filtered (visible) repeaters TO any matching target in the full DB.
   const linkLines = useMemo(() => {
     if (!showLinks) return [];
-    const byCallsign = new Map();
-    for (const r of filteredRepeaters) {
-      if (r.lat == null || r.lng == null) continue;
-      if (!byCallsign.has(r.callsign)) byCallsign.set(r.callsign, []);
-      byCallsign.get(r.callsign).push(r);
-    }
     const lines = [];
     const drawn = new Set();
     for (const r of filteredRepeaters) {
       if (r.lat == null || r.lng == null) continue;
       if (!r.linked_callsigns || r.linked_callsigns.length === 0) continue;
       for (const linkedStr of r.linked_callsigns) {
-        const linkedCall = linkedStr.split(/\s+/)[0].split('/')[0];
-        const targets = byCallsign.get(linkedCall) || [];
+        const linkedCall = String(linkedStr).split(/\s+/)[0].split('/')[0];
+        const targets = byCallsignAll.get(linkedCall) || [];
         for (const target of targets) {
           if (target.callsign === r.callsign && target.frequency === r.frequency) continue;
           const key = [r.callsign + r.frequency, target.callsign + target.frequency].sort().join('→');
@@ -129,20 +136,82 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       }
     }
     return lines;
-  }, [filteredRepeaters, showLinks]);
+  }, [filteredRepeaters, byCallsignAll, showLinks]);
 
-  // Admin-managed links (from RepeaterLink entity, approved + permanent only)
+  // Admin-managed links (from RepeaterLink entity, approved + permanent only).
+  // Connects ALL repeaters with matching from_callsign to ALL with matching to_callsign,
+  // so multiple repeaters sharing a callsign (different frequencies/locations) all get lines.
   const adminLinkLines = useMemo(() => {
     if (!showLinks || !adminLinks) return [];
     return adminLinks
       .filter(l => l.status === "approved" && l.link_type === "permanent")
-      .filter(l => l.from_lat != null && l.from_lng != null && l.to_lat != null && l.to_lng != null)
-      .map(l => ({
-        positions: [[l.from_lat, l.from_lng], [l.to_lat, l.to_lng]],
-        color: l.color || "#3b82f6",
-        lineStyle: l.line_style || "dashed",
-      }));
-  }, [adminLinks, showLinks]);
+      .flatMap(l => {
+        const fromReps = byCallsignAll.get(l.from_callsign) || [];
+        const toReps = byCallsignAll.get(l.to_callsign) || [];
+        // Fallback: use stored coordinates if no matching repeaters in DB
+        if (fromReps.length === 0 && toReps.length === 0 &&
+            l.from_lat != null && l.from_lng != null && l.to_lat != null && l.to_lng != null) {
+          return [{
+            positions: [[l.from_lat, l.from_lng], [l.to_lat, l.to_lng]],
+            color: l.color || "#3b82f6",
+            lineStyle: l.line_style || "dashed",
+          }];
+        }
+        // Draw lines between every from×to combination (deduped)
+        const lines = [];
+        const drawn = new Set();
+        for (const fr of fromReps) {
+          for (const tr of toReps) {
+            if (fr.id === tr.id) continue;
+            const key = [fr.id, tr.id].sort().join('→');
+            if (drawn.has(key)) continue;
+            drawn.add(key);
+            lines.push({
+              positions: [[fr.lat, fr.lng], [tr.lat, tr.lng]],
+              color: l.color || "#3b82f6",
+              lineStyle: l.line_style || "dashed",
+            });
+          }
+        }
+        return lines;
+      });
+  }, [adminLinks, showLinks, byCallsignAll]);
+
+  // Dedicated SVG renderer for link lines — enables CSS animations (canvas renderer can't animate)
+  const linkRenderer = useMemo(() => L.svg({ pane: 'overlayPane' }), []);
+
+  // Animated link line: white halo + colored flowing dashes on SVG renderer.
+  // Uses ref to add the CSS animation class (pathOptions.className is unreliable in react-leaflet).
+  const AnimatedLinkLine = ({ positions, color, lineStyle }) => {
+    const flowRef = useRef(null);
+    useEffect(() => {
+      if (flowRef.current) {
+        const el = flowRef.current.getElement?.() || flowRef.current._path;
+        if (el) el.classList.add('repeater-link-flow');
+      }
+    }, []);
+    return (
+      <>
+        <Polyline
+          positions={positions}
+          renderer={linkRenderer}
+          pathOptions={{ color: "#ffffff", weight: 7, opacity: 0.6, lineCap: "round" }}
+        />
+        <Polyline
+          ref={flowRef}
+          positions={positions}
+          renderer={linkRenderer}
+          pathOptions={{
+            color,
+            weight: 4.5,
+            opacity: 0.95,
+            dashArray: LINE_DASH_ARRAYS[lineStyle] || LINE_DASH_ARRAYS.dashed,
+            lineCap: "round",
+          }}
+        />
+      </>
+    );
+  };
 
   const allLines = [...linkLines, ...adminLinkLines];
 
@@ -207,31 +276,14 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         );
       })}
 
-      {/* Linking lines (RepeaterBook crosslinks + admin-managed) — halo + thick dashed line for visibility */}
+      {/* Linking lines (RepeaterBook crosslinks + admin-managed) — animated flowing dashes on SVG renderer */}
       {visibleLines.map((line, i) => (
-        <React.Fragment key={`link-wrap-${i}`}>
-          {/* White halo for contrast against any map background */}
-          <Polyline
-            positions={line.positions}
-            pathOptions={{
-              color: "#ffffff",
-              weight: 7,
-              opacity: 0.7,
-              lineCap: "round",
-            }}
-          />
-          {/* Colored dashed line on top */}
-          <Polyline
-            positions={line.positions}
-            pathOptions={{
-              color: line.color,
-              weight: 4.5,
-              opacity: 0.95,
-              dashArray: LINE_DASH_ARRAYS[line.lineStyle] || LINE_DASH_ARRAYS.dashed,
-              lineCap: "round",
-            }}
-          />
-        </React.Fragment>
+        <AnimatedLinkLine
+          key={`link-${i}`}
+          positions={line.positions}
+          color={line.color}
+          lineStyle={line.lineStyle}
+        />
       ))}
 
       {/* Repeater markers — antenna icon in full mode, circle in performance mode */}

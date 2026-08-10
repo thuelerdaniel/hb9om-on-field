@@ -60,6 +60,17 @@
   color: #ffffff !important;
 }
 
+/* Animated flowing dashes for repeater link lines (SVG renderer only) */
+@keyframes repeater-link-flow {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+.repeater-link-flow {
+  animation: repeater-link-flow 1.2s linear infinite;
+}
+
 .leaflet-control-attribution {
   margin-bottom: calc(54px + env(safe-area-inset-bottom)) !important;
   border-radius: 4px 0 0 0 !important;
