@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus, CircleDot, Mountain, RefreshCw, Activity } from "lucide-react";
+import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapPin, Zap, Battery, Sun, Plus, CircleDot, Mountain, RefreshCw, Activity, Edit3, Loader2, Check, X } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 import { MODE_COLORS, MODE_LABELS, STATUS_LABELS } from "@/lib/repeaterModes";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -23,8 +24,12 @@ const POWER_INFO = {
   unknown: null,
 };
 
-export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosition, onSuggestLink, onToggleCoverage, showCoverageForThis }) {
+export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosition, onSuggestLink, onToggleCoverage, showCoverageForThis, isAdmin }) {
   const [showSuggestHint, setShowSuggestHint] = useState(false);
+  const [editingUrl, setEditingUrl] = useState(false);
+  const [urlInput, setUrlInput] = useState(repeater.web_url || "");
+  const [savingUrl, setSavingUrl] = useState(false);
+  const [calcLoading, setCalcLoading] = useState(false);
   const statusInfo = STATUS_LABELS[repeater.status] || STATUS_LABELS.unknown;
   const hasCoords = repeater.lat != null && repeater.lng != null;
   const navUrl = hasCoords
@@ -34,6 +39,38 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
     ? haversineKm(userPosition[0], userPosition[1], repeater.lat, repeater.lng)
     : null;
   const powerInfo = POWER_INFO[repeater.power_source] || null;
+
+  const handleSaveUrl = async () => {
+    setSavingUrl(true);
+    try {
+      await base44.functions.invoke("manageRepeater", {
+        action: "setWebUrl",
+        repeater_id: repeater.id,
+        web_url: urlInput.trim(),
+      });
+      repeater.web_url = urlInput.trim();
+      setEditingUrl(false);
+    } catch (e) {
+      // error - stay in edit mode
+    } finally {
+      setSavingUrl(false);
+    }
+  };
+
+  const handleTriggerCoverage = async () => {
+    setCalcLoading(true);
+    try {
+      await base44.functions.invoke("manageRepeater", {
+        action: "triggerCoverage",
+        repeater_id: repeater.id,
+      });
+      repeater.needs_recalc = false;
+      repeater.coverage_updated = new Date().toISOString();
+    } catch (e) {
+    } finally {
+      setCalcLoading(false);
+    }
+  };
 
   return (
     <div className="text-xs min-w-[200px] max-w-[260px]">
@@ -166,18 +203,62 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         )}
       </div>
 
-      {repeater.web_url && (
-        <a
-          href={repeater.web_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 hover:underline mt-1"
-        >
-          <Globe className="w-3 h-3" />
-          <span className="truncate">{repeater.web_url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
-          <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
-        </a>
-      )}
+      {/* Web link — show if found, admin can edit */}
+      <div className="mt-1">
+        {editingUrl ? (
+          <div className="flex flex-col gap-1">
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://..."
+              className="w-full text-[11px] px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+            />
+            <div className="flex gap-1">
+              <button
+                onClick={handleSaveUrl}
+                disabled={savingUrl}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingUrl ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                Speichern
+              </button>
+              <button
+                onClick={() => { setEditingUrl(false); setUrlInput(repeater.web_url || ""); }}
+                className="flex items-center justify-center px-2 py-1 text-[11px] font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            {repeater.web_url ? (
+              <a
+                href={repeater.web_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                <Globe className="w-3 h-3" />
+                <span className="truncate">{repeater.web_url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+                <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+              </a>
+            ) : (
+              <span className="flex-1 text-[10px] text-gray-300 italic">Kein Web-Link gefunden</span>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => setEditingUrl(true)}
+                className="flex items-center justify-center w-6 h-6 text-[10px] text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"
+                title="Web-Link bearbeiten (Admin)"
+              >
+                <Edit3 className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {navUrl && (
         <a
@@ -259,6 +340,17 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
               </span>
             )}
           </div>
+        )}
+        {/* Admin-only: trigger coverage calculation for this repeater */}
+        {isAdmin && hasCoords && (
+          <button
+            onClick={handleTriggerCoverage}
+            disabled={calcLoading}
+            className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-50 disabled:opacity-50"
+          >
+            {calcLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            {calcLoading ? "Berechnung läuft..." : "Abdeckung berechnen (Admin)"}
+          </button>
         )}
       </div>
 

@@ -1170,6 +1170,7 @@ export default function Home() {
               onToggleCoverage={handleToggleRepeaterCoverage}
               activeContinents={activeContinents}
               activeCountries={activeCountries}
+              isAdmin={isAdmin}
             />
           )}
 

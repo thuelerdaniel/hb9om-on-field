@@ -32,7 +32,7 @@ const LINE_DASH_ARRAYS = {
   dotted: "1 4",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries }) {
+function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
   const map = useMap();
 
   // Filter repeaters by continent, country, mode, search, and radius
@@ -214,6 +214,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
               onSuggestLink={onSuggestLink}
               onToggleCoverage={onToggleCoverage}
               showCoverageForThis={individualCoverage && individualCoverage.has(r.id)}
+              isAdmin={isAdmin}
             />
           </Popup>
         );
@@ -264,7 +265,8 @@ function arePropsEqual(prev, next) {
     prev.individualCoverage === next.individualCoverage &&
     prev.onToggleCoverage === next.onToggleCoverage &&
     prev.activeContinents === next.activeContinents &&
-    prev.activeCountries === next.activeCountries
+    prev.activeCountries === next.activeCountries &&
+    prev.isAdmin === next.isAdmin
   );
 }
 

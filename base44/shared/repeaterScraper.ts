@@ -4,10 +4,15 @@
 const LIST_BASE = 'https://www.repeaterbook.com/row_repeaters/Display_SS.php';
 const DETAIL_BASE = 'https://www.repeaterbook.com/row_repeaters/details.php';
 
+// US/Canada/Mexico use a separate URL structure (not row_repeaters)
+const NA_LIST_BASE = 'https://www.repeaterbook.com/repeaters/Display_SS.php';
+const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
+
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 2000;
+const MAX_DETAIL_FETCH = 6000;
 const MAX_PER_COUNTRY = 150;
+const MAX_PER_US_CA_REGION = 40;
 const LIST_CONCURRENCY = 8;
 const DETAIL_CONCURRENCY = 20;
 
@@ -116,6 +121,73 @@ const COUNTRIES = [
   { code: 'ZA', name: 'South Africa', priority: 3 },
   { code: 'AU', name: 'Australia', priority: 3 },
   { code: 'NZ', name: 'New Zealand', priority: 3 },
+  // Priority 3: North America (US/Canada/Mexico) — uses separate URL structure
+  // US states (state_id is numeric on RepeaterBook)
+  { code: 'US-AL', name: 'Alabama', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '01', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-AK', name: 'Alaska', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '02', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-AZ', name: 'Arizona', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '04', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-AR', name: 'Arkansas', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '05', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-CA', name: 'California', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '06', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-CO', name: 'Colorado', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '08', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-CT', name: 'Connecticut', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '09', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-DE', name: 'Delaware', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '10', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-FL', name: 'Florida', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '12', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-GA', name: 'Georgia', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '13', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-HI', name: 'Hawaii', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '15', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-ID', name: 'Idaho', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '16', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-IL', name: 'Illinois', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '17', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-IN', name: 'Indiana', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '18', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-IA', name: 'Iowa', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '19', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-KS', name: 'Kansas', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '20', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-KY', name: 'Kentucky', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '21', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-LA', name: 'Louisiana', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '22', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-ME', name: 'Maine', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '23', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-MD', name: 'Maryland', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '24', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-MA', name: 'Massachusetts', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '25', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-MI', name: 'Michigan', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '26', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-MN', name: 'Minnesota', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '27', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-MS', name: 'Mississippi', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '28', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-MO', name: 'Missouri', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '29', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-MT', name: 'Montana', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '30', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-NE', name: 'Nebraska', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '31', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-NV', name: 'Nevada', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '32', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-NH', name: 'New Hampshire', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '33', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-NJ', name: 'New Jersey', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '34', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-NM', name: 'New Mexico', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '35', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-NY', name: 'New York', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '36', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-NC', name: 'North Carolina', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '37', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-ND', name: 'North Dakota', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '38', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-OH', name: 'Ohio', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '39', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-OK', name: 'Oklahoma', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '40', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-OR', name: 'Oregon', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '41', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-PA', name: 'Pennsylvania', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '42', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-RI', name: 'Rhode Island', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '44', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-SC', name: 'South Carolina', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '45', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-SD', name: 'South Dakota', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '46', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-TN', name: 'Tennessee', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '47', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-TX', name: 'Texas', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '48', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-UT', name: 'Utah', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '49', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-VT', name: 'Vermont', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '50', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-VA', name: 'Virginia', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '51', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-WA', name: 'Washington', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '53', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-WV', name: 'West Virginia', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '54', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-WI', name: 'Wisconsin', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '55', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-WY', name: 'Wyoming', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '56', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'US-DC', name: 'District of Columbia', priority: 3, region_type: 'north_america', country_code: 'US', state_id: '11', maxPerRegion: MAX_PER_US_CA_REGION },
+  // Canadian provinces (state_id is 2-letter province code)
+  { code: 'CA-AB', name: 'Alberta', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'AB', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-BC', name: 'British Columbia', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'BC', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-MB', name: 'Manitoba', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'MB', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-NB', name: 'New Brunswick', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'NB', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-NL', name: 'Newfoundland and Labrador', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'NL', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-NS', name: 'Nova Scotia', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'NS', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-NT', name: 'Northwest Territories', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'NT', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-NU', name: 'Nunavut', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'NU', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-ON', name: 'Ontario', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'ON', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-PE', name: 'Prince Edward Island', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'PE', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-QC', name: 'Quebec', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'QC', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-SK', name: 'Saskatchewan', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'SK', maxPerRegion: MAX_PER_US_CA_REGION },
+  { code: 'CA-YT', name: 'Yukon', priority: 3, region_type: 'north_america', country_code: 'CA', state_id: 'YT', maxPerRegion: MAX_PER_US_CA_REGION },
 ];
 
 // ─── Mode parsing ───
@@ -177,7 +249,11 @@ function parseStatus(row: string): string {
 
 // ─── List page parser ───
 
-export function parseRepeaterList(html: string, countryCode: string, countryName: string): any[] {
+export function parseRepeaterList(html: string, countryCode: string, countryName: string, options?: { hasCountyColumn?: boolean, stateId?: string, regionType?: string, entryCode?: string }): any[] {
+  const hasCountyColumn = options?.hasCountyColumn || false;
+  const stateId = options?.stateId || countryCode;
+  const regionType = options?.regionType || 'world';
+  const entryCode = options?.entryCode || countryCode;
   const repeaters: any[] = [];
   const rows = html.split(/<tr[\s>]/);
   for (const row of rows) {
@@ -212,20 +288,29 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
       cells.push(content);
     }
 
+    // US/Canada format has an extra "County" column — callsign is at index 5 instead of 4
+    const callsignIdx = hasCountyColumn ? 5 : 4;
     const tone = cells[2] || '';
     const locationName = cells[3] || '';
-    const callsign = cells[4] || '';
+    const callsign = cells[callsignIdx] || '';
 
     if (!callsign || !frequency) continue;
 
-    const finalModes = modes.length > 0 ? modes : parseModes(cells[5] || '');
+    const modesIdx = hasCountyColumn ? 7 : 5;
+    const finalModes = modes.length > 0 ? modes : parseModes(cells[modesIdx] || '');
     const primaryMode = getPrimaryMode(finalModes);
     const band = getBand(frequency);
     const offsetMag = band === '2m' ? 0.6 : band === '70cm' ? 7.6 : band === '6m' ? 1.0 : band === '10m' ? 0.5 : 0;
 
+    // Build detail URL based on region type
+    const detailUrl = regionType === 'north_america'
+      ? `${NA_DETAIL_BASE}?state_id=${stateId}&country_code=${countryCode}&ID=${sourceId}`
+      : `${DETAIL_BASE}?state_id=${countryCode}&ID=${sourceId}`;
+
     repeaters.push({
       sourceId,
-      detailUrl: `${DETAIL_BASE}?state_id=${countryCode}&ID=${sourceId}`,
+      detailUrl,
+      _entryCode: entryCode,
       frequency,
       offsetSign,
       offset_mhz: offsetSign === '+' ? offsetMag : -offsetMag,
@@ -337,13 +422,23 @@ export async function fetchRepeaterData(): Promise<any[]> {
     const chunk = COUNTRIES.slice(i, i + LIST_CONCURRENCY);
     const results = await Promise.all(chunk.map(async (country) => {
       try {
-        const url = `${LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}`;
+        const isNA = country.region_type === 'north_america';
+        const stateId = country.state_id || country.code;
+        const cc = country.country_code || country.code;
+        const url = isNA
+          ? `${NA_LIST_BASE}?state_id=${stateId}&country_code=${cc}&${LIST_PARAMS}`
+          : `${LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}`;
         const resp = await fetch(url, {
           headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
         });
         if (!resp.ok) return [];
         const html = await resp.text();
-        return parseRepeaterList(html, country.code, country.name);
+        return parseRepeaterList(html, cc, country.name, {
+          hasCountyColumn: isNA,
+          stateId,
+          regionType: isNA ? 'north_america' : 'world',
+          entryCode: country.code,
+        });
       } catch {
         return [];
       }
@@ -366,19 +461,30 @@ export async function fetchRepeaterData(): Promise<any[]> {
   // 3. Select repeaters for detail page fetching — per-country quota ensures worldwide coverage.
   // Each country gets up to MAX_PER_COUNTRY detail fetches (on-air first), so no single
   // country can starve others. Total capped at MAX_DETAIL_FETCH.
+  // Build a lookup of country code → maxPerRegion (for US/CA states)
+  const maxPerRegionMap = new Map<string, number>();
+  for (const c of COUNTRIES) {
+    if (c.maxPerRegion) maxPerRegionMap.set(c.code, c.maxPerRegion);
+  }
+
   const byCountry = new Map<string, any[]>();
   for (const rep of allRepeaters) {
-    if (!byCountry.has(rep.country_code)) byCountry.set(rep.country_code, []);
-    byCountry.get(rep.country_code)!.push(rep);
+    // Use the original country entry code (not country_code) for per-region quota
+    // For US states, rep.country_code is 'US' but we need per-state quota
+    // Store the entry code on the repeater during list parsing
+    const entryCode = rep._entryCode || rep.country_code;
+    if (!byCountry.has(entryCode)) byCountry.set(entryCode, []);
+    byCountry.get(entryCode)!.push(rep);
   }
   const toFetch: any[] = [];
-  for (const [, reps] of byCountry) {
+  for (const [entryCode, reps] of byCountry) {
     reps.sort((a, b) => {
       if (a.status === 'on-air' && b.status !== 'on-air') return -1;
       if (a.status !== 'on-air' && b.status === 'on-air') return 1;
       return 0;
     });
-    toFetch.push(...reps.slice(0, MAX_PER_COUNTRY));
+    const max = maxPerRegionMap.get(entryCode) || MAX_PER_COUNTRY;
+    toFetch.push(...reps.slice(0, max));
   }
   // Sort final list by country priority for consistent processing
   toFetch.sort((a, b) => {
@@ -463,7 +569,14 @@ export async function fetchPrivateNodeData(): Promise<any[]> {
     const chunk = COUNTRIES.slice(i, i + LIST_CONCURRENCY);
     const results = await Promise.all(chunk.map(async (country) => {
       try {
-        const url = `${NODE_LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}&system=Node`;
+        const isNA = country.region_type === 'north_america';
+        const stateId = country.state_id || country.code;
+        const cc = country.country_code || country.code;
+        const listBase = isNA ? NA_LIST_BASE : NODE_LIST_BASE;
+        const detailBase = isNA ? NA_DETAIL_BASE : DETAIL_BASE;
+        const url = isNA
+          ? `${listBase}?state_id=${stateId}&country_code=${cc}&${LIST_PARAMS}&system=Node`
+          : `${listBase}?state_id=${country.code}&${LIST_PARAMS}&system=Node`;
         const resp = await fetch(url, {
           headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
         });
@@ -482,7 +595,8 @@ export async function fetchPrivateNodeData(): Promise<any[]> {
             const content = tdMatch[1].replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
             cells.push(content);
           }
-          const callsign = cells[4] || '';
+          const callsignIdx = isNA ? 5 : 4;
+          const callsign = cells[callsignIdx] || '';
           if (!callsign) continue;
           const freqMatch = row.match(/<a[^>]*>\s*([\d.]+)\s*<\/a>/);
           const frequency = freqMatch ? parseFloat(freqMatch[1]) : null;
@@ -490,7 +604,9 @@ export async function fetchPrivateNodeData(): Promise<any[]> {
 
           // Try to get coords from detail page link
           const detailId = idMatch[1];
-          const detailUrl = `${DETAIL_BASE}?state_id=${country.code}&ID=${detailId}`;
+          const detailUrl = isNA
+            ? `${detailBase}?state_id=${stateId}&country_code=${cc}&ID=${detailId}`
+            : `${detailBase}?state_id=${country.code}&ID=${detailId}`;
 
           countryNodes.push({
             callsign,
@@ -501,7 +617,7 @@ export async function fetchPrivateNodeData(): Promise<any[]> {
             node_number: detailId,
             location_name: locationName,
             country: country.name,
-            country_code: country.code,
+            country_code: cc,
             lat: null as number | null,
             lng: null as number | null,
             detailUrl,

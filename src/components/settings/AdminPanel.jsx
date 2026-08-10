@@ -587,6 +587,11 @@ export default function AdminPanel({
             <option value="AT">Österreich</option>
             <option value="GB">Grossbritannien</option>
             <option value="ES">Spanien</option>
+            <option value="US">USA</option>
+            <option value="CA">Kanada</option>
+            <option value="JP">Japan</option>
+            <option value="AU">Australien</option>
+            <option value="BR">Brasilien</option>
             <option value="all">Weltweit (alle)</option>
           </select>
           <button
