@@ -4,18 +4,16 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 // Admin-only. Stores entity data in chunks across AppSetting records (UploadFile is
 // not available from backend functions). Used to roll back to a previous version's data.
 
-// Repeater is excluded — it can be re-fetched via "Daten aktualisieren" (47s).
-// ReferenceData is excluded — also re-fetchable, potentially very large.
-// PrivateNode is excluded — re-fetchable via APRS.fi.
+// Only app-internal data that CANNOT be re-fetched from external sources.
+// Repeater, ReferenceData, PrivateNode are excluded — re-fetchable via "Daten aktualisieren".
+// SyncLog is excluded — just historical sync protocol, not app-critical.
 // Log/QrzLookup are user-specific (RLS protected).
 const ENTITIES_TO_BACKUP = [
   'RepeaterLink',
   'ReferenceOverride',
-  'AppSetting',
   'RepeaterCorrection',
   'FeatureRequest',
   'ReferenceChangeRequest',
-  'SyncLog',
 ];
 
 const BULK_BATCH = 500;
@@ -49,6 +47,12 @@ Deno.serve(async (req) => {
         const records = await base44.asServiceRole.entities[entityName].list('-created_date', 10000);
         backup.entities[entityName] = records.map(({ id, created_date, updated_date, created_by_id, ...rest }: any) => rest);
       }
+
+      // AppSetting: only real app config — exclude restore point storage chunks
+      // (keys starting with restore_point_) to avoid recursive backup bloat.
+      const allSettings = await base44.asServiceRole.entities.AppSetting.list('-created_date', 10000);
+      const realSettings = allSettings.filter((s: any) => !s.key || !s.key.startsWith('restore_point_'));
+      backup.entities['AppSetting'] = realSettings.map(({ id, created_date, updated_date, created_by_id, ...rest }: any) => rest);
 
       const counts = Object.fromEntries(
         Object.entries(backup.entities).map(([k, v]: [string, any]) => [k, v.length])
@@ -143,8 +147,14 @@ Deno.serve(async (req) => {
       const results: any = {};
       for (const [entityName, records] of Object.entries(backup.entities || {})) {
         const recs = records as any[];
-        // Clear existing records
-        await base44.asServiceRole.entities[entityName].deleteMany({});
+        if (entityName === 'AppSetting') {
+          // Only delete real app settings — preserve restore point chunks
+          await base44.asServiceRole.entities.AppSetting.deleteMany({
+            key: { $not: { $regex: '^restore_point_' } }
+          });
+        } else {
+          await base44.asServiceRole.entities[entityName].deleteMany({});
+        }
         // Restore in batches
         for (let i = 0; i < recs.length; i += BULK_BATCH) {
           const batch = recs.slice(i, i + BULK_BATCH);
