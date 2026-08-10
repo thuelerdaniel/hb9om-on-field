@@ -72,7 +72,7 @@ const SECTIONS = [
           { icon: Mountain, color: "#e74c3c", name: "SOTA", desc: "Berg mit Gipfelkreuz (Dreieck) – Berggipfel ab 150 m Prominenz" },
           { icon: Trees, color: "#27ae60", name: "POTA", desc: "Baum – Nationalparks und Schutzgebiete" },
           { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Blume – Flora & Fauna Naturreservate (weltweit)" },
-          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Halbkuppel mit Schiessscharte) – Militärische Bunker (weltweit)" },
+          { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Halbkuppel mit Schiessscharte) – Militärische Bunker weltweit, farbig nach Land" },
           { icon: Castle, color: "#e67e22", name: "Burgen/Schlösser", desc: "Burg mit Zinnen und Tor – WCA/COTA Referenzen" },
           { icon: Diamond, color: "#3498db", name: "IOTA", desc: "Raute mit Welle – Inseln (Schweiz hat keine IOTA-Referenzen)" },
           { icon: Anchor, color: "#f39c12", name: "Leuchttürme", desc: "Leuchtturm mit Lichtstrahlen – ARLHS WLOL Referenzen" },
@@ -151,9 +151,9 @@ const SECTIONS = [
         example: "«Neuen Vorschlag machen» → Titel «Dunkelmodus» → Kategorie «Verbesserung» → Beschreibung → Einreichen → Status in der Liste verfolgen."
       },
       {
-        title: "Bunker-Details (WWBOTA weltweit)",
-        body: "Bei WWBOTA-Bunkern führt der «Mehr Infos»-Link zur allgemeinen WWBOTA-Seite (wwbota.net), da keine einzelnen Bunker-Detailseiten existieren. Die Daten umfassen alle nationalen Schemata (HBBOTA, DLBOTA, F-BOTA, GBBOTA etc.). Zusätzlich gibt es einen Wikipedia-Link, der nach dem spezifischen Bunkernamen sucht und so weitere Informationen zum jeweiligen Bunker liefert.",
-        example: "Bunker anklicken → «Mehr Infos» öffnet wwbota.net → «Wikipedia» sucht nach dem Bunkernamen."
+        title: "Bunker-Details & Farben (WWBOTA weltweit)",
+        body: "WWBOTA-Bunker werden nach Land eingefärbt: Jedes nationale Schemata hat eine eigene Farbe (z.B. Schweiz braun, Deutschland dunkelgrau, Frankreich blau, Grossbritannien violett, Tschechien orange). In der Legende unten links werden die Farben der wichtigsten Länder angezeigt. Der «Mehr Infos»-Link führt zur länderspezifischen WWBOTA-Seite (z.B. wwbota.net/dlbota/ für deutsche Bunker, wwbota.net/fbota/ für französische). Der Wikipedia-Link sucht nach dem Bunkernamen zusammen mit dem jeweiligen Land (z.B. «Führungsstelle Bunker Deutschland»).",
+        example: "Deutschen Bunker anklicken → Marker ist dunkelgrau → «Mehr Infos» öffnet wwbota.net/dlbota/ → «Wikipedia» sucht nach Bunkernamen + Deutschland."
       },
       {
         title: "Leuchtturm-Referenzen (ARLHS WLOL)",
@@ -326,6 +326,11 @@ const SECTIONS = [
         title: "Ladeanzeige bei vielen Daten",
         body: "Wenn die App viele Referenzdaten laden muss (z.B. beim ersten Start oder bei aktivierten vielen Layern), erscheint oben ein Lade-Indikator. Wenn das Laden länger als 1,5 Sekunden dauert, wird ein kleines Handfunkgerät mit aussendenden Funkwellen angezeigt. Es weist darauf hin, dass viele Daten geladen werden und etwas Geduld nötig ist. Zusätzlich werden Tipps eingeblendet: Kartenausschnitt verkleinern (weniger Marker laden), weniger Layer aktivieren, oder den Performance-Modus in den Einstellungen einschalten. Der Lade-Indikator erscheint auch während dem Splash-Screen, falls das Laden der Referenzdaten länger dauert.",
         example: "Viele Layer aktiviert + langsames Internet → nach 3s erscheint das Handfunkgerät mit Wellen → Tipps zum Beschleunigen werden angezeigt."
+      },
+      {
+        title: "Marker-Laden vom Mittelpunkt nach aussen",
+        body: "Alle Marker werden immer vom Mittelpunkt der aktuellen Karte nach aussen geladen und gerendert. Das bedeutet: Die Referenzen nächst dem Kartenmittelpunkt erscheinen zuerst, weiter entfernte werden schrittweise ergänzt. Bei sehr vielen Markern (z.B. weltweite SOTA-Gipfel oder WWBOTA-Bunker) werden die nächsten zum Mittelpunkt priorisiert, um die Karte schnell und flüssig zu halten. Beim Verschieben oder Zoomen der Karte wird der neue Mittelpunkt automatisch verwendet. Im Performance-Modus (Canvas) werden bis zu 10'000 Marker gleichzeitig gerendert, im Normalmodus (SVG) bis zu 2'000.",
+        example: "Karte auf Deutschland zentrieren → deutsche Bunker und Gipfel erscheinen zuerst → beim Herauszoomen werden europäische Referenzen schrittweise ergänzt."
       },
       {
         anchor: "energiesparmodus",

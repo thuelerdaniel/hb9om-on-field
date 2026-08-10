@@ -36,6 +36,7 @@ import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
+import { getWwbotaColor } from "@/lib/wwbotaSchemes";
 import VersionChangelogPopup, { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed, resetChangelog } from "@/components/map/VersionChangelogPopup";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
@@ -680,7 +681,12 @@ export default function Home() {
     }
     if (activeLayers.includes("wwbota")) {
       const wwbota = wwbotaData.length > 0 ? wwbotaData : WWBOTA_DATA;
-      wwbota.forEach(b => markers.push({ ...b, layerType: "wwbota", color: LAYER_COLORS.wwbota, layerLabel: "WWBOTA" }));
+      wwbota.forEach(b => markers.push({
+        ...b,
+        layerType: "wwbota",
+        color: getWwbotaColor(b.scheme),
+        layerLabel: "WWBOTA"
+      }));
     }
     if (activeLayers.includes("castle")) {
       const castles = castleData.length > 0 ? castleData : CASTLE_DATA;

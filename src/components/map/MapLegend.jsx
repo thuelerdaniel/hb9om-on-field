@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, X, Layers } from "lucide-react";
 import { LAYER_GROUPS } from "./LayerControl";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { MODE_COLORS, FILTER_MODES, MODE_LABELS } from "@/lib/repeaterModes";
+import { WWBOTA_LEGEND_SCHEMES } from "@/lib/wwbotaSchemes";
 
 export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -64,6 +65,16 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
                 <span key={mode} className="flex items-center gap-0.5 text-[10px]">
                   <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: MODE_COLORS[mode] }} />
                   <span className="text-gray-500">{MODE_LABELS[mode]}</span>
+                </span>
+              ))}
+            </span>
+          )}
+          {activeLayers.includes("wwbota") && (
+            <span className="flex items-center gap-1.5 flex-wrap">
+              {WWBOTA_LEGEND_SCHEMES.map(s => (
+                <span key={s.scheme} className="flex items-center gap-0.5 text-[10px]">
+                  <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: s.color }} />
+                  <span className="text-gray-500">{s.country}</span>
                 </span>
               ))}
             </span>

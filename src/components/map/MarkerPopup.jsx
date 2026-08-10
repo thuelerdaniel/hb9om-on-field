@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil, ChevronDown, ChevronUp, Navigation } from "lucide-react";
+import { getWwbotaLink, getWwbotaCountryName } from "@/lib/wwbotaSchemes";
 
 const LAYER_META = {
   sota: { icon: Mountain, color: "#e74c3c", label: "SOTA", program: "Summits on the Air", linkBase: "https://sotl.as/summits/" },
   pota: { icon: Trees, color: "#27ae60", label: "POTA", program: "Parks on the Air", linkBase: "https://pota.app/#/park/" },
   hbff: { icon: Trees, color: "#8e44ad", label: "HBFF", program: "Flora & Fauna Schweiz", linkBase: "" },
-  wwbota: { icon: Building, color: "#795548", label: "WWBOTA", program: "Bunkers on the Air", linkBase: "https://wwbota.net/hbbota/" },
+  wwbota: { icon: Building, color: "#795548", label: "WWBOTA", program: "Bunkers on the Air", linkBase: "" },
   castle: { icon: Castle, color: "#e67e22", label: "WCA/COTA", program: "Burgen on the Air", linkBase: "" },
   iota: { icon: MapPin, color: "#3498db", label: "IOTA", program: "Islands on the Air", linkBase: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html?filter_search=" },
   lighthouse: { icon: Anchor, color: "#f39c12", label: "WLOTA", program: "Lighthouses on the Air", linkBase: "" },
@@ -43,20 +44,23 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
     if (layerType === "sota" && data.code) return meta.linkBase + data.code;
     if (layerType === "pota" && (data.reference || data.code)) return meta.linkBase + (data.reference || data.code);
     if (layerType === "iota" && (data.code || data.reference)) return meta.linkBase + (data.code || data.reference);
-    if (layerType === "wwbota") return meta.linkBase;
+    if (layerType === "wwbota") return getWwbotaLink(data.scheme, data.code);
     if (data.link) return data.link;
     if (meta.linkBase) return meta.linkBase;
     return null;
   })();
 
+  // Use the marker's own color (e.g. WWBOTA country color) if available, else layer default
+  const markerColor = data.color || meta.color;
+
   return (
     <div className="min-w-[220px] max-w-[300px]">
       <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: meta.color + '20' }}>
-          <Icon className="w-4 h-4" style={{ color: meta.color }} />
+        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: markerColor + '20' }}>
+          <Icon className="w-4 h-4" style={{ color: markerColor }} />
         </div>
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: meta.color }}>
+          <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: markerColor }}>
             {meta.label}
           </span>
           {showDetails && <p className="text-xs text-gray-400">{meta.program}</p>}
@@ -108,7 +112,10 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
           })()}
 
           {layerType === "wwbota" && data.name && (() => {
-            const wikiQuery = `${data.name} Bunker Schweiz`;
+            const countryName = getWwbotaCountryName(data.scheme);
+            const wikiQuery = countryName
+              ? `${data.name} Bunker ${countryName}`
+              : `${data.name} Bunker`;
             return (
               <a
                 href={`https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(wikiQuery)}`}
