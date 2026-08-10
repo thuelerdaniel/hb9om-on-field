@@ -3,7 +3,7 @@
 // (single HTTP request instead of thousands of API calls).
 // Used by both fetchSOTA (on-demand) and refreshAllData (scheduled cache).
 
-const SOTA_CSV_URL = 'http://www.sotadata.org.uk/summitslist.csv';
+const SOTA_CSV_URL = 'https://www.sotadata.org.uk/summitslist.csv';
 
 // Parse a single CSV line, handling quoted fields with embedded commas.
 function parseCsvLine(line: string): string[] {

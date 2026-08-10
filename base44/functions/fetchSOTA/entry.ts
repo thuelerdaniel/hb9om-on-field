@@ -16,9 +16,9 @@ Deno.serve(async (req) => {
     if (result.summits.length > 100) {
       try {
         const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'sota' });
+        // Only store essential fields — full summit data (~125k summits) exceeds MongoDB's 16MB document limit
         const refs = result.summits.map(s => ({
-          code: s.code, name: s.name, lat: s.lat, lng: s.lng,
-          alt: s.alt, points: s.points, activationCount: s.activationCount, region: s.region
+          code: s.code, name: s.name, lat: s.lat, lng: s.lng
         }));
         if (existing && existing.length > 0) {
           await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {

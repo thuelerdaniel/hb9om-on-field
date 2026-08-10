@@ -136,8 +136,12 @@ export default async function(req) {
             } catch {}
           }
 
-          // Create PrivateNode records for digipeaters (type 'd') and IGates (type 'i')
-          if (entry.type === 'd' || entry.type === 'i' || (entry.symbol && ['/#', '/r', '/R', '/i', '/&', '/T'].includes(entry.symbol))) {
+          // Create PrivateNode records for fixed amateur radio stations (digipeaters, IGates,
+          // nodes, weather stations, HF stations, satellites — NOT mobile stations like cars/aircraft)
+          const FIXED_SYMBOLS = ['/#', '/r', '/R', '/i', '/I', '/&', '/T', '/n', '/H', '/h', '/N',
+            '/L', '/l', '/S', '/s', '/O', '/Y', '/y', '/`', '/d', '/o', '/W', '/_'];
+          if (entry.type === 'd' || entry.type === 'i' || entry.type === 'o' ||
+              (entry.symbol && FIXED_SYMBOLS.includes(entry.symbol))) {
             const { node_type, network, mode } = determineNodeType(entry);
             nodeRecords.push({
               callsign: entry.name,
@@ -185,9 +189,13 @@ export default async function(req) {
           if (seenCallsigns.has(entry.name)) continue;
           seenCallsigns.add(entry.name);
 
-          // Only add stations that are digipeaters, IGates, or repeaters (not mobile stations)
-          if (entry.type === 'd' || entry.type === 'i' || entry.type === 'w' ||
-              (entry.symbol && ['/#', '/r', '/R', '/i', '/&', '/T', '/_', '/W'].includes(entry.symbol))) {
+          // Only add fixed amateur radio stations (digipeaters, IGates, nodes, weather, HF,
+          // satellites, lighthouses — NOT mobile stations like cars/aircraft/bikes)
+          const FIXED_SYMBOLS_BBOX = ['/#', '/r', '/R', '/i', '/I', '/&', '/T', '/n', '/H', '/h',
+            '/N', '/L', '/l', '/S', '/s', '/O', '/Y', '/y', '/`', '/d', '/o', '/W', '/_',
+            '/p', '/P', '/s', '/m', '/M'];
+          if (entry.type === 'd' || entry.type === 'i' || entry.type === 'w' || entry.type === 'o' ||
+              (entry.symbol && FIXED_SYMBOLS_BBOX.includes(entry.symbol))) {
             const { node_type, network, mode } = determineNodeType(entry);
             nodeRecords.push({
               callsign: entry.name,

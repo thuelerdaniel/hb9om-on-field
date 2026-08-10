@@ -5,22 +5,22 @@
 
 const CONCURRENCY = 20;
 
-// Comprehensive list of POTA entity codes (DXCC-based).
-// Source: pota.app — verified working entity codes.
-// Deduplicated and expanded for full worldwide coverage.
+// Comprehensive list of POTA entity codes (ISO 3166-1 alpha-2 country codes).
+// Source: pota.app/#/parklist — verified working entity codes with park counts > 0.
+// NOTE: POTA uses ISO country codes, NOT DXCC prefixes (e.g. AU not VK, ZA not ZS, BR not PY).
 export const POTA_ENTITIES = [
-  // Europe
-  'CH','G','GM','GW','GI','GD','EI','DL','F','I','EA','CT','OE','ON','PA','LX','OZ','SM','LA','OH','TF','SP','OK','OM','HA','YO','LZ','SV','9A','S5','YT','E7','4O','ZA','Z3','ES','YL','LY','UR','EU','ER','TA','5B','9H','C31','T7','3A','OY','IS','OY',
+  // Europe (ISO codes)
+  'CH','GB','IE','DE','FR','IT','ES','PT','AT','BE','NL','LU','DK','SE','NO','FI','IS','PL','CZ','SK','HU','RO','BG','GR','TR','HR','SI','RS','BA','MK','ME','AL','EE','LV','LT','UA','BY','MD','RU','MT','CY','AD','LI','MC','SM','VA','JE','GG','IM','FO','AX','GL',
   // North America
-  'US','CA','MX','KP2','KP4','CO','6Y','BS','HI',
+  'US','CA','MX','PR','VI','BS','BM','KY','TC','MS','AI','AG','GD','LC','VC','DM','HT','DO','CU','JM','TT','KN','BQ','CW','AW','GP','MQ','BL','MF','PM','GT','BZ','SV','HN','NI','CR','PA',
   // South America
-  'PY','LU','CE','HK','OA','HC','YV','CX','ZP','CP','XW','CX',
+  'BR','AR','CL','CO','PE','EC','VE','BO','PY','UY','SR','GY','GF','FK',
   // Asia
-  'JP','HL','BY','VU','YB','HS','9M2','9M4','DU','9V','9N','4X','A6','HZ','EP','YI','JY','OD','YK','UN','4L','EK','4J','BY','VU','3W','XU','XV','HS','E4',
+  'JP','KR','CN','IN','ID','TH','MY','PH','SG','IL','AE','SA','IR','IQ','JO','KW','QA','BH','OM','YE','AF','AM','AZ','GE','KZ','KG','TJ','UZ','TM','MN','TW','HK','MO','KH','LA','VN','MM','BD','LK','MV','NP','BT','PK',
   // Africa
-  'ZS','CN','3V','7X','5A','SU','ET','5Z','5N','9G','A2','Z2','V5','3B8','3B9','3B7','5R','6W','TU','TY','EL','J2','TJ',
+  'ZA','EG','MA','DZ','TN','LY','ET','KE','UG','TZ','RW','BI','ZM','ZW','BW','NA','MZ','AO','CM','CG','CD','CF','TD','ML','BF','NE','NG','GH','CI','SN','GM','GW','SL','LR','TG','BJ','CV','ST','KM','DJ','ER','SS','SD','SO','MU','SC','RE','YT','MG','LS','SZ','GQ','GA',
   // Oceania
-  'VK','ZL','P2','3D2','KH2','KH6','KH0','FK','K2K','P29',
+  'AU','NZ','PG','FJ','SB','VU','NC','PF','WS','TO','KI','TV','NR','PW','CK','NU','NF','CX','CC','UM','AS','GU','MP','FM','MH','TK',
 ];
 
 export async function fetchPotaParks(

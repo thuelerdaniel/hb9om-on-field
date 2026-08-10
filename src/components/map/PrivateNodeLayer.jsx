@@ -1,6 +1,8 @@
 import React, { memo, useMemo } from "react";
-import { CircleMarker, Popup } from "react-leaflet";
+import { CircleMarker, Popup, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
 import { Radio, Globe, Signal, Network, MapPin, Navigation, Hash } from "lucide-react";
+import { getMarkerSvg } from "@/lib/markerShapes";
 
 const NODE_TYPE_LABELS = {
   hotspot: "Hotspot",
@@ -117,6 +119,7 @@ function PrivateNodePopup({ node, userPosition }) {
 }
 
 function PrivateNodeLayerInner({ nodes, performanceMode, userPosition }) {
+  const map = useMap();
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   const circleRadius = performanceMode ? (isTouch ? 7 : 5) : (isTouch ? 9 : 7);
   const circleWeight = isTouch ? 3 : 2;
@@ -125,26 +128,63 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition }) {
     return nodes.filter(n => n.lat != null && n.lng != null);
   }, [nodes]);
 
+  // Viewport culling — only render nodes within the current map bounds (padded)
+  const bounds = map.getBounds();
+  const paddedBounds = bounds.pad(0.3);
+  const cappedNodes = visibleNodes.filter(n => paddedBounds.contains([n.lat, n.lng]));
+
+  const MAX = 2000;
+  const renderNodes = cappedNodes.length > MAX ? cappedNodes.slice(0, MAX) : cappedNodes;
+
+  // Custom SVG icon for private nodes — square with double lightning bolt
+  // Cached per color to avoid re-creating L.divIcon on every render
+  const iconCache = useMemo(() => new Map(), []);
+  const getNodeIcon = (color) => {
+    if (iconCache.has(color)) return iconCache.get(color);
+    const icon = L.divIcon({
+      className: "private-node-marker-icon",
+      html: `<div style="width:28px;height:28px;">${getMarkerSvg("private_node", color)}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+    iconCache.set(color, icon);
+    return icon;
+  };
+
   return (
     <>
-      {visibleNodes.map((n, idx) => {
+      {renderNodes.map((n, idx) => {
         const color = NODE_COLORS[n.node_type] || NODE_COLORS.other;
+        const popup = (
+          <Popup>
+            <PrivateNodePopup node={n} userPosition={userPosition} />
+          </Popup>
+        );
+        if (performanceMode) {
+          return (
+            <CircleMarker
+              key={`pn-${n.id || idx}`}
+              center={[n.lat, n.lng]}
+              radius={circleRadius}
+              pathOptions={{
+                color: "#ffffff",
+                weight: circleWeight,
+                fillColor: color,
+                fillOpacity: 0.85,
+              }}
+            >
+              {popup}
+            </CircleMarker>
+          );
+        }
         return (
-          <CircleMarker
+          <Marker
             key={`pn-${n.id || idx}`}
-            center={[n.lat, n.lng]}
-            radius={circleRadius}
-            pathOptions={{
-              color: "#ffffff",
-              weight: circleWeight,
-              fillColor: color,
-              fillOpacity: 0.85,
-            }}
+            position={[n.lat, n.lng]}
+            icon={getNodeIcon(color)}
           >
-            <Popup>
-              <PrivateNodePopup node={n} userPosition={userPosition} />
-            </Popup>
-          </CircleMarker>
+            {popup}
+          </Marker>
         );
       })}
     </>

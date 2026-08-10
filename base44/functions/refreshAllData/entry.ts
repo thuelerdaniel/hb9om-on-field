@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { fetchRepeaterData } from '../../shared/repeaterScraper.ts';
 import { fetchSotaSummits } from '../../shared/sotaFetcher.ts';
 import { fetchPotaParks } from '../../shared/potaFetcher.ts';
 
@@ -90,9 +89,14 @@ async function extractCoordsFromKMZ(kmzUrl) {
 // --- Data fetchers ---
 
 async function fetchSotaData() {
-  // Worldwide: fetch all SOTA associations globally
+  // Worldwide: fetch all SOTA associations globally.
+  // Only store essential fields (code, name, lat, lng) — the full CSV has ~125k summits
+  // and storing all fields (alt, points, activationCount, region) exceeds MongoDB's 16MB
+  // document size limit, causing "update command document too large" errors.
   const result = await fetchSotaSummits('all');
-  return result.summits;
+  return result.summits.map(s => ({
+    code: s.code, name: s.name, lat: s.lat, lng: s.lng
+  }));
 }
 
 async function fetchPotaData() {
@@ -733,86 +737,60 @@ Deno.serve(async (req) => {
       { type: 'castle', fn: () => fetchCastleData(overridesByType.get('castle') || new Map()) },
     ];
 
-    const settled = await Promise.allSettled(taskDefs.map(async (t) => {
+    // Run tasks SEQUENTIALLY (not in parallel) to avoid peak memory exhaustion.
+    // The SOTA CSV alone is ~125k lines (~15MB text + ~15MB parsed array).
+    // Running all 6 tasks concurrently caused worker OOM crashes ("user worker threw exception").
+    const results = [];
+    for (const t of taskDefs) {
       const taskStart = Date.now();
-      const items = await t.fn();
-      // Apply admin overrides for non-castle types
-      if (t.type !== 'castle' && overridesByType.has(t.type)) {
-        const typeOverrides = overridesByType.get(t.type);
-        for (const item of items) {
-          const code = item.code || item.reference;
-          if (code && typeOverrides.has(code)) {
-            const ov = typeOverrides.get(code);
-            if (ov.manual_lat != null) { item.lat = ov.manual_lat; item.lng = ov.manual_lng; }
-            if (ov.adjusted_name) item.name = ov.adjusted_name;
-            if (ov.web_reference) item.link = ov.web_reference;
+      try {
+        const items = await t.fn();
+        // Apply admin overrides for non-castle types
+        if (t.type !== 'castle' && overridesByType.has(t.type)) {
+          const typeOverrides = overridesByType.get(t.type);
+          for (const item of items) {
+            const code = item.code || item.reference;
+            if (code && typeOverrides.has(code)) {
+              const ov = typeOverrides.get(code);
+              if (ov.manual_lat != null) { item.lat = ov.manual_lat; item.lng = ov.manual_lng; }
+              if (ov.adjusted_name) item.name = ov.adjusted_name;
+              if (ov.web_reference) item.link = ov.web_reference;
+            }
           }
         }
-      }
-      const now = new Date().toISOString();
+        const now = new Date().toISOString();
 
-      // Upsert ReferenceData
-      const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: t.type });
-      if (existing.length > 0) {
-        await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
-          references: items, total_count: items.length, source: t.type, last_updated: now
-        });
-      } else {
-        await base44.asServiceRole.entities.ReferenceData.create({
-          type: t.type, references: items, total_count: items.length, source: t.type, last_updated: now
-        });
-      }
-
-      const result = { type: t.type, status: 'success', count: items.length, duration_ms: Date.now() - taskStart };
-      if (t.type === 'castle') {
-        const matched = items.filter(c => c.lat !== null).length;
-        const bySource = {};
-        for (const c of items) {
-          const src = c.matchSource || 'unmatched';
-          bySource[src] = (bySource[src] || 0) + 1;
+        // Upsert ReferenceData
+        const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: t.type });
+        if (existing.length > 0) {
+          await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
+            references: items, total_count: items.length, source: t.type, last_updated: now
+          });
+        } else {
+          await base44.asServiceRole.entities.ReferenceData.create({
+            type: t.type, references: items, total_count: items.length, source: t.type, last_updated: now
+          });
         }
-        result.castleStats = { matched, total: items.length, unmatched: items.length - matched, bySource };
-      }
-      return result;
-    }));
 
-    const results = taskDefs.map((t, i) => {
-      if (settled[i].status === 'fulfilled') return settled[i].value;
-      return { type: t.type, status: 'failed', count: 0, error: settled[i].reason?.message || String(settled[i].reason), duration_ms: 0 };
-    });
-
-    // Sync repeaters to Repeater entity (worldwide — separate from ReferenceData)
-    // Wrapped with timeout — repeater scraper makes thousands of HTTP requests and can
-    // exhaust the worker's memory/time budget, crashing the whole function with a 500.
-    try {
-      const repStart = Date.now();
-      const REPEATER_TIMEOUT_MS = 120000; // 2 min max for repeater scraping
-      const repeaters = await Promise.race([
-        fetchRepeaterData(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Repeater scrape timeout')), REPEATER_TIMEOUT_MS)
-        ),
-      ]);
-      const withCoords = repeaters.filter(r => r.lat !== null && r.lng !== null);
-      // Delete all existing repeaters in one call (full refresh)
-      try {
-        await base44.asServiceRole.entities.Repeater.deleteMany({});
-      } catch {}
-      const repRecords = withCoords.map(r => ({
-        callsign: r.callsign, frequency: r.frequency, offset_mhz: r.offset_mhz || 0,
-        tone: r.tone || '', modes: r.modes, primary_mode: r.primary_mode,
-        location_name: r.location_name, country: r.country || '', country_code: r.country_code || '',
-        lat: r.lat, lng: r.lng, band: r.band, status: r.status,
-        web_url: r.web_url || '', echolink_node: r.echolink_node || '',
-        fm_funknetz: false, source_id: r.sourceId, linked_callsigns: r.linked_callsigns || [],
-      }));
-      for (let i = 0; i < repRecords.length; i += 100) {
-        await base44.asServiceRole.entities.Repeater.bulkCreate(repRecords.slice(i, i + 100));
+        const result = { type: t.type, status: 'success', count: items.length, duration_ms: Date.now() - taskStart };
+        if (t.type === 'castle') {
+          const matched = items.filter(c => c.lat !== null).length;
+          const bySource = {};
+          for (const c of items) {
+            const src = c.matchSource || 'unmatched';
+            bySource[src] = (bySource[src] || 0) + 1;
+          }
+          result.castleStats = { matched, total: items.length, unmatched: items.length - matched, bySource };
+        }
+        results.push(result);
+      } catch (e) {
+        results.push({ type: t.type, status: 'failed', count: 0, error: e.message || String(e), duration_ms: Date.now() - taskStart });
       }
-      results.push({ type: 'repeater', status: 'success', count: withCoords.length, duration_ms: Date.now() - repStart });
-    } catch (e) {
-      results.push({ type: 'repeater', status: 'failed', count: 0, error: e.message, duration_ms: 0 });
     }
+
+    // Repeater scraping is handled by the separate fetchRepeaters function.
+    // Including it here caused worker crashes (thousands of HTTP requests exhaust memory/time).
+    // The daily automation should call fetchRepeaters separately if repeater refresh is needed.
 
     const totalDuration = Date.now() - startTime;
     const successCount = results.filter(r => r.status === 'success').length;
