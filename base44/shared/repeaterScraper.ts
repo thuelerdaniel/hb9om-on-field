@@ -6,7 +6,8 @@ const DETAIL_BASE = 'https://www.repeaterbook.com/row_repeaters/details.php';
 
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 1500;
+const MAX_DETAIL_FETCH = 5000;
+const MAX_PER_COUNTRY = 200;
 const LIST_CONCURRENCY = 8;
 const DETAIL_CONCURRENCY = 20;
 
@@ -362,8 +363,31 @@ export async function fetchRepeaterData(): Promise<any[]> {
     return 0;
   });
 
-  // 3. Select top MAX_DETAIL_FETCH for detail page fetching (prioritized)
-  const toFetch = allRepeaters.slice(0, MAX_DETAIL_FETCH);
+  // 3. Select repeaters for detail page fetching — per-country quota ensures worldwide coverage.
+  // Each country gets up to MAX_PER_COUNTRY detail fetches (on-air first), so no single
+  // country can starve others. Total capped at MAX_DETAIL_FETCH.
+  const byCountry = new Map<string, any[]>();
+  for (const rep of allRepeaters) {
+    if (!byCountry.has(rep.country_code)) byCountry.set(rep.country_code, []);
+    byCountry.get(rep.country_code)!.push(rep);
+  }
+  const toFetch: any[] = [];
+  for (const [, reps] of byCountry) {
+    reps.sort((a, b) => {
+      if (a.status === 'on-air' && b.status !== 'on-air') return -1;
+      if (a.status !== 'on-air' && b.status === 'on-air') return 1;
+      return 0;
+    });
+    toFetch.push(...reps.slice(0, MAX_PER_COUNTRY));
+  }
+  // Sort final list by country priority for consistent processing
+  toFetch.sort((a, b) => {
+    const pa = countryPriority.get(a.country_code) || 99;
+    const pb = countryPriority.get(b.country_code) || 99;
+    return pa - pb;
+  });
+  // Hard cap
+  toFetch.splice(MAX_DETAIL_FETCH);
 
   // 4. Fetch detail pages (concurrency 20)
   for (let i = 0; i < toFetch.length; i += DETAIL_CONCURRENCY) {

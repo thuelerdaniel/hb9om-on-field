@@ -759,6 +759,20 @@ export default function Home() {
     castles.forEach(c => { if (c.lat && c.lng) markers.push({ ...c, layerType: "castle", color: LAYER_COLORS.castle, layerLabel: "Burg/Schloss" }); });
     IOTA_DATA.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
     LIGHTHOUSE_DATA.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
+    // Include repeaters for QSO form worldwide search
+    if (repeaters.length > 0) {
+      repeaters.forEach(r => {
+        if (r.lat && r.lng) markers.push({
+          ...r,
+          code: r.callsign,
+          reference: r.callsign,
+          name: `${r.callsign} ${r.frequency?.toFixed(4) || ''} MHz`.trim() + (r.location_name ? ` · ${r.location_name}` : ''),
+          layerType: "repeater",
+          color: "#3b82f6",
+          layerLabel: "Relais"
+        });
+      });
+    }
     return markers.map(m => {
       const code = m.code || m.reference;
       const ovKey = `${m.layerType}:${code}`;
@@ -770,7 +784,7 @@ export default function Home() {
         lng: ov?.manual_lng != null ? ov.manual_lng : m.lng,
       };
     });
-  }, [sotaData, potaData, hbffData, wwbotaData, castleData, serverOverrides]);
+  }, [sotaData, potaData, hbffData, wwbotaData, castleData, serverOverrides, repeaters]);
 
   // Search (debounced)
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -1146,6 +1160,8 @@ export default function Home() {
               onSuggestLink={(repeater) => setLinkSuggestTarget(repeater)}
               individualCoverage={individualCoverage}
               onToggleCoverage={handleToggleRepeaterCoverage}
+              activeContinents={activeContinents}
+              activeCountries={activeCountries}
             />
           )}
 

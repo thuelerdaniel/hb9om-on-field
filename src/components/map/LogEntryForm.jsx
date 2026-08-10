@@ -39,6 +39,7 @@ const REF_TYPES = [
   { value: "castle", label: "Burg/Schloss" },
   { value: "iota", label: "IOTA" },
   { value: "lighthouse", label: "Leuchtturm" },
+  { value: "repeater", label: "Relais" },
   { value: "swiss_protected", label: "Bundesinventar" },
   { value: "generell", label: "Generell (nur Locator)" },
   { value: "custom", label: "Eigene Referenz" },
@@ -169,6 +170,8 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (localStorage.getItem(PERSIST_KEYS.mySuffix) || ""));
   const [myGrid, setMyGrid] = useState(editEntry?.my_grid || (localStorage.getItem(PERSIST_KEYS.myGrid) || ""));
   const [showRefDropdown, setShowRefDropdown] = useState(false);
+  const [refSearchQuery, setRefSearchQuery] = useState("");
+  const [showRefSearch, setShowRefSearch] = useState(false);
 
   const wakeLockRef = useRef(null);
   const qrzInFlightRef = useRef(false);
@@ -234,6 +237,19 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       setMyGrid(latLngToGrid(positionCenter[0], positionCenter[1]));
     }
   }, [refType, positionCenter]);
+
+  // Worldwide reference search — searches ALL markers by name/code (not just nearby)
+  const refSearchResults = useMemo(() => {
+    if (refSearchQuery.length < 2) return [];
+    const q = refSearchQuery.toLowerCase();
+    return allMarkers
+      .filter(m => {
+        const name = (m.name || "").toLowerCase();
+        const code = (m.code || m.reference || "").toLowerCase();
+        return name.includes(q) || code.includes(q);
+      })
+      .slice(0, 50);
+  }, [refSearchQuery, allMarkers]);
 
   const handleQRZLookup = async () => {
     if (qrzInFlightRef.current) return;
@@ -628,6 +644,46 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                 ))}
               </div>
             )}
+
+            {/* Worldwide reference search — find any reference globally by name/code */}
+            <div className="mb-2">
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={refSearchQuery}
+                  onChange={e => {
+                    setRefSearchQuery(e.target.value);
+                    setShowRefSearch(e.target.value.length >= 2);
+                  }}
+                  placeholder="Referenz weltweit suchen (Name oder Code)..."
+                  className="flex-1 min-w-0 px-2.5 py-1.5 text-xs border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              </div>
+              {showRefSearch && refSearchResults.length > 0 && (
+                <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded-lg border border-gray-200 divide-y divide-gray-50">
+                  {refSearchResults.map((r, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        selectRef(r);
+                        setRefSearchQuery("");
+                        setShowRefSearch(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-xs"
+                    >
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.color }} />
+                      <span className="font-mono font-semibold text-gray-900">{r.code || r.reference}</span>
+                      <span className="flex-1 truncate text-gray-500">{r.name}</span>
+                      <span className="text-gray-400 capitalize">{r.layerLabel || r.layerType}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showRefSearch && refSearchResults.length === 0 && refSearchQuery.length >= 2 && (
+                <p className="text-[10px] text-gray-400 mt-1">Keine Referenz gefunden</p>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-2">
               <MobileSelect

@@ -4,6 +4,8 @@ import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
 import { getModeColor, repeaterMatchesMode, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
+import { isInContinents } from "@/lib/continents";
+import { isInCountries } from "@/lib/countries";
 
 // Approximate coverage radius (km) by band — based on typical VHF/UHF propagation
 const COVERAGE_RADIUS_KM = {
@@ -30,12 +32,19 @@ const LINE_DASH_ARRAYS = {
   dotted: "1 4",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage }) {
+function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries }) {
   const map = useMap();
 
-  // Filter repeaters by mode, country, search, and radius
+  // Filter repeaters by continent, country, mode, search, and radius
   const filteredRepeaters = useMemo(() => {
     let result = repeaters;
+    // Apply LayerControl continent/country filter (same as other markers)
+    if (activeContinents && activeContinents.length > 0) {
+      result = result.filter(r => r.lat != null && r.lng != null && isInContinents(r.lat, r.lng, activeContinents));
+    }
+    if (activeCountries && activeCountries.length > 0) {
+      result = result.filter(r => isInCountries({ ...r, layerType: 'repeater' }, activeCountries));
+    }
     if (filterCountry && filterCountry !== "all") {
       result = result.filter(r => r.country_code === filterCountry);
     }
@@ -61,7 +70,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       });
     }
     return result;
-  }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition]);
+  }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition, activeContinents, activeCountries]);
 
   // Build linking lines from RepeaterBook crosslinks (linked_callsigns)
   const linkLines = useMemo(() => {
@@ -151,6 +160,11 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         if (!showThis) return null;
         const radiusKm = r.coverage_radius_km || COVERAGE_RADIUS_KM[r.band] || COVERAGE_RADIUS_KM["Other"];
         const color = getModeColor(r.primary_mode);
+        // Opacity scales with refinement: 0% = 0.05, 100% = 0.25
+        const refinementPct = r.coverage_refinement_pct || 0;
+        const fillOpacity = r.status === "off-air"
+          ? 0.02
+          : 0.05 + (refinementPct / 100) * 0.20;
         return (
           <Circle
             key={`cov-${r.id || idx}`}
@@ -158,10 +172,10 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
             radius={radiusKm * 1000}
             pathOptions={{
               color: color,
-              weight: 0.5,
-              opacity: 0.3,
+              weight: refinementPct >= 50 ? 1 : 0.5,
+              opacity: 0.3 + (refinementPct / 100) * 0.3,
               fillColor: color,
-              fillOpacity: r.status === "off-air" ? 0.03 : 0.08,
+              fillOpacity: fillOpacity,
             }}
           />
         );
@@ -242,7 +256,9 @@ function arePropsEqual(prev, next) {
     prev.adminLinks === next.adminLinks &&
     prev.onSuggestLink === next.onSuggestLink &&
     prev.individualCoverage === next.individualCoverage &&
-    prev.onToggleCoverage === next.onToggleCoverage
+    prev.onToggleCoverage === next.onToggleCoverage &&
+    prev.activeContinents === next.activeContinents &&
+    prev.activeCountries === next.activeCountries
   );
 }
 

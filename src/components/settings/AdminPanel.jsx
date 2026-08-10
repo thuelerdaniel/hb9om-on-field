@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Bell, UserPlus, AlertTriangle, Users, User, KeyRound, Lightbulb, MapPin, RadioTower, Signal } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -35,15 +35,35 @@ export default function AdminPanel({
   const [aprsResult, setAprsResult] = useState(null);
   const [coverageLoading, setCoverageLoading] = useState(false);
   const [coverageResult, setCoverageResult] = useState(null);
+  const [coverageProgress, setCoverageProgress] = useState(null);
+  const [coverageScope, setCoverageScope] = useState("CH");
+  const [progressLoading, setProgressLoading] = useState(false);
   const { toast } = useToast();
+
+  const fetchCoverageProgress = async () => {
+    setProgressLoading(true);
+    try {
+      const res = await base44.functions.invoke("calculateRepeaterCoverage", { country_code: "all", force: false });
+      setCoverageProgress(res.data);
+    } catch (e) {
+      // silent fail — progress is informational
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCoverageProgress();
+  }, []);
 
   const handleCalcCoverage = async () => {
     setCoverageLoading(true);
     setCoverageResult(null);
     try {
-      const res = await base44.functions.invoke("calculateRepeaterCoverage", { force: true });
+      const res = await base44.functions.invoke("calculateRepeaterCoverage", { country_code: coverageScope, force: true });
       setCoverageResult(res.data);
       toast({ title: "Abdeckung berechnet", description: `${res.data?.updated || 0} Relais aktualisiert (${res.data?.aprsRefined || 0} APRS-verfeinert)`, duration: 5000 });
+      fetchCoverageProgress();
     } catch (e) {
       toast({ title: "Fehler", description: e.message || "Unbekannter Fehler", variant: "destructive" });
     } finally {
@@ -408,21 +428,87 @@ export default function AdminPanel({
         )}
       </section>
 
-      {/* Repeater Coverage Calculator */}
+      {/* Repeater Coverage Calculator + Global Progress */}
       <section className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-              <Signal className="w-4 h-4 text-green-600" /> Relais-Abdeckung berechnen
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
- Berechnet die Abdeckung pro Relais (Band-Schätzung + APRS-Verfeinerung). Läuft täglich automatisch um 03:00, kann hier manuell getriggert werden.
+        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5 mb-2">
+          <Signal className="w-4 h-4 text-green-600" /> Relais-Abdeckung berechnen
+        </h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Berechnet die Abdeckung pro Relais (Band-Schätzung + APRS-Verfeinerung). Startet in der Schweiz, kann auf Europa/Weltweit ausgeweitet werden. Läuft täglich automatisch um 03:00.
+        </p>
+
+        {/* Global progress indicator */}
+        {coverageProgress?.global && (
+          <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-700">Globaler Fortschritt</span>
+              <button
+                onClick={fetchCoverageProgress}
+                disabled={progressLoading}
+                className="text-[10px] text-blue-600 hover:underline disabled:opacity-40"
+              >
+                {progressLoading ? "Aktualisiert..." : "Aktualisieren"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+              <div className="text-center">
+                <div className="text-lg font-bold text-gray-900">{coverageProgress.global.totalRepeaters}</div>
+                <div className="text-[10px] text-gray-400">Relais gesamt</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-blue-600">{coverageProgress.global.withCoords}</div>
+                <div className="text-[10px] text-gray-400">Mit Koordinaten</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-600">{coverageProgress.global.aprsRefined}</div>
+                <div className="text-[10px] text-gray-400">APRS-verfeinert</div>
+              </div>
+              <div className="text-center">
+                <div className={`text-lg font-bold ${
+                  coverageProgress.global.avgRefinementPct >= 60 ? 'text-green-600' :
+                  coverageProgress.global.avgRefinementPct >= 30 ? 'text-amber-600' : 'text-gray-400'
+                }`}>
+                  {coverageProgress.global.avgRefinementPct}%
+                </div>
+                <div className="text-[10px] text-gray-400">Ø Verfeinerung</div>
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  coverageProgress.global.avgRefinementPct >= 60 ? 'bg-green-500' :
+                  coverageProgress.global.avgRefinementPct >= 30 ? 'bg-amber-500' : 'bg-gray-400'
+                }`}
+                style={{ width: `${coverageProgress.global.avgRefinementPct}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              {coverageProgress.global.countriesCovered} Länder · {coverageProgress.global.calculated} Relais berechnet
             </p>
           </div>
+        )}
+
+        {/* Scope selector + calc button */}
+        <div className="flex items-center gap-2">
+          <select
+            value={coverageScope}
+            onChange={e => setCoverageScope(e.target.value)}
+            className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-300"
+          >
+            <option value="CH">Schweiz</option>
+            <option value="DE">Deutschland</option>
+            <option value="FR">Frankreich</option>
+            <option value="IT">Italien</option>
+            <option value="AT">Österreich</option>
+            <option value="GB">Grossbritannien</option>
+            <option value="ES">Spanien</option>
+            <option value="all">Weltweit (alle)</option>
+          </select>
           <button
             onClick={handleCalcCoverage}
             disabled={coverageLoading}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-40 flex items-center gap-2"
+            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-40 flex items-center justify-center gap-2"
           >
             {coverageLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Signal className="w-4 h-4" />}
             {coverageLoading ? "Berechnet..." : "Jetzt berechnen"}
@@ -430,7 +516,7 @@ export default function AdminPanel({
         </div>
         {coverageResult && (
           <div className="mt-3 p-3 rounded-lg text-sm bg-green-50 text-green-700">
-            {coverageResult.total} Relais gesamt · {coverageResult.bandEstimated} Band-Schätzungen · {coverageResult.aprsRefined} APRS-verfeinert · {coverageResult.updated} aktualisiert
+            {coverageResult.scope === "worldwide" ? "Weltweit" : coverageResult.scope}: {coverageResult.total} Relais · {coverageResult.bandEstimated} Band-Schätzungen · {coverageResult.aprsRefined} APRS-verfeinert · {coverageResult.updated} aktualisiert
           </div>
         )}
       </section>

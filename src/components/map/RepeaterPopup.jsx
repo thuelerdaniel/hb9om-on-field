@@ -204,8 +204,40 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         </a>
       )}
 
+      {/* Coverage refinement indicator */}
+      {repeater.coverage_radius_km != null && (
+        <div className="mt-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-gray-400 uppercase">Abdeckungs-Verfeinerung</span>
+            <span className={`text-[11px] font-bold ${
+              (repeater.coverage_refinement_pct || 0) >= 60 ? 'text-green-600' :
+              (repeater.coverage_refinement_pct || 0) >= 30 ? 'text-amber-600' : 'text-gray-400'
+            }`}>
+              {repeater.coverage_refinement_pct || 0}%
+            </span>
+          </div>
+          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                (repeater.coverage_refinement_pct || 0) >= 60 ? 'bg-green-500' :
+                (repeater.coverage_refinement_pct || 0) >= 30 ? 'bg-amber-500' : 'bg-gray-400'
+              }`}
+              style={{ width: `${repeater.coverage_refinement_pct || 0}%` }}
+            />
+          </div>
+          <div className="text-[9px] text-gray-400 mt-0.5">
+            {repeater.coverage_source === "aprs_refined"
+              ? "APRS-verfeinert (Stationsdichte)"
+              : repeater.coverage_source === "manual"
+              ? "Manuell gesetzt"
+              : "Band-Schätzung (noch nicht verfeinert)"}
+            {repeater.coverage_updated && ` · ${new Date(repeater.coverage_updated).toLocaleDateString('de-CH')}`}
+          </div>
+        </div>
+      )}
+
       <div className="text-[9px] text-gray-300 mt-2 pt-1 border-t border-gray-100">
-        Quelle: RepeaterBook.com{repeater.coverage_source === "aprs_refined" && " · Abdeckung verfeinert (APRS)"}
+        Quelle: RepeaterBook.com
       </div>
     </div>
   );

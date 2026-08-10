@@ -112,10 +112,15 @@ export const COUNTRIES = [
 ];
 
 // Build lookup maps: SOTA prefix → ISO2, POTA prefix → ISO2
+// Handle multi-prefix entries like "W/K" by splitting on "/" — both "W" and "K" map to "US".
 const SOTA_TO_ISO = {};
 const POTA_TO_ISO = {};
 for (const c of COUNTRIES) {
-  if (c.sota) SOTA_TO_ISO[c.sota.toUpperCase()] = c.iso2;
+  if (c.sota) {
+    for (const prefix of c.sota.toUpperCase().split('/')) {
+      SOTA_TO_ISO[prefix] = c.iso2;
+    }
+  }
   if (c.pota) POTA_TO_ISO[c.pota.toUpperCase()] = c.iso2;
 }
 

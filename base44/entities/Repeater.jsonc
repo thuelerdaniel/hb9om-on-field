@@ -118,6 +118,11 @@
       "default": "band_estimate",
       "description": "Quelle der Abdeckungsdaten"
     },
+    "coverage_refinement_pct": {
+      "type": "number",
+      "description": "Verfeinerungsgrad der Abdeckungsberechnung in % (0-100)",
+      "default": 0
+    },
     "coverage_updated": {
       "type": "string",
       "format": "date-time",
