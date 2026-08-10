@@ -15,7 +15,9 @@ export const LINKS = {
   bakom: "https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html",
   paypal: "https://paypal.me/Thueler",
   email: "mailto:hb9om@hb9om.ch",
-  repeaterbook: "https://www.repeaterbook.com/row_repeaters/?state_id=CH"
+  repeaterbook: "https://www.repeaterbook.com/row_repeaters/?state_id=CH",
+  repeaterbookUS: "https://www.repeaterbook.com/repeater.php?state_id=none&country=United+States",
+  repeaterbookCA: "https://www.repeaterbook.com/repeater.php?state_id=none&country=Canada"
 };
 
 // Screenshot URLs (echte App-Screenshots)
@@ -40,7 +42,7 @@ export const MARKER_SYMBOLS = [
   { icon: "diamond", shape: "iota", color: "#3498db", name: "IOTA", desc: "Inseln (Schweiz hat keine IOTA) – Karte: Raute mit Welle" },
   { icon: "anchor", shape: "lighthouse", color: "#f39c12", name: "Leuchttürme", desc: "ARLHS WLOL Referenzen – Karte: Leuchtturm mit Licht" },
   { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN/Moor", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" },
-  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais (Turm mit Blitz)", desc: "Amateurfunk-Relais weltweit (FM, C4FM, DMR, D-STAR, P-25, NXDN, M17) – Karte: Turm mit Blitzsymbol, farbig nach Modulation" }
+  { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Relais (Turm mit Blitz)", desc: "Amateurfunk-Relais weltweit – 80+ Laender inkl. USA (50 Bundesstaaten) & Kanada (13 Provinzen) – Karte: Turm mit Blitzsymbol, farbig nach Modulation" }
 ];
 
 // UI-Icons auf der Karte – Lucide-Icon-Namen wie in der App
@@ -613,7 +615,7 @@ export const SECTIONS = [
     items: [
       {
         title: "Relais-Overlay aktivieren",
-        body: "Oeffnen Sie das Ebenen-Menue (Layer-Icon rechts oben) und aktivieren Sie die Ebene «Amateurfunk-Relais (RepeaterBook)». Weltweite Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart. Die Daten stammen von RepeaterBook.com und umfassen 68+ Laender weltweit.",
+        body: "Oeffnen Sie das Ebenen-Menue (Layer-Icon rechts oben) und aktivieren Sie die Ebene «Amateurfunk-Relais (RepeaterBook)». Weltweite Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart. Die Daten stammen von RepeaterBook.com und umfassen 80+ Laender weltweit: Europa, Asien, Ozeanien sowie Nordamerika (USA mit 50 Bundesstaaten + DC, Kanada mit 13 Provinzen).",
         steps: [
           { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
           { icon: "radioTower", text: "«Amateurfunk-Relais» aktivieren" },
@@ -703,6 +705,17 @@ export const SECTIONS = [
         tip: "Tipp: Die globale Abdeckung (alle Relais) im Relais-Filter bleibt davon unberuehrt. Pro-Relais-Abdeckung ist zusaetzlich."
       },
       {
+        title: "Admin: Relais-Verwaltung",
+        body: "Administratoren koennen im Relais-Popup zusaetzliche Aktionen ausloesen: den Web-Link eines Relais ergaenzen oder korrigieren (Stift-Icon) und die Abdeckungsberechnung fuer ein einzelnes Relais anstossen («Abdeckung berechnen»). Die Abdeckung wird basierend auf Band, Standorthoehe und Gelaendefaktor verfeinert. Normale Benutzer sehen diese Buttons nicht.",
+        steps: [
+          { icon: "mapPin", text: "Relais-Marker antippen – Popup oeffnet sich" },
+          { icon: "pencil", text: "Admin: Stift-Icon neben Web-Link fuer Link-Ergaenzung" },
+          { icon: "signal", text: "Admin: «Abdeckung berechnen» fuer einzelnes Relais" },
+          { icon: "check", text: "Abdeckung wird im Hintergrund verfeinert (Band + Hoehe + Gelände)" }
+        ],
+        tip: "Tipp: Die Abdeckungsberechnung kann auch im Admin-Panel fuer ganze Laender oder weltweit ausgeloest werden."
+      },
+      {
         title: "Verlinkung melden (fehlende/existente)",
         body: "Im Relais-Popup koennen Sie Verlinkungen zwischen Relais melden – sowohl fehlende als auch existierende. Tippen Sie auf «Verlinkung» im Popup, waehlen Sie das Ziel-Relais (nach Distanz sortiert), und geben Sie Netzwerk (Brandmeister, XLX, EchoLink) und Beschreibung an. Ihr Vorschlag wird als «ausstehend» gespeichert und von einem Admin geprueft.",
         steps: [
@@ -727,11 +740,11 @@ export const SECTIONS = [
       },
       {
         title: "Kontinent-Filter",
-        body: "Im Ebenen-Menue gibt es einen Kontinent-Filter, mit dem Sie Overlay-Ebenen nach Kontinent ein- und ausblenden koennen. Waehlen Sie «Alle Welt» (Standard) oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.). Der Filter wirkt sich auf alle Referenz-Ebenen aus (SOTA, POTA, HBFF, etc.).",
+        body: "Im Ebenen-Menue gibt es einen Kontinent-Filter, mit dem Sie Overlay-Ebenen nach Kontinent ein- und ausblenden koennen. Waehlen Sie «Ganze Welt» (Standard) oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.). Der Filter wirkt sich auf alle Referenz-Ebenen aus (SOTA, POTA, HBFF, etc.).",
         steps: [
           { icon: "layers", text: "Ebenen-Menue oeffnen (Layer-Icon rechts oben)" },
           { icon: "globe", text: "Bereich «Kontinent-Filter» aufklappen" },
-          { icon: "globe", text: "«Alle Welt» oder einzelne Kontinente waehlen" },
+          { icon: "globe", text: "«Ganze Welt» oder einzelne Kontinente waehlen" },
           { icon: "check", text: "Marker ausserhalb der Auswahl werden ausgeblendet" }
         ],
         tip: "Tipp: Der Kontinent-Filter hilft bei Uebersichtlichkeit – blenden Sie z.B. nur Europa ein, wenn Sie nur europaeische Referenzen sehen moechten."
@@ -742,7 +755,7 @@ export const SECTIONS = [
         steps: [
           { icon: "layers", text: "Layer aktivieren – Schweizer Daten werden geladen" },
           { icon: "globe", text: "Kontinent-Filter auf andere Kontinente erweitern" },
-          { icon: "radioTower", text: "Relais sind bereits weltweit (68+ Laender)" }
+          { icon: "radioTower", text: "Relais sind bereits weltweit (80+ Laender inkl. USA/Kanada)" }
         ],
         tip: "Tipp: Admins koennen die weltweite Aktualisierung im Admin-Panel ausloesen."
       }
@@ -861,10 +874,12 @@ export const REPEATER_FILTER_INFO = {
     "Mindestens eine Modulationsart muss aktiv sein, sonst werden keine Relais angezeigt",
     "FM, Fusion, DMR, D-STAR, P-25, NXDN, M17 sind Hauptmodulationsarten",
     "EchoLink ist ein Feature-Filter: zeigt alle Relais mit EchoLink-Zugang unabhängig vom Hauptmodus",
+    "Kontinent-Filter: «Ganze Welt» oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.)",
     "Land-Filter: nach einzelnen Ländern filtern (alle Länder verfügbar)",
     "Radius-Filter: nur Relais innerhalb eines Radius von Ihrer GPS-Position",
     "Suche: nach Rufzeichen, Ort, Land oder Frequenz suchen",
     "Abdeckung: geschätzte Reichweite pro Relais (verfeinert durch APRS-Dichte und Geländedaten)",
-    "Verlinkungen: permanente Crosslinks als gestrichelte Linien anzeigen"
+    "Verlinkungen: permanente Crosslinks als gestrichelte Linien anzeigen",
+    "Admin: pro Relais Web-Link ergänzen und Abdeckungsberechnung anstossen"
   ]
 };

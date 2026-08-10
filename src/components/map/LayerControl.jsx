@@ -198,7 +198,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide flex items-center gap-1.5 mb-2">
               <Globe2 className="w-4 h-4" /> Kontinent-Filter
             </h3>
-            <p className="text-[10px] text-gray-400 mb-2">Blendet Overlay-Ebenen nach Kontinent ein/aus. Alle Welt = keine Auswahl.</p>
+            <p className="text-[10px] text-gray-400 mb-2">Blendet Overlay-Ebenen nach Kontinent ein/aus. Ganze Welt = keine Auswahl.</p>
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 onClick={() => onToggleContinent && onToggleContinent("__all")}
@@ -208,7 +208,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
                     : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                Alle Welt
+                Ganze Welt
               </button>
               {CONTINENTS.map(c => {
                 const isActive = activeContinents && activeContinents.includes(c.id);

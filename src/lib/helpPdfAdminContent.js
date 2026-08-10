@@ -123,13 +123,13 @@ export const ADMIN_SECTIONS = [
     items: [
       {
         title: "Alle Daten aktualisieren",
-        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) sowie die weltweiten Amateurfunk-Relais von RepeaterBook.com (68+ Laender) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt.",
+        body: "Über «Alle Daten aktualisieren» werden alle Referenz-Daten (SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme) sowie die weltweiten Amateurfunk-Relais von RepeaterBook.com (80+ Laender inkl. USA 50 Bundesstaaten & Kanada 13 Provinzen) neu von den jeweiligen Quellen geladen. Das kann einige Minuten dauern. Der Status wird unten im Aktualisierungsprotokoll angezeigt.",
         steps: [
           { icon: "refreshCw", text: "«Alle Daten aktualisieren» antippen" },
           { icon: "clock", text: "Warten – kann einige Minuten dauern" },
           { icon: "check", text: "Status wird im Aktualisierungsprotokoll angezeigt" },
           { icon: "database", text: "Bei Burgen: Georeferenzierungs-Methode wird angezeigt" },
-          { icon: "radioTower", text: "Bei Relais: weltweite Standorte (68+ Laender) und Verlinkungen werden von RepeaterBook aktualisiert" }
+          { icon: "radioTower", text: "Bei Relais: weltweite Standorte (80+ Laender inkl. USA/Kanada) und Verlinkungen werden von RepeaterBook aktualisiert" }
         ],
         screenshot: "settings",
         tip: "Tipp: Bei den Burgen wird angezeigt, wie viele erfolgreich georeferenziert wurden und über welche Methode (OSM/Wikidata, map.admin.ch, Locator, Nominatim)."
@@ -143,6 +143,29 @@ export const ADMIN_SECTIONS = [
           { icon: "clock", text: "Bei aktiv: nächtliche Aktualisierung" }
         ],
         tip: "Tipp: Wenn deaktiviert, müssen die Daten manuell über «Jetzt aktualisieren» neu geladen werden."
+      },
+      {
+        title: "Relais-Abdeckung berechnen",
+        body: "Im Admin-Panel kann die Abdeckungsberechnung fuer Relais pro Land oder weltweit ausgeloest werden. Die Berechnung verfeinert die geschaetzte Reichweite basierend auf Band, Standorthoehe (Open-Elevation API) und Gelaendefaktor. Zusaetzlich kann im Relais-Popup pro einzelnem Relais eine Neuberechnung angestossen werden («Abdeckung berechnen»-Button). Der Fortschritt wird im Admin-Panel als Prozentsatz angezeigt.",
+        steps: [
+          { icon: "settings", text: "Einstellungen -> Admin-Panel -> «Relais-Abdeckung»" },
+          { icon: "globe", text: "Scope waehlen (Schweiz, USA, Kanada, Japan, Australien, Weltweit)" },
+          { icon: "signal", text: "«Abdeckung berechnen» antippen" },
+          { icon: "check", text: "Fortschritt und Verfeinerungsgrad werden angezeigt" },
+          { icon: "mapPin", text: "Alternativ: pro Relais im Popup «Abdeckung berechnen»" }
+        ],
+        tip: "Tipp: Relais mit «needs_recalc»-Flag werden im naechsten Berechnungszyklus automatisch neu berechnet."
+      },
+      {
+        title: "Relais-Web-Links ergaenzen",
+        body: "Im Relais-Popup koennen Administratoren den Web-Link eines Relais ergaenzen oder korrigieren. Tippen Sie auf das Stift-Icon neben dem Web-Link-Feld. Der Link wird gespeichert und im Popup fuer alle Benutzer angezeigt. Falls RepeaterBook keinen Link liefert, kann er hier manuell nachgetragen werden.",
+        steps: [
+          { icon: "mapPin", text: "Relais-Marker auf der Karte antippen" },
+          { icon: "pencil", text: "Stift-Icon neben Web-Link-Feld antippen" },
+          { icon: "pencil", text: "URL eingeben oder korrigieren" },
+          { icon: "save", text: "Speichern – Link ist sofort fuer alle sichtbar" }
+        ],
+        tip: "Tipp: Der Web-Link wird auch im QSO-Formular bei der Referenzsuche angezeigt."
       },
       {
         title: "Externe Daten prüfen",

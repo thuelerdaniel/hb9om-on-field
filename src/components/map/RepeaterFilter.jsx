@@ -113,7 +113,7 @@ export default function RepeaterFilter({
                     filterCountry === "all" ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                   }`}
                 >
-                  Alle Welt
+                  Ganze Welt
                 </button>
                 {CONTINENTS.map(c => {
                   const contCountries = getCountriesByContinent(c.id);

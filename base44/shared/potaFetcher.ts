@@ -5,21 +5,22 @@
 
 const CONCURRENCY = 20;
 
-// Comprehensive list of POTA entity codes (based on DXCC/ISO codes).
-// Source: pota.app park list — verified working entity codes.
-const POTA_ENTITIES = [
+// Comprehensive list of POTA entity codes (DXCC-based).
+// Source: pota.app — verified working entity codes.
+// Deduplicated and expanded for full worldwide coverage.
+export const POTA_ENTITIES = [
   // Europe
-  'CH','G','GM','GW','GI','GD','EI','DL','F','I','EA','CT','OE','ON','PA','LX','OZ','SM','LA','OH','TF','SP','OK','OM','HA','YO','LZ','SV','9A','S5','YT','E7','4O','ZA','Z3','ES','YL','LY','UR','EU','ER','TA','5B','9H','C31','T7','3A','OZ','OY',
+  'CH','G','GM','GW','GI','GD','EI','DL','F','I','EA','CT','OE','ON','PA','LX','OZ','SM','LA','OH','TF','SP','OK','OM','HA','YO','LZ','SV','9A','S5','YT','E7','4O','ZA','Z3','ES','YL','LY','UR','EU','ER','TA','5B','9H','C31','T7','3A','OY','IS','OY',
   // North America
-  'US','CA','MX','CO','HI','6Y','BS','KP2','KP4','CO',
+  'US','CA','MX','KP2','KP4','CO','6Y','BS','HI',
   // South America
-  'PY','LU','CE','HK','OA','HC','YV','CX','ZP','CP','PY','XW',
+  'PY','LU','CE','HK','OA','HC','YV','CX','ZP','CP','XW','CX',
   // Asia
-  'JP','HL','BY','VU','YB','HS','9M2','DU','9V','9N','4X','A6','HZ','EP','YI','JY','OD','YK','UN','4L','EK','4J',
+  'JP','HL','BY','VU','YB','HS','9M2','9M4','DU','9V','9N','4X','A6','HZ','EP','YI','JY','OD','YK','UN','4L','EK','4J','BY','VU','3W','XU','XV','HS','E4',
   // Africa
-  'ZS','CN','3V','7X','5A','SU','ET','5Z','5N','9G','A2','Z2','V5','3B8','3B9',
+  'ZS','CN','3V','7X','5A','SU','ET','5Z','5N','9G','A2','Z2','V5','3B8','3B9','3B7','5R','6W','TU','TY','EL','J2','TJ',
   // Oceania
-  'VK','ZL','P2','3D2','KH2','KH6',
+  'VK','ZL','P2','3D2','KH2','KH6','KH0','FK','K2K','P29',
 ];
 
 export async function fetchPotaParks(

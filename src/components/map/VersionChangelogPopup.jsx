@@ -7,6 +7,19 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9",
+    title: "Nordamerika-Relais & POTA-Weltabdeckung",
+    changes: [
+      "RepeaterBook jetzt mit USA (50 Bundesstaaten + DC) und Kanada (13 Provinzen) — eigene Nordamerika-URL-Struktur",
+      "Relais-Symbol aktualisiert: Turm mit Blitz — farbig nach Modulation",
+      "Admin: Pro-Relais Web-Link ergänzen und Abdeckungsberechnung anstossen (Button im Popup)",
+      "POTA: Inkrementelles Speichern nach jedem Batch — keine Datenverluste mehr bei Timeout, Asien & alle Kontinente jetzt vollständig",
+      "Kontinent-Filter «Ganze Welt» umbenannt (vorher «Alle Welt»)",
+      "Admin-Bereich: Abdeckungs-Berechnung um USA, Kanada, Japan, Australien, Brasilien erweitert",
+      "Externe Datenquellen-Liste aktualisiert mit APRS.fi Koordinaten-Verfeinerung",
+    ],
+  },
+  {
     version: "0.8",
     title: "Weltweite Daten & Länder-Filter",
     changes: [
@@ -83,7 +96,7 @@ export default function VersionChangelogPopup({ onClose }) {
             </div>
             <div>
               <h2 className="text-white font-bold text-lg">Was ist neu in v{APP_VERSION}?</h2>
-              <p className="text-slate-400 text-xs">Massgebliche Anpassungen seit v0.75</p>
+              <p className="text-slate-400 text-xs">Massgebliche Anpassungen seit v0.8</p>
             </div>
           </div>
           <button
