@@ -8,6 +8,7 @@ import { WWBOTA_LEGEND_SCHEMES } from "@/lib/wwbotaSchemes";
 export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [wwbotaExpanded, setWwbotaExpanded] = useState(false);
 
   const activeItems = activeLayers
     .map(id => LAYER_GROUPS.find(g => g.id === id))
@@ -69,16 +70,6 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
               ))}
             </span>
           )}
-          {activeLayers.includes("wwbota") && (
-            <span className="flex items-center gap-1.5 flex-wrap">
-              {WWBOTA_LEGEND_SCHEMES.map(s => (
-                <span key={s.scheme} className="flex items-center gap-0.5 text-[10px]">
-                  <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: s.color }} />
-                  <span className="text-gray-500">{s.country}</span>
-                </span>
-              ))}
-            </span>
-          )}
           <button
             onClick={() => setHidden(true)}
             className="absolute top-1 right-1 p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
@@ -86,6 +77,32 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
           >
             <X className="w-3 h-3" />
           </button>
+        </div>
+      )}
+      {!collapsed && activeLayers.includes("wwbota") && (
+        <div className="border-t border-gray-100">
+          <button
+            onClick={() => setWwbotaExpanded(!wwbotaExpanded)}
+            className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-gray-500 hover:bg-gray-50 transition-colors"
+          >
+            <span className="w-3 h-3 rounded-full border border-white shadow-sm flex-shrink-0" style={{ backgroundColor: "#795548" }} />
+            <span>WWBOTA-Farben nach Land</span>
+            <span className="flex-1" />
+            <span className="text-[10px] text-gray-400">{WWBOTA_LEGEND_SCHEMES.length} Länder</span>
+            {wwbotaExpanded
+              ? <ChevronUp className="w-3 h-3 text-gray-400" />
+              : <ChevronDown className="w-3 h-3 text-gray-400" />}
+          </button>
+          {wwbotaExpanded && (
+            <div className="px-3 pb-2 flex items-center gap-1.5 flex-wrap">
+              {WWBOTA_LEGEND_SCHEMES.map(s => (
+                <span key={s.scheme} className="flex items-center gap-0.5 text-[10px]">
+                  <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: s.color }} />
+                  <span className="text-gray-500">{s.country}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {collapsed && (
