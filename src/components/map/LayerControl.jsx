@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Globe2 } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
+import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 
 const LAYER_GROUPS = [
   {
@@ -96,8 +97,14 @@ const MAP_SCALES = [
   { id: "100000", label: "1:100'000" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent }) {
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showCountries, setShowCountries] = useState(false);
+
+  // Countries to display: filtered by selected continents, or all if no continent selected
+  const visibleCountries = activeContinents && activeContinents.length > 0
+    ? activeContinents.flatMap(cid => getCountriesByContinent(cid))
+    : COUNTRIES;
 
   return (
     <div className="absolute top-3 right-3 z-[1005]">
@@ -219,6 +226,62 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
               })}
             </div>
           </div>
+
+          {/* Länder-Filter */}
+          {visibleCountries.length > 0 && (
+          <div className="p-4 border-b border-gray-100">
+            <button
+              onClick={() => setShowCountries(!showCountries)}
+              className="w-full flex items-center justify-between mb-2"
+            >
+              <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+                <Globe2 className="w-4 h-4" /> Länder-Filter
+              </h3>
+              <span className="text-xs text-gray-400">
+                {activeCountries && activeCountries.length > 0 ? `${activeCountries.length} aktiv` : "Alle"}
+              </span>
+            </button>
+            {showCountries && (
+              <>
+                <p className="text-[10px] text-gray-400 mb-2">Einzelne Länder ein/aus. Alle = keine Auswahl. Funktioniert für SOTA, POTA und Relais.</p>
+                <button
+                  onClick={() => {
+                    if (activeCountries && activeCountries.length > 0) {
+                      // Clear all countries
+                      activeCountries.forEach(c => onToggleCountry && onToggleCountry(c));
+                    }
+                  }}
+                  className={`w-full px-2 py-1.5 rounded-lg text-xs font-medium transition-colors mb-1.5 ${
+                    (!activeCountries || activeCountries.length === 0)
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Alle Länder ({visibleCountries.length})
+                </button>
+                <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
+                  {visibleCountries.map(c => {
+                    const isActive = activeCountries && activeCountries.includes(c.iso2);
+                    return (
+                      <button
+                        key={c.iso2}
+                        onClick={() => onToggleCountry && onToggleCountry(c.iso2)}
+                        className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                          isActive ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {!showCountries && activeCountries && activeCountries.length > 0 && (
+              <p className="text-[10px] text-blue-600">{activeCountries.length} Länder ausgewählt — klicken zum Anzeigen</p>
+            )}
+          </div>
+          )}
 
           {/* Overlay-Ebenen */}
           <div className="p-4">

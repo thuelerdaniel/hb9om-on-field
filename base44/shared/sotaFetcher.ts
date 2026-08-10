@@ -1,74 +1,99 @@
 // Shared SOTA (Summits on the Air) worldwide data fetcher.
+// Uses the bulk CSV download from sotadata.org.uk for efficiency
+// (single HTTP request instead of thousands of API calls).
 // Used by both fetchSOTA (on-demand) and refreshAllData (scheduled cache).
+
+const SOTA_CSV_URL = 'http://www.sotadata.org.uk/summitslist.csv';
+
+// Parse a single CSV line, handling quoted fields with embedded commas.
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      fields.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  fields.push(current);
+  return fields;
+}
 
 export async function fetchSotaSummits(
   scope: string | string[] = 'all',
   maxAssociations?: number
 ): Promise<{ summits: any[]; associations: string[]; association_count: number }> {
-  let associationCodes: string[] = ['HB'];
+  // Always use the CSV for worldwide data — it's a single HTTP request
+  // and contains all ~125,000 summits globally.
+  const resp = await fetch(SOTA_CSV_URL, {
+    headers: { 'Accept': 'text/csv', 'User-Agent': 'HB9OM-OnField/1.0' }
+  });
+  if (!resp.ok) throw new Error(`SOTA CSV fetch failed: ${resp.status}`);
 
-  if (scope === 'all') {
-    try {
-      const listResp = await fetch('https://api2.sota.org.uk/api/associations', {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (listResp.ok) {
-        const listData = await listResp.json();
-        const allCodes = (Array.isArray(listData) ? listData : (listData.associations || []))
-          .map((a: any) => a.associationCode || a.code)
-          .filter(Boolean);
-        if (allCodes.length > 0) {
-          associationCodes = allCodes;
-          if (maxAssociations && maxAssociations > 0) {
-            associationCodes = associationCodes.slice(0, maxAssociations);
-          }
-        }
-      }
-    } catch { /* fallback to HB */ }
-  } else if (Array.isArray(scope) && scope.length > 0) {
-    associationCodes = scope;
-  }
+  const text = await resp.text();
+  const lines = text.split('\n');
+  if (lines.length < 2) return { summits: [], associations: [], association_count: 0 };
 
+  // Header: SummitCode,AssociationName,RegionName,SummitName,AltM,AltFt,
+  //         GridRef1,GridRef2,Longitude,Latitude,Points,BonusPoints,
+  //         ValidFrom,ValidTo,ActivationCount,ActivationDate,ActivationCall
   const allSummits: any[] = [];
-  const associationNames: string[] = [];
+  const associationNames = new Set<string>();
+  const associationPrefixes = new Set<string>();
 
-  for (const associationCode of associationCodes) {
-    try {
-      const resp = await fetch(`https://api2.sota.org.uk/api/associations/${associationCode}`, {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      associationNames.push(data.associationName || associationCode);
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = parseCsvLine(line);
+    if (cols.length < 10) continue;
 
-      if (data.regions) {
-        for (const regionData of data.regions) {
-          try {
-            const regionResp = await fetch(`https://api2.sota.org.uk/api/regions/${associationCode}/${regionData.regionCode}`, {
-              headers: { 'Accept': 'application/json' }
-            });
-            if (regionResp.ok) {
-              const regionJson = await regionResp.json();
-              if (regionJson.summits) {
-                for (const s of regionJson.summits) {
-                  allSummits.push({
-                    code: s.summitCode,
-                    name: s.name,
-                    lat: s.latitude,
-                    lng: s.longitude,
-                    alt: s.altM,
-                    points: s.points,
-                    activationCount: s.activationCount,
-                    region: regionData.regionName
-                  });
-                }
-              }
-            }
-          } catch { /* skip failed regions */ }
-        }
-      }
-    } catch { /* skip failed associations */ }
+    const code = cols[0];
+    if (!code) continue;
+
+    // Extract association prefix (e.g., "HB/AG-001" → "HB")
+    const prefix = code.split('/')[0];
+    associationPrefixes.add(prefix);
+
+    const lat = parseFloat(cols[9]);
+    const lng = parseFloat(cols[8]);
+    if (isNaN(lat) || isNaN(lng)) continue;
+
+    const assocName = cols[1] || prefix;
+    associationNames.add(assocName);
+
+    allSummits.push({
+      code: code,
+      name: cols[3] || code,
+      lat: lat,
+      lng: lng,
+      alt: parseInt(cols[4]) || 0,
+      points: parseInt(cols[10]) || 0,
+      activationCount: parseInt(cols[14]) || 0,
+      region: cols[2] || ''
+    });
   }
 
-  return { summits: allSummits, associations: associationNames, association_count: associationCodes.length };
+  // If scope is a specific set of associations, filter
+  let filtered = allSummits;
+  if (Array.isArray(scope) && scope.length > 0 && scope[0] !== 'all') {
+    const scopeSet = new Set(scope.map((s: string) => s.toUpperCase()));
+    filtered = allSummits.filter(s => scopeSet.has(s.code.split('/')[0].toUpperCase()));
+  }
+
+  return {
+    summits: filtered,
+    associations: Array.from(associationNames),
+    association_count: associationPrefixes.size
+  };
 }

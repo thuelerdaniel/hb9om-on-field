@@ -34,6 +34,8 @@ import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
+import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
+import VersionChangelogPopup, { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed, resetChangelog } from "@/components/map/VersionChangelogPopup";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -304,6 +306,14 @@ export default function Home() {
     } catch {}
     return []; // empty = all world
   });
+  const [activeCountries, setActiveCountries] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_active_countries");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return []; // empty = all countries
+  });
+  const [showChangelog, setShowChangelog] = useState(false);
   const [individualCoverage, setIndividualCoverage] = useState(() => new Set(
     (() => { try { return JSON.parse(localStorage.getItem("hb9om_individual_coverage") || "[]"); } catch { return []; } })()
   ));
@@ -326,6 +336,23 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_active_continents", JSON.stringify(activeContinents));
   }, [activeContinents]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_active_countries", JSON.stringify(activeCountries));
+  }, [activeCountries]);
+
+  // Show version changelog popup after splash screen
+  useEffect(() => {
+    if (!showSplash && !hasSeenCurrentChangelog() && !isChangelogPermanentlyDismissed()) {
+      setShowChangelog(true);
+    }
+  }, [showSplash]);
+
+  const handleToggleCountry = useCallback((iso2) => {
+    setActiveCountries(prev => {
+      if (prev.includes(iso2)) return prev.filter(c => c !== iso2);
+      return [...prev, iso2];
+    });
+  }, []);
   useEffect(() => {
     localStorage.setItem("hb9om_individual_coverage", JSON.stringify([...individualCoverage]));
   }, [individualCoverage]);
@@ -513,7 +540,16 @@ export default function Home() {
     setLoading(prev => ({ ...prev, sota: true }));
     base44.functions.invoke("fetchSOTA", { associations: "all" })
       .then(res => {
-        if (res.data?.summits?.length > 0) setSotaData(res.data.summits);
+        if (res.data?.saved) {
+          // Function saved to ReferenceData — reload from server cache
+          return base44.entities.ReferenceData.list();
+        }
+        return null;
+      })
+      .then(cached => {
+        if (!cached) return;
+        const sotaEntry = cached.find(e => e.type === 'sota');
+        if (sotaEntry?.references?.length > 0) setSotaData(sotaEntry.references);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, sota: false })));
@@ -530,7 +566,15 @@ export default function Home() {
     setLoading(prev => ({ ...prev, pota: true }));
     base44.functions.invoke("fetchPOTA", { entities: "all" })
       .then(res => {
-        if (res.data?.parks?.length > 0) setPotaData(res.data.parks);
+        if (res.data?.saved) {
+          return base44.entities.ReferenceData.list();
+        }
+        return null;
+      })
+      .then(cached => {
+        if (!cached) return;
+        const potaEntry = cached.find(e => e.type === 'pota');
+        if (potaEntry?.references?.length > 0) setPotaData(potaEntry.references);
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, pota: false })));
@@ -638,6 +682,7 @@ export default function Home() {
 
     return markers
       .filter(m => isInContinents(m.lat, m.lng, activeContinents))
+      .filter(m => isInCountries(m, activeCountries))
       .map(m => {
         const code = m.code || m.reference;
         const ovKey = `${m.layerType}:${code}`;
@@ -649,7 +694,7 @@ export default function Home() {
           lng: ov?.manual_lng != null ? ov.manual_lng : (localOverrides[code]?.lng ?? m.lng),
         };
       });
-  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides, serverOverrides, activeContinents]);
+  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides, serverOverrides, activeContinents, activeCountries]);
 
   // Castle match statistics for legend
   const castleStats = useMemo(() => {
@@ -928,6 +973,10 @@ export default function Home() {
     <div className="h-screen w-screen flex flex-col relative">
       {showSplash && <SplashScreen onDismiss={() => setShowSplash(false)} />}
 
+      {showChangelog && (
+        <VersionChangelogPopup onClose={() => setShowChangelog(false)} />
+      )}
+
       <MapHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -1117,6 +1166,8 @@ export default function Home() {
           onChangeOpacity={handleChangeOpacity}
           activeContinents={activeContinents}
           onToggleContinent={handleToggleContinent}
+          activeCountries={activeCountries}
+          onToggleCountry={handleToggleCountry}
         />
 
         {activeLayers.includes("repeater") && repeaters.length > 0 && (

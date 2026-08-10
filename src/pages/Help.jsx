@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
@@ -8,6 +8,9 @@ import { generateFlyer } from "@/lib/generateFlyer";
 import { generateHelpPdf } from "@/lib/generateHelpPdf";
 import { generateAdminHelpPdf } from "@/lib/generateAdminHelpPdf";
 import { base44 } from "@/api/base44Client";
+import { resetChangelog } from "@/components/map/VersionChangelogPopup";
+import { useToast } from "@/components/ui/use-toast";
+import { APP_VERSION } from "@/lib/constants";
 
 const SECTIONS = [
   {
@@ -507,6 +510,7 @@ function HelpSection({ section }) {
 export default function Help() {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
+  const { toast } = useToast();
   const [flyerLoading, setFlyerLoading] = useState(false);
   const [helpPdfLoading, setHelpPdfLoading] = useState(false);
   const [adminPdfLoading, setAdminPdfLoading] = useState(false);
@@ -720,8 +724,27 @@ export default function Help() {
           </div>
         </div>
 
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900">Versions-Änderungen Popup</span>
+            </div>
+            <button
+              onClick={() => {
+                resetChangelog();
+                toast({ title: "Versions-Popup reaktiviert", description: "Es erscheint nach dem nächsten App-Start", duration: 3000 });
+              }}
+              className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+            >
+              Reaktivieren
+            </button>
+          </div>
+          <p className="text-xs text-blue-700 mt-1.5">Zeigt die Änderungen zwischen v0.75 und v0.8 nach dem Splash Screen.</p>
+        </div>
+
         <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
-          <p>HB9OM On Field v0.75 · Amateurfunk Referenzkarte & QSO-Logbuch</p>
+          <p>HB9OM On Field v{APP_VERSION} · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
             <Link to="/privacy" className="text-blue-600 font-medium hover:underline">Datenschutzerklärung</Link>
             {" · "}
