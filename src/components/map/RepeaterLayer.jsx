@@ -205,12 +205,28 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         // Match specific repeaters by callsign + frequency (if frequency is set)
         const allFrom = byCallsignAll.get(l.from_callsign) || [];
         const allTo = byCallsignAll.get(l.to_callsign) || [];
-        const fromReps = l.from_frequency != null
+        let fromReps = l.from_frequency != null
           ? allFrom.filter(r => Math.abs(r.frequency - l.from_frequency) < 0.001)
           : allFrom;
-        const toReps = l.to_frequency != null
+        let toReps = l.to_frequency != null
           ? allTo.filter(r => Math.abs(r.frequency - l.to_frequency) < 0.001)
           : allTo;
+        // Narrow further by stored coordinates — distinguishes same-callsign/same-frequency
+        // repeaters at different locations (e.g. HB9UF 439.15 Winterthur vs. Zofingen)
+        if (l.from_lat != null && l.from_lng != null) {
+          const coordMatch = fromReps.filter(r =>
+            r.lat != null && r.lng != null &&
+            Math.abs(r.lat - l.from_lat) < 0.001 && Math.abs(r.lng - l.from_lng) < 0.001
+          );
+          if (coordMatch.length > 0) fromReps = coordMatch;
+        }
+        if (l.to_lat != null && l.to_lng != null) {
+          const coordMatch = toReps.filter(r =>
+            r.lat != null && r.lng != null &&
+            Math.abs(r.lat - l.to_lat) < 0.001 && Math.abs(r.lng - l.to_lng) < 0.001
+          );
+          if (coordMatch.length > 0) toReps = coordMatch;
+        }
 
         // Fallback: use stored coordinates if no matching repeaters in DB
         if (fromReps.length === 0 && toReps.length === 0 &&
@@ -250,9 +266,13 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     for (const l of adminLinks) {
       if (l.status !== "approved" || l.link_type !== "permanent") continue;
       const isFrom = l.from_callsign === repeater.callsign &&
-        (l.from_frequency == null || Math.abs(l.from_frequency - repeater.frequency) < 0.001);
+        (l.from_frequency == null || Math.abs(l.from_frequency - repeater.frequency) < 0.001) &&
+        (l.from_lat == null || l.from_lng == null || repeater.lat == null ||
+          (Math.abs(repeater.lat - l.from_lat) < 0.001 && Math.abs(repeater.lng - l.from_lng) < 0.001));
       const isTo = l.to_callsign === repeater.callsign &&
-        (l.to_frequency == null || Math.abs(l.to_frequency - repeater.frequency) < 0.001);
+        (l.to_frequency == null || Math.abs(l.to_frequency - repeater.frequency) < 0.001) &&
+        (l.to_lat == null || l.to_lng == null || repeater.lat == null ||
+          (Math.abs(repeater.lat - l.to_lat) < 0.001 && Math.abs(repeater.lng - l.to_lng) < 0.001));
       if (!isFrom && !isTo) continue;
       // Find the linked target repeater
       const targetCall = isFrom ? l.to_callsign : l.from_callsign;
