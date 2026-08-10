@@ -10,6 +10,7 @@ import RepeaterLinkManager from "@/components/admin/RepeaterLinkManager";
 import RepeaterCorrectionManager from "@/components/admin/RepeaterCorrectionManager";
 import ExternalSourcesList from "@/components/admin/ExternalSourcesList";
 import IndividualSourceReload from "@/components/admin/IndividualSourceReload";
+import ChangelogEmailSender from "@/components/admin/ChangelogEmailSender";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -515,6 +516,9 @@ export default function AdminPanel({
           </div>
         )}
       </section>
+
+      {/* Changelog Email to All Users */}
+      <ChangelogEmailSender />
 
       {/* External Data Check */}
       <ExternalDataCheck />
