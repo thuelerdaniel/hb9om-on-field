@@ -94,7 +94,11 @@ export async function loadAllPoints(
   base44: any,
   entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint'
 ): Promise<any[]> {
-  const entity = base44.asServiceRole.entities[entityName];
+  const entity = base44.asServiceRole?.entities?.[entityName];
+  if (!entity) {
+    console.error(`[loadAllPoints] entity not found: ${entityName}, asServiceRole=${!!base44.asServiceRole}`);
+    return [];
+  }
   const PAGE_SIZE = 10000;
   let all: any[] = [];
   let skip = 0;
@@ -104,7 +108,8 @@ export async function loadAllPoints(
     try {
       // list(sort, limit) — we use a high limit to minimize round-trips
       page = await entity.list('-created_date', PAGE_SIZE);
-    } catch {
+    } catch (e: any) {
+      console.error(`[loadAllPoints] list error for ${entityName}:`, e?.message || String(e));
       break;
     }
     if (!page || page.length === 0) break;

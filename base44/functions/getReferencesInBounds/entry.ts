@@ -29,27 +29,32 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
 };
 
 async function loadType(base44, type: string): Promise<any[]> {
+  // Point types (sota, pota, hbff) are NOT cached — they're loaded from individual
+  // entity records and the in-memory cache can go stale across Lambda instances
+  // (one instance may cache [] before data is synced, causing permanent empty results
+  // until that instance is recycled). Always load fresh from the database.
+  if (POINT_TYPES[type]) {
+    const ptConfig = POINT_TYPES[type];
+    const points = await loadAllPoints(base44, ptConfig.entity);
+    return points.map(ptConfig.normalize);
+  }
+
+  // Non-point types (wwbota, castle, iota, lighthouse) use ReferenceData arrays —
+  // these are slower to load, so keep the 10-minute cache.
   const cached = typeCache[type];
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
-  let refs: any[];
-
-  if (POINT_TYPES[type]) {
-    // Load from individual point entity (SotaPoint, PotaPoint, WwffPoint)
-    const ptConfig = POINT_TYPES[type];
-    const points = await loadAllPoints(base44, ptConfig.entity);
-    refs = points.map(ptConfig.normalize);
-  } else {
-    // Load from ReferenceData.references array (wwbota, castle, iota, lighthouse)
-    const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
-    if (!records || records.length === 0) return [];
-    refs = [];
-    for (const rec of records) {
-      if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
-    }
+  const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
+  if (!records || records.length === 0) return [];
+  let refs: any[] = [];
+  for (const rec of records) {
+    if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
   }
 
-  typeCache[type] = { refs, time: Date.now() };
+  // Only cache non-empty results — empty results might be temporary
+  if (refs.length > 0) {
+    typeCache[type] = { refs, time: Date.now() };
+  }
   return refs;
 }
 

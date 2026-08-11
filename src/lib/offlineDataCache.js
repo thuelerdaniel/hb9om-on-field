@@ -374,7 +374,9 @@ export async function cacheTypeFromServer(type) {
         types: [type],
         max_per_type: 200000
       });
-      allRefs = (response?.references?.[type]) || [];
+      // functions.invoke returns an Axios response — data is in response.data
+      const refsData = response?.data?.references || response?.references || {};
+      allRefs = refsData[type] || [];
     } else {
       // Load from ReferenceData entity
       const entries = await base44.entities.ReferenceData.filter({ type });
@@ -776,7 +778,9 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
         types: [type],
         max_per_type: 200000
       });
-      allRefs = (response?.references?.[type]) || [];
+      // functions.invoke returns an Axios response — data is in response.data
+      const refsData = response?.data?.references || response?.references || {};
+      allRefs = refsData[type] || [];
     } else {
       // Load from ReferenceData entity
       const entries = await base44.entities.ReferenceData.filter({ type });
