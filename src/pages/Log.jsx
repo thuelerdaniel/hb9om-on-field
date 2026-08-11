@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff, Upload } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
+import AdifImportDialog from "@/components/log/AdifImportDialog";
 import PullToRefresh from "@/components/log/PullToRefresh";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -26,6 +27,7 @@ export default function Log() {
   const [showConfirmArchive, setShowConfirmArchive] = useState(null);
   const [sortBy, setSortBy] = useState("date_desc");
   const [showQsoForm, setShowQsoForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [view, setView] = useState("list");
   const [lastSync, setLastSync] = useState(getLastSync());
@@ -254,6 +256,13 @@ export default function Log() {
           <span className="text-xs text-gray-400">{filtered.length} Einträge</span>
 
           <button
+            onClick={() => setShowImport(true)}
+            className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 flex items-center gap-1.5"
+          >
+            <Upload className="w-4 h-4" /> Import
+          </button>
+
+          <button
             onClick={handleExport}
             disabled={filtered.length === 0}
             className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 flex items-center gap-1.5"
@@ -387,6 +396,13 @@ export default function Log() {
           editEntry={editEntry}
           onClose={handleCloseForm}
           onSaved={loadEntries}
+        />
+      )}
+
+      {showImport && (
+        <AdifImportDialog
+          onClose={() => setShowImport(false)}
+          onImported={loadEntries}
         />
       )}
 

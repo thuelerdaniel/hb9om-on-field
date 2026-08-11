@@ -1,0 +1,83 @@
+{
+  "name": "AdifImportLog",
+  "type": "object",
+  "properties": {
+    "filename": {
+      "type": "string",
+      "description": "Name der importierten Datei"
+    },
+    "import_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Datum und Uhrzeit des Imports"
+    },
+    "total_records": {
+      "type": "number",
+      "description": "Gesamtzahl der Datensaetze im File"
+    },
+    "valid_records": {
+      "type": "number",
+      "description": "Anzahl gueltiger Datensaetze"
+    },
+    "invalid_records": {
+      "type": "number",
+      "description": "Anzahl ungueltiger oder korrupter Datensaetze"
+    },
+    "duplicate_records": {
+      "type": "number",
+      "description": "Anzahl als Dublette erkannter Datensaetze"
+    },
+    "imported_records": {
+      "type": "number",
+      "description": "Tatsaechlich importierte Datensaetze"
+    },
+    "skipped_records": {
+      "type": "number",
+      "description": "Uebersprungene Datensaetze (Dubletten oder Fehler)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "partial",
+        "failed"
+      ],
+      "default": "success",
+      "description": "Import-Status"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Pro-Datensatz Import-Ergebnisse"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Zusammenfassung des Imports als Text"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "filename",
+    "import_date"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
