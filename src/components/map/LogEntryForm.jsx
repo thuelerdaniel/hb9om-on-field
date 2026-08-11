@@ -318,10 +318,28 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     setShowRefNameDropdown(false);
   };
 
+  // Debounced search terms — prevents filtering 180k+ markers on every keystroke
+  const [debouncedRefCode, setDebouncedRefCode] = useState("");
+  const [debouncedRefName, setDebouncedRefName] = useState("");
+  const refCodeDebounceRef = useRef(null);
+  const refNameDebounceRef = useRef(null);
+
+  useEffect(() => {
+    if (refCodeDebounceRef.current) clearTimeout(refCodeDebounceRef.current);
+    refCodeDebounceRef.current = setTimeout(() => setDebouncedRefCode(refCode), 180);
+    return () => { if (refCodeDebounceRef.current) clearTimeout(refCodeDebounceRef.current); };
+  }, [refCode]);
+
+  useEffect(() => {
+    if (refNameDebounceRef.current) clearTimeout(refNameDebounceRef.current);
+    refNameDebounceRef.current = setTimeout(() => setDebouncedRefName(refName), 180);
+    return () => { if (refNameDebounceRef.current) clearTimeout(refNameDebounceRef.current); };
+  }, [refName]);
+
   // Inline autocomplete for refCode — filter markers by code, narrowed to selected refType
   const refCodeMatches = useMemo(() => {
-    if (!refCode || refCode.length < 2) return [];
-    const q = refCode.toLowerCase();
+    if (!debouncedRefCode || debouncedRefCode.length < 2) return [];
+    const q = debouncedRefCode.toLowerCase();
     let result = allMarkers.filter(m => {
       const code = (m.code || m.reference || "").toLowerCase();
       return code.includes(q);
@@ -330,12 +348,12 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       result = result.filter(m => m.layerType === refType);
     }
     return result.slice(0, 20);
-  }, [refCode, allMarkers, refType]);
+  }, [debouncedRefCode, allMarkers, refType]);
 
   // Inline autocomplete for refName — filter markers by name, narrowed to selected refType
   const refNameMatches = useMemo(() => {
-    if (!refName || refName.length < 2) return [];
-    const q = refName.toLowerCase();
+    if (!debouncedRefName || debouncedRefName.length < 2) return [];
+    const q = debouncedRefName.toLowerCase();
     let result = allMarkers.filter(m => {
       const name = (m.name || "").toLowerCase();
       return name.includes(q);
@@ -344,7 +362,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       result = result.filter(m => m.layerType === refType);
     }
     return result.slice(0, 20);
-  }, [refName, allMarkers, refType]);
+  }, [debouncedRefName, allMarkers, refType]);
 
   const persistFormValues = () => {
     localStorage.setItem(PERSIST_KEYS.frequency, frequency);
