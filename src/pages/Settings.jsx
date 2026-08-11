@@ -9,8 +9,7 @@ import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
 import BackupSection from "@/components/settings/BackupSection";
 import AdminPanel from "@/components/settings/AdminPanel";
 import { DEMO_EMAIL } from "@/lib/constants";
-import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
-import { cacheFromServer, isOfflineReady, getCachedAt, getLocalCacheStats, clearLocalReferenceCache } from "@/lib/offlineDataCache";
+import OfflineManager from "@/components/settings/OfflineManager";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -52,16 +51,8 @@ export default function Settings() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [demoSettingUp, setDemoSettingUp] = useState(false);
-  const [offlineAreas, setOfflineAreas] = useState([]);
-  const [storageInfo, setStorageInfo] = useState({ areas: 0, tiles: 0 });
-  const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
   const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("hb9om_performance_mode") === "true");
   const [autoModeOverride, setAutoModeOverride] = useState(() => localStorage.getItem("hb9om_auto_mode_override") === "true");
-  const [offlineReady, setOfflineReady] = useState(() => isOfflineReady());
-  const [offlineCachedAt, setOfflineCachedAt] = useState(() => getCachedAt());
-  const [localCacheStats, setLocalCacheStats] = useState(() => getLocalCacheStats());
-  const [preloadingRefs, setPreloadingRefs] = useState(false);
-  const [preloadResult, setPreloadResult] = useState(null);
   const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
   const [adminPendingRequests, setAdminPendingRequests] = useState(0);
   const [adminPendingFeatureRequests, setAdminPendingFeatureRequests] = useState(0);
@@ -73,6 +64,7 @@ export default function Settings() {
   const [gpsTrackingEnabled, setGpsTrackingEnabled] = useState(() => localStorage.getItem("hb9om_gps_tracking_enabled") === "true");
   const [gpsTrackingInterval, setGpsTrackingInterval] = useState(() => parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  // Offline management is now handled by <OfflineManager /> component
 
   useEffect(() => {
     loadData();
@@ -91,8 +83,6 @@ export default function Settings() {
       setLogs(logsData || []);
       setCacheStatus(cacheData || []);
       setQrzLookups(qrzData || []);
-      getOfflineAreas().then(areas => setOfflineAreas(areas)).catch(() => {});
-      getStorageEstimate().then(info => setStorageInfo(info)).catch(() => {});
       base44.entities.ReferenceChangeRequest.filter({ status: "pending" })
         .then(data => setPendingChangeRequests(data?.length || 0))
         .catch(() => {});
@@ -317,22 +307,6 @@ export default function Settings() {
     }
   };
 
-  const handleDeleteOfflineArea = async (id) => {
-    await deleteArea(id);
-    const areas = await getOfflineAreas();
-    setOfflineAreas(areas);
-    const info = await getStorageEstimate();
-    setStorageInfo(info);
-  };
-
-  const handleClearAllOffline = async () => {
-    await clearAllTiles();
-    const areas = await getOfflineAreas();
-    for (const a of areas) await deleteArea(a.id);
-    setOfflineAreas([]);
-    setStorageInfo({ areas: 0, tiles: 0 });
-  };
-
   const handleTogglePerformanceMode = (enabled) => {
     setPerformanceMode(enabled);
     localStorage.setItem("hb9om_performance_mode", String(enabled));
@@ -353,53 +327,6 @@ export default function Settings() {
     setGpsTrackingInterval(seconds);
     localStorage.setItem("hb9om_gps_tracking_interval", String(seconds));
     window.dispatchEvent(new CustomEvent("gps-tracking-changed"));
-  };
-
-  const handleToggleForceOffline = async (enabled) => {
-    setForceOffline(enabled);
-    localStorage.setItem("hb9om_force_offline", String(enabled));
-    if (enabled) {
-      const success = await cacheFromServer();
-      if (success) {
-        setOfflineReady(true);
-        setOfflineCachedAt(getCachedAt());
-        setLocalCacheStats(getLocalCacheStats());
-      }
-    }
-  };
-
-  const handlePreloadReferences = async () => {
-    setPreloadingRefs(true);
-    setPreloadResult(null);
-    try {
-      const success = await cacheFromServer();
-      if (success) {
-        setOfflineReady(true);
-        setOfflineCachedAt(getCachedAt());
-        setLocalCacheStats(getLocalCacheStats());
-        setPreloadResult({ success: true, message: "Referenzen erfolgreich lokal gespeichert" });
-      } else {
-        setPreloadResult({ success: false, message: "Fehler beim Laden der Referenzen" });
-      }
-    } catch (e) {
-      setPreloadResult({ success: false, message: "Fehler: " + (e.message || "unbekannt") });
-    } finally {
-      setPreloadingRefs(false);
-      setTimeout(() => setPreloadResult(null), 4000);
-    }
-  };
-
-  const handleClearLocalCache = () => {
-    clearLocalReferenceCache();
-    setOfflineReady(false);
-    setOfflineCachedAt(null);
-    setLocalCacheStats(getLocalCacheStats());
-  };
-
-  const formatBytes = (bytes) => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / 1024 / 1024).toFixed(1) + " MB";
   };
 
   const handleToggleAutoUpdate = async (enabled) => {
@@ -773,149 +700,8 @@ export default function Settings() {
         </section>
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Offline & Sicherung</h2></div>
-        {/* Offline Maps */}
-        <section>
-          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <Download className="w-4 h-4" /> Offline-Modus
-          </h2>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-3">
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                {forceOffline ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />} Manuelles Offline
-              </label>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {forceOffline ? "App wird offline betrieben – Karten aus Cache" : "Offline-Modus manuell aktivieren"}
-              </p>
-            </div>
-            <button
-              onClick={() => handleToggleForceOffline(!forceOffline)}
-              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${forceOffline ? 'bg-amber-500' : 'bg-gray-300'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${forceOffline ? 'translate-x-6' : ''}`} />
-            </button>
-          </div>
-
-          {/* Offline readiness indicator */}
-          <div className={`mt-2 p-3 rounded-lg flex items-start gap-2 ${offlineReady ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
-            {offlineReady
-              ? <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-              : <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />}
-            <div className="text-xs">
-              <p className={`font-semibold ${offlineReady ? 'text-green-700' : 'text-amber-700'}`}>
-                {offlineReady ? 'App bereit für Offline-Nutzung' : 'App nicht bereit für Offline-Nutzung'}
-              </p>
-              <p className={`mt-0.5 ${offlineReady ? 'text-green-600' : 'text-amber-600'}`}>
-                {offlineReady
-                  ? `Referenzdaten gespeichert am ${offlineCachedAt ? new Date(offlineCachedAt).toLocaleString('de-CH') : 'unbekannt'}. Karte, Logbuch und Referenzen können offline genutzt werden.`
-                  : 'Bitte aktivieren Sie den Offline-Modus auf der Karte (Wifi-Icon), um Referenzdaten lokal zu speichern.'}
-              </p>
-            </div>
-          </div>
-
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2 mt-3">Heruntergeladene Karten</h3>
-          {offlineAreas.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-              <Download className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Keine Offline-Karten heruntergeladen</p>
-              <p className="text-xs text-gray-400 mt-1">Auf der Karte den Download-Button verwenden</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {offlineAreas.map(area => (
-                <div key={area.id} className="bg-white rounded-xl border border-gray-200 p-3 flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{area.name}</p>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5 flex-wrap">
-                      <span className="flex items-center gap-0.5"><HardDrive className="w-2.5 h-2.5" /> {area.tileCount} Kacheln</span>
-                      <span>~{(area.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
-                      <span>Zoom {area.zoomLevels.join(", ")}</span>
-                      <span>{new Date(area.downloadDate).toLocaleDateString('de-CH')}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteOfflineArea(area.id)}
-                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-              {storageInfo.tiles > 0 && (
-                <button
-                  onClick={handleClearAllOffline}
-                  className="w-full px-3 py-2 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center justify-center gap-1.5"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Alle Offline-Daten löschen ({storageInfo.tiles} Kacheln)
-                </button>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* Referenzen lokal vorab laden */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
-          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <Database className="w-4 h-4" /> Referenzen lokal laden
-          </h2>
-          <p className="text-xs text-gray-500 mb-3 leading-relaxed">
-            Lade alle Referenzdaten (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme) vorab auf dein Gerät. Die App startet dann sofort mit lokalen Daten und lädt nur noch Differenzen vom Server — deutlich schneller und offline nutzbar.
-          </p>
-
-          {/* Storage usage display */}
-          <div className="p-3 bg-gray-50 rounded-lg mb-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
-                <HardDrive className="w-3.5 h-3.5" /> Lokaler Speicher
-              </span>
-              <span className="text-xs font-bold text-gray-900">{formatBytes(localCacheStats.size)}</span>
-            </div>
-            {localCacheStats.count > 0 ? (
-              <div className="text-[11px] text-gray-500 space-y-0.5">
-                <p>{localCacheStats.count.toLocaleString("de-CH")} Referenzen gespeichert</p>
-                {localCacheStats.cachedAt && (
-                  <p>Zuletzt aktualisiert: {new Date(localCacheStats.cachedAt).toLocaleString("de-CH")}</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-[11px] text-gray-400">Noch keine Referenzen lokal gespeichert</p>
-            )}
-          </div>
-
-          {/* Preload button */}
-          <button
-            onClick={handlePreloadReferences}
-            disabled={preloadingRefs}
-            className="w-full px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-2"
-          >
-            {preloadingRefs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {preloadingRefs ? "Wird geladen..." : "Referenzen jetzt laden"}
-          </button>
-
-          {preloadResult && (
-            <div className={`mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2 ${preloadResult.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-              {preloadResult.success
-                ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
-              <span>{preloadResult.message}</span>
-            </div>
-          )}
-
-          {localCacheStats.count > 0 && (
-            <button
-              onClick={handleClearLocalCache}
-              className="w-full mt-2 px-4 py-2 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center justify-center gap-1.5"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Lokale Referenzen löschen
-            </button>
-          )}
-
-          {localCacheStats.count === 0 && (
-            <div className="mt-2 p-2.5 bg-amber-50 rounded-lg text-[11px] text-amber-700 flex items-start gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-              <span>Ohne lokalen Cache lädt die App bei jedem Start alle Referenzen vom Server. Bei mehreren aktiven Layern kann das mehrere Sekunden dauern.</span>
-            </div>
-          )}
-        </section>
+        {/* Unified Offline Manager — replaces separate offline + preload sections */}
+        <OfflineManager />
 
         {/* Data Backup */}
         <BackupSection />

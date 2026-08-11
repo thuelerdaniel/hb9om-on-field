@@ -209,3 +209,174 @@ export async function cacheFromServer() {
     return false;
   }
 }
+
+// --- Per-type cache operations ---
+
+// Download a single reference type from the server (ReferenceData entity)
+export async function cacheTypeFromServer(type) {
+  try {
+    const entries = await base44.entities.ReferenceData.filter({ type });
+    const entry = (entries || [])[0];
+    const refs = entry?.references || [];
+    cacheReferenceType(type, refs);
+    // Update timestamp
+    localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString());
+    return { success: true, count: refs.length };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
+}
+
+// Download repeaters from the server (Repeater entity)
+export async function cacheRepeatersFromServer() {
+  try {
+    const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
+    const arr = repeaters || [];
+    try { localStorage.setItem("hb9om_refs_repeater", JSON.stringify(arr)); } catch {}
+    localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString());
+    return { success: true, count: arr.length };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
+}
+
+// Download private nodes (APRS) from the server
+export async function cachePrivateNodesFromServer() {
+  try {
+    const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
+    const arr = nodes || [];
+    try { localStorage.setItem("hb9om_refs_private_nodes", JSON.stringify(arr)); } catch {}
+    localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString());
+    return { success: true, count: arr.length };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
+}
+
+// Download QRZ lookups from the server
+export async function cacheQrzFromServer() {
+  try {
+    const qrz = await base44.entities.QrzLookup.list("-created_date", 500);
+    cacheQrzLookups(qrz || []);
+    return { success: true, count: (qrz || []).length };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
+}
+
+// Load cached repeaters
+export function loadCachedRepeaters() {
+  try {
+    const data = localStorage.getItem("hb9om_refs_repeater");
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+// Load cached private nodes
+export function loadCachedPrivateNodes() {
+  try {
+    const data = localStorage.getItem("hb9om_refs_private_nodes");
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+// Get per-type local cache stats (count + size in bytes)
+export function getReferenceTypeStats() {
+  const stats = {};
+  // Reference types from TYPE_CACHE_KEYS
+  for (const [type, key] of Object.entries(TYPE_CACHE_KEYS)) {
+    try {
+      const data = localStorage.getItem(key);
+      if (data) {
+        const arr = JSON.parse(data);
+        stats[type] = { count: Array.isArray(arr) ? arr.length : 0, size: (key.length + data.length) * 2 };
+      } else {
+        stats[type] = { count: 0, size: 0 };
+      }
+    } catch {
+      stats[type] = { count: 0, size: 0 };
+    }
+  }
+  // Repeaters
+  try {
+    const data = localStorage.getItem("hb9om_refs_repeater");
+    if (data) {
+      const arr = JSON.parse(data);
+      stats.repeater = { count: Array.isArray(arr) ? arr.length : 0, size: ("hb9om_refs_repeater".length + data.length) * 2 };
+    } else { stats.repeater = { count: 0, size: 0 }; }
+  } catch { stats.repeater = { count: 0, size: 0 }; }
+  // Private nodes
+  try {
+    const data = localStorage.getItem("hb9om_refs_private_nodes");
+    if (data) {
+      const arr = JSON.parse(data);
+      stats.private_nodes = { count: Array.isArray(arr) ? arr.length : 0, size: ("hb9om_refs_private_nodes".length + data.length) * 2 };
+    } else { stats.private_nodes = { count: 0, size: 0 }; }
+  } catch { stats.private_nodes = { count: 0, size: 0 }; }
+  // QRZ
+  try {
+    const data = localStorage.getItem(QRZ_CACHE_KEY);
+    if (data) {
+      const arr = JSON.parse(data);
+      stats.qrz = { count: Array.isArray(arr) ? arr.length : 0, size: (QRZ_CACHE_KEY.length + data.length) * 2 };
+    } else { stats.qrz = { count: 0, size: 0 }; }
+  } catch { stats.qrz = { count: 0, size: 0 }; }
+  return stats;
+}
+
+// Clear a single type from local cache
+export function clearReferenceType(type) {
+  const key = TYPE_CACHE_KEYS[type];
+  if (key) localStorage.removeItem(key);
+  if (type === "repeater") localStorage.removeItem("hb9om_refs_repeater");
+  if (type === "private_nodes") localStorage.removeItem("hb9om_refs_private_nodes");
+  if (type === "qrz") localStorage.removeItem(QRZ_CACHE_KEY);
+}
+
+// Get server-side counts for all data types (for showing download hints)
+export async function getServerDataCounts() {
+  const counts = {};
+  try {
+    const entries = await base44.entities.ReferenceData.list();
+    (entries || []).forEach(entry => {
+      if (entry.type) counts[entry.type] = entry.total_count || (entry.references?.length || 0);
+    });
+  } catch {}
+  // Repeaters - quick list to count (limit 10000)
+  try {
+    const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
+    counts.repeater = (repeaters || []).length;
+  } catch { counts.repeater = 0; }
+  // Private nodes
+  try {
+    const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
+    counts.private_nodes = (nodes || []).length;
+  } catch { counts.private_nodes = 0; }
+  // QRZ
+  try {
+    const qrz = await base44.entities.QrzLookup.list("-created_date", 500);
+    counts.qrz = (qrz || []).length;
+  } catch { counts.qrz = 0; }
+  return counts;
+}
+
+// Check offline readiness — returns what's ready and what's missing
+export function getOfflineReadiness() {
+  const stats = getReferenceTypeStats();
+  const readiness = {
+    sota: stats.sota.count > 0,
+    pota: stats.pota.count > 0,
+    hbff: stats.hbff.count > 0,
+    wwbota: stats.wwbota.count > 0,
+    castle: stats.castle.count > 0,
+    iota: stats.iota.count > 0,
+    lighthouse: stats.lighthouse.count > 0,
+    repeater: stats.repeater.count > 0,
+    private_nodes: stats.private_nodes.count > 0,
+    qrz: stats.qrz.count > 0,
+    mapTiles: false, // set by caller from offlineMapStore
+  };
+  readiness.allRefs = readiness.sota && readiness.pota && readiness.hbff && readiness.wwbota &&
+    readiness.castle && readiness.iota && readiness.lighthouse;
+  return readiness;
+}
