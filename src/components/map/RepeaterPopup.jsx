@@ -88,10 +88,8 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
 
   // Check whether any "more info" content exists — hides the expand button if nothing to show
   const hasMoreInfo =
-    !!repeater.fm_funknetz ||
     (repeater.fm_funknetz_tgs && repeater.fm_funknetz_tgs.length > 0) ||
     hasPowerInfo ||
-    !!repeater.echolink_node ||
     (linkedRepeaters && linkedRepeaters.length > 0) ||
     !!repeater.web_url ||
     !!repeaterBookUrl ||
@@ -158,6 +156,26 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
             {MODE_LABELS[mode] || mode}
           </span>
         ))}
+        {repeater.fm_funknetz && (
+          <span
+            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1"
+            style={{ color: "#16a34a", backgroundColor: "#16a34a15" }}
+            title="Auf FM-Funknetz.de anhörbar"
+          >
+            <Headphones className="w-2.5 h-2.5" />
+            FM-Funknetz
+          </span>
+        )}
+        {repeater.echolink_node && (
+          <span
+            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1"
+            style={{ color: "#4f46e5", backgroundColor: "#4f46e515" }}
+            title={`EchoLink-Node ${repeater.echolink_node}`}
+          >
+            <Link2 className="w-2.5 h-2.5" />
+            EchoLink {repeater.echolink_node}
+          </span>
+        )}
       </div>
 
       {repeater.band && (
@@ -207,13 +225,6 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
       {/* Detailed info — only when expanded */}
       {expanded && (
         <>
-          {repeater.fm_funknetz && (
-            <div className="flex items-center gap-1 text-[11px] text-green-600 mb-1.5 bg-green-50 rounded px-1.5 py-1 mt-2">
-              <Headphones className="w-3 h-3" />
-              <span>Auf FM-Funknetz.de anhörbar</span>
-            </div>
-          )}
-
           {repeater.fm_funknetz_tgs && repeater.fm_funknetz_tgs.length > 0 && (
             <div className="mb-2 border-t border-gray-100 pt-2 mt-2">
               <div className="text-[10px] text-gray-400 uppercase mb-1 flex items-center gap-1">
@@ -264,13 +275,6 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
             <div className="flex items-center gap-1 text-[11px] mb-1.5 rounded px-1.5 py-1 mt-2" style={{ color: powerInfo.color, backgroundColor: powerInfo.color + "15" }}>
               <powerInfo.icon className="w-3 h-3" />
               <span>Stromversorgung: <span className="font-medium">{powerInfo.label}</span></span>
-            </div>
-          )}
-
-          {repeater.echolink_node && (
-            <div className="flex items-center gap-1 text-[11px] text-indigo-600 mb-1.5 bg-indigo-50 rounded px-1.5 py-1">
-              <Link2 className="w-3 h-3" />
-              <span>EchoLink-Node: <span className="font-mono font-bold">{repeater.echolink_node}</span></span>
             </div>
           )}
 
