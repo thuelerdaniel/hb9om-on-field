@@ -79,7 +79,7 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
   return refs;
 }
 
-const MAX_PER_TYPE = 3000;
+const MAX_PER_TYPE = 10000;
 
 export default async function(req: Request): Promise<Response> {
   try {

@@ -140,13 +140,12 @@ async function fetchBrandMeisterDevices(): Promise<any[]> {
     const data = await resp.json();
     if (!Array.isArray(data)) return [];
 
-    // Filter to devices with coordinates in Europe
-    const europe = data.filter((d: any) =>
-      d.lat != null && d.lng != null &&
-      d.lat >= 35 && d.lat <= 72 && d.lng >= -25 && d.lng <= 45
+    // All devices worldwide with coordinates (no Europe filter — show global DMR network)
+    const worldwide = data.filter((d: any) =>
+      d.lat != null && d.lng != null
     );
 
-    return europe.map((d: any) => ({
+    return worldwide.map((d: any) => ({
       callsign: d.callsign,
       node_type: 'repeater_node',
       frequency: parseFloat(d.tx) || 0,
@@ -311,7 +310,7 @@ export async function fetchAprsData(base44: any, apiKey: string) {
   // Query NEW callsigns first (priority), then a subset of existing ones to refresh.
   // Limit total queries to 1500 to stay within the platform execution time limit.
   // New callsigns are always queried; existing callsigns are refreshed on a rotating basis.
-  const MAX_APRS_FI_QUERIES = 1500;
+  const MAX_APRS_FI_QUERIES = 3000;
   const callsignList = [...newCallsigns, ...existingCallsignsToRefresh].slice(0, MAX_APRS_FI_QUERIES);
   totalCallsignsQueried = callsignList.length;
   const BATCH_SIZE = 150;

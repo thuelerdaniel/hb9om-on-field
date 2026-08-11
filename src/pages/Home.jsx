@@ -927,16 +927,8 @@ export default function Home() {
       const lighthouses = lighthouseData.length > 0 ? lighthouseData : LIGHTHOUSE_DATA;
       lighthouses.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
     }
-    if (activeLayers.includes("tota") && totaData.length > 0) {
-      totaData.forEach(t => {
-        if (t.lat && t.lng) markers.push({
-          ...t,
-          layerType: "tota",
-          color: t.type === 'antenna' ? "#8b5cf6" : "#f97316",
-          layerLabel: t.type === 'antenna' ? "TOTA Antenne" : "TOTA Turm"
-        });
-      });
-    }
+    // TOTA points are rendered exclusively by <TotaLayer> (dedicated SVG icons).
+    // Do NOT add them to allMarkers — that would double-render (SVG icon + circle).
 
     // Skip override copy when no overrides exist (common case — avoids 50k object copies)
     const hasOverrides = Object.keys(serverOverrides).length > 0 || Object.keys(localOverrides).length > 0;
