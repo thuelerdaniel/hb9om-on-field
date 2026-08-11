@@ -250,6 +250,48 @@ export function getCountryFromWwffCode(code) {
   return SOTA_TO_ISO[dxcc] || null;
 }
 
+// Simple bounding-box country detection from lat/lng.
+// Used for APRS private nodes which have no country_code field — derives country
+// from coordinates so country-filtered offline downloads work.
+// Covers the 6 default offline countries (CH, DE, AT, FR, IT, LI) plus common neighbors.
+const COUNTRY_BBOXES = [
+  { iso2: 'CH', minLat: 45.8, maxLat: 47.8, minLng: 5.9, maxLng: 10.5 },
+  { iso2: 'LI', minLat: 47.0, maxLat: 47.3, minLng: 9.4, maxLng: 9.7 },
+  { iso2: 'AT', minLat: 46.4, maxLat: 49.0, minLng: 9.5, maxLng: 17.0 },
+  { iso2: 'DE', minLat: 47.3, maxLat: 55.0, minLng: 5.9, maxLng: 15.0 },
+  { iso2: 'FR', minLat: 41.3, maxLat: 51.1, minLng: -5.1, maxLng: 9.6 },
+  { iso2: 'IT', minLat: 35.5, maxLat: 47.1, minLng: 6.6, maxLng: 18.8 },
+  { iso2: 'ES', minLat: 36.0, maxLat: 43.8, minLng: -9.4, maxLng: 3.3 },
+  { iso2: 'PT', minLat: 36.9, maxLat: 42.2, minLng: -9.5, maxLng: -6.2 },
+  { iso2: 'GB', minLat: 49.9, maxLat: 60.9, minLng: -8.6, maxLng: 1.8 },
+  { iso2: 'IE', minLat: 51.4, maxLat: 55.4, minLng: -10.7, maxLng: -5.4 },
+  { iso2: 'BE', minLat: 49.5, maxLat: 51.5, minLng: 2.5, maxLng: 6.4 },
+  { iso2: 'NL', minLat: 50.8, maxLat: 53.5, minLng: 3.4, maxLng: 7.2 },
+  { iso2: 'LU', minLat: 49.4, maxLat: 50.2, minLng: 5.7, maxLng: 6.5 },
+  { iso2: 'DK', minLat: 54.6, maxLat: 57.8, minLng: 8.0, maxLng: 12.7 },
+  { iso2: 'SE', minLat: 55.3, maxLat: 69.1, minLng: 11.0, maxLng: 24.2 },
+  { iso2: 'NO', minLat: 57.9, maxLat: 71.2, minLng: 4.6, maxLng: 31.3 },
+  { iso2: 'FI', minLat: 59.8, maxLat: 70.1, minLng: 20.6, maxLng: 31.6 },
+  { iso2: 'PL', minLat: 49.0, maxLat: 54.8, minLng: 14.1, maxLng: 24.1 },
+  { iso2: 'CZ', minLat: 48.5, maxLat: 51.1, minLng: 12.1, maxLng: 18.9 },
+  { iso2: 'SK', minLat: 47.7, maxLat: 49.6, minLng: 16.8, maxLng: 22.6 },
+  { iso2: 'HU', minLat: 45.7, maxLat: 48.6, minLng: 16.1, maxLng: 22.9 },
+  { iso2: 'SI', minLat: 45.4, maxLat: 46.9, minLng: 13.4, maxLng: 16.6 },
+  { iso2: 'HR', minLat: 42.4, maxLat: 46.5, minLng: 13.5, maxLng: 19.4 },
+  { iso2: 'GR', minLat: 34.8, maxLat: 41.7, minLng: 19.6, maxLng: 28.3 },
+  { iso2: 'TR', minLat: 36.0, maxLat: 42.1, minLng: 26.0, maxLng: 44.8 },
+];
+
+export function getCountryFromLatLng(lat, lng) {
+  if (lat == null || lng == null) return null;
+  for (const b of COUNTRY_BBOXES) {
+    if (lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng) {
+      return b.iso2;
+    }
+  }
+  return null;
+}
+
 // Check if a marker matches the selected countries
 // activeCountries: array of ISO2 codes. Empty = no country filter (show all).
 export function isInCountries(marker, activeCountries) {

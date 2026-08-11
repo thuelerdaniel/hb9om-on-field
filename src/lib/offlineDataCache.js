@@ -1,5 +1,5 @@
 import { base44 } from "@/api/base44Client";
-import { getCountryFromSotaCode, getCountryFromPotaRef, getCountryFromWwffCode, getCountryFromWwbotaScheme, getCountryByName, getCountryFromWcaCode } from "@/lib/countries";
+import { getCountryFromSotaCode, getCountryFromPotaRef, getCountryFromWwffCode, getCountryFromWwbotaScheme, getCountryByName, getCountryFromWcaCode, getCountryFromLatLng } from "@/lib/countries";
 
 const CACHE_KEY = "hb9om_offline_refs";
 const OVERRIDES_KEY = "hb9om_offline_overrides";
@@ -237,6 +237,7 @@ export async function cacheFromServer() {
 // Slim down a reference to essential fields only — reduces JSON size by ~70-80%.
 // Only keeps fields needed for offline map display (markers + popups).
 // Drops verbose fields: link (URLs useless offline), canton, region, wcaLocation, active.
+// parkType is only kept for POTA (needed for popup display); dropped for WWBOTA to save space.
 function slimReference(ref) {
   const s = {
     code: ref.code || ref.reference,
@@ -244,10 +245,10 @@ function slimReference(ref) {
     lat: ref.lat,
     lng: ref.lng,
   };
-  // parkType needed for POTA popup display
-  if (ref.parkType) s.parkType = ref.parkType;
-  // scheme needed for WWBOTA color coding
+  // scheme needed for WWBOTA color coding (small field, always keep if present)
   if (ref.scheme) s.scheme = ref.scheme;
+  // parkType only needed for POTA popup display — skip for WWBOTA (saves ~30 bytes/ref)
+  if (ref.parkType && !ref.scheme) s.parkType = ref.parkType;
   return s;
 }
 
@@ -488,6 +489,30 @@ async function loadAllRefsForType(type, countryCodes = null) {
     } catch (e) {
       // Fall through to database loading as fallback
     }
+  }
+
+  // Private nodes (APRS) — loaded from PrivateNode entity, not ReferenceData.
+  // PrivateNode records have no country_code field, so country filtering uses
+  // getCountryFromLatLng to derive the country from coordinates.
+  if (type === 'private_nodes') {
+    const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
+    return (nodes || []).map(n => ({
+      callsign: n.callsign,
+      node_type: n.node_type,
+      frequency: n.frequency,
+      mode: n.mode,
+      network: n.network,
+      node_number: n.node_number,
+      location_name: n.location_name,
+      country: n.country,
+      country_code: n.country_code,
+      lat: n.lat,
+      lng: n.lng,
+      description: n.description,
+      aprs_symbol: n.aprs_symbol,
+      source: n.source,
+      status: n.status,
+    }));
   }
 
   if (POINT_TYPES[type]) {
@@ -994,7 +1019,11 @@ function getRefCountryCode(ref, type) {
   if (!ref) return null;
   if (type === 'sota') return getCountryFromSotaCode(ref.code || ref.reference);
   if (type === 'pota') return getCountryFromPotaRef(ref.code || ref.reference);
-  if (type === 'repeater' || type === 'private_nodes') return ref.country_code || null;
+  if (type === 'repeater') return ref.country_code || null;
+  if (type === 'private_nodes') {
+    // APRS nodes often have no country_code — derive from lat/lng as fallback
+    return ref.country_code || getCountryFromLatLng(ref.lat, ref.lng);
+  }
   if (type === 'hbff') return getCountryFromWwffCode(ref.code || ref.reference);
   if (type === 'wwbota') return getCountryFromWwbotaScheme(ref.scheme);
   if (type === 'castle') return getCountryFromWcaCode(ref.code) || getCountryByName(ref.country);
@@ -1050,13 +1079,15 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
     localStorage.removeItem(key);
     clearPerCountryKeys(type);
 
-    // Estimate available space and calculate dynamic per-country budget
+    // Each country gets the full PER_COUNTRY_BUDGET_BYTES — storeWithBudget handles
+    // truncation if a country's data exceeds the budget. The previous code divided
+    // availableSpace by numCountries, giving each country only ~750KB when 6 countries
+    // were selected — too small for large datasets like WWBOTA France (7'388 refs).
     const availableSpace = await estimateAvailableSpace();
     if (availableSpace < 10240) {
       return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
     }
-    const numCountries = countryCodes.length || 1;
-    const dynamicBudget = Math.min(PER_COUNTRY_BUDGET_BYTES, Math.floor(availableSpace / numCountries * 0.9));
+    const dynamicBudget = PER_COUNTRY_BUDGET_BYTES;
 
     // Store metadata AFTER clearing (while space is available)
     storeServerCount(type, allRefs.length);
@@ -1144,6 +1175,88 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
   }
 }
 
+// Download private nodes (APRS) filtered by selected countries.
+// Each country is stored in its own localStorage key (hb9om_refs_private_nodes_{country}).
+// Nodes without country_code get their country derived from lat/lng.
+export async function cachePrivateNodesFromServerByCountries(countryCodes) {
+  try {
+    const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
+    const arr = nodes || [];
+
+    // Clear old data FIRST to free space
+    localStorage.removeItem("hb9om_refs_private_nodes");
+    clearPerCountryKeys("private_nodes");
+
+    const availableSpace = await estimateAvailableSpace();
+    if (availableSpace < 10240) {
+      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
+    }
+    const dynamicBudget = PER_COUNTRY_BUDGET_BYTES;
+
+    storeServerCount("private_nodes", arr.length);
+    storeCountryCounts("private_nodes", arr);
+
+    // If no countries selected, store all in single key
+    if (countryCodes.length === 0) {
+      let result = storeWithBudget("hb9om_refs_private_nodes", arr, false, PER_TYPE_BUDGET_BYTES);
+      if (result.stored) {
+        clearPerCountryKeys("private_nodes");
+        setOfflineCountryFilter("private_nodes", countryCodes);
+        try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+        storeTruncatedFlag("private_nodes", result.truncated || false);
+        return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, allTotal: arr.length, truncated: result.truncated || false, countries: 0 };
+      }
+      storeTruncatedFlag("private_nodes", false);
+      return { success: false, count: 0, error: result.error };
+    }
+
+    // Group by country (derive from lat/lng if country_code is empty)
+    const byCountry = {};
+    for (const n of arr) {
+      const iso2 = n.country_code || getCountryFromLatLng(n.lat, n.lng);
+      if (iso2 && countryCodes.includes(iso2)) {
+        if (!byCountry[iso2]) byCountry[iso2] = [];
+        byCountry[iso2].push(n);
+      }
+    }
+
+    let totalStored = 0, totalFiltered = 0;
+    let anyTruncated = false, anySlimmed = false;
+    const storedCountries = [];
+
+    for (const [country, refs] of Object.entries(byCountry)) {
+      const countryKey = `hb9om_refs_private_nodes_${country}`;
+      let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
+      if (result.stored) {
+        totalStored += result.count;
+        totalFiltered += refs.length;
+        if (result.truncated) anyTruncated = true;
+        if (result.slimmed) anySlimmed = true;
+        storedCountries.push(country);
+      }
+    }
+
+    if (storedCountries.length === 0) {
+      if (Object.keys(byCountry).length === 0) {
+        return { success: false, count: 0, error: "Keine Daten für die ausgewählten Länder gefunden" };
+      }
+      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
+    }
+
+    setCachedCountriesForType("private_nodes", storedCountries);
+    setOfflineCountryFilter("private_nodes", countryCodes);
+    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+    storeTruncatedFlag("private_nodes", anyTruncated);
+    return {
+      success: true, count: totalStored, slimmed: anySlimmed,
+      total: totalFiltered, allTotal: arr.length,
+      truncated: anyTruncated, countries: storedCountries.length
+    };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
+}
+
 // Download repeaters filtered by selected countries.
 // Each country is stored in its own localStorage key (hb9om_refs_repeater_{country}).
 export async function cacheRepeatersFromServerByCountries(countryCodes) {
@@ -1155,13 +1268,15 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
     localStorage.removeItem("hb9om_refs_repeater");
     clearPerCountryKeys("repeater");
 
-    // Estimate available space and calculate dynamic per-country budget
+    // Each country gets the full PER_COUNTRY_BUDGET_BYTES — storeWithBudget handles
+    // truncation if a country's data exceeds the budget. The previous code divided
+    // availableSpace by numCountries, giving each country only ~750KB when 6 countries
+    // were selected — too small for large datasets like WWBOTA France (7'388 refs).
     const availableSpace = await estimateAvailableSpace();
     if (availableSpace < 10240) {
       return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
     }
-    const numCountries = countryCodes.length || 1;
-    const dynamicBudget = Math.min(PER_COUNTRY_BUDGET_BYTES, Math.floor(availableSpace / numCountries * 0.9));
+    const dynamicBudget = PER_COUNTRY_BUDGET_BYTES;
 
     storeServerCount("repeater", arr.length);
     storeCountryCounts("repeater", arr);

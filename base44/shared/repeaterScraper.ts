@@ -10,9 +10,9 @@ const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
 
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 2500;
-const MAX_PER_COUNTRY = 100;
-const MAX_PER_COUNTRY_PRIORITY_1 = 300; // Switzerland + neighbors: fetch all (CH has 213+ repeaters)
+const MAX_DETAIL_FETCH = 4000;
+const MAX_PER_COUNTRY = 250;
+const MAX_PER_COUNTRY_PRIORITY_1 = 600; // Switzerland + neighbors: fetch all (CH has 213+ repeaters)
 const MAX_PER_US_CA_REGION = 35;
 const LIST_CONCURRENCY = 12;
 const DETAIL_CONCURRENCY = 40;
