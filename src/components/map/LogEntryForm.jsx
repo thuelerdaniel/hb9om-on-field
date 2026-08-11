@@ -364,6 +364,100 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     return result.slice(0, 20);
   }, [debouncedRefName, allMarkers, refType]);
 
+  // Server-side search: finds references NOT yet loaded in allMarkers (worldwide, not bounds-limited).
+  // Debounced 400ms — runs alongside local autocomplete to fill gaps.
+  const [serverRefMatches, setServerRefMatches] = useState([]);
+  const [serverSearching, setServerSearching] = useState(false);
+  const serverSearchRef = useRef(null);
+  const lastServerQueryRef = useRef("");
+
+  useEffect(() => {
+    // Use the longer of the two debounced queries for server search
+    const query = debouncedRefCode.length >= debouncedRefName.length ? debouncedRefCode : debouncedRefName;
+    if (!query || query.length < 2) {
+      setServerRefMatches([]);
+      lastServerQueryRef.current = "";
+      return;
+    }
+    if (isOffline) return;
+
+    // Skip if we already have enough local matches for the active field
+    const localCount = debouncedRefCode.length >= debouncedRefName.length ? refCodeMatches.length : refNameMatches.length;
+    // Still search server even with local matches — user wants ALL matching results loaded
+
+    if (serverSearchRef.current) clearTimeout(serverSearchRef.current);
+    serverSearchRef.current = setTimeout(async () => {
+      // Avoid duplicate calls for the same query
+      if (lastServerQueryRef.current === query) return;
+      lastServerQueryRef.current = query;
+      setServerSearching(true);
+      try {
+        const center = positionCenter ? { lat: positionCenter[0], lng: positionCenter[1] } : (mapCenter ? { lat: mapCenter[0], lng: mapCenter[1] } : null);
+        const res = await base44.functions.invoke("searchReferences", {
+          query,
+          types: refType && refType !== "custom" && refType !== "generell" ? [refType] : null,
+          center
+        });
+        if (res.data?.references) {
+          // Flatten all types into a single array with layerType + layerLabel
+          const matches = [];
+          for (const [type, refs] of Object.entries(res.data.references)) {
+            const colorMap = {
+              sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
+              castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12"
+            };
+            const labelMap = {
+              sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+              castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm"
+            };
+            for (const r of (refs || [])) {
+              matches.push({
+                ...r,
+                code: r.code || r.reference,
+                reference: r.reference || r.code,
+                layerType: type,
+                color: colorMap[type] || "#888",
+                layerLabel: labelMap[type] || type
+              });
+            }
+          }
+          setServerRefMatches(matches.slice(0, 30));
+        }
+      } catch (e) {
+        // Silent — local autocomplete still works
+      } finally {
+        setServerSearching(false);
+      }
+    }, 400);
+    return () => { if (serverSearchRef.current) clearTimeout(serverSearchRef.current); };
+  }, [debouncedRefCode, debouncedRefName, refType, positionCenter, mapCenter, isOffline]);
+
+  // Merge local + server matches for refCode (dedup by code, server fills gaps not in allMarkers)
+  const mergedRefCodeMatches = useMemo(() => {
+    const local = refCodeMatches;
+    if (serverRefMatches.length === 0) return local;
+    const localCodes = new Set(local.map(m => (m.code || m.reference || "").toLowerCase()));
+    const serverOnly = serverRefMatches.filter(m => {
+      const code = (m.code || m.reference || "").toLowerCase();
+      const q = debouncedRefCode.toLowerCase();
+      return (m.code || m.reference || "").toLowerCase().includes(q) && !localCodes.has(code);
+    });
+    return [...local, ...serverOnly].slice(0, 30);
+  }, [refCodeMatches, serverRefMatches, debouncedRefCode]);
+
+  // Merge local + server matches for refName (dedup by code, server fills gaps not in allMarkers)
+  const mergedRefNameMatches = useMemo(() => {
+    const local = refNameMatches;
+    if (serverRefMatches.length === 0) return local;
+    const localCodes = new Set(local.map(m => (m.code || m.reference || "").toLowerCase()));
+    const q = debouncedRefName.toLowerCase();
+    const serverOnly = serverRefMatches.filter(m => {
+      const name = (m.name || "").toLowerCase();
+      return name.includes(q) && !localCodes.has((m.code || m.reference || "").toLowerCase());
+    });
+    return [...local, ...serverOnly].slice(0, 30);
+  }, [refNameMatches, serverRefMatches, debouncedRefName]);
+
   const persistFormValues = () => {
     localStorage.setItem(PERSIST_KEYS.frequency, frequency);
     localStorage.setItem(PERSIST_KEYS.band, band);
@@ -732,9 +826,9 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                     placeholder="Referenz-Code (z.B. HB/AG-001)"
                     className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
-                  {showRefCodeDropdown && refCodeMatches.length > 0 && (
+                  {showRefCodeDropdown && mergedRefCodeMatches.length > 0 && (
                     <div className="mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
-                      {refCodeMatches.map((r, i) => (
+                      {mergedRefCodeMatches.map((r, i) => (
                         <button
                           key={i}
                           onMouseDown={(e) => { e.preventDefault(); selectRef(r); }}
@@ -763,9 +857,9 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                     placeholder="Name der Referenz"
                     className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
-                  {showRefNameDropdown && refNameMatches.length > 0 && (
+                  {showRefNameDropdown && mergedRefNameMatches.length > 0 && (
                     <div className="mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
-                      {refNameMatches.map((r, i) => (
+                      {mergedRefNameMatches.map((r, i) => (
                         <button
                           key={i}
                           onMouseDown={(e) => { e.preventDefault(); selectRef(r); }}

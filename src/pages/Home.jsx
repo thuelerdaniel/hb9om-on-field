@@ -551,13 +551,32 @@ export default function Home() {
   // Load ALL reference types immediately when QSO form opens (no debounce — silent background load)
   useEffect(() => {
     if (!showQsoForm || isOffline || !serverCacheLoaded || !mapReady) return;
-    const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
-    if (!bnds) return;
-    const typesToFetch = REF_TYPES.filter(t => !boundsContained(bnds, loadedBoundsRef.current[t]));
-    if (typesToFetch.length > 0) {
-      fetchRefsInBounds(bnds, typesToFetch);
+    // Priority 1: 50km around user position (or map center if no position)
+    const posCenter = positionMode === "fixed" ? fixedPosition : (positionMode === "gps" ? gpsPosition : null);
+    const center = posCenter || mapCenter;
+    if (center) {
+      const [lat, lng] = center;
+      const latDelta = 50 / 111; // ~50km in degrees latitude
+      const lngDelta = 50 / (111 * Math.cos(lat * Math.PI / 180));
+      const priorityBounds = {
+        north: lat + latDelta, south: lat - latDelta,
+        east: lng + lngDelta, west: lng - lngDelta
+      };
+      const priorityTypes = REF_TYPES.filter(t => !boundsContained(priorityBounds, loadedBoundsRef.current[t]));
+      if (priorityTypes.length > 0) {
+        fetchRefsInBounds(priorityBounds, priorityTypes);
+      }
     }
-  }, [showQsoForm, serverCacheLoaded, isOffline, mapReady, mapBounds, fetchRefsInBounds]);
+    // Priority 2: wider map viewport (fills in more data for autocomplete)
+    const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+    if (bnds) {
+      const typesToFetch = REF_TYPES.filter(t => !boundsContained(bnds, loadedBoundsRef.current[t]));
+      if (typesToFetch.length > 0) {
+        fetchRefsInBounds(bnds, typesToFetch);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showQsoForm, serverCacheLoaded, isOffline, mapReady, mapBounds, fetchRefsInBounds, mapCenter, positionMode, fixedPosition, gpsPosition]);
 
   // Dismiss splash after minimum 3s AND server cache loaded — uses the time to fetch data in background
   const mountTime = useRef(Date.now());
