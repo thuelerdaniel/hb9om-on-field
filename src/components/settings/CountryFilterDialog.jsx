@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { X, Globe, Loader2, Download, CheckCheck, Square } from "lucide-react";
+import { X, Globe, Loader2, Download, CheckCheck, Square, AlertCircle } from "lucide-react";
 import { getCountriesByContinent } from "@/lib/countries";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -24,9 +24,11 @@ export default function CountryFilterDialog({ type, typeLabel, onClose, onDownlo
   const { toast } = useToast();
   const [selected, setSelected] = useState(() => getOfflineCountryFilter(type) || DEFAULT_COUNTRIES);
   const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState(null);
   const countryCounts = useMemo(() => getCountryCountsForType(type), [type]);
 
   const handleToggle = (iso2) => {
+    setError(null);
     setSelected(prev => prev.includes(iso2) ? prev.filter(c => c !== iso2) : [...prev, iso2]);
   };
 
@@ -41,6 +43,7 @@ export default function CountryFilterDialog({ type, typeLabel, onClose, onDownlo
 
   const handleDownload = async () => {
     if (selected.length === 0) return;
+    setError(null);
     setDownloading(true);
     try {
       let result;
@@ -61,10 +64,10 @@ export default function CountryFilterDialog({ type, typeLabel, onClose, onDownlo
         onDownloaded();
         onClose();
       } else {
-        toast({ title: "Fehler", description: result.error || "Laden fehlgeschlagen", variant: "destructive", duration: 5000 });
+        setError(result.error || "Laden fehlgeschlagen");
       }
     } catch (e) {
-      toast({ title: "Fehler", description: e.message, variant: "destructive", duration: 3000 });
+      setError(e.message || "Laden fehlgeschlagen");
     } finally {
       setDownloading(false);
     }
@@ -92,6 +95,16 @@ export default function CountryFilterDialog({ type, typeLabel, onClose, onDownlo
             Wählen Sie Länder für den Offline-Download. Andere Länder bleiben nur online verfügbar.
           </p>
         </div>
+
+        {error && (
+          <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-red-700">Keine Daten gefunden</p>
+              <p className="text-xs text-red-600 mt-0.5">{error}</p>
+            </div>
+          </div>
+        )}
 
         {/* Country list */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3">

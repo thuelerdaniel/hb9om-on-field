@@ -37,7 +37,7 @@ import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialo
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
 import { loadAllPrivateNodes } from "@/lib/paginatedLoader";
-import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
+import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups, loadCachedPrivateNodes, loadCachedRepeaters, loadCachedTota } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { getWwbotaColor } from "@/lib/wwbotaSchemes";
@@ -613,6 +613,15 @@ export default function Home() {
       setServerCacheLoaded(true);
       setServerCacheLoading(false);
     }
+    // Load repeaters, private nodes, and TOTA from local cache so they render
+    // immediately — the server-fetch effects skip when data is already present,
+    // making the local cache the primary source and the server a fallback.
+    const cachedRepeaters = loadCachedRepeaters();
+    if (cachedRepeaters && cachedRepeaters.length > 0) setRepeaters(cachedRepeaters);
+    const cachedNodes = loadCachedPrivateNodes();
+    if (cachedNodes && cachedNodes.length > 0) setPrivateNodes(cachedNodes);
+    const cachedTota = loadCachedTota();
+    if (cachedTota && cachedTota.length > 0) setTotaData(cachedTota);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOffline]);
 
