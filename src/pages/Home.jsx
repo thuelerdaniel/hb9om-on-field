@@ -39,6 +39,7 @@ import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countri
 import { getWwbotaColor } from "@/lib/wwbotaSchemes";
 import VersionChangelogPopup, { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed, resetChangelog } from "@/components/map/VersionChangelogPopup";
 import PreloadHint from "@/components/map/PreloadHint";
+import ViewportLimitHint from "@/components/map/ViewportLimitHint";
 import { boundsToObj, boundsContained, unionBounds, mergeRefs, REF_TYPES } from "@/lib/boundsLoading";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
@@ -230,7 +231,12 @@ export default function Home() {
   const [serverOverrides, setServerOverrides] = useState({});
   const [pendingDragChange, setPendingDragChange] = useState(null);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [viewportLimitInfo, setViewportLimitInfo] = useState({ visibleCount: 0, maxRender: 2000, totalCount: 0, isCapped: false });
   const { toast } = useToast();
+
+  const handleViewportLimitChange = useCallback((info) => {
+    setViewportLimitInfo(info);
+  }, []);
 
   const handleMarkerDrag = useCallback(async (marker, newLat, newLng) => {
     const code = marker.code || marker.reference;
@@ -1413,6 +1419,7 @@ export default function Home() {
             performanceMode={performanceMode}
             autoCanvasActive={autoCanvasActive}
             userPosition={currentPosition}
+            onViewportLimitChange={handleViewportLimitChange}
           />
 
           {activeLayers.includes("repeater") && repeaters.length > 0 && (
@@ -1619,6 +1626,14 @@ export default function Home() {
         </button>
 
         <MapLegend activeLayers={activeLayers} markerCount={allMarkers.length} castleStats={castleStats} />
+
+        {viewportLimitInfo.isCapped && (
+          <ViewportLimitHint
+            visibleCount={viewportLimitInfo.visibleCount}
+            maxRender={viewportLimitInfo.maxRender}
+            totalCount={viewportLimitInfo.totalCount}
+          />
+        )}
 
         <FoxHuntingSwitch mode={foxHuntingMode} onModeChange={setFoxHuntingMode} />
       </div>

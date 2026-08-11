@@ -46,7 +46,7 @@ function getDraggableIcon(color) {
   return icon;
 }
 
-function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive, userPosition }) {
+function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive, userPosition, onViewportLimitChange }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
@@ -90,6 +90,19 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   }));
   withDist.sort((a, b) => a.d - b.d);
   const cappedMarkers = withDist.slice(0, maxRender).map(x => x.m);
+
+  // Report viewport capping state to parent — used for the red blinking hint
+  // above the legend when not all available data is displayed.
+  useEffect(() => {
+    if (onViewportLimitChange) {
+      onViewportLimitChange({
+        visibleCount: visibleMarkers.length,
+        maxRender,
+        totalCount: markers.length,
+        isCapped: visibleMarkers.length > maxRender,
+      });
+    }
+  }, [visibleMarkers.length, maxRender, markers.length, onViewportLimitChange]);
 
   // Drag mode: always use draggable markers
   if (dragMode) {
@@ -178,7 +191,8 @@ function arePropsEqual(prev, next) {
     prev.onEdit === next.onEdit &&
     prev.performanceMode === next.performanceMode &&
     prev.autoCanvasActive === next.autoCanvasActive &&
-    prev.userPosition === next.userPosition
+    prev.userPosition === next.userPosition &&
+    prev.onViewportLimitChange === next.onViewportLimitChange
   );
 }
 
