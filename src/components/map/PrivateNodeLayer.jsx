@@ -36,6 +36,14 @@ const NODE_COLORS = {
   other: "#6b7280",
 };
 
+// BrandMeister DMR color scheme — distinct from APRS to visually separate the two systems.
+// Teal/cyan tones represent the DMR network (BrandMeister) vs purple/multi-color for APRS.
+const BM_COLORS = {
+  repeater_node: "#14b8a6",
+  hotspot: "#0891b2",
+  other: "#64748b",
+};
+
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -50,7 +58,7 @@ function formatDistance(km) {
   return `${Math.round(km)} km`;
 }
 
-function PrivateNodePopup({ node, userPosition }) {
+function PrivateNodePopup({ node, userPosition, colorScheme }) {
   const hasCoords = node.lat != null && node.lng != null;
   const navUrl = hasCoords
     ? `https://www.google.com/maps/dir/?api=1&destination=${node.lat},${node.lng}`
@@ -58,7 +66,8 @@ function PrivateNodePopup({ node, userPosition }) {
   const distance = hasCoords && userPosition
     ? haversineKm(userPosition[0], userPosition[1], node.lat, node.lng)
     : null;
-  const color = NODE_COLORS[node.node_type] || NODE_COLORS.other;
+  const colorMap = colorScheme === "brandmeister" ? BM_COLORS : NODE_COLORS;
+  const color = colorMap[node.node_type] || colorMap.other;
   const typeLabel = NODE_TYPE_LABELS[node.node_type] || "Node";
 
   return (
@@ -132,14 +141,23 @@ function PrivateNodePopup({ node, userPosition }) {
   );
 }
 
-function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTypes, searchQuery }) {
+function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTypes, searchQuery, sourceFilter, colorScheme }) {
   const map = useMap();
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   const circleRadius = performanceMode ? (isTouch ? 7 : 5) : (isTouch ? 9 : 7);
   const circleWeight = isTouch ? 3 : 2;
+  const colorMap = colorScheme === "brandmeister" ? BM_COLORS : NODE_COLORS;
 
   const visibleNodes = useMemo(() => {
     let result = nodes.filter(n => n.lat != null && n.lng != null);
+    // Filter by source (e.g. "aprs.fi" for APRS layer, "brandmeister" for BrandMeister layer)
+    if (sourceFilter) {
+      const filters = Array.isArray(sourceFilter) ? sourceFilter : [sourceFilter];
+      result = result.filter(n => {
+        const src = (n.source || "").toLowerCase();
+        return filters.some(f => src.includes(f.toLowerCase()));
+      });
+    }
     // Filter by node type (null = all types, empty array = none, array = selected types only)
     if (filterTypes && filterTypes.length === 0) return [];
     if (filterTypes && filterTypes.length > 0) {
@@ -155,7 +173,7 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
       );
     }
     return result;
-  }, [nodes, filterTypes, searchQuery]);
+  }, [nodes, filterTypes, searchQuery, sourceFilter]);
 
   // Viewport culling — only render nodes within the current map bounds (padded)
   const bounds = map.getBounds();
@@ -185,10 +203,10 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
   return (
     <>
       {renderNodes.map((n, idx) => {
-        const color = NODE_COLORS[n.node_type] || NODE_COLORS.other;
+        const color = colorMap[n.node_type] || colorMap.other;
         const popup = (
           <Popup>
-            <PrivateNodePopup node={n} userPosition={userPosition} />
+            <PrivateNodePopup node={n} userPosition={userPosition} colorScheme={colorScheme} />
           </Popup>
         );
         if (performanceMode) {
@@ -227,9 +245,11 @@ function arePropsEqual(prev, next) {
     prev.performanceMode === next.performanceMode &&
     prev.userPosition === next.userPosition &&
     prev.filterTypes === next.filterTypes &&
-    prev.searchQuery === next.searchQuery;
+    prev.searchQuery === next.searchQuery &&
+    prev.sourceFilter === next.sourceFilter &&
+    prev.colorScheme === next.colorScheme;
 }
 
 const PrivateNodeLayer = memo(PrivateNodeLayerInner, arePropsEqual);
 export default PrivateNodeLayer;
-export { NODE_COLORS, NODE_TYPE_LABELS };
+export { NODE_COLORS, NODE_TYPE_LABELS, BM_COLORS };

@@ -28,12 +28,13 @@ import PerformanceSuggestionPopup from "@/components/map/PerformanceSuggestionPo
 import RepeaterLayer from "@/components/map/RepeaterLayer";
 import RepeaterFilter from "@/components/map/RepeaterFilter";
 import AprsFilter from "@/components/map/AprsFilter";
+import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
 import PrivateNodeLayer from "@/components/map/PrivateNodeLayer";
 import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
-import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
+import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups, loadCachedPrivateNodes } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { getWwbotaColor } from "@/lib/wwbotaSchemes";
@@ -372,6 +373,14 @@ export default function Home() {
     return null;
   });
   const [aprsSearchQuery, setAprsSearchQuery] = useState("");
+  const [bmFilterTypes, setBmFilterTypes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_bm_filter_types");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+  const [bmSearchQuery, setBmSearchQuery] = useState("");
   const [adminLinks, setAdminLinks] = useState([]);
   const [privateNodes, setPrivateNodes] = useState([]);
   const [linkSuggestTarget, setLinkSuggestTarget] = useState(null);
@@ -413,6 +422,9 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_aprs_filter_types", JSON.stringify(aprsFilterTypes || []));
   }, [aprsFilterTypes]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_bm_filter_types", JSON.stringify(bmFilterTypes || []));
+  }, [bmFilterTypes]);
   useEffect(() => {
     localStorage.setItem("hb9om_fox_hunting_mode", foxHuntingMode);
   }, [foxHuntingMode]);
@@ -566,6 +578,9 @@ export default function Home() {
         if (localCache.iota) setIotaData(localCache.iota);
         if (localCache.lighthouse) setLighthouseData(localCache.lighthouse);
       }
+      // Load cached private nodes (APRS + BrandMeister) for offline use
+      const cachedNodes = loadCachedPrivateNodes();
+      if (cachedNodes && cachedNodes.length > 0) setPrivateNodes(cachedNodes);
       setServerCacheLoaded(true);
       setServerCacheLoading(false);
       return;
@@ -824,12 +839,12 @@ export default function Home() {
     });
   }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
 
-  // Load private nodes from DB when private_nodes layer is active (queued — heavy query)
+  // Load private nodes from DB when APRS or BrandMeister layer is active (queued — heavy query)
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("private_nodes") || privateNodes.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("aprs") && !activeLayers.includes("brandmeister")) || privateNodes.length > 0 || isOffline) return;
     enqueueWorldwideFetch(async () => {
       try {
-        const data = await base44.entities.PrivateNode.list("-created_date", 5000);
+        const data = await base44.entities.PrivateNode.list("-created_date", 10000);
         if (data && data.length > 0) setPrivateNodes(data);
       } catch (e) { /* silent */ }
     });
@@ -950,10 +965,22 @@ export default function Home() {
     return result.length;
   }, [repeaters, repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountry]);
 
+  // Split private nodes by source — APRS (aprs.fi) vs BrandMeister (DMR network)
+  // These are fundamentally different systems: APRS is a positioning system,
+  // BrandMeister is a DMR voice/data network with talkgroups.
+  const aprsNodes = useMemo(() =>
+    privateNodes.filter(n => (n.source || "").toLowerCase().includes("aprs")),
+    [privateNodes]
+  );
+  const brandmeisterNodes = useMemo(() =>
+    privateNodes.filter(n => (n.source || "").toLowerCase().includes("brandmeister")),
+    [privateNodes]
+  );
+
   // Filtered APRS node count for filter panel
   const filteredAprsCount = useMemo(() => {
     if (aprsFilterTypes && aprsFilterTypes.length === 0) return 0;
-    let result = privateNodes;
+    let result = aprsNodes;
     if (aprsFilterTypes && aprsFilterTypes.length > 0) {
       result = result.filter(n => aprsFilterTypes.includes(n.node_type));
     }
@@ -966,7 +993,26 @@ export default function Home() {
       );
     }
     return result.length;
-  }, [privateNodes, aprsFilterTypes, aprsSearchQuery]);
+  }, [aprsNodes, aprsFilterTypes, aprsSearchQuery]);
+
+  // Filtered BrandMeister node count for filter panel
+  const filteredBmCount = useMemo(() => {
+    if (bmFilterTypes && bmFilterTypes.length === 0) return 0;
+    let result = brandmeisterNodes;
+    if (bmFilterTypes && bmFilterTypes.length > 0) {
+      result = result.filter(n => bmFilterTypes.includes(n.node_type));
+    }
+    if (bmSearchQuery.length >= 2) {
+      const q = bmSearchQuery.toLowerCase();
+      result = result.filter(n =>
+        (n.callsign || "").toLowerCase().includes(q) ||
+        (n.location_name || "").toLowerCase().includes(q) ||
+        (n.network || "").toLowerCase().includes(q) ||
+        (n.node_number || "").toLowerCase().includes(q)
+      );
+    }
+    return result.length;
+  }, [brandmeisterNodes, bmFilterTypes, bmSearchQuery]);
 
   // Country list for filter dropdown
   const repeaterCountries = useMemo(() => {
@@ -1448,13 +1494,27 @@ export default function Home() {
             />
           )}
 
-          {activeLayers.includes("private_nodes") && privateNodes.length > 0 && (
+          {activeLayers.includes("aprs") && aprsNodes.length > 0 && (
             <PrivateNodeLayer
-              nodes={privateNodes}
+              nodes={aprsNodes}
               performanceMode={performanceMode}
               userPosition={currentPosition}
               filterTypes={aprsFilterTypes}
               searchQuery={aprsSearchQuery}
+              sourceFilter="aprs"
+              colorScheme="aprs"
+            />
+          )}
+
+          {activeLayers.includes("brandmeister") && brandmeisterNodes.length > 0 && (
+            <PrivateNodeLayer
+              nodes={brandmeisterNodes}
+              performanceMode={performanceMode}
+              userPosition={currentPosition}
+              filterTypes={bmFilterTypes}
+              searchQuery={bmSearchQuery}
+              sourceFilter="brandmeister"
+              colorScheme="brandmeister"
             />
           )}
 
@@ -1476,14 +1536,26 @@ export default function Home() {
           onToggleCountry={handleToggleCountry}
         />
 
-        {activeLayers.includes("private_nodes") && privateNodes.length > 0 && (
+        {activeLayers.includes("aprs") && aprsNodes.length > 0 && (
           <AprsFilter
             filterTypes={aprsFilterTypes}
             onFilterTypesChange={setAprsFilterTypes}
             searchQuery={aprsSearchQuery}
             onSearchQueryChange={setAprsSearchQuery}
-            nodeCount={privateNodes.length}
+            nodeCount={aprsNodes.length}
             visibleCount={filteredAprsCount}
+          />
+        )}
+
+        {activeLayers.includes("brandmeister") && brandmeisterNodes.length > 0 && (
+          <BrandMeisterFilter
+            filterTypes={bmFilterTypes}
+            onFilterTypesChange={setBmFilterTypes}
+            searchQuery={bmSearchQuery}
+            onSearchQueryChange={setBmSearchQuery}
+            nodeCount={brandmeisterNodes.length}
+            visibleCount={filteredBmCount}
+            leftOffsetClass={activeLayers.includes("aprs") && aprsNodes.length > 0 ? "left-40" : "left-16"}
           />
         )}
 

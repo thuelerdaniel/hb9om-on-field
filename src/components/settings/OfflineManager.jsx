@@ -25,7 +25,7 @@ const TYPE_LABELS = {
   iota: "IOTA – Inseln",
   lighthouse: "Leuchttürme",
   repeater: "Amateurfunk-Relais",
-  private_nodes: "APRS – Private Nodes",
+  private_nodes: "APRS & BrandMeister Nodes",
   qrz: "QRZ.com Abfragen",
 };
 
@@ -80,7 +80,7 @@ export default function OfflineManager() {
     if (!readiness.iota) missing.push("IOTA");
     if (!readiness.lighthouse) missing.push("Leuchttürme");
     if (!readiness.repeater) missing.push("Relais");
-    if (!readiness.private_nodes) missing.push("APRS-Nodes");
+    if (!readiness.private_nodes) missing.push("APRS/BrandMeister");
     if (!readiness.mapTiles) missing.push("Offline-Karten");
     setMissingHint(missing);
   }, []);

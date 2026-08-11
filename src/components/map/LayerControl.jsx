@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Globe2 } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2 } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
@@ -76,11 +76,18 @@ const LAYER_GROUPS = [
     description: "FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen, Radius-Filter und Notstrom-Info"
   },
   {
-    id: "private_nodes",
-    label: "APRS – Amateur Radio Positioning",
+    id: "aprs",
+    label: "APRS – Positionierung (aprs.fi)",
     icon: Wifi,
     color: "#8b5cf6",
-    description: "Alle APRS-Stationen: Digipeater, IGates, Wetter, Hotspots und mobile Nutzer (Auto, Boot, Flugzeug, Fussgänger, Fahrrad)"
+    description: "APRS-Stationen: Digipeater, IGates, Wetterstationen und mobile Nutzer (Auto, Boot, Flugzeug, Fussgänger, Fahrrad) — Quelle: aprs.fi"
+  },
+  {
+    id: "brandmeister",
+    label: "BrandMeister – DMR-Netzwerk",
+    icon: Network,
+    color: "#14b8a6",
+    description: "DMR-Relais und Hotspots im BrandMeister-Netzwerk mit Talkgroups (TG) und DMR-IDs — eigenständiges Netzwerk, nicht APRS"
   }
 ];
 

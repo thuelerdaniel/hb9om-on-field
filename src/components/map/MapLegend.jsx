@@ -61,7 +61,7 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
           <div className="flex items-center gap-2 flex-wrap">
             {activeItems.map(lg => (
               <span key={lg.id} className="flex items-center gap-1 text-[10px]">
-                {lg.id === "repeater" || lg.id === "private_nodes" ? (
+                {lg.id === "repeater" || lg.id === "aprs" || lg.id === "brandmeister" ? (
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-white shadow-sm" style={{ backgroundColor: lg.color }} />
                 ) : (
                   <span className="w-3.5 h-3.5 flex-shrink-0 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: getMarkerSvg(lg.id, lg.color) }} />
