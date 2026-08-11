@@ -828,18 +828,23 @@ export default function Home() {
       lighthouses.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
     }
 
+    // Skip override copy when no overrides exist (common case — avoids 50k object copies)
+    const hasOverrides = Object.keys(serverOverrides).length > 0 || Object.keys(localOverrides).length > 0;
     return markers
       .filter(m => isInContinents(m.lat, m.lng, activeContinents))
       .filter(m => isInCountries(m, activeCountries))
       .map(m => {
+        if (!hasOverrides) return m;
         const code = m.code || m.reference;
         const ovKey = `${m.layerType}:${code}`;
         const ov = serverOverrides[ovKey];
+        const localOv = localOverrides[code];
+        if (!ov && !localOv) return m;
         return {
           ...m,
           name: ov?.adjusted_name || m.name,
-          lat: ov?.manual_lat != null ? ov.manual_lat : (localOverrides[code]?.lat ?? m.lat),
-          lng: ov?.manual_lng != null ? ov.manual_lng : (localOverrides[code]?.lng ?? m.lng),
+          lat: ov?.manual_lat != null ? ov.manual_lat : (localOv?.lat ?? m.lat),
+          lng: ov?.manual_lng != null ? ov.manual_lng : (localOv?.lng ?? m.lng),
         };
       });
   }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides, serverOverrides, activeContinents, activeCountries]);
@@ -914,8 +919,11 @@ export default function Home() {
     return Object.values(counts);
   }, [repeaters]);
 
-  // All available markers (regardless of active layers) — for QSO form nearby refs
+  // All available markers (regardless of active layers) — for QSO form nearby refs.
+  // ONLY compute when QSO form is open — building 100k+ markers on every data change
+  // blocks the main thread during worldwide fetch completion.
   const allAvailableMarkers = useMemo(() => {
+    if (!showQsoForm) return [];
     const markers = [];
     if (sotaData.length > 0) {
       sotaData.forEach(s => {
@@ -949,18 +957,22 @@ export default function Home() {
         });
       });
     }
+    // Skip override copy when no overrides exist (common case — avoids 100k object copies)
+    const hasOverrides = Object.keys(serverOverrides).length > 0;
+    if (!hasOverrides) return markers;
     return markers.map(m => {
       const code = m.code || m.reference;
       const ovKey = `${m.layerType}:${code}`;
       const ov = serverOverrides[ovKey];
+      if (!ov) return m;
       return {
         ...m,
-        name: ov?.adjusted_name || m.name,
-        lat: ov?.manual_lat != null ? ov.manual_lat : m.lat,
-        lng: ov?.manual_lng != null ? ov.manual_lng : m.lng,
+        name: ov.adjusted_name || m.name,
+        lat: ov.manual_lat != null ? ov.manual_lat : m.lat,
+        lng: ov.manual_lng != null ? ov.manual_lng : m.lng,
       };
     });
-  }, [sotaData, potaData, hbffData, wwbotaData, castleData, serverOverrides, repeaters]);
+  }, [showQsoForm, sotaData, potaData, hbffData, wwbotaData, castleData, iotaData, lighthouseData, serverOverrides, repeaters]);
 
   // Search (debounced)
   const [debouncedQuery, setDebouncedQuery] = useState("");
