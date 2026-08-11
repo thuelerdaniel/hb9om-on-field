@@ -1,0 +1,19 @@
+{
+  "name": "HB9OM On Field",
+  "short_name": "HB9OM",
+  "description": "Schweizer Amateurfunk-App für SOTA, POTA, HBFF, WWBOTA, Burgen und Leuchttürme. Interaktive Referenzkarte und QSO-Logbuch mit ADIF-Export.",
+  "lang": "de-CH",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1e33",
+  "theme_color": "#0b1e33",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://base44.com/logo_v2.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
