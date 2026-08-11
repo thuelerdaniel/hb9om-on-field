@@ -12,6 +12,7 @@ const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&
 
 const MAX_DETAIL_FETCH = 2500;
 const MAX_PER_COUNTRY = 100;
+const MAX_PER_COUNTRY_PRIORITY_1 = 300; // Switzerland + neighbors: fetch all (CH has 213+ repeaters)
 const MAX_PER_US_CA_REGION = 35;
 const LIST_CONCURRENCY = 12;
 const DETAIL_CONCURRENCY = 40;
@@ -711,7 +712,11 @@ export async function fetchRepeaterData(): Promise<any[]> {
       if (a.status !== 'on-air' && b.status === 'on-air') return 1;
       return 0;
     });
-    const max = maxPerRegionMap.get(entryCode) || MAX_PER_COUNTRY;
+    // Priority 1 countries (Switzerland + neighbors) get a higher limit so all repeaters are fetched
+    const countryEntry = COUNTRIES.find(c => c.code === entryCode);
+    const priority = countryEntry?.priority || 99;
+    const defaultMax = maxPerRegionMap.get(entryCode) || (priority === 1 ? MAX_PER_COUNTRY_PRIORITY_1 : MAX_PER_COUNTRY);
+    const max = defaultMax;
     toFetch.push(...reps.slice(0, max));
   }
   // Sort final list by country priority for consistent processing
