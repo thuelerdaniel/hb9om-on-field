@@ -10,14 +10,14 @@ const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
 
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 4000;
-const MAX_PER_COUNTRY = 250;
-const MAX_PER_COUNTRY_PRIORITY_1 = 600; // Switzerland + neighbors: fetch all (CH has 213+ repeaters)
+const MAX_DETAIL_FETCH = 5000;
+const MAX_PER_COUNTRY = 200;
+const MAX_PER_COUNTRY_PRIORITY_1 = 600; // Switzerland + neighbors
 const MAX_PER_US_CA_REGION = 35;
 const LIST_CONCURRENCY = 12;
-const DETAIL_CONCURRENCY = 40;
-const FETCH_TIMEOUT_MS = 6000;
-const DETAIL_DEADLINE_MS = 25000; // hard time limit for detail fetches
+const DETAIL_CONCURRENCY = 80;
+const FETCH_TIMEOUT_MS = 8000;
+const DETAIL_DEADLINE_MS = 100000; // 100 seconds — enough for 3000+ priority-1 detail fetches
 
 // Fetch with timeout — prevents a single slow/stuck response from blocking the whole batch.
 // Aborts after FETCH_TIMEOUT_MS and returns null (caller treats as failed fetch).
@@ -633,10 +633,13 @@ export async function fetchRepeaterData(): Promise<any[]> {
     // UK source is optional — don't fail the whole import
   }
 
-  // 1. Fetch list pages for all countries (concurrency 8)
+  // 1. Fetch list pages — PRIORITY 1 COUNTRIES ONLY (CH, DE, AT, FR, IT, LI)
+  // Priority 2/3 countries are skipped to stay within the platform execution limit.
+  // Worldwide coverage beyond Europe is available via the RepeaterBook website directly.
+  const priority1Countries = COUNTRIES.filter(c => c.priority === 1);
   const allRepeaters: any[] = [];
-  for (let i = 0; i < COUNTRIES.length; i += LIST_CONCURRENCY) {
-    const chunk = COUNTRIES.slice(i, i + LIST_CONCURRENCY);
+  for (let i = 0; i < priority1Countries.length; i += LIST_CONCURRENCY) {
+    const chunk = priority1Countries.slice(i, i + LIST_CONCURRENCY);
     const results = await Promise.all(chunk.map(async (country) => {
       try {
         const isNA = country.region_type === 'north_america';
@@ -698,9 +701,6 @@ export async function fetchRepeaterData(): Promise<any[]> {
 
   const byCountry = new Map<string, any[]>();
   for (const rep of allRepeaters) {
-    // Use the original country entry code (not country_code) for per-region quota
-    // For US states, rep.country_code is 'US' but we need per-state quota
-    // Store the entry code on the repeater during list parsing
     const entryCode = rep._entryCode || rep.country_code;
     if (!byCountry.has(entryCode)) byCountry.set(entryCode, []);
     byCountry.get(entryCode)!.push(rep);
@@ -712,12 +712,9 @@ export async function fetchRepeaterData(): Promise<any[]> {
       if (a.status !== 'on-air' && b.status === 'on-air') return 1;
       return 0;
     });
-    // Priority 1 countries (Switzerland + neighbors) get a higher limit so all repeaters are fetched
-    const countryEntry = COUNTRIES.find(c => c.code === entryCode);
-    const priority = countryEntry?.priority || 99;
-    const defaultMax = maxPerRegionMap.get(entryCode) || (priority === 1 ? MAX_PER_COUNTRY_PRIORITY_1 : MAX_PER_COUNTRY);
-    const max = defaultMax;
-    toFetch.push(...reps.slice(0, max));
+    // All fetched countries are priority 1 — use the higher limit
+    const defaultMax = maxPerRegionMap.get(entryCode) || MAX_PER_COUNTRY_PRIORITY_1;
+    toFetch.push(...reps.slice(0, defaultMax));
   }
   // Sort final list by country priority for consistent processing
   toFetch.sort((a, b) => {

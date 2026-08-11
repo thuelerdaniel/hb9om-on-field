@@ -191,13 +191,15 @@ export async function fetchAprsData(base44: any, apiKey: string) {
 
   // Step 0: Fetch BrandMeister devices — PRIMARY source (13k+ European DMR repeaters with coords)
   const bmDevices = await fetchBrandMeisterDevices();
+
+  // Load existing nodes ONCE — reused in all steps (avoids redundant DB queries)
+  const existingNodes = await base44.asServiceRole.entities.PrivateNode.list("-updated_date", 10000);
+  const existingByCallsign = new Map<string, any>();
+  for (const n of existingNodes) {
+    if (n.callsign) existingByCallsign.set(n.callsign.toUpperCase(), n);
+  }
+
   if (bmDevices.length > 0) {
-    // Load existing nodes to check for duplicates
-    const existingNodes = await base44.asServiceRole.entities.PrivateNode.list("-updated_date", 10000);
-    const existingByCallsign = new Map<string, any>();
-    for (const n of existingNodes) {
-      if (n.callsign) existingByCallsign.set(n.callsign.toUpperCase(), n);
-    }
 
     const newBmNodes: any[] = [];
     const updateBmNodes: { id: string; data: any }[] = [];
@@ -223,20 +225,26 @@ export async function fetchAprsData(base44: any, apiKey: string) {
       } catch {}
     }
 
-    // Update existing nodes
+    // Update existing nodes — bulk update for efficiency (one-by-one takes too long with 5k+ nodes)
+    const bulkUpdateBatch = [];
     for (const { id, data } of updateBmNodes) {
+      bulkUpdateBatch.push({
+        id,
+        lat: data.lat, lng: data.lng,
+        frequency: data.frequency,
+        network: data.network,
+        mode: data.mode,
+        node_number: data.node_number,
+        location_name: data.location_name,
+        description: data.description,
+        source: data.source,
+        status: data.status,
+      });
+    }
+    for (let i = 0; i < bulkUpdateBatch.length; i += 500) {
+      const batch = bulkUpdateBatch.slice(i, i + 500);
       try {
-        await base44.asServiceRole.entities.PrivateNode.update(id, {
-          lat: data.lat, lng: data.lng,
-          frequency: data.frequency,
-          network: data.network,
-          mode: data.mode,
-          node_number: data.node_number,
-          location_name: data.location_name,
-          description: data.description,
-          source: data.source,
-          status: data.status,
-        });
+        await base44.asServiceRole.entities.PrivateNode.bulkUpdate(batch);
       } catch {}
     }
 
@@ -272,13 +280,8 @@ export async function fetchAprsData(base44: any, apiKey: string) {
     if (dev.callsign) allCallsigns.add(dev.callsign);
   }
 
-  // Step 1b: Load existing APRS nodes from DB to determine which callsigns are already known.
-  // This is the incremental part — we only query NEW callsigns, not all of them every time.
-  const existingNodes = await base44.asServiceRole.entities.PrivateNode.list("-updated_date", 10000);
-  const existingByCallsign = new Map<string, any>();
-  for (const n of existingNodes) {
-    if (n.callsign) existingByCallsign.set(n.callsign.toUpperCase(), n);
-  }
+  // Step 1b: Reuse existing nodes already loaded in Step 0a (avoids redundant DB query).
+  // existingByCallsign is already populated from the BrandMeister step above.
 
   // Step 2: Build APRS callsign list. Split into NEW (not in DB) and EXISTING (in DB).
   // NEW callsigns are always queried. EXISTING callsigns are re-queried to update positions
@@ -305,11 +308,14 @@ export async function fetchAprsData(base44: any, apiKey: string) {
     }
   }
 
-  // Query NEW callsigns first (priority), then a subset of existing ones to refresh
-  const callsignList = [...newCallsigns, ...existingCallsignsToRefresh];
+  // Query NEW callsigns first (priority), then a subset of existing ones to refresh.
+  // Limit total queries to 1500 to stay within the platform execution time limit.
+  // New callsigns are always queried; existing callsigns are refreshed on a rotating basis.
+  const MAX_APRS_FI_QUERIES = 1500;
+  const callsignList = [...newCallsigns, ...existingCallsignsToRefresh].slice(0, MAX_APRS_FI_QUERIES);
   totalCallsignsQueried = callsignList.length;
   const BATCH_SIZE = 150;
-  const BATCH_DELAY = 4000;
+  const BATCH_DELAY = 2000;
   const nodeRecords: any[] = [];
   const updatesByCallsign = new Map<string, any>(); // callsign → new entry data
 
@@ -348,21 +354,26 @@ export async function fetchAprsData(base44: any, apiKey: string) {
     if (i + BATCH_SIZE < callsignList.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
   }
 
-  // Step 3: Update existing nodes with new positions (incremental update, no deletion)
+  // Step 3: Update existing nodes with new positions — bulk update for efficiency
+  const aprsUpdateBatch = [];
   for (const [callsign, entry] of updatesByCallsign) {
     const existing = existingByCallsign.get(callsign);
     if (!existing) continue;
+    aprsUpdateBatch.push({
+      id: existing.id,
+      lat: parseFloat(entry.lat),
+      lng: parseFloat(entry.lng),
+      location_name: (entry.comment || '').substring(0, 100),
+      description: entry.comment || '',
+      aprs_symbol: entry.symbol || '',
+      status: 'active',
+    });
+    nodesUpdated++;
+  }
+  for (let i = 0; i < aprsUpdateBatch.length; i += 500) {
+    const batch = aprsUpdateBatch.slice(i, i + 500);
     try {
-      const updatedData = buildNodeRecord(entry);
-      await base44.asServiceRole.entities.PrivateNode.update(existing.id, {
-        lat: parseFloat(entry.lat),
-        lng: parseFloat(entry.lng),
-        location_name: (entry.comment || '').substring(0, 100),
-        description: entry.comment || '',
-        aprs_symbol: entry.symbol || '',
-        status: 'active',
-      });
-      nodesUpdated++;
+      await base44.asServiceRole.entities.PrivateNode.bulkUpdate(batch);
     } catch {}
   }
 
