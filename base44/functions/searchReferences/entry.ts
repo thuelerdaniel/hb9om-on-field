@@ -5,7 +5,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 // in the current map viewport — e.g. user types "DL/AL-001" while the map shows
 // only Switzerland. This returns the matching reference so the form can display it.
 //
-// Returns up to 30 matches per type, prioritized by distance to the optional center.
+// Returns up to 50 matches per type, prioritized by distance to the optional center.
 
 const typeCache: Record<string, { refs: any[]; time: number }> = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
@@ -62,16 +62,14 @@ export default async function(req: Request): Promise<Response> {
       allTypes.map(async (type) => {
         try {
           const refs = await loadType(base44, type);
-          if (!refs || refs.length === 0) return { type, matches: [], _refsLoaded: 0 };
+          if (!refs || refs.length === 0) return { type, matches: [] };
 
           // Collect ALL matches — do NOT break early, otherwise closer references
           // at the end of the array are missed before the distance sort.
           const matches: any[] = [];
-          let firstRefCode = '';
           for (const ref of refs) {
             const code = (ref.code || ref.reference || '').toLowerCase();
             const name = (ref.name || '').toLowerCase();
-            if (!firstRefCode && code) firstRefCode = code;
             if (code.includes(q) || name.includes(q)) {
               matches.push({
                 ...ref,
@@ -87,24 +85,22 @@ export default async function(req: Request): Promise<Response> {
             matches.sort((a, b) => (a._distance ?? 9999) - (b._distance ?? 9999));
           }
 
-          return { type, matches: matches.slice(0, MAX_PER_TYPE).map(({ _distance, ...r }) => r), _refsLoaded: refs.length, _firstRefCode: firstRefCode, _matchesFound: matches.length };
-        } catch (e) {
-          return { type, matches: [], _error: e?.message || String(e) };
+          return { type, matches: matches.slice(0, MAX_PER_TYPE).map(({ _distance, ...r }) => r) };
+        } catch {
+          return { type, matches: [] };
         }
       })
     );
 
     const references: Record<string, any[]> = {};
     let count = 0;
-    const debug: any[] = [];
     for (const r of results) {
-      const { type, matches, ...rest } = r as any;
+      const { type, matches } = r as any;
       references[type] = matches;
       count += matches.length;
-      debug.push({ type, refsLoaded: (rest as any)?._refsLoaded, firstRefCode: (rest as any)?._firstRefCode, matchesFound: (rest as any)?._matchesFound, error: (rest as any)?._error });
     }
 
-    return Response.json({ references, count, _debug: debug });
+    return Response.json({ references, count });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
