@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { createEntry, updateEntry } from "@/lib/localLogStore";
 import { autoCloudBackup } from "@/lib/dataBackup";
@@ -365,98 +365,118 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   }, [debouncedRefName, allMarkers, refType]);
 
   // Server-side search: finds references NOT yet loaded in allMarkers (worldwide, not bounds-limited).
-  // Debounced 400ms — runs alongside local autocomplete to fill gaps.
-  const [serverRefMatches, setServerRefMatches] = useState([]);
-  const [serverSearching, setServerSearching] = useState(false);
-  const serverSearchRef = useRef(null);
-  const lastServerQueryRef = useRef("");
+  // Two INDEPENDENT searches (code + name) — each field gets its own results, so typing in one
+  // field is never shadowed by a longer value in the other.
+  const flattenServerRefs = (references) => {
+    const colorMap = {
+      sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
+      castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12"
+    };
+    const labelMap = {
+      sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+      castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm"
+    };
+    const matches = [];
+    for (const [type, refs] of Object.entries(references || {})) {
+      for (const r of (refs || [])) {
+        matches.push({
+          ...r,
+          code: r.code || r.reference,
+          reference: r.reference || r.code,
+          layerType: type,
+          color: colorMap[type] || "#888",
+          layerLabel: labelMap[type] || type
+        });
+      }
+    }
+    return matches;
+  };
+
+  const runServerSearch = useCallback(async (query, typesFilter, center) => {
+    const res = await base44.functions.invoke("searchReferences", {
+      query,
+      types: typesFilter,
+      center
+    });
+    return res.data?.references ? flattenServerRefs(res.data.references).slice(0, 30) : [];
+  }, []);
+
+  // --- Server search for refCode ---
+  const [serverRefCodeMatches, setServerRefCodeMatches] = useState([]);
+  const serverCodeSearchRef = useRef(null);
+  const lastServerCodeQueryRef = useRef("");
 
   useEffect(() => {
-    // Use the longer of the two debounced queries for server search
-    const query = debouncedRefCode.length >= debouncedRefName.length ? debouncedRefCode : debouncedRefName;
-    if (!query || query.length < 2) {
-      setServerRefMatches([]);
-      lastServerQueryRef.current = "";
+    if (!debouncedRefCode || debouncedRefCode.length < 2) {
+      setServerRefCodeMatches([]);
+      lastServerCodeQueryRef.current = "";
       return;
     }
     if (isOffline) return;
-
-    // Skip if we already have enough local matches for the active field
-    const localCount = debouncedRefCode.length >= debouncedRefName.length ? refCodeMatches.length : refNameMatches.length;
-    // Still search server even with local matches — user wants ALL matching results loaded
-
-    if (serverSearchRef.current) clearTimeout(serverSearchRef.current);
-    serverSearchRef.current = setTimeout(async () => {
-      // Avoid duplicate calls for the same query
-      if (lastServerQueryRef.current === query) return;
-      lastServerQueryRef.current = query;
-      setServerSearching(true);
+    if (serverCodeSearchRef.current) clearTimeout(serverCodeSearchRef.current);
+    serverCodeSearchRef.current = setTimeout(async () => {
+      if (lastServerCodeQueryRef.current === debouncedRefCode) return;
+      lastServerCodeQueryRef.current = debouncedRefCode;
       try {
         const center = positionCenter ? { lat: positionCenter[0], lng: positionCenter[1] } : (mapCenter ? { lat: mapCenter[0], lng: mapCenter[1] } : null);
-        const res = await base44.functions.invoke("searchReferences", {
-          query,
-          types: refType && refType !== "custom" && refType !== "generell" ? [refType] : null,
-          center
-        });
-        if (res.data?.references) {
-          // Flatten all types into a single array with layerType + layerLabel
-          const matches = [];
-          for (const [type, refs] of Object.entries(res.data.references)) {
-            const colorMap = {
-              sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
-              castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12"
-            };
-            const labelMap = {
-              sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
-              castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm"
-            };
-            for (const r of (refs || [])) {
-              matches.push({
-                ...r,
-                code: r.code || r.reference,
-                reference: r.reference || r.code,
-                layerType: type,
-                color: colorMap[type] || "#888",
-                layerLabel: labelMap[type] || type
-              });
-            }
-          }
-          setServerRefMatches(matches.slice(0, 30));
-        }
-      } catch (e) {
-        // Silent — local autocomplete still works
-      } finally {
-        setServerSearching(false);
-      }
+        const typesFilter = refType && refType !== "custom" && refType !== "generell" ? [refType] : null;
+        const matches = await runServerSearch(debouncedRefCode, typesFilter, center);
+        setServerRefCodeMatches(matches);
+      } catch (e) { /* silent */ }
     }, 400);
-    return () => { if (serverSearchRef.current) clearTimeout(serverSearchRef.current); };
-  }, [debouncedRefCode, debouncedRefName, refType, positionCenter, mapCenter, isOffline]);
+    return () => { if (serverCodeSearchRef.current) clearTimeout(serverCodeSearchRef.current); };
+  }, [debouncedRefCode, refType, positionCenter, mapCenter, isOffline, runServerSearch]);
+
+  // --- Server search for refName ---
+  const [serverRefNameMatches, setServerRefNameMatches] = useState([]);
+  const serverNameSearchRef = useRef(null);
+  const lastServerNameQueryRef = useRef("");
+
+  useEffect(() => {
+    if (!debouncedRefName || debouncedRefName.length < 2) {
+      setServerRefNameMatches([]);
+      lastServerNameQueryRef.current = "";
+      return;
+    }
+    if (isOffline) return;
+    if (serverNameSearchRef.current) clearTimeout(serverNameSearchRef.current);
+    serverNameSearchRef.current = setTimeout(async () => {
+      if (lastServerNameQueryRef.current === debouncedRefName) return;
+      lastServerNameQueryRef.current = debouncedRefName;
+      try {
+        const center = positionCenter ? { lat: positionCenter[0], lng: positionCenter[1] } : (mapCenter ? { lat: mapCenter[0], lng: mapCenter[1] } : null);
+        const typesFilter = refType && refType !== "custom" && refType !== "generell" ? [refType] : null;
+        const matches = await runServerSearch(debouncedRefName, typesFilter, center);
+        setServerRefNameMatches(matches);
+      } catch (e) { /* silent */ }
+    }, 400);
+    return () => { if (serverNameSearchRef.current) clearTimeout(serverNameSearchRef.current); };
+  }, [debouncedRefName, refType, positionCenter, mapCenter, isOffline, runServerSearch]);
 
   // Merge local + server matches for refCode (dedup by code, server fills gaps not in allMarkers)
   const mergedRefCodeMatches = useMemo(() => {
     const local = refCodeMatches;
-    if (serverRefMatches.length === 0) return local;
+    if (serverRefCodeMatches.length === 0) return local;
     const localCodes = new Set(local.map(m => (m.code || m.reference || "").toLowerCase()));
-    const serverOnly = serverRefMatches.filter(m => {
+    const serverOnly = serverRefCodeMatches.filter(m => {
       const code = (m.code || m.reference || "").toLowerCase();
-      const q = debouncedRefCode.toLowerCase();
-      return (m.code || m.reference || "").toLowerCase().includes(q) && !localCodes.has(code);
+      return code.includes(debouncedRefCode.toLowerCase()) && !localCodes.has(code);
     });
     return [...local, ...serverOnly].slice(0, 30);
-  }, [refCodeMatches, serverRefMatches, debouncedRefCode]);
+  }, [refCodeMatches, serverRefCodeMatches, debouncedRefCode]);
 
   // Merge local + server matches for refName (dedup by code, server fills gaps not in allMarkers)
   const mergedRefNameMatches = useMemo(() => {
     const local = refNameMatches;
-    if (serverRefMatches.length === 0) return local;
+    if (serverRefNameMatches.length === 0) return local;
     const localCodes = new Set(local.map(m => (m.code || m.reference || "").toLowerCase()));
     const q = debouncedRefName.toLowerCase();
-    const serverOnly = serverRefMatches.filter(m => {
+    const serverOnly = serverRefNameMatches.filter(m => {
       const name = (m.name || "").toLowerCase();
       return name.includes(q) && !localCodes.has((m.code || m.reference || "").toLowerCase());
     });
     return [...local, ...serverOnly].slice(0, 30);
-  }, [refNameMatches, serverRefMatches, debouncedRefName]);
+  }, [refNameMatches, serverRefNameMatches, debouncedRefName]);
 
   const persistFormValues = () => {
     localStorage.setItem(PERSIST_KEYS.frequency, frequency);
