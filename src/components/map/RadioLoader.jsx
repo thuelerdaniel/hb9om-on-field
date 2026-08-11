@@ -67,13 +67,13 @@ export default function RadioLoader({ isLoading, onCancel }) {
   return (
     <>
       {/* Compact loader with radio symbol — always visible while loading */}
-      <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
+      <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white dark:bg-slate-800 rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
         <RadioWaves />
-        <span className="text-sm text-gray-600">Daten werden geladen…</span>
+        <span className="text-sm text-gray-600 dark:text-slate-300">Daten werden geladen…</span>
         {onCancel && (
           <button
             onClick={onCancel}
-            className="ml-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-medium transition-colors border border-red-200"
+            className="ml-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 hover:bg-red-100 text-red-600 dark:text-red-400 text-xs font-medium transition-colors border border-red-200 dark:border-red-800"
             title="Abbrechen"
           >
             <X className="w-3 h-3" />
@@ -84,23 +84,23 @@ export default function RadioLoader({ isLoading, onCancel }) {
 
       {/* Extended tips panel — appears after 1.5s */}
       {showTips && (
-        <div className="fixed top-28 left-1/2 -translate-x-1/2 z-[10002] bg-white rounded-2xl shadow-xl border border-gray-200 p-5 max-w-sm w-[90vw]">
+        <div className="fixed top-28 left-1/2 -translate-x-1/2 z-[10002] bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 p-5 max-w-sm w-[90vw]">
           <div className="flex justify-center mb-3">
             <RadioWaves />
           </div>
-          <p className="text-sm font-semibold text-gray-900 text-center mb-1">
+          <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 text-center mb-1">
             Viele Daten werden geladen…
           </p>
-          <p className="text-xs text-gray-500 text-center mb-3 leading-relaxed">
+          <p className="text-xs text-gray-500 dark:text-slate-400 text-center mb-3 leading-relaxed">
             Etwas Geduld bitte — die Referenzdaten werden von externen Quellen geladen.
           </p>
           <div className="space-y-2">
-            <div className="flex items-start gap-2 text-xs text-gray-600">
-              <ZoomIn className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-slate-300">
+              <ZoomIn className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 mt-0.5 flex-shrink-0" />
               <span>Kartenausschnitt verkleinern, um weniger Marker zu laden</span>
             </div>
-            <div className="flex items-start gap-2 text-xs text-gray-600">
-              <Layers className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-slate-300">
+              <Layers className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 mt-0.5 flex-shrink-0" />
               <span>Weniger Layer aktivieren im Ebenen-Menü</span>
             </div>
             <Link to="/settings" className="flex items-start gap-2 text-xs text-blue-600 hover:underline">

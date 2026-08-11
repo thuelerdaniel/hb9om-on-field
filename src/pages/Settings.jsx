@@ -11,6 +11,7 @@ import AdminPanel from "@/components/settings/AdminPanel";
 import { DEMO_EMAIL } from "@/lib/constants";
 import OfflineManager from "@/components/settings/OfflineManager";
 import MobileSelect from "@/components/ui/MobileSelect";
+import ThemeToggle from "@/components/settings/ThemeToggle";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -363,7 +364,8 @@ export default function Settings() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24">
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Profil & QRZ</h2></div>
+        <ThemeToggle />
+        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Profil & QRZ</h2></div>
         {/* User Profile */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -378,11 +380,11 @@ export default function Settings() {
                 value={myCallsign}
                 onChange={e => setMyCallsign(e.target.value)}
                 placeholder="z.B. HB9XYZ"
-                className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+                className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
               />
             </div>
 
-            <div className="p-3 bg-gray-50 rounded-lg">
+            <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
@@ -423,7 +425,7 @@ export default function Settings() {
                       onChange={e => { setQrzUsername(e.target.value); }}
                       placeholder="Ihr QRZ.com-Benutzername"
                       autoComplete="off"
-                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                     />
                   </div>
                   <div>
@@ -434,7 +436,7 @@ export default function Settings() {
                       onChange={e => { setQrzPassword(e.target.value); }}
                       placeholder="Ihr QRZ.com-Passwort"
                       autoComplete="new-password"
-                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                     />
                   </div>
                   <p className="text-[10px] text-gray-400 leading-relaxed">
@@ -472,7 +474,7 @@ export default function Settings() {
             </div>
 
             {/* APRS.fi API Key */}
-            <div className="p-3 bg-gray-50 rounded-lg">
+            <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
               <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
                 <KeyRound className="w-4 h-4" /> APRS.fi API-Key
               </label>
@@ -490,7 +492,7 @@ export default function Settings() {
                     onChange={e => setAprsApiKey(e.target.value)}
                     placeholder="Ihr persönlicher APRS.fi API-Key"
                     autoComplete="off"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                   <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
                     Kostenloser API-Key unter <a href="https://aprs.fi/page/api" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">aprs.fi/page/api</a> erhältlich. Ohne Key sind APRS-Relais und Private Nodes nicht verfügbar.
@@ -565,7 +567,7 @@ export default function Settings() {
           )}
         </section>
 
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Karte & Anzeige</h2></div>
+        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Karte & Anzeige</h2></div>
         {/* Performance Mode */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
@@ -698,14 +700,14 @@ export default function Settings() {
           )}
         </section>
 
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Offline & Sicherung</h2></div>
+        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Offline & Sicherung</h2></div>
         {/* Unified Offline Manager — replaces separate offline + preload sections */}
         <OfflineManager />
 
         {/* Data Backup */}
         <BackupSection />
 
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Anträge & Feedback</h2></div>
+        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Anträge & Feedback</h2></div>
         {/* Change Requests - available for all users */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
@@ -765,7 +767,7 @@ export default function Settings() {
               <ChevronDown className={`w-5 h-5 transition-transform ${showAdminPanel ? 'rotate-180' : ''}`} />
             </button>
             {showAdminPanel && (
-              <div className="space-y-6 p-4 bg-slate-50">
+              <div className="space-y-6 p-4 bg-slate-50 dark:bg-slate-900">
                 <AdminPanel
                   cacheStatus={cacheStatus}
                   loading={loading}
@@ -801,7 +803,7 @@ export default function Settings() {
           </div>
         )}
 
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Konto</h2></div>
+        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Konto</h2></div>
         {/* Logout */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
@@ -842,12 +844,12 @@ export default function Settings() {
 
         {showDeleteAccount && (
         <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowDeleteAccount(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-6 h-6 text-red-500" />
             </div>
-            <h3 className="text-lg font-bold text-center text-gray-900">Konto wirklich löschen?</h3>
-            <p className="text-sm text-gray-500 text-center mt-2">
+            <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100">Konto wirklich löschen?</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 text-center mt-2">
               Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre QSO-Logs, Einstellungen und Daten werden unwiderruflich gelöscht.
             </p>
             {deleteAccountError && (

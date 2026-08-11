@@ -1728,8 +1728,8 @@ export default function Home() {
           <button
             onClick={handleGpsLocate}
             disabled={gpsLoading}
-            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
-              positionMode === "gps" ? "border-red-400 text-red-500" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            className={`w-10 h-10 bg-white dark:bg-slate-800 rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+              positionMode === "gps" ? "border-red-400 text-red-500" : "border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
             } ${gpsLoading ? "opacity-40" : ""}`}
             title="Meine GPS-Position anzeigen"
           >
@@ -1737,10 +1737,10 @@ export default function Home() {
           </button>
           <button
             onClick={handleTogglePickPosition}
-            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+            className={`w-10 h-10 bg-white dark:bg-slate-800 rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
               pickingPosition ? "border-blue-400 text-blue-500 animate-pulse" :
               positionMode === "fixed" ? "border-blue-400 text-blue-500" :
-              "border-gray-200 text-gray-700 hover:bg-gray-50"
+              "border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
             }`}
             title={pickingPosition ? "Auf Karte tippen um Position zu setzen" : "Position auf Karte fixieren"}
           >
@@ -1749,8 +1749,8 @@ export default function Home() {
           <button
             onClick={() => setShowOfflineDialog(true)}
             disabled={isOffline}
-            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-              offlineAreas.length > 0 ? "border-blue-400 text-blue-500" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            className={`w-10 h-10 bg-white dark:bg-slate-800 rounded-lg shadow-lg border flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              offlineAreas.length > 0 ? "border-blue-400 text-blue-500" : "border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
             }`}
             title={isOffline ? "Nur online möglich" : "Offline-Karte herunterladen"}
           >
@@ -1774,8 +1774,8 @@ export default function Home() {
                 toast({ title: "Online-Modus aktiviert", duration: 2000 });
               }
             }}
-            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
-              forceOffline ? "border-amber-400 text-amber-500" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            className={`w-10 h-10 bg-white dark:bg-slate-800 rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+              forceOffline ? "border-amber-400 text-amber-500" : "border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
             }`}
             title={forceOffline ? "Offline-Modus deaktivieren" : "Offline-Modus aktivieren"}
           >
@@ -1784,8 +1784,8 @@ export default function Home() {
           <button
             onClick={() => setDragMode(!dragMode)}
             disabled={isOffline}
-            className={`w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-              dragMode ? "border-purple-400 text-purple-500 animate-pulse" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            className={`w-10 h-10 bg-white dark:bg-slate-800 rounded-lg shadow-lg border flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              dragMode ? "border-purple-400 text-purple-500 animate-pulse" : "border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
             }`}
             title={isOffline ? "Nur online möglich" : isAdmin ? "Punkte verschieben (Drag & Drop)" : "Punkte korrigieren (Antrag an Admin)"}
           >
@@ -1793,10 +1793,10 @@ export default function Home() {
           </button>
           <Link
             to={isAdmin ? "/admin/change-requests" : "/change-requests"}
-            className={`relative w-10 h-10 bg-white rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
+            className={`relative w-10 h-10 bg-white dark:bg-slate-800 rounded-lg shadow-lg border flex items-center justify-center transition-colors ${
               pendingRequestCount > 0
                 ? "border-amber-400 text-amber-600"
-                : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                : "border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
             }`}
             title={isAdmin ? "Anträge prüfen" : "Meine Änderungsanträge"}
           >

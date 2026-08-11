@@ -506,14 +506,14 @@ function HelpSection({ section }) {
     <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
       >
         <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: section.color + '15' }}>
           <Icon className="w-5 h-5" style={{ color: section.color }} />
         </div>
         <div className="flex-1 text-left">
-          <h2 className="text-sm font-bold text-gray-900">{section.title}</h2>
-          <p className="text-xs text-gray-500">{section.description}</p>
+          <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">{section.title}</h2>
+          <p className="text-xs text-gray-500 dark:text-slate-400">{section.description}</p>
         </div>
         {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
@@ -522,8 +522,8 @@ function HelpSection({ section }) {
         <div className="px-5 pb-5 space-y-4">
           {section.items.map((item, i) => (
             <div key={i} id={item.anchor} className="border-l-2 pl-4 scroll-mt-20" style={{ borderColor: section.color + '30' }}>
-              <h3 className="text-sm font-semibold text-gray-900 mb-1">{item.title}</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{item.body}</p>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">{item.title}</h3>
+              <p className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed">{item.body}</p>
 
               {item.list && (
                 <div className="mt-2 space-y-1.5">
@@ -550,8 +550,8 @@ function HelpSection({ section }) {
               )}
 
               {item.example && (
-                <div className="mt-2 px-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-600 border border-gray-100">
-                  <span className="font-semibold text-gray-700">💡 Beispiel:</span> {item.example}
+                <div className="mt-2 px-3 py-2 bg-gray-50 dark:bg-slate-900 rounded-lg text-xs text-gray-600 dark:text-slate-300 border border-gray-100 dark:border-slate-700">
+                  <span className="font-semibold text-gray-700 dark:text-slate-200">💡 Beispiel:</span> {item.example}
                 </div>
               )}
             </div>
@@ -610,8 +610,8 @@ export default function Help() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <button onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate("/")} className="p-1.5 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -621,8 +621,8 @@ export default function Help() {
               <HelpCircle className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-gray-900">Hilfe & Anleitung</h1>
-              <p className="text-[10px] text-gray-400">Alle Funktionen im Überblick</p>
+              <h1 className="text-sm font-bold text-gray-900 dark:text-slate-100">Hilfe & Anleitung</h1>
+              <p className="text-[10px] text-gray-400 dark:text-slate-500">Alle Funktionen im Überblick</p>
             </div>
           </div>
         </div>
@@ -695,12 +695,12 @@ export default function Help() {
         )}
 
         {/* PayPal Spende - am Anfang */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-center">
           <div className="inline-flex items-center justify-center w-10 h-10 bg-amber-100 rounded-full mb-2">
             <Coffee className="w-5 h-5 text-amber-700" />
           </div>
-          <h3 className="text-sm font-bold text-gray-900 mb-1">Spende mir einen Kaffee ☕</h3>
-          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-1">Spende mir einen Kaffee ☕</h3>
+          <p className="text-xs text-gray-600 dark:text-slate-300 mb-3 leading-relaxed">
             Wenn Ihnen diese App gefällt und Sie die Entwicklung unterstützen möchten,
             freue ich mich über eine kleine Spende.
           </p>
@@ -722,9 +722,9 @@ export default function Help() {
         {/* Offline-Checkliste – Schritt fuer Schritt zu 100% Offline */}
         <OfflineChecklist />
 
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">
+        <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-900 dark:text-blue-100">
           <p className="font-semibold mb-1">Willkommen bei HB9OM On Field!</p>
-          <p className="text-blue-700 text-xs leading-relaxed">
+          <p className="text-blue-700 dark:text-blue-300 text-xs leading-relaxed">
             Diese App unterstützt Sie beim Aktivieren von Amateurfunk-Referenzen (SOTA, POTA, WWFF, WWBOTA, etc.) 
             weltweit. Sie können Referenzen auf der Karte finden, QSOs loggen und als ADIF exportieren.
             Unten finden Sie alle Funktionen mit Erklärungen und Beispielen.
@@ -762,16 +762,16 @@ export default function Help() {
           </div>
         ))}
 
-        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+        <div className="bg-red-50 dark:bg-red-950/40 border-2 border-red-200 dark:border-red-800 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div className="text-left">
-              <h3 className="text-sm font-bold text-red-900 mb-1">Keine rechtliche Grundlage – Eigenverantwortung</h3>
-              <p className="text-xs text-red-800 leading-relaxed font-medium">
+              <h3 className="text-sm font-bold text-red-900 dark:text-red-200 mb-1">Keine rechtliche Grundlage – Eigenverantwortung</h3>
+              <p className="text-xs text-red-800 dark:text-red-300 leading-relaxed font-medium">
                 Du bist lizenzierter Funkamateur und du musst selber wissen, was du machst und was du machen darfst.
                 Darum hast du ja eine Prüfung gemacht. Also heule nicht, wenn du was falsch machst – du bist erwachsen.
               </p>
-              <p className="text-xs text-red-700 leading-relaxed mt-2">
+              <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed mt-2">
                 Diese App und der enthaltene Bandplan dienen ausschliesslich als praktische Orientierungshilfe und
                 stellen <strong>keine rechtsverbindliche Grundlage</strong> dar. Massgeblich ist stets der offizielle
                 Frequenzplan des{" "}
@@ -782,11 +782,11 @@ export default function Help() {
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3">
+        <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">Versions-Änderungen Popup</span>
+              <span className="text-sm font-medium text-blue-900 dark:text-blue-200">Versions-Änderungen Popup</span>
             </div>
             <button
               onClick={() => {
@@ -798,10 +798,10 @@ export default function Help() {
               Reaktivieren
             </button>
           </div>
-          <p className="text-xs text-blue-700 mt-1.5">Zeigt die Änderungen seit v0.75 nach dem Splash Screen.</p>
+          <p className="text-xs text-blue-700 dark:text-blue-300 mt-1.5">Zeigt die Änderungen seit v0.75 nach dem Splash Screen.</p>
         </div>
 
-        <div className="bg-gray-100 rounded-xl p-4 text-center text-xs text-gray-500">
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-4 text-center text-xs text-gray-500 dark:text-slate-400">
           <p>HB9OM On Field v{APP_VERSION} · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
             <Link to="/privacy" className="text-blue-600 font-medium hover:underline">Datenschutzerklärung</Link>

@@ -256,7 +256,7 @@ export default function Log() {
           <button
             onClick={handleExport}
             disabled={filtered.length === 0}
-            className="px-3 py-1.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 flex items-center gap-1.5"
+            className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 flex items-center gap-1.5"
           >
             <Download className="w-4 h-4" /> Export (ADIF)
           </button>
@@ -393,16 +393,16 @@ export default function Log() {
       {/* Confirm Delete All Modal */}
       {showConfirmDelete && (
         <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowConfirmDelete(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Trash2 className="w-6 h-6 text-red-500" />
             </div>
-            <h3 className="text-lg font-bold text-center text-gray-900">Log-Einträge löschen?</h3>
-            <p className="text-sm text-gray-500 text-center mt-2">
+            <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100">Log-Einträge löschen?</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 text-center mt-2">
               Möchten Sie wirklich <strong>{filtered.length}</strong> gefilterte{filterType !== "all" ? ` (${REF_TYPE_LABELS[filterType]})` : ""} Einträge unwiderruflich löschen?
             </p>
             <div className="flex gap-2 mt-6">
-              <button onClick={() => setShowConfirmDelete(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <button onClick={() => setShowConfirmDelete(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700">
                 Abbrechen
               </button>
               <button onClick={handleDeleteAll} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600">
@@ -416,16 +416,16 @@ export default function Log() {
       {/* Confirm Archive Modal */}
       {showConfirmArchive && (
         <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowConfirmArchive(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Archive className="w-6 h-6 text-amber-500" />
             </div>
-            <h3 className="text-lg font-bold text-center text-gray-900">Eintrag archivieren?</h3>
-            <p className="text-sm text-gray-500 text-center mt-2">
+            <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100">Eintrag archivieren?</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 text-center mt-2">
               Der Eintrag wird archiviert und kann jederzeit wiederhergestellt werden.
             </p>
             <div className="flex gap-2 mt-6">
-              <button onClick={() => setShowConfirmArchive(null)} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <button onClick={() => setShowConfirmArchive(null)} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700">
                 Abbrechen
               </button>
               <button onClick={() => handleArchive(showConfirmArchive)} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600">
