@@ -38,6 +38,7 @@ import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { getWwbotaColor } from "@/lib/wwbotaSchemes";
 import VersionChangelogPopup, { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed, resetChangelog } from "@/components/map/VersionChangelogPopup";
+import PreloadHint from "@/components/map/PreloadHint";
 import { boundsToObj, boundsContained, unionBounds, mergeRefs, REF_TYPES } from "@/lib/boundsLoading";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
@@ -520,23 +521,25 @@ export default function Home() {
     setServerOverrides(loadCachedOverrides());
     setCacheLoaded(true);
 
-    // Offline mode: local cache is all we have
+    // ALWAYS load local cache first for instant display (online + offline)
+    const localCache = loadCachedReferenceData();
+    if (localCache) {
+      if (localCache.sota) setSotaData(localCache.sota);
+      if (localCache.pota) setPotaData(localCache.pota);
+      if (localCache.hbff) setHbffData(localCache.hbff);
+      if (localCache.wwbota) setWwbotaData(localCache.wwbota);
+      if (localCache.castle) setCastleData(localCache.castle);
+      if (localCache.iota) setIotaData(localCache.iota);
+      if (localCache.lighthouse) setLighthouseData(localCache.lighthouse);
+    }
+
     if (isOffline) {
-      const localCache = loadCachedReferenceData();
-      if (localCache) {
-        if (localCache.sota) setSotaData(localCache.sota);
-        if (localCache.pota) setPotaData(localCache.pota);
-        if (localCache.hbff) setHbffData(localCache.hbff);
-        if (localCache.wwbota) setWwbotaData(localCache.wwbota);
-        if (localCache.castle) setCastleData(localCache.castle);
-        if (localCache.iota) setIotaData(localCache.iota);
-        if (localCache.lighthouse) setLighthouseData(localCache.lighthouse);
-      }
       setServerCacheLoaded(true);
       setServerCacheLoading(false);
       return;
     }
-    // Online mode: bounds-based effect (below) fetches only visible references
+    // Online mode: local cache already loaded above for instant display.
+    // Bounds-based effect (below) fetches only visible references as diff/refresh.
   }, [isOffline]);
 
   // Bounds-based fetch: load only references within the current map viewport.
@@ -1198,6 +1201,8 @@ export default function Home() {
       {showChangelog && (
         <VersionChangelogPopup onClose={() => setShowChangelog(false)} />
       )}
+
+      <PreloadHint activeLayers={activeLayers} isLoading={isLoading} />
 
       <MapHeader
         searchQuery={searchQuery}

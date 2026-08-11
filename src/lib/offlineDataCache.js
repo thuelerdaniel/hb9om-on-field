@@ -65,6 +65,43 @@ export function isOfflineReady() {
   return !!localStorage.getItem(CACHE_KEY);
 }
 
+// Get total size of all hb9om_ localStorage keys in bytes
+export function getLocalCacheSize() {
+  let total = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("hb9om_")) {
+        const value = localStorage.getItem(key) || "";
+        total += key.length + value.length;
+      }
+    }
+  } catch {}
+  return total * 2; // UTF-16: 2 bytes per char
+}
+
+// Get cache stats: size, reference count, last cached date
+export function getLocalCacheStats() {
+  const size = getLocalCacheSize();
+  const cachedAt = getCachedAt();
+  const cache = loadCachedReferenceData();
+  let count = 0;
+  if (cache) {
+    for (const refs of Object.values(cache)) {
+      if (Array.isArray(refs)) count += refs.length;
+    }
+  }
+  return { size, count, cachedAt };
+}
+
+// Clear local reference cache (keeps other hb9om_ settings)
+export function clearLocalReferenceCache() {
+  localStorage.removeItem(CACHE_KEY);
+  localStorage.removeItem(OVERRIDES_KEY);
+  localStorage.removeItem(QRZ_CACHE_KEY);
+  localStorage.removeItem(TIMESTAMP_KEY);
+}
+
 export async function cacheFromServer() {
   try {
     const [cached, overrides, qrzLookups] = await Promise.all([

@@ -10,7 +10,7 @@ import BackupSection from "@/components/settings/BackupSection";
 import AdminPanel from "@/components/settings/AdminPanel";
 import { DEMO_EMAIL } from "@/lib/constants";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
-import { cacheFromServer, isOfflineReady, getCachedAt } from "@/lib/offlineDataCache";
+import { cacheFromServer, isOfflineReady, getCachedAt, getLocalCacheStats, clearLocalReferenceCache } from "@/lib/offlineDataCache";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -59,6 +59,9 @@ export default function Settings() {
   const [autoModeOverride, setAutoModeOverride] = useState(() => localStorage.getItem("hb9om_auto_mode_override") === "true");
   const [offlineReady, setOfflineReady] = useState(() => isOfflineReady());
   const [offlineCachedAt, setOfflineCachedAt] = useState(() => getCachedAt());
+  const [localCacheStats, setLocalCacheStats] = useState(() => getLocalCacheStats());
+  const [preloadingRefs, setPreloadingRefs] = useState(false);
+  const [preloadResult, setPreloadResult] = useState(null);
   const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
   const [adminPendingRequests, setAdminPendingRequests] = useState(0);
   const [adminPendingFeatureRequests, setAdminPendingFeatureRequests] = useState(0);
@@ -360,8 +363,43 @@ export default function Settings() {
       if (success) {
         setOfflineReady(true);
         setOfflineCachedAt(getCachedAt());
+        setLocalCacheStats(getLocalCacheStats());
       }
     }
+  };
+
+  const handlePreloadReferences = async () => {
+    setPreloadingRefs(true);
+    setPreloadResult(null);
+    try {
+      const success = await cacheFromServer();
+      if (success) {
+        setOfflineReady(true);
+        setOfflineCachedAt(getCachedAt());
+        setLocalCacheStats(getLocalCacheStats());
+        setPreloadResult({ success: true, message: "Referenzen erfolgreich lokal gespeichert" });
+      } else {
+        setPreloadResult({ success: false, message: "Fehler beim Laden der Referenzen" });
+      }
+    } catch (e) {
+      setPreloadResult({ success: false, message: "Fehler: " + (e.message || "unbekannt") });
+    } finally {
+      setPreloadingRefs(false);
+      setTimeout(() => setPreloadResult(null), 4000);
+    }
+  };
+
+  const handleClearLocalCache = () => {
+    clearLocalReferenceCache();
+    setOfflineReady(false);
+    setOfflineCachedAt(null);
+    setLocalCacheStats(getLocalCacheStats());
+  };
+
+  const formatBytes = (bytes) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1024 / 1024).toFixed(1) + " MB";
   };
 
   const handleToggleAutoUpdate = async (enabled) => {
@@ -810,6 +848,71 @@ export default function Settings() {
                   <Trash2 className="w-3.5 h-3.5" /> Alle Offline-Daten löschen ({storageInfo.tiles} Kacheln)
                 </button>
               )}
+            </div>
+          )}
+        </section>
+
+        {/* Referenzen lokal vorab laden */}
+        <section className="bg-white rounded-xl border border-gray-200 p-4">
+          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Database className="w-4 h-4" /> Referenzen lokal laden
+          </h2>
+          <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+            Lade alle Referenzdaten (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme) vorab auf dein Gerät. Die App startet dann sofort mit lokalen Daten und lädt nur noch Differenzen vom Server — deutlich schneller und offline nutzbar.
+          </p>
+
+          {/* Storage usage display */}
+          <div className="p-3 bg-gray-50 rounded-lg mb-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                <HardDrive className="w-3.5 h-3.5" /> Lokaler Speicher
+              </span>
+              <span className="text-xs font-bold text-gray-900">{formatBytes(localCacheStats.size)}</span>
+            </div>
+            {localCacheStats.count > 0 ? (
+              <div className="text-[11px] text-gray-500 space-y-0.5">
+                <p>{localCacheStats.count.toLocaleString("de-CH")} Referenzen gespeichert</p>
+                {localCacheStats.cachedAt && (
+                  <p>Zuletzt aktualisiert: {new Date(localCacheStats.cachedAt).toLocaleString("de-CH")}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-400">Noch keine Referenzen lokal gespeichert</p>
+            )}
+          </div>
+
+          {/* Preload button */}
+          <button
+            onClick={handlePreloadReferences}
+            disabled={preloadingRefs}
+            className="w-full px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            {preloadingRefs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {preloadingRefs ? "Wird geladen..." : "Referenzen jetzt laden"}
+          </button>
+
+          {preloadResult && (
+            <div className={`mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2 ${preloadResult.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+              {preloadResult.success
+                ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+              <span>{preloadResult.message}</span>
+            </div>
+          )}
+
+          {localCacheStats.count > 0 && (
+            <button
+              onClick={handleClearLocalCache}
+              className="w-full mt-2 px-4 py-2 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center justify-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Lokale Referenzen löschen
+            </button>
+          )}
+
+          {localCacheStats.count === 0 && (
+            <div className="mt-2 p-2.5 bg-amber-50 rounded-lg text-[11px] text-amber-700 flex items-start gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <span>Ohne lokalen Cache lädt die App bei jedem Start alle Referenzen vom Server. Bei mehreren aktiven Layern kann das mehrere Sekunden dauern.</span>
             </div>
           )}
         </section>
