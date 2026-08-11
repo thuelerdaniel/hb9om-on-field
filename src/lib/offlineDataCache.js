@@ -377,6 +377,16 @@ export async function cacheTypeFromServer(type) {
       // functions.invoke returns an Axios response — data is in response.data
       const refsData = response?.data?.references || response?.references || {};
       allRefs = refsData[type] || [];
+      // Fallback: if point entity is empty, load from ReferenceData (pre-migration data)
+      if (allRefs.length === 0) {
+        const entries = await base44.entities.ReferenceData.filter({ type });
+        allRefs = [];
+        (entries || []).forEach(entry => {
+          if (entry?.references && Array.isArray(entry.references)) {
+            allRefs = allRefs.concat(entry.references);
+          }
+        });
+      }
     } else {
       // Load from ReferenceData entity
       const entries = await base44.entities.ReferenceData.filter({ type });
@@ -684,7 +694,6 @@ export function getOfflineReadiness() {
     lighthouse: stats.lighthouse.count > 0,
     repeater: stats.repeater.count > 0,
     private_nodes: stats.private_nodes.count > 0,
-    qrz: stats.qrz.count > 0,
     mapTiles: false, // set by caller from offlineMapStore
   };
   readiness.allRefs = readiness.sota && readiness.pota && readiness.hbff && readiness.wwbota &&
@@ -781,6 +790,16 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
       // functions.invoke returns an Axios response — data is in response.data
       const refsData = response?.data?.references || response?.references || {};
       allRefs = refsData[type] || [];
+      // Fallback: if point entity is empty, load from ReferenceData (pre-migration data)
+      if (allRefs.length === 0) {
+        const entries = await base44.entities.ReferenceData.filter({ type });
+        allRefs = [];
+        (entries || []).forEach(entry => {
+          if (entry?.references && Array.isArray(entry.references)) {
+            allRefs = allRefs.concat(entry.references);
+          }
+        });
+      }
     } else {
       // Load from ReferenceData entity
       const entries = await base44.entities.ReferenceData.filter({ type });

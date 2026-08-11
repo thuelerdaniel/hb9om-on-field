@@ -99,26 +99,15 @@ export async function loadAllPoints(
     console.error(`[loadAllPoints] entity not found: ${entityName}, asServiceRole=${!!base44.asServiceRole}`);
     return [];
   }
-  const PAGE_SIZE = 10000;
-  let all: any[] = [];
-  let skip = 0;
-
-  while (true) {
-    let page: any[];
-    try {
-      // list(sort, limit) — we use a high limit to minimize round-trips
-      page = await entity.list('-created_date', PAGE_SIZE);
-    } catch (e: any) {
-      console.error(`[loadAllPoints] list error for ${entityName}:`, e?.message || String(e));
-      break;
-    }
-    if (!page || page.length === 0) break;
-    all = all.concat(page);
-    if (page.length < PAGE_SIZE) break; // last page
-    skip += PAGE_SIZE;
-    // Safety: prevent infinite loop if list doesn't paginate
-    if (skip > 500000) break;
+  // SDK list() does not support skip/offset pagination. Use a single high-limit call.
+  // The SDK caps at its own internal max; if the entity has more records than the cap,
+  // some will be missed — but this is the best available approach without skip support.
+  const HIGH_LIMIT = 100000;
+  try {
+    const page = await entity.list('-created_date', HIGH_LIMIT);
+    return Array.isArray(page) ? page : [];
+  } catch (e: any) {
+    console.error(`[loadAllPoints] list error for ${entityName}:`, e?.message || String(e));
+    return [];
   }
-
-  return all;
 }

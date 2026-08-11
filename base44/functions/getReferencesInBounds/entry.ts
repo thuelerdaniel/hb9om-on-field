@@ -28,15 +28,27 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
   },
 };
 
+async function loadReferenceData(base44, type: string): Promise<any[]> {
+  const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
+  if (!records || records.length === 0) return [];
+  let refs: any[] = [];
+  for (const rec of records) {
+    if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
+  }
+  return refs;
+}
+
 async function loadType(base44, type: string): Promise<any[]> {
   // Point types (sota, pota, hbff) are NOT cached — they're loaded from individual
-  // entity records and the in-memory cache can go stale across Lambda instances
-  // (one instance may cache [] before data is synced, causing permanent empty results
-  // until that instance is recycled). Always load fresh from the database.
+  // entity records and the in-memory cache can go stale across Lambda instances.
+  // Always load fresh from the database. Fall back to ReferenceData if the point
+  // entity is empty (e.g. migration not yet completed, or fetch not yet run).
   if (POINT_TYPES[type]) {
     const ptConfig = POINT_TYPES[type];
     const points = await loadAllPoints(base44, ptConfig.entity);
-    return points.map(ptConfig.normalize);
+    if (points.length > 0) return points.map(ptConfig.normalize);
+    // Fallback: load from ReferenceData (pre-migration data)
+    return loadReferenceData(base44, type);
   }
 
   // Non-point types (wwbota, castle, iota, lighthouse) use ReferenceData arrays —
@@ -44,12 +56,7 @@ async function loadType(base44, type: string): Promise<any[]> {
   const cached = typeCache[type];
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
-  const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
-  if (!records || records.length === 0) return [];
-  let refs: any[] = [];
-  for (const rec of records) {
-    if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
-  }
+  const refs = await loadReferenceData(base44, type);
 
   // Only cache non-empty results — empty results might be temporary
   if (refs.length > 0) {

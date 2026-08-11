@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
 import {
   cacheTypeFromServer, cacheRepeatersFromServer, cachePrivateNodesFromServer,
-  cacheQrzFromServer, cacheFromServer, getReferenceTypeStats, clearReferenceType,
+  cacheFromServer, getReferenceTypeStats, clearReferenceType,
   getServerDataCounts, getOfflineReadiness, isOfflineReady, getCachedAt,
   getLocalCacheStats, clearLocalReferenceCache,
   getOfflineCountryFilter, getTruncatedFlag, getStoredServerCounts
@@ -80,7 +80,6 @@ export default function OfflineManager() {
     if (!readiness.lighthouse) missing.push("Leuchttürme");
     if (!readiness.repeater) missing.push("Relais");
     if (!readiness.private_nodes) missing.push("APRS-Nodes");
-    if (!readiness.qrz) missing.push("QRZ-Daten");
     if (!readiness.mapTiles) missing.push("Offline-Karten");
     setMissingHint(missing);
   }, []);
@@ -128,7 +127,6 @@ export default function OfflineManager() {
       let result;
       if (type === "repeater") result = await cacheRepeatersFromServer();
       else if (type === "private_nodes") result = await cachePrivateNodesFromServer();
-      else if (type === "qrz") result = await cacheQrzFromServer();
       else result = await cacheTypeFromServer(type);
 
       if (result.success) {
@@ -151,6 +149,8 @@ export default function OfflineManager() {
           description: desc,
           duration,
         });
+        // Update server counts immediately so truncation hints show right away
+        setServerCounts(prev => ({ ...prev, [type]: total }));
         refreshStats();
         loadData();
       } else {
@@ -164,7 +164,7 @@ export default function OfflineManager() {
   };
 
   const handleDownloadAll = async () => {
-    const types = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "private_nodes", "qrz"];
+    const types = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "private_nodes"];
     for (const type of types) {
       await handleDownloadType(type);
     }
@@ -202,7 +202,7 @@ export default function OfflineManager() {
     localStats.wwbota?.count > 0 && localStats.castle?.count > 0 && localStats.iota?.count > 0 && localStats.lighthouse?.count > 0;
   const fullyReady = allRefsReady && offlineAreas.length > 0;
 
-  const allTypes = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "private_nodes", "qrz"];
+  const allTypes = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "private_nodes"];
 
   return (
     <section className="bg-white rounded-xl border border-gray-200 p-4">
