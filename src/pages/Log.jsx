@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff, Upload } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff, Upload, CheckSquare, Square, User } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import AdifImportDialog from "@/components/log/AdifImportDialog";
+import BulkEditDialog from "@/components/log/BulkEditDialog";
 import PullToRefresh from "@/components/log/PullToRefresh";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -32,6 +33,9 @@ export default function Log() {
   const [view, setView] = useState("list");
   const [lastSync, setLastSync] = useState(getLastSync());
   const [pendingCount, setPendingCount] = useState(getPendingCount());
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
 
   useEffect(() => {
     loadEntries();
@@ -195,6 +199,16 @@ export default function Log() {
           >
             {view === "list" ? <BarChart3 className="w-5 h-5" /> : <List className="w-5 h-5" />}
           </button>
+          <button
+            onClick={() => {
+              setSelectMode(!selectMode);
+              setSelectedIds([]);
+            }}
+            className={`p-1.5 rounded-lg ${selectMode ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}
+            title={selectMode ? "Auswahl beenden" : "Mehrfachauswahl"}
+          >
+            <CheckSquare className="w-5 h-5" />
+          </button>
           <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
             <HelpCircle className="w-5 h-5" />
           </Link>
@@ -205,6 +219,30 @@ export default function Log() {
         {view === "stats" && <LogStats entries={entries} />}
         {view === "list" && (
         <PullToRefresh onRefresh={loadEntries}>
+        {/* Bulk action bar (select mode) */}
+        {selectMode && (
+          <div className="bg-blue-600 text-white rounded-xl p-3 mb-4 flex items-center gap-2">
+            <button
+              onClick={() => {
+                const allIds = filtered.map(e => e.id);
+                setSelectedIds(selectedIds.length === allIds.length ? [] : allIds);
+              }}
+              className="px-3 py-1.5 text-sm font-medium bg-white/20 rounded-lg hover:bg-white/30 flex items-center gap-1.5"
+            >
+              {selectedIds.length === filtered.length && filtered.length > 0 ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+              {selectedIds.length === filtered.length && filtered.length > 0 ? "Alle abwählen" : "Alle auswählen"}
+            </button>
+            <span className="text-sm font-medium flex-1">{selectedIds.length} ausgewählt</span>
+            <button
+              onClick={() => setShowBulkEdit(true)}
+              disabled={selectedIds.length === 0}
+              className="px-3 py-1.5 text-sm font-medium bg-white text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <User className="w-4 h-4" /> Umbuchen
+            </button>
+          </div>
+        )}
+
         {/* Toolbar */}
         <div className={`bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-3 mb-4 flex flex-wrap items-center gap-2`}>
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
@@ -295,9 +333,31 @@ export default function Log() {
             {filtered.map(entry => (
               <div
                 key={entry.id}
-                className={`bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border p-4 ${entry.status === "archived" ? "border-gray-100 dark:border-slate-800 opacity-60" : "border-gray-200 dark:border-slate-700"}`}
+                onClick={() => {
+                  if (!selectMode) return;
+                  setSelectedIds(prev =>
+                    prev.includes(entry.id) ? prev.filter(id => id !== entry.id) : [...prev, entry.id]
+                  );
+                }}
+                className={`bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border p-4 ${entry.status === "archived" ? "border-gray-100 dark:border-slate-800 opacity-60" : "border-gray-200 dark:border-slate-700"} ${selectMode && selectedIds.includes(entry.id) ? "ring-2 ring-blue-500 border-blue-400" : ""} ${selectMode ? "cursor-pointer" : ""}`}
               >
                 <div className="flex items-start justify-between gap-3">
+                  {selectMode && (
+                    <button
+                      onClick={() => {
+                        setSelectedIds(prev =>
+                          prev.includes(entry.id) ? prev.filter(id => id !== entry.id) : [...prev, entry.id]
+                        );
+                      }}
+                      className="flex-shrink-0 mt-0.5"
+                    >
+                      {selectedIds.includes(entry.id) ? (
+                        <CheckSquare className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <Square className="w-5 h-5 text-gray-300" />
+                      )}
+                    </button>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-bold text-gray-900 text-sm">{entry.callsign}{entry.callsign_suffix}</span>
@@ -345,6 +405,7 @@ export default function Log() {
                     )}
                     {entry.notes && <p className="text-xs text-gray-400 mt-1 italic">{entry.notes}</p>}
                   </div>
+                  {!selectMode && (
                   <div className="flex flex-col gap-1">
                     {entry.status !== "archived" && (
                       <button
@@ -380,6 +441,7 @@ export default function Log() {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -403,6 +465,20 @@ export default function Log() {
         <AdifImportDialog
           onClose={() => setShowImport(false)}
           onImported={loadEntries}
+        />
+      )}
+
+      {showBulkEdit && (
+        <BulkEditDialog
+          selectedIds={selectedIds}
+          entries={entries}
+          onClose={() => setShowBulkEdit(false)}
+          onApplied={() => {
+            setShowBulkEdit(false);
+            setSelectMode(false);
+            setSelectedIds([]);
+            loadEntries();
+          }}
         />
       )}
 

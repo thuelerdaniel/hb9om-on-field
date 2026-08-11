@@ -217,6 +217,64 @@ export async function deleteMany(ids) {
   }
 }
 
+// Bulk update: apply the same payload to multiple entries (optimistic, background sync).
+export function bulkUpdate(ids, payload) {
+  const local = loadLocal();
+  const idSet = new Set(ids);
+  for (let i = 0; i < local.length; i++) {
+    if (idSet.has(local[i].id)) {
+      local[i] = { ...local[i], ...payload, updated_date: new Date().toISOString() };
+    }
+  }
+  saveLocal(local);
+  notifyCacheChanged();
+
+  if (isOnline()) {
+    (async () => {
+      for (const id of ids) {
+        // Skip offline/optimistic temp IDs — mark as pending update
+        if (id.startsWith("offline_") || id.startsWith("optimistic_")) {
+          const cur = loadLocal();
+          const idx = cur.findIndex(e => e.id === id);
+          if (idx >= 0) {
+            cur[idx]._pendingSync = true;
+            saveLocal(cur);
+          }
+          continue;
+        }
+        try {
+          const entry = await base44.entities.Log.update(id, payload);
+          const cur = loadLocal();
+          const i = cur.findIndex(e => e.id === id);
+          if (i >= 0) {
+            cur[i] = { ...cur[i], ...entry };
+            saveLocal(cur);
+          }
+        } catch (e) {
+          const cur = loadLocal();
+          const i = cur.findIndex(e => e.id === id);
+          if (i >= 0) {
+            cur[i]._pendingUpdate = true;
+            saveLocal(cur);
+          }
+        }
+      }
+      notifyCacheChanged();
+    })();
+  } else {
+    for (const id of ids) {
+      if (!id.startsWith("offline_") && !id.startsWith("optimistic_")) {
+        const cur = loadLocal();
+        const idx = cur.findIndex(e => e.id === id);
+        if (idx >= 0) {
+          cur[idx]._pendingUpdate = true;
+          saveLocal(cur);
+        }
+      }
+    }
+  }
+}
+
 // Retry all pending operations (creates, updates, deletes).
 // Optimistic in-flight entries are skipped — they have their own background sync.
 export async function syncPending() {
