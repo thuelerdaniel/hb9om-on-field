@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircl
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
+import OfflineChecklist from "@/components/help/OfflineChecklist";
 import { generateFlyer } from "@/lib/generateFlyer";
 import { generateHelpPdf } from "@/lib/generateHelpPdf";
 import { generateAdminHelpPdf } from "@/lib/generateAdminHelpPdf";
@@ -94,18 +95,23 @@ const SECTIONS = [
       },
       {
         title: "Offline-Modus manuell aktivieren",
-        body: "Klicken Sie auf das Wifi-Icon links neben der Karte, um den Offline-Modus manuell zu aktivieren oder zu deaktivieren. Im Offline-Modus werden Kartenkacheln aus dem Cache geladen (sofern zuvor heruntergeladen) und alle Referenzpunkte aus dem lokalen Speicher angezeigt. QSOs können weiterhin erfasst werden und werden bei Wiederherstellung der Verbindung synchronisiert. Der manuelle Offline-Modus kann auch in den Einstellungen unter «Offline-Modus» ein- und ausgeschaltet werden.",
+        body: "Klicken Sie auf das Wifi-Icon links neben der Karte, um den Offline-Modus manuell zu aktivieren oder zu deaktivieren. Im Offline-Modus werden Kartenkacheln aus dem Cache geladen (sofern zuvor heruntergeladen) und alle Referenzpunkte aus dem lokalen Speicher angezeigt. QSOs können weiterhin erfasst werden und werden bei Wiederherstellung der Verbindung synchronisiert. Der manuelle Offline-Modus kann auch in den Einstellungen unter «Offline-Modus & lokaler Speicher» ein- und ausgeschaltet werden.",
         example: "Wifi-Icon klicken → Symbol wird gelb → Offline-Modus aktiv → Kacheln aus Cache werden angezeigt."
       },
       {
         title: "Offline-Karten herunterladen & verwalten",
-        body: "Mit dem Download-Icon links neben der Karte können Sie Kartenausschnitte für die Offline-Nutzung herunterladen. Wählen Sie die Zoom-Stufen und laden Sie die Kacheln herunter. In den Einstellungen unter «Heruntergeladene Karten» sehen Sie alle gespeicherten Gebiete mit Grösse und Datum. Einzelne Gebiete oder alle Offline-Daten können dort gelöscht werden.",
+        body: "Mit dem Download-Icon links neben der Karte können Sie Kartenausschnitte für die Offline-Nutzung herunterladen. Wählen Sie die Zoom-Stufen und laden Sie die Kacheln herunter. In den Einstellungen unter «Offline-Modus & lokaler Speicher» im Bereich «Offline-Karten» sehen Sie alle gespeicherten Gebiete mit Grösse und Datum. Einzelne Gebiete oder alle Offline-Daten können dort gelöscht werden.",
         example: "Download-Icon → Gebiet auf Karte wählen → Zoom-Stufen auswählen → Download starten → in Einstellungen verwalten."
       },
       {
-        title: "Daten für Offline-Nutzung speichern",
-        body: "Wenn Sie den Offline-Modus zum ersten Mal aktivieren (Wifi-Icon auf der Karte oder Schalter in den Einstellungen), werden alle aktuell geladenen Referenzdaten (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme) sowie alle Namens-Anpassungen lokal im Browser gespeichert. So können Sie die Karte, Referenzen und das Logbuch auch ohne Internetverbindung nutzen. In den Einstellungen sehen Sie einen Status, ob die App offline-bereit ist und wann die Daten zuletzt gespeichert wurden.",
-        example: "Wifi-Icon auf Karte klicken → «Daten für Offline-Nutzung gespeichert» → alle Referenzen und Logbuch offline nutzbar."
+        title: "100% Offline-Checkliste",
+        body: "Oben in der Hilfe finden Sie eine interaktive Checkliste, die Sie Schritt für Schritt zu einer 100% offline-fähigen App führt. Jeder Schritt hat einen direkten Link zum entsprechenden Bereich in der App (Einstellungen oder Karte), damit Sie die Aktion direkt ausführen können. Die Checkliste erkennt automatisch, welche Daten bereits lokal gespeichert sind (Referenzen, Relais, APRS, QRZ, Offline-Karten) und hakt diese Schritte ab. Nur Backup erstellen und Offline-Modus testen müssen manuell abgehakt werden. Der Fortschritt wird als Prozentsatz angezeigt.",
+        example: "Checkliste oben in der Hilfe → «Alle laden» in Einstellungen klicken → Schritt wird automatisch grün → Fortschritt steigt."
+      },
+      {
+        title: "Daten pro Layer herunterladen",
+        body: "In den Einstellungen unter «Offline-Modus & lokaler Speicher» gibt es für jeden Daten-Typ einen eigenen Download-Button: SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme, Amateurfunk-Relais, APRS-Nodes und QRZ-Abfragen. Der Button «Alle laden» lädt alle Referenz-Typen auf einmal. Pro Layer wird angezeigt, wie viele Einträge lokal gespeichert sind und wie gross der Speicherbedarf ist. Bei veralteten Daten erscheint ein «Update verfügbar»-Hinweis.",
+        example: "Einstellungen → «Offline-Modus & lokaler Speicher» → «Alle laden» → alle Layer werden nacheinander heruntergeladen."
       },
       {
         title: "Was offline funktioniert – und was nicht",
@@ -303,9 +309,9 @@ const SECTIONS = [
         example: "Einstellungen → «Meine Änderungsanträge» → «Anträge» → Status siehen oder zurückziehen."
       },
       {
-        title: "Offline-Modus & Bereitschaft",
-        body: "In den Einstellungen unter «Offline-Modus» können Sie den manuellen Offline-Modus mit einem Schalter ein- und ausschalten. Beim Aktivieren werden alle Referenzdaten lokal gespeichert. Ein Status zeigt an, ob die App bereit für die Offline-Nutzung ist und wann die Daten zuletzt gespeichert wurden. Zudem werden hier alle heruntergeladenen Offline-Karten aufgelistet. Einzelne Gebiete können gelöscht werden, oder alle Offline-Daten auf einmal.",
-        example: "Offline-Modus Schalter aktivieren → «App bereit für Offline-Nutzung» → Referenzdaten gespeichert → heruntergeladene Karten verwalten."
+        title: "Offline-Modus & lokaler Speicher",
+        body: "In den Einstellungen unter «Offline-Modus & lokaler Speicher» (eine vereinheitlichte Sektion) finden Sie alles für den Offline-Betrieb an einem Ort: 1) Schalter für den manuellen Offline-Modus, 2) Bereitschaftsanzeige mit Liste der noch fehlenden Daten, 3) Gesamtspeicher-Übersicht (Grösse und Referenzanzahl), 4) Pro-Layer-Schalter mit Download-Buttons für jeden Daten-Typ (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme, Relais, APRS, QRZ), 5) «Alle laden»-Button für alle Referenz-Typen auf einmal, 6) Offline-Karten-Verwaltung mit Grössenangaben, 7) «Alle Offline-Daten löschen»-Button. Die obige Offline-Checkliste in der Hilfe führt Schritt für Schritt durch alle Punkte.",
+        example: "Einstellungen → «Offline-Modus & lokaler Speicher» → «Alle laden» → Bereitschaftsanzeige wird grün → Offline-Modus testen."
       },
       {
         title: "Konto löschen",
@@ -698,6 +704,9 @@ export default function Help() {
 
         {/* Bandplan - direkt nach PayPal-Spende */}
         <BandPlanInfo />
+
+        {/* Offline-Checkliste – Schritt fuer Schritt zu 100% Offline */}
+        <OfflineChecklist />
 
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">
           <p className="font-semibold mb-1">Willkommen bei HB9OM On Field!</p>

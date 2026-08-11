@@ -206,25 +206,40 @@ export const SECTIONS = [
       },
       {
         title: "Offline-Modus aktivieren",
-        body: "Klicken Sie auf das Wifi-Icon, um den Offline-Modus manuell zu aktivieren oder zu deaktivieren. Im Offline-Modus werden Kartenkacheln aus dem Cache geladen und alle Referenzpunkte aus dem lokalen Speicher angezeigt. QSOs können weiterhin erfasst werden.",
+        body: "Klicken Sie auf das Wifi-Icon, um den Offline-Modus manuell zu aktivieren oder zu deaktivieren. Im Offline-Modus werden Kartenkacheln aus dem Cache geladen und alle Referenzpunkte aus dem lokalen Speicher angezeigt. QSOs können weiterhin erfasst werden. Der Offline-Modus kann auch in den Einstellungen unter «Offline-Modus & lokaler Speicher» ein- und ausgeschaltet werden.",
         steps: [
           { icon: "wifi", text: "Wifi-Icon (links neben der Karte) antippen" },
           { icon: "wifiOff", text: "Symbol wird gelb – Offline-Modus aktiv" },
-          { icon: "database", text: "Referenzdaten werden lokal gespeichert" },
+          { icon: "database", text: "Referenzdaten aus lokalem Speicher werden angezeigt" },
           { icon: "radio", text: "QSOs können offline erfasst werden" },
           { icon: "cloud", text: "Bei Online-Verbindung wird synchronisiert" }
         ],
-        tip: "Tipp: Beim ersten Aktivieren werden alle Referenzdaten lokal gespeichert. Das kann einen Moment dauern."
+        tip: "Tipp: In der Hilfe oben gibt es eine Offline-Checkliste, die Schritt für Schritt zu 100% Offline führt."
+      },
+      {
+        title: "100% Offline-Checkliste",
+        body: "In der Hilfe oben finden Sie eine interaktive Checkliste, die Sie Schritt für Schritt zu einer 100% offline-fähigen App führt. Jeder Schritt hat einen direkten Link zum entsprechenden Bereich in der App. Die Checkliste erkennt automatisch, welche Daten bereits lokal gespeichert sind. Folgende Schritte sind nötig: 1) Rufzeichen im Profil erfassen, 2) Alle Referenz-Layer herunterladen (Button «Alle laden»), 3) Relais-Daten herunterladen, 4) APRS-Nodes herunterladen, 5) QRZ-Abfragen zwischenspeichern, 6) Offline-Karten herunterladen, 7) Backup erstellen, 8) Offline-Modus testen.",
+        steps: [
+          { icon: "user", text: "Schritt 1: Rufzeichen im Profil erfassen (Einstellungen)" },
+          { icon: "database", text: "Schritt 2: «Alle laden» in Einstellungen → Offline-Modus & lokaler Speicher" },
+          { icon: "radioTower", text: "Schritt 3: Relais-Daten herunterladen (gleiche Sektion)" },
+          { icon: "wifi", text: "Schritt 4: APRS-Nodes herunterladen (gleiche Sektion)" },
+          { icon: "search", text: "Schritt 5: QRZ-Abfragen zwischenspeichern (gleiche Sektion)" },
+          { icon: "download", text: "Schritt 6: Offline-Karten herunterladen (Karte → Download-Icon)" },
+          { icon: "cloud", text: "Schritt 7: Backup erstellen (Einstellungen → Datensicherung)" },
+          { icon: "wifiOff", text: "Schritt 8: Offline-Modus aktivieren und testen" }
+        ],
+        tip: "Tipp: Schritte 1–6 werden automatisch erkannt. Schritte 7 und 8 manuell abhaken."
       },
       {
         title: "Offline-Karten herunterladen",
-        body: "Mit dem Download-Icon können Sie Kartenausschnitte für die Offline-Nutzung herunterladen. Wählen Sie die Zoom-Stufen und laden Sie die Kacheln herunter.",
+        body: "Mit dem Download-Icon können Sie Kartenausschnitte für die Offline-Nutzung herunterladen. Wählen Sie die Zoom-Stufen und laden Sie die Kacheln herunter. In den Einstellungen unter «Offline-Modus & lokaler Speicher» im Bereich «Offline-Karten» sehen Sie alle gespeicherten Gebiete.",
         steps: [
           { icon: "download", text: "Download-Icon (links) antippen" },
           { icon: "mapPin", text: "Gebiet auf der Karte auswählen" },
           { icon: "layers", text: "Zoom-Stufen auswählen" },
           { icon: "download", text: "Download starten – Fortschritt wird angezeigt" },
-          { icon: "settings", text: "In Einstellungen unter «Heruntergeladene Karten» verwalten" }
+          { icon: "settings", text: "In Einstellungen unter «Offline-Modus & lokaler Speicher» verwalten" }
         ]
       },
       {
@@ -494,14 +509,18 @@ export const SECTIONS = [
         warning: "ACHTUNG: Das Löschen von Cloud-Backups ist unwiderruflich! Gelöschte Dateien können nicht wiederhergestellt werden."
       },
       {
-        title: "Offline-Modus und Bereitschaft",
-        body: "In den Einstellungen unter «Offline-Modus» können Sie den manuellen Offline-Modus mit einem Schalter ein- und ausschalten. Beim Aktivieren werden alle Referenzdaten lokal gespeichert. Ein Status zeigt an, ob die App bereit für die Offline-Nutzung ist.",
+        title: "Offline-Modus & lokaler Speicher (vereinheitlicht)",
+        body: "In den Einstellungen unter «Offline-Modus & lokaler Speicher» finden Sie alles für den Offline-Betrieb an einem Ort: Schalter für den Offline-Modus, Bereitschaftsanzeige mit fehlenden Daten, Gesamtspeicher-Übersicht, Pro-Layer-Schalter mit Download-Buttons für jeden Daten-Typ (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme, Relais, APRS, QRZ), «Alle laden»-Button, Offline-Karten-Verwaltung und «Alle Offline-Daten löschen». Die Offline-Checkliste in der Hilfe führt Schritt für Schritt durch alle Punkte.",
         steps: [
-          { icon: "wifi", text: "Offline-Modus in Einstellungen aktivieren" },
-          { icon: "database", text: "Alle Referenzdaten werden gespeichert" },
-          { icon: "check", text: "Status zeigt «App bereit für Offline-Nutzung»" },
-          { icon: "download", text: "Heruntergeladene Karten verwalten" }
-        ]
+          { icon: "wifi", text: "Offline-Modus Schalter aktivieren/deaktivieren" },
+          { icon: "database", text: "Pro Layer: Download-Button für jeden Daten-Typ" },
+          { icon: "download", text: "«Alle laden» lädt alle Referenz-Typen auf einmal" },
+          { icon: "check", text: "Bereitschaftsanzeige: was fehlt für 100% Offline" },
+          { icon: "hardDrive", text: "Speicher-Übersicht: Grösse und Referenzanzahl" },
+          { icon: "mapPin", text: "Offline-Karten: Gebiete verwalten und löschen" },
+          { icon: "trash2", text: "«Alle Offline-Daten löschen» für kompletten Reset" }
+        ],
+        tip: "Tipp: Die Offline-Checkliste in der Hilfe (oben) hat direkte Links zu jedem Schritt."
       },
       {
         title: "Meine Änderungsanträge",
@@ -846,8 +865,11 @@ export const SETUP_CHECKLIST = [
       { text: "Gewünschte Referenz-Layer aktivieren (SOTA, POTA, etc.)", mandatory: true },
       { text: "Hintergrundkarte wählen (Strassenkarte, Satellit, SwissTopo)", mandatory: false },
       { text: "Kartenmassstab festlegen (z.B. 1:25'000 für SOTA)", mandatory: false },
-      { text: "Offline-Karten für Einsatzgebiete herunterladen", mandatory: false },
-      { text: "Offline-Modus aktivieren und Referenzdaten lokal speichern", mandatory: false }
+      { text: "Offline-Karten für Einsatzgebiete herunterladen (Download-Icon auf Karte)", mandatory: false },
+      { text: "Referenzdaten pro Layer herunterladen (Einstellungen → Offline-Modus → «Alle laden»)", mandatory: false },
+      { text: "Relais- und APRS-Daten lokal speichern (Einstellungen → Offline-Modus)", mandatory: false },
+      { text: "QRZ-Abfragen zwischenspeichern (Einstellungen → Offline-Modus)", mandatory: false },
+      { text: "Offline-Modus aktivieren und testen (Wifi-Icon auf Karte)", mandatory: false }
     ]
   },
   {
