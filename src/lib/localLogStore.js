@@ -124,7 +124,7 @@ export function createEntry(payload) {
 }
 
 // Optimistic update: write to local cache immediately, sync to server in background.
-// Returns immediately so the form closes without waiting on the server.
+// Returns immediately so the form closes without waiting for the server.
 export function updateEntry(id, payload) {
   const local = loadLocal();
   const idx = local.findIndex(e => e.id === id);
@@ -220,62 +220,28 @@ export async function deleteMany(ids) {
   }
 }
 
-// Bulk update: apply the same payload to multiple entries (optimistic, background sync).
+// Bulk update: apply the same payload to multiple entries (optimistic, no background sync).
+// Marks entries as _pendingUpdate (real server IDs) or _pendingSync (temp IDs) so that
+// syncPending() - called by loadEntries() - handles the server update in a single pass.
+// This avoids the race condition where bulkUpdate's background sync and syncPending both
+// write to the local cache concurrently, overwriting each other's changes.
 export function bulkUpdate(ids, payload) {
   const local = loadLocal();
   const idSet = new Set(ids);
   for (let i = 0; i < local.length; i++) {
     if (idSet.has(local[i].id)) {
-      local[i] = { ...local[i], ...payload, updated_date: new Date().toISOString(), _pendingUpdate: true };
+      const isTemp = local[i].id.startsWith("offline_") || local[i].id.startsWith("optimistic_");
+      local[i] = {
+        ...local[i],
+        ...payload,
+        updated_date: new Date().toISOString(),
+        _pendingUpdate: !isTemp,
+        _pendingSync: isTemp ? true : (local[i]._pendingSync || false),
+      };
     }
   }
   saveLocal(local);
   notifyCacheChanged();
-
-  if (isOnline()) {
-    (async () => {
-      for (const id of ids) {
-        // Skip offline/optimistic temp IDs — mark as pending sync
-        if (id.startsWith("offline_") || id.startsWith("optimistic_")) {
-          const cur = loadLocal();
-          const idx = cur.findIndex(e => e.id === id);
-          if (idx >= 0) {
-            cur[idx]._pendingSync = true;
-            saveLocal(cur);
-          }
-          continue;
-        }
-        try {
-          const entry = await base44.entities.Log.update(id, payload);
-          const cur = loadLocal();
-          const i = cur.findIndex(e => e.id === id);
-          if (i >= 0) {
-            cur[i] = { ...cur[i], ...entry, _pendingUpdate: false };
-            saveLocal(cur);
-          }
-        } catch (e) {
-          const cur = loadLocal();
-          const i = cur.findIndex(e => e.id === id);
-          if (i >= 0) {
-            cur[i]._pendingUpdate = true;
-            saveLocal(cur);
-          }
-        }
-      }
-      notifyCacheChanged();
-    })();
-  } else {
-    for (const id of ids) {
-      if (!id.startsWith("offline_") && !id.startsWith("optimistic_")) {
-        const cur = loadLocal();
-        const idx = cur.findIndex(e => e.id === id);
-        if (idx >= 0) {
-          cur[idx]._pendingUpdate = true;
-          saveLocal(cur);
-        }
-      }
-    }
-  }
 }
 
 // Retry all pending operations (creates, updates, deletes).
