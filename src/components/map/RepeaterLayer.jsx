@@ -102,6 +102,8 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
   // Filter repeaters by continent, country, mode, search, and radius
   const filteredRepeaters = useMemo(() => {
     let result = repeaters;
+    // Exclude repeaters without coordinates — they can't be placed on the map
+    result = result.filter(r => r.lat != null && r.lng != null);
     // Apply LayerControl continent/country filter (same as other markers)
     if (activeContinents && activeContinents.length > 0) {
       result = result.filter(r => r.lat != null && r.lng != null && isInContinents(r.lat, r.lng, activeContinents));

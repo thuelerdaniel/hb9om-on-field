@@ -160,39 +160,39 @@ export default function TotaManager() {
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4">
-      <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+    <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+      <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
         <RadioTower className="w-4 h-4 text-orange-600" /> TOTA – Towers on the Air
       </h2>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="bg-gray-50 rounded-lg p-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase font-semibold">
+        <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 uppercase font-semibold">
             <Signal className="w-3 h-3 text-purple-500" /> Antennen (CH)
           </div>
           <p className="text-lg font-bold text-purple-600 mt-0.5">
             {loading ? "…" : (stats?.antennas || 0).toLocaleString("de-CH")}
           </p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase font-semibold">
+        <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 uppercase font-semibold">
             <RadioTower className="w-3 h-3 text-orange-500" /> Türme (CH)
           </div>
           <p className="text-lg font-bold text-orange-600 mt-0.5">
             {loading ? "…" : (stats?.towers || 0).toLocaleString("de-CH")}
           </p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase font-semibold">
-            <Database className="w-3 h-3 text-gray-400" /> Schweiz (CSV)
+        <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 uppercase font-semibold">
+            <Database className="w-3 h-3 text-gray-400 dark:text-slate-500" /> Schweiz (CSV)
           </div>
           <p className="text-lg font-bold text-gray-700 mt-0.5">
             {loading ? "…" : (stats?.swiss || 0).toLocaleString("de-CH")}
           </p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase font-semibold">
+        <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 uppercase font-semibold">
             <Globe className="w-3 h-3 text-blue-400" /> Worldwide
           </div>
           <p className="text-lg font-bold text-blue-600 mt-0.5">
@@ -203,10 +203,10 @@ export default function TotaManager() {
 
       {/* Swiss CSV Upload */}
       <div className="mb-4">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        <h3 className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-2">
           Schweiz: CSV-Dateien hochladen
         </h3>
-        <p className="text-[10px] text-gray-400 mb-2">
+        <p className="text-[10px] text-gray-400 dark:text-slate-500 mb-2">
           Antennen.csv (Spalten: OBJEKTART;X_Koord;Y_Koord) und Turm.csv (Spalten: OBJEKTART;NUTZUNG;NAME;X_KOORD;Y_KOORD) mit LV95-Koordinaten.
         </p>
         <div className="flex gap-2 mb-2">
@@ -232,7 +232,7 @@ export default function TotaManager() {
               type="file"
               accept=".csv"
               onChange={(e) => setAntennasFile(e.target.files[0])}
-              className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-purple-50 file:text-purple-700 file:font-medium file:cursor-pointer hover:file:bg-purple-100"
+              className="w-full text-xs text-gray-500 dark:text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-purple-50 file:text-purple-700 file:font-medium file:cursor-pointer hover:file:bg-purple-100"
             />
             {antennasFile && (
               <p className="text-[10px] text-green-600 mt-0.5 flex items-center gap-1">
@@ -248,7 +248,7 @@ export default function TotaManager() {
               type="file"
               accept=".csv"
               onChange={(e) => setTowersFile(e.target.files[0])}
-              className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-orange-50 file:text-orange-700 file:font-medium file:cursor-pointer hover:file:bg-orange-100"
+              className="w-full text-xs text-gray-500 dark:text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-orange-50 file:text-orange-700 file:font-medium file:cursor-pointer hover:file:bg-orange-100"
             />
             {towersFile && (
               <p className="text-[10px] text-green-600 mt-0.5 flex items-center gap-1">
@@ -273,10 +273,10 @@ export default function TotaManager() {
 
       {/* Worldwide Refresh */}
       <div className="mb-3">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        <h3 className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-2">
           Worldwide: wwtota.com aktualisieren
         </h3>
-        <p className="text-[10px] text-gray-400 mb-2">
+        <p className="text-[10px] text-gray-400 dark:text-slate-500 mb-2">
           Lädt TOTA-Türme weltweit von wwtota.com (5300+ Türme in 17 Ländern).
           Koordinaten werden aus Maidenhead-Locatoren berechnet.
         </p>
@@ -296,7 +296,7 @@ export default function TotaManager() {
 
       {/* Import Result */}
       {importResult && (
-        <div className="mt-3 p-2.5 bg-green-50 border border-green-200 rounded-lg text-xs">
+        <div className="mt-3 p-2.5 bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-lg text-xs">
           <div className="flex items-center gap-1.5 text-green-700 font-medium mb-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> Import erfolgreich
           </div>

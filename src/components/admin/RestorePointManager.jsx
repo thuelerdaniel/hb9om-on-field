@@ -83,11 +83,11 @@ export default function RestorePointManager() {
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4">
-      <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-1.5">
+    <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
         <History className="w-4 h-4 text-indigo-600" /> Restore Points
       </h3>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
         Erstellt einen Wiederherstellungspunkt der aktuellen Datenbank. Kann von Admins zurückgespielt werden, um zu einer früheren Version zurückzukehren.
       </p>
 
@@ -100,7 +100,7 @@ export default function RestorePointManager() {
             value={label}
             onChange={e => setLabel(e.target.value)}
             placeholder="z.B. v0.75"
-            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
           />
         </div>
         <button
@@ -154,23 +154,23 @@ export default function RestorePointManager() {
           <Loader2 className="w-6 h-6 animate-spin text-gray-300" />
         </div>
       ) : restorePoints.length === 0 ? (
-        <div className="text-center py-6 text-sm text-gray-400">
+        <div className="text-center py-6 text-sm text-gray-400 dark:text-slate-500">
           <Database className="w-8 h-8 text-gray-200 mx-auto mb-2" />
           Noch keine Restore Points vorhanden
         </div>
       ) : (
         <div className="space-y-2">
           {restorePoints.map(point => (
-            <div key={point.id} className="border border-gray-200 rounded-lg p-3">
+            <div key={point.id} className="border border-gray-200 dark:border-slate-700 rounded-lg p-3">
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900">{point.label}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-slate-100">{point.label}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-mono">
                       {point.total_records} Datensätze
                     </span>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">
                     {new Date(point.created_date).toLocaleString('de-CH')}
                   </p>
                 </div>

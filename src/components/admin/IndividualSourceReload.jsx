@@ -101,20 +101,20 @@ export default function IndividualSourceReload() {
   }, []);
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4">
+    <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
             <Database className="w-4 h-4 text-blue-600" /> Einzelne Datenquelle neu laden
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
             Jede externe Datenquelle einzeln aktualisieren — Ergebnisse werden im Log angezeigt
           </p>
         </div>
         {results.length > 0 && (
           <button
             onClick={clearLog}
-            className="text-xs text-gray-400 hover:text-gray-600"
+            className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400"
           >
             Log leeren
           </button>
@@ -132,8 +132,8 @@ export default function IndividualSourceReload() {
               disabled={loadingSource !== null}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border rounded-lg transition-colors disabled:opacity-40 ${
                 isLoading
-                  ? "bg-blue-50 border-blue-300 text-blue-600"
-                  : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 text-blue-600"
+                  : "bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-100"
               }`}
             >
               {isLoading ? (
@@ -153,7 +153,7 @@ export default function IndividualSourceReload() {
             <div
               key={i}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${
-                r.status === "success" ? "bg-green-50 border border-green-100" : "bg-red-50 border border-red-100"
+                r.status === "success" ? "bg-green-50 dark:bg-green-900/20 border border-green-100" : "bg-red-50 dark:bg-red-900/20 border border-red-100"
               }`}
             >
               {r.status === "success" ? (
@@ -161,15 +161,15 @@ export default function IndividualSourceReload() {
               ) : (
                 <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
               )}
-              <span className="font-semibold text-gray-900 min-w-[80px]">{r.label}</span>
+              <span className="font-semibold text-gray-900 dark:text-slate-100 min-w-[80px]">{r.label}</span>
               {r.status === "success" ? (
-                <span className="text-gray-600">
+                <span className="text-gray-600 dark:text-slate-400">
                   {r.count} Einträge · {r.withCoords} geo · {r.withoutCoords} offen
                 </span>
               ) : (
                 <span className="text-red-600 truncate">{r.error}</span>
               )}
-              <span className="ml-auto flex items-center gap-2 text-gray-400 flex-shrink-0">
+              <span className="ml-auto flex items-center gap-2 text-gray-400 dark:text-slate-500 flex-shrink-0">
                 <span>{(r.duration_ms / 1000).toFixed(1)}s</span>
                 <Clock className="w-3 h-3" />
                 <span>{new Date(r.timestamp).toLocaleTimeString('de-CH')}</span>

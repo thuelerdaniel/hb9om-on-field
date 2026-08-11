@@ -344,13 +344,13 @@ export default function ExternalSourcesList() {
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4">
+    <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
             <Database className="w-4 h-4 text-blue-600" /> Externe Datenquellen & Abrufmodalitäten
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
             Übersicht aller externen Datenquellen, ihrer API-Endpunkte, Authentifizierung und Abruf-Modalitäten
           </p>
         </div>
@@ -378,7 +378,7 @@ export default function ExternalSourcesList() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-gray-900">{src.name}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-slate-100">{src.name}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                     src.status.startsWith("Aktiv") ? "bg-green-100 text-green-700" :
                     src.status.includes("Verfügbar") ? "bg-blue-100 text-blue-700" :
@@ -387,12 +387,12 @@ export default function ExternalSourcesList() {
                     {src.status}
                   </span>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{src.modality} · {src.scope}</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{src.modality} · {src.scope}</div>
               </div>
               {expanded === idx ? (
-                <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <ChevronUp className="w-4 h-4 text-gray-400 dark:text-slate-500 flex-shrink-0" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <ChevronDown className="w-4 h-4 text-gray-400 dark:text-slate-500 flex-shrink-0" />
               )}
             </button>
 

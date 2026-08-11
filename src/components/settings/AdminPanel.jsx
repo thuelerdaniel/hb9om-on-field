@@ -128,13 +128,13 @@ export default function AdminPanel({
   return (
     <>
       {/* Change Request Review */}
-      <section className="bg-amber-50 rounded-xl border-2 border-amber-300 p-4">
+      <section className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border-2 border-amber-300 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
               <ClipboardList className="w-4 h-4 text-amber-600" /> Änderungsanträge prüfen
             </h3>
-            <p className="text-xs text-gray-600 mt-0.5">
+            <p className="text-xs text-gray-600 dark:text-slate-400 mt-0.5">
               Benutzer eingereichte Positions-Korrekturen genehmigen oder ablehnen
             </p>
             {adminPendingRequests > 0 && (
@@ -150,7 +150,7 @@ export default function AdminPanel({
             <ClipboardList className="w-4 h-4" />
             Prüfen
             {adminPendingRequests > 0 && (
-              <span className="absolute -top-2 -right-2 min-w-[20px] h-[20px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 min-w-[20px] h-[20px] px-1 bg-red-50 dark:bg-red-900/200 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                 {adminPendingRequests}
               </span>
             )}
@@ -159,13 +159,13 @@ export default function AdminPanel({
       </section>
 
       {/* Feature Requests Review */}
-      <section className="bg-purple-50 rounded-xl border-2 border-purple-300 p-4">
+      <section className="bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-300 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
               <Lightbulb className="w-4 h-4 text-purple-600" /> Funktionsvorschläge prüfen
             </h3>
-            <p className="text-xs text-gray-600 mt-0.5">Benutzer eingereichte Vorschläge prüfen und beantworten</p>
+            <p className="text-xs text-gray-600 dark:text-slate-400 mt-0.5">Benutzer eingereichte Vorschläge prüfen und beantworten</p>
             {adminPendingFeatureRequests > 0 && (
               <p className="text-xs text-purple-700 mt-1 font-medium flex items-center gap-1">
                 <Clock className="w-3 h-3" /> {adminPendingFeatureRequests} Vorschlag{adminPendingFeatureRequests !== 1 ? 'äge' : ''} wartet{adminPendingFeatureRequests !== 1 ? 'en' : ''} auf Prüfung
@@ -179,7 +179,7 @@ export default function AdminPanel({
             <Lightbulb className="w-4 h-4" />
             Prüfen
             {adminPendingFeatureRequests > 0 && (
-              <span className="absolute -top-2 -right-2 min-w-[20px] h-[20px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 min-w-[20px] h-[20px] px-1 bg-red-50 dark:bg-red-900/200 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                 {adminPendingFeatureRequests}
               </span>
             )}
@@ -188,13 +188,13 @@ export default function AdminPanel({
       </section>
 
       {/* User Management */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
               <Users className="w-4 h-4" /> Benutzerverwaltung
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">Angemeldete Benutzer sehen und Passwörter zurücksetzen</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Angemeldete Benutzer sehen und Passwörter zurücksetzen</p>
           </div>
           <Link
             to="/users"
@@ -208,12 +208,12 @@ export default function AdminPanel({
 
       {/* Cache Status */}
       <section>
-        <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+        <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
           <Database className="w-4 h-4" /> Daten-Cache
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {cacheStatus.length === 0 && !loading ? (
-            <div className="col-span-full bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">
+            <div className="col-span-full bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 text-center text-sm text-gray-400 dark:text-slate-500">
               Keine zwischengespeicherten Daten vorhanden
             </div>
           ) : (
@@ -225,10 +225,10 @@ export default function AdminPanel({
               const lastUpdated = entry.last_updated ? new Date(entry.last_updated) : null;
               const isStale = lastUpdated && (Date.now() - lastUpdated.getTime()) > 7 * 24 * 60 * 60 * 1000;
               return (
-                <div key={entry.id} className="bg-white rounded-xl border border-gray-200 p-3 overflow-hidden">
+                <div key={entry.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3 overflow-hidden">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-gray-900 truncate">{TYPE_LABELS[entry.type] || entry.type}</span>
-                    <span className="text-lg font-bold text-gray-900 flex-shrink-0">{total}</span>
+                    <span className="text-xs font-semibold text-gray-900 dark:text-slate-100 truncate">{TYPE_LABELS[entry.type] || entry.type}</span>
+                    <span className="text-lg font-bold text-gray-900 dark:text-slate-100 flex-shrink-0">{total}</span>
                   </div>
                   {refs.length > 0 ? (
                     <div className="flex items-center gap-2 mt-1 text-[10px]">
@@ -242,14 +242,14 @@ export default function AdminPanel({
                       )}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-gray-300 mt-1">Keine Referenzdetails</p>
+                    <p className="text-[10px] text-gray-300 dark:text-slate-600 mt-1">Keine Referenzdetails</p>
                   )}
-                  <p className={`text-[10px] mt-1 truncate ${isStale ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                  <p className={`text-[10px] mt-1 truncate ${isStale ? 'text-amber-600 font-medium' : 'text-gray-400 dark:text-slate-500'}`}>
                     {lastUpdated ? lastUpdated.toLocaleString('de-CH') : 'Nie'}
                     {isStale ? ' ⚠ veraltet' : ''}
                   </p>
                   {entry.source && (
-                    <p className="text-[10px] text-gray-400 truncate" title={entry.source}>Quelle: {entry.source}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500 truncate" title={entry.source}>Quelle: {entry.source}</p>
                   )}
                 </div>
               );
@@ -260,51 +260,51 @@ export default function AdminPanel({
 
       {/* Repeater Cache Status (separate card) */}
       {coverageProgress?.global && (
-        <section className="bg-blue-50 rounded-xl border-2 border-blue-200 p-4">
-          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+        <section className="bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-200 p-4">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
             <RadioTower className="w-4 h-4 text-blue-600" /> Relais-Cache & Abdeckung
           </h3>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
             <div className="text-center">
-              <div className="text-xl font-bold text-gray-900">{coverageProgress.global.totalRepeaters}</div>
-              <div className="text-[10px] text-gray-500">Relais gesamt</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{coverageProgress.global.totalRepeaters}</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">Relais gesamt</div>
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-blue-600">{coverageProgress.global.withCoords}</div>
-              <div className="text-[10px] text-gray-500">Mit Koordinaten</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">Mit Koordinaten</div>
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-green-600">{coverageProgress.global.aprsRefined}</div>
-              <div className="text-[10px] text-gray-500">APRS-verfeinert</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">APRS-verfeinert</div>
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-teal-600">{coverageProgress.global.terrainAdjusted || 0}</div>
-              <div className="text-[10px] text-gray-500">Gelände-adj.</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">Gelände-adj.</div>
             </div>
             <div className="text-center">
               <div className={`text-xl font-bold ${
                 coverageProgress.global.avgRefinementPct >= 60 ? 'text-green-600' :
-                coverageProgress.global.avgRefinementPct >= 30 ? 'text-amber-600' : 'text-gray-400'
+                coverageProgress.global.avgRefinementPct >= 30 ? 'text-amber-600' : 'text-gray-400 dark:text-slate-500'
               }`}>
                 {coverageProgress.global.avgRefinementPct}%
               </div>
-              <div className="text-[10px] text-gray-500">Ø Verfeinerung</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">Ø Verfeinerung</div>
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-amber-600">{coverageProgress.pendingRecalc || 0}</div>
-              <div className="text-[10px] text-gray-500">Neuberechnung offen</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">Neuberechnung offen</div>
             </div>
           </div>
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mt-3">
+          <div className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mt-3">
             <div
               className={`h-full rounded-full transition-all ${
-                coverageProgress.global.avgRefinementPct >= 60 ? 'bg-green-500' :
-                coverageProgress.global.avgRefinementPct >= 30 ? 'bg-amber-500' : 'bg-gray-400'
+                coverageProgress.global.avgRefinementPct >= 60 ? 'bg-green-50 dark:bg-green-900/200' :
+                coverageProgress.global.avgRefinementPct >= 30 ? 'bg-amber-50 dark:bg-amber-900/200' : 'bg-gray-400'
               }`}
               style={{ width: `${coverageProgress.global.avgRefinementPct}%` }}
             />
           </div>
-          <p className="text-[10px] text-gray-400 mt-1">
+          <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
             {coverageProgress.global.countriesCovered || 0} Länder · {coverageProgress.global.calculated || 0} Relais berechnet
           </p>
         </section>
@@ -312,46 +312,46 @@ export default function AdminPanel({
 
       {/* APRS Cache Status */}
       {aprsCache && aprsCache.total > 0 && (
-        <section className="bg-purple-50 rounded-xl border-2 border-purple-200 p-4">
-          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+        <section className="bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-200 p-4">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
             <Signal className="w-4 h-4 text-purple-600" /> APRS-Cache
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             <div className="text-center">
               <div className="text-xl font-bold text-purple-600">{aprsCache.total}</div>
-              <div className="text-[10px] text-gray-500">Stationen gesamt</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">Stationen gesamt</div>
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-blue-600">{aprsCache.byType.repeater_node || 0}</div>
-              <div className="text-[10px] text-gray-500">Digipeater</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">Digipeater</div>
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-indigo-600">{aprsCache.byType.echolink_node || 0}</div>
-              <div className="text-[10px] text-gray-500">IGates/EchoLink</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">IGates/EchoLink</div>
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-green-600">{aprsCache.byType.weather_station || 0}</div>
-              <div className="text-[10px] text-gray-500">Wetterstationen</div>
+              <div className="text-[10px] text-gray-500 dark:text-slate-400">Wetterstationen</div>
             </div>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {aprsCache.byType.hotspot > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Hotspots: {aprsCache.byType.hotspot}</span>}
             {aprsCache.byType.simplex_node > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">Simplex: {aprsCache.byType.simplex_node}</span>}
             {aprsCache.byType.allstar_node > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">AllStar: {aprsCache.byType.allstar_node}</span>}
-            {aprsCache.byType.other > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">Sonstige: {aprsCache.byType.other}</span>}
+            {aprsCache.byType.other > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:text-slate-300">Sonstige: {aprsCache.byType.other}</span>}
           </div>
-          <p className="text-[10px] text-gray-400 mt-2">Quelle: APRS.fi · Symbole nach APRS-Standard</p>
+          <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-2">Quelle: APRS.fi · Symbole nach APRS-Standard</p>
         </section>
       )}
 
       {/* Refresh / Auto-update */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100 dark:border-slate-700">
           <div className="flex-1">
-            <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+            <label className="text-sm font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
               <Clock className="w-4 h-4" /> Tägliche Automatik
             </label>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
               {autoUpdateEnabled ? "Referenzdaten werden täglich automatisch aktualisiert" : "Nur manuelle Aktualisierung – Automatik deaktiviert"}
             </p>
           </div>
@@ -366,8 +366,8 @@ export default function AdminPanel({
 
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Daten aktualisieren</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Alle Referenzdaten neu abrufen und zwischenspeichern</p>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Daten aktualisieren</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Alle Referenzdaten neu abrufen und zwischenspeichern</p>
           </div>
           <button
             onClick={handleRefresh}
@@ -379,7 +379,7 @@ export default function AdminPanel({
           </button>
         </div>
         {refreshResult && (
-          <div className={`mt-3 p-3 rounded-lg text-sm ${refreshResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+          <div className={`mt-3 p-3 rounded-lg text-sm ${refreshResult.error ? 'bg-red-50 dark:bg-red-900/20 text-red-700' : 'bg-green-50 dark:bg-green-900/20 text-green-700'}`}>
             {refreshResult.error
               ? `Fehler: ${refreshResult.error}`
               : `Aktualisierung abgeschlossen: ${refreshResult.results?.filter(r => r.status === 'success').length || 0}/${refreshResult.results?.length || 0} Quellen erfolgreich (${(refreshResult.total_duration_ms / 1000).toFixed(1)}s)`
@@ -389,18 +389,18 @@ export default function AdminPanel({
       </section>
 
       {/* Notification Settings */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
-        <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-1.5">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
           <Bell className="w-4 h-4" /> E-Mail-Benachrichtigungen
         </h3>
-        <p className="text-xs text-gray-500 mb-3">Wählen Sie, über welche Ereignisse Sie per E-Mail informiert werden möchten.</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">Wählen Sie, über welche Ereignisse Sie per E-Mail informiert werden möchten.</p>
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
             <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
                 <UserPlus className="w-3.5 h-3.5" /> Neue Benutzer
               </label>
-              <p className="text-xs text-gray-500 mt-0.5">Bei neuer Registrierung</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Bei neuer Registrierung</p>
             </div>
             <button
               onClick={() => handleToggleNotification("notify_new_user", !notifyNewUser, setNotifyNewUser)}
@@ -410,12 +410,12 @@ export default function AdminPanel({
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyNewUser ? 'translate-x-6' : ''}`} />
             </button>
           </div>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
             <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
                 <Database className="w-3.5 h-3.5" /> Datenbank-Updates
               </label>
-              <p className="text-xs text-gray-500 mt-0.5">Nach Aktualisierung der Referenzdaten</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Nach Aktualisierung der Referenzdaten</p>
             </div>
             <button
               onClick={() => handleToggleNotification("notify_db_update", !notifyDbUpdate, setNotifyDbUpdate)}
@@ -425,12 +425,12 @@ export default function AdminPanel({
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyDbUpdate ? 'translate-x-6' : ''}`} />
             </button>
           </div>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
             <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5" /> App-Fehler & Abstürze
               </label>
-              <p className="text-xs text-gray-500 mt-0.5">Bei Laufzeitfehlern in der App</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Bei Laufzeitfehlern in der App</p>
             </div>
             <button
               onClick={() => handleToggleNotification("notify_app_errors", !notifyAppErrors, setNotifyAppErrors)}
@@ -440,12 +440,12 @@ export default function AdminPanel({
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyAppErrors ? 'translate-x-6' : ''}`} />
             </button>
           </div>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
             <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5" /> Demo-Login
               </label>
-              <p className="text-xs text-gray-500 mt-0.5">Wenn sich jemand als Demo-Benutzer anmeldet</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Wenn sich jemand als Demo-Benutzer anmeldet</p>
             </div>
             <button
               onClick={() => handleToggleNotification("notify_demo_login", !notifyDemoLogin, setNotifyDemoLogin)}
@@ -460,30 +460,30 @@ export default function AdminPanel({
 
       {/* Sync Log */}
       <section>
-        <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+        <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
           <Clock className="w-4 h-4" /> Aktualisierungsprotokoll
         </h2>
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
+            <Loader2 className="w-8 h-8 animate-spin text-gray-300 dark:text-slate-600" />
           </div>
         ) : logs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-8 text-center">
             <Clock className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">Noch keine Aktualisierungen protokolliert</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">Noch keine Aktualisierungen protokolliert</p>
           </div>
         ) : (
           <div className="space-y-2">
             {logs.map(log => (
-              <div key={log.id} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div key={log.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <StatusIcon status={log.overall_status} />
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
                       {new Date(log.created_date).toLocaleString('de-CH')}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
+                  <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-slate-500">
                     <span>{log.trigger === 'manual' ? 'Manuell' : 'Automatisch'}</span>
                     <span>{(log.total_duration_ms / 1000).toFixed(1)}s</span>
                   </div>
@@ -496,16 +496,16 @@ export default function AdminPanel({
                           ? <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
                           : <XCircle className="w-3 h-3 text-red-500 flex-shrink-0" />
                         }
-                        <span className="text-gray-600">{TYPE_LABELS[r.type] || r.type}</span>
-                        <span className="text-gray-400 font-medium">{r.count}</span>
+                        <span className="text-gray-600 dark:text-slate-400">{TYPE_LABELS[r.type] || r.type}</span>
+                        <span className="text-gray-400 dark:text-slate-500 font-medium">{r.count}</span>
                         {r.error && <span className="text-red-400 truncate" title={r.error}>({r.error.slice(0, 30)})</span>}
                       </div>
                       {r.castleStats && (
-                        <div className="ml-5 flex items-center gap-2 text-[10px] text-gray-400">
+                        <div className="ml-5 flex items-center gap-2 text-[10px] text-gray-400 dark:text-slate-500">
                           <span className="text-green-600">{r.castleStats.matched} zugeordnet</span>
                           <span className="text-red-400">{r.castleStats.unmatched} offen</span>
                           {r.castleStats.bySource && Object.entries(r.castleStats.bySource).filter(([k]) => k !== 'unmatched' && k !== 'null').length > 0 && (
-                            <span className="text-gray-400">
+                            <span className="text-gray-400 dark:text-slate-500">
                               ({Object.entries(r.castleStats.bySource).filter(([k]) => k !== 'unmatched' && k !== 'null').map(([k, v]) => `${k}: ${v}`).join(', ')})
                             </span>
                           )}
@@ -530,13 +530,13 @@ export default function AdminPanel({
       <IndividualSourceReload />
 
       {/* APRS.fi Data Fetch */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
               <RadioTower className="w-4 h-4 text-purple-600" /> APRS.fi Daten
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
               Ruft APRS-Stationen (Digipeater, IGates, Relais, Hotspots) weltweit von aprs.fi ab und speichert sie als Private Nodes. Aktualisiert auch fehlende Relais-Koordinaten.
             </p>
           </div>
@@ -550,7 +550,7 @@ export default function AdminPanel({
           </button>
         </div>
         {aprsResult && (
-          <div className={`mt-3 p-3 rounded-lg text-sm ${aprsResult.error ? 'bg-red-50 text-red-700' : 'bg-purple-50 text-purple-700'}`}>
+          <div className={`mt-3 p-3 rounded-lg text-sm ${aprsResult.error ? 'bg-red-50 dark:bg-red-900/20 text-red-700' : 'bg-purple-50 dark:bg-purple-900/20 text-purple-700'}`}>
             {aprsResult.error
               ? `Fehler: ${aprsResult.error}`
               : `${aprsResult.aprs_stations_found || 0} Stationen gefunden (${aprsResult.bbox_queries || 0} Bereichsabfragen, ${aprsResult.bbox_stations_found || 0} Roh-Treffer), ${aprsResult.private_nodes_saved || 0} Nodes gespeichert, ${aprsResult.repeaters_updated_with_coords || 0} Relais mit Koordinaten${aprsResult.brandmeister_links ? `, ${aprsResult.brandmeister_links} BM-Verlinkungen` : ''} (${(aprsResult.duration_ms / 1000).toFixed(1)}s)`
@@ -560,19 +560,19 @@ export default function AdminPanel({
       </section>
 
       {/* Repeater Coverage Calculator + Global Progress */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
-        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5 mb-2">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+        <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5 mb-2">
           <Signal className="w-4 h-4 text-green-600" /> Relais-Abdeckung berechnen
         </h3>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
           Berechnet die Abdeckung pro Relais (Band-Schätzung + APRS-Verfeinerung). Startet in der Schweiz, kann auf Europa/Weltweit ausgeweitet werden. Läuft täglich automatisch um 03:00.
         </p>
 
         {/* Global progress indicator */}
         {coverageProgress?.global && (
-          <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+          <div className="mb-3 p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-gray-700">Globaler Fortschritt</span>
+              <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Globaler Fortschritt</span>
               <button
                 onClick={fetchCoverageProgress}
                 disabled={progressLoading}
@@ -583,46 +583,46 @@ export default function AdminPanel({
             </div>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-2">
               <div className="text-center">
-                <div className="text-lg font-bold text-gray-900">{coverageProgress.global.totalRepeaters}</div>
-                <div className="text-[10px] text-gray-400">Relais gesamt</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{coverageProgress.global.totalRepeaters}</div>
+                <div className="text-[10px] text-gray-400 dark:text-slate-500">Relais gesamt</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-blue-600">{coverageProgress.global.withCoords}</div>
-                <div className="text-[10px] text-gray-400">Mit Koordinaten</div>
+                <div className="text-[10px] text-gray-400 dark:text-slate-500">Mit Koordinaten</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-green-600">{coverageProgress.global.aprsRefined}</div>
-                <div className="text-[10px] text-gray-400">APRS-verfeinert</div>
+                <div className="text-[10px] text-gray-400 dark:text-slate-500">APRS-verfeinert</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-teal-600">{coverageProgress.global.terrainAdjusted || 0}</div>
-                <div className="text-[10px] text-gray-400">Gelände-adjustiert</div>
+                <div className="text-[10px] text-gray-400 dark:text-slate-500">Gelände-adjustiert</div>
               </div>
               <div className="text-center">
                 <div className={`text-lg font-bold ${
                   coverageProgress.global.avgRefinementPct >= 60 ? 'text-green-600' :
-                  coverageProgress.global.avgRefinementPct >= 30 ? 'text-amber-600' : 'text-gray-400'
+                  coverageProgress.global.avgRefinementPct >= 30 ? 'text-amber-600' : 'text-gray-400 dark:text-slate-500'
                 }`}>
                   {coverageProgress.global.avgRefinementPct}%
                 </div>
-                <div className="text-[10px] text-gray-400">Ø Verfeinerung</div>
+                <div className="text-[10px] text-gray-400 dark:text-slate-500">Ø Verfeinerung</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-amber-600">{coverageProgress.pendingRecalc || 0}</div>
-                <div className="text-[10px] text-gray-400">Neuberechnung offen</div>
+                <div className="text-[10px] text-gray-400 dark:text-slate-500">Neuberechnung offen</div>
               </div>
             </div>
             {/* Progress bar */}
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
-                  coverageProgress.global.avgRefinementPct >= 60 ? 'bg-green-500' :
-                  coverageProgress.global.avgRefinementPct >= 30 ? 'bg-amber-500' : 'bg-gray-400'
+                  coverageProgress.global.avgRefinementPct >= 60 ? 'bg-green-50 dark:bg-green-900/200' :
+                  coverageProgress.global.avgRefinementPct >= 30 ? 'bg-amber-50 dark:bg-amber-900/200' : 'bg-gray-400'
                 }`}
                 style={{ width: `${coverageProgress.global.avgRefinementPct}%` }}
               />
             </div>
-            <p className="text-[10px] text-gray-400 mt-1">
+            <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
               {coverageProgress.global.countriesCovered} Länder · {coverageProgress.global.calculated} Relais berechnet
             </p>
           </div>
@@ -663,7 +663,7 @@ export default function AdminPanel({
           <button
             onClick={handleMarkForRecalc}
             disabled={markingRecalc}
-            className="px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-300 rounded-lg hover:bg-amber-100 disabled:opacity-40 flex items-center justify-center gap-1.5"
+            className="px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 rounded-lg hover:bg-amber-100 disabled:opacity-40 flex items-center justify-center gap-1.5"
             title="Alle Relais im ausgewählten Land für nächste Zyklus neu berechnen"
           >
             {markingRecalc ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -671,7 +671,7 @@ export default function AdminPanel({
           </button>
         </div>
         {coverageResult && (
-          <div className="mt-3 p-3 rounded-lg text-sm bg-green-50 text-green-700">
+          <div className="mt-3 p-3 rounded-lg text-sm bg-green-50 dark:bg-green-900/20 text-green-700">
             {coverageResult.scope === "worldwide" ? "Weltweit" : coverageResult.scope}: {coverageResult.total} Relais · {coverageResult.bandEstimated} Band-Schätzungen · {coverageResult.aprsRefined} APRS-verfeinert · {coverageResult.updated} aktualisiert
           </div>
         )}
@@ -690,13 +690,13 @@ export default function AdminPanel({
       <AdminDataMaintains />
 
       {/* Demo User Setup */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
               <User className="w-4 h-4" /> Demo-Benutzer
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
               Login: demo@hb9om.ch / demo1234 · Daten werden täglich gelöscht
             </p>
           </div>
@@ -710,7 +710,7 @@ export default function AdminPanel({
           </button>
         </div>
         {demoSetupResult && (
-          <div className={`mt-3 p-3 rounded-lg text-sm ${demoSetupResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+          <div className={`mt-3 p-3 rounded-lg text-sm ${demoSetupResult.error ? 'bg-red-50 dark:bg-red-900/20 text-red-700' : 'bg-green-50 dark:bg-green-900/20 text-green-700'}`}>
             {demoSetupResult.error || demoSetupResult.message}
           </div>
         )}
@@ -722,7 +722,7 @@ export default function AdminPanel({
               value={demoOtpCode}
               onChange={e => setDemoOtpCode(e.target.value)}
               placeholder="OTP-Code aus E-Mail"
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono"
             />
             <button
               onClick={handleVerifyDemoOtp}

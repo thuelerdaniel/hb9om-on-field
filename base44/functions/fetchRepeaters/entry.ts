@@ -22,8 +22,9 @@ export default async function(req) {
       await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existing.map(r => r.id) } });
     }
 
-    // Create new repeater records (only those with coordinates — needed for map display)
-    const records = withCoords.map(r => ({
+    // Create new repeater records — save ALL repeaters (including those without coordinates)
+    // so the database is complete. The map layer filters by lat/lng presence for display.
+    const records = repeaters.map(r => ({
       callsign: r.callsign,
       frequency: r.frequency,
       offset_mhz: r.offset_mhz || 0,

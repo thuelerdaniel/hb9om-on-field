@@ -63,13 +63,13 @@ export default function ChangelogEmailSender() {
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4">
+    <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
             <Mail className="w-4 h-4 text-blue-600" /> Changelog-E-Mail an alle Benutzer
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
             Sendet die Änderungen von v{APP_VERSION} an alle registrierten Benutzer — einmalig pro Version.
           </p>
         </div>
@@ -78,7 +78,7 @@ export default function ChangelogEmailSender() {
           disabled={!canSend}
           className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
             alreadySent
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              ? "bg-gray-100 text-gray-400 dark:text-slate-500 cursor-not-allowed"
               : "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40"
           }`}
         >
@@ -90,7 +90,7 @@ export default function ChangelogEmailSender() {
       {/* Status info */}
       <div className="mt-3 text-xs">
         {loading ? (
-          <span className="text-gray-400">Status wird geladen...</span>
+          <span className="text-gray-400 dark:text-slate-500">Status wird geladen...</span>
         ) : alreadySent ? (
           <span className="text-green-600 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -110,7 +110,7 @@ export default function ChangelogEmailSender() {
           <ul className="text-[11px] text-gray-600 space-y-0.5 max-h-24 overflow-y-auto">
             {currentChangelog.changes.map((c, i) => (
               <li key={i} className="flex items-start gap-1.5">
-                <span className="text-gray-400 flex-shrink-0">•</span>
+                <span className="text-gray-400 dark:text-slate-500 flex-shrink-0">•</span>
                 <span>{c}</span>
               </li>
             ))}
@@ -120,7 +120,7 @@ export default function ChangelogEmailSender() {
 
       {/* Result */}
       {result && result.success && (
-        <div className="mt-3 p-3 rounded-lg text-sm bg-green-50 text-green-700">
+        <div className="mt-3 p-3 rounded-lg text-sm bg-green-50 dark:bg-green-900/20 text-green-700">
           E-Mail verschickt: {result.sent} von {result.total} Empfänger(n) erfolgreich{result.failed > 0 ? `, ${result.failed} fehlgeschlagen` : ""}.
         </div>
       )}

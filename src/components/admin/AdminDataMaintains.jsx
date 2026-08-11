@@ -27,21 +27,21 @@ export default function AdminDataMaintenance() {
   };
 
   return (
-    <section className="bg-white rounded-xl border-2 border-red-100 p-4">
-      <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-1.5">
+    <section className="bg-white dark:bg-slate-800 rounded-xl border-2 border-red-100 p-4">
+      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
         <AlertTriangle className="w-4 h-4 text-amber-600" /> Datenpflege
       </h3>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
         Erledigte und zurückgezogene Anträge &amp; Vorschläge älter als X Tage bereinigen.
         Ausstehende Anträge werden nicht gelöscht.
       </p>
 
       <div className="flex items-center gap-2 mb-3">
-        <label className="text-xs text-gray-500 whitespace-nowrap">Älter als</label>
+        <label className="text-xs text-gray-500 dark:text-slate-400 whitespace-nowrap">Älter als</label>
         <select
           value={olderThanDays}
           onChange={e => setOlderThanDays(e.target.value)}
-          className="px-2 py-1 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+          className="px-2 py-1 text-sm border border-gray-200 dark:border-slate-700 bg-white text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
         >
           <option value={7}>7 Tage</option>
           <option value={14}>14 Tage</option>
@@ -56,7 +56,7 @@ export default function AdminDataMaintenance() {
         <button
           onClick={() => handleCleanup("changeRequests")}
           disabled={cleaning !== null}
-          className="w-full px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
+          className="w-full px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 dark:bg-red-900/20 disabled:opacity-40 flex items-center justify-center gap-1.5"
         >
           {cleaning === "changeRequests" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
           Änderungsanträge aufräumen
@@ -64,7 +64,7 @@ export default function AdminDataMaintenance() {
         <button
           onClick={() => handleCleanup("featureRequests")}
           disabled={cleaning !== null}
-          className="w-full px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
+          className="w-full px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 dark:bg-red-900/20 disabled:opacity-40 flex items-center justify-center gap-1.5"
         >
           {cleaning === "featureRequests" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
           Funktionsvorschläge aufräumen
@@ -72,7 +72,7 @@ export default function AdminDataMaintenance() {
       </div>
 
       {result && (
-        <div className="mt-3 p-2.5 rounded-lg text-xs flex items-center gap-2 bg-green-50 text-green-700">
+        <div className="mt-3 p-2.5 rounded-lg text-xs flex items-center gap-2 bg-green-50 dark:bg-green-900/20 text-green-700">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           <span>{result.message}</span>
         </div>

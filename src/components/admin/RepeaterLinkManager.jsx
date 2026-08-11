@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Link2, Trash2, Check, X, Plus, Loader2, Edit3, Palette, Search, MapPin } from "lucide-react";
+import { Link2, Trash2, Check, X, Plus, Loader2, Edit3, Palette, Search, MapPin, Radar } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -66,31 +66,31 @@ function RepeaterSearchInput({ value, onSelect, placeholder, label }) {
   return (
     <div className="relative">
       <div className="flex items-center gap-1 mb-1">
-        <Search className="w-3 h-3 text-gray-400" />
+        <Search className="w-3 h-3 text-gray-400 dark:text-slate-500" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => { if (results.length > 0) setShowResults(true); }}
           onBlur={() => setTimeout(() => setShowResults(false), 200)}
           placeholder={placeholder}
-          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded"
+          className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
         />
       </div>
-      {loading && <div className="text-[10px] text-gray-400">Lade Relais...</div>}
+      {loading && <div className="text-[10px] text-gray-400 dark:text-slate-500">Lade Relais...</div>}
       {showResults && results.length > 0 && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 dark:border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
           {results.map(r => (
             <button
               key={r.id}
               onMouseDown={(e) => { e.preventDefault(); handleSelect(r); }}
-              className="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 border-b border-gray-50 last:border-0"
+              className="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 border-b border-gray-50 dark:border-slate-700 last:border-0"
             >
               <div className="flex items-center gap-1">
-                <MapPin className="w-2.5 h-2.5 text-gray-400 flex-shrink-0" />
-                <span className="font-mono font-medium text-gray-900">{r.callsign}</span>
-                {r.frequency && <span className="text-gray-500">{r.frequency.toFixed(4)} MHz</span>}
+                <MapPin className="w-2.5 h-2.5 text-gray-400 dark:text-slate-500 flex-shrink-0" />
+                <span className="font-mono font-medium text-gray-900 dark:text-slate-100">{r.callsign}</span>
+                {r.frequency && <span className="text-gray-500 dark:text-slate-400">{r.frequency.toFixed(4)} MHz</span>}
               </div>
-              <div className="text-[10px] text-gray-400 ml-3.5 truncate">
+              <div className="text-[10px] text-gray-400 dark:text-slate-500 ml-3.5 truncate">
                 {r.location_name || r.country || "—"}
               </div>
             </button>
@@ -106,6 +106,8 @@ export default function RepeaterLinkManager() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
   const { toast } = useToast();
 
   const [form, setForm] = useState({
@@ -136,6 +138,27 @@ export default function RepeaterLinkManager() {
   }, [toast]);
 
   useEffect(() => { loadLinks(); }, [loadLinks]);
+
+  const handleAutoScan = async () => {
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const res = await base44.functions.invoke("scanRepeaterLinks", {});
+      const data = res.data;
+      if (data?.error) throw new Error(data.error);
+      setScanResult(data);
+      toast({
+        title: "Auto-Scan abgeschlossen",
+        description: `${data.links_created || 0} Verlinkungen erstellt · ${data.skipped_duplicate || 0} Duplikate übersprungen · ${data.skipped_no_target || 0} ohne Ziel`,
+        duration: 6000,
+      });
+      loadLinks();
+    } catch (e) {
+      toast({ title: "Fehler beim Auto-Scan", description: e.message, variant: "destructive" });
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const handleApprove = async (id) => {
     try {
@@ -240,74 +263,96 @@ export default function RepeaterLinkManager() {
   const approvedLinks = links.filter(l => l.status === "approved");
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4">
+    <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
             <Link2 className="w-4 h-4 text-blue-600" /> Relais-Verlinkungen
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
             Permanente Verlinkungen zwischen Relais verwalten — {pendingLinks.length} offen, {approvedLinks.length} aktiv
           </p>
         </div>
-        <button
-          onClick={() => { setEditingId(null); setShowForm(!showForm); }}
-          className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          Neue Verlinkung
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleAutoScan}
+            disabled={scanning}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-40 flex items-center gap-1.5"
+            title="Durchsucht alle Relais nach Crosslink-Daten und erstellt genehmigte Verlinkungen"
+          >
+            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
+            {scanning ? "Scannt..." : "Auto-Scan"}
+          </button>
+          <button
+            onClick={() => { setEditingId(null); setShowForm(!showForm); }}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            Neue Verlinkung
+          </button>
+        </div>
       </div>
 
+      {scanResult && (
+        <div className="mb-3 p-2.5 rounded-lg text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 flex items-center gap-2">
+          <Radar className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>
+            {scanResult.repeaters_scanned} Relais gescannt · {scanResult.links_created} Verlinkungen erstellt
+            · {scanResult.skipped_duplicate} Duplikate · {scanResult.skipped_no_target} ohne Zielrelais
+            · {(scanResult.duration_ms / 1000).toFixed(1)}s
+          </span>
+        </div>
+      )}
+
       {showForm && (
-        <form onSubmit={handleSubmit} className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+        <form onSubmit={handleSubmit} className="mb-4 p-3 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 space-y-3">
           <div className="text-[10px] text-blue-600 bg-blue-50 rounded px-2 py-1">
             Tipp: Suchen Sie nach Rufzeichen, Ort oder Frequenz — die Felder werden automatisch ausgefüllt.
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <h4 className="text-xs font-bold text-gray-700 mb-1">Quell-Relais</h4>
+              <h4 className="text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Quell-Relais</h4>
               <RepeaterSearchInput
                 value={form.from_callsign}
                 onSelect={handleSelectFrom}
                 placeholder="Rufzeichen suchen..."
                 label="Quelle"
               />
-              <input value={form.from_frequency} onChange={e => setForm({...form, from_frequency: e.target.value})} placeholder="Freq MHz" type="number" step="0.001" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded mb-1" />
+              <input value={form.from_frequency} onChange={e => setForm({...form, from_frequency: e.target.value})} placeholder="Freq MHz" type="number" step="0.001" className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded mb-1" />
               <div className="flex gap-1">
-                <input value={form.from_lat} onChange={e => setForm({...form, from_lat: e.target.value})} placeholder="Lat" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded" />
-                <input value={form.from_lng} onChange={e => setForm({...form, from_lng: e.target.value})} placeholder="Lng" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded" />
+                <input value={form.from_lat} onChange={e => setForm({...form, from_lat: e.target.value})} placeholder="Lat" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100" />
+                <input value={form.from_lng} onChange={e => setForm({...form, from_lng: e.target.value})} placeholder="Lng" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100" />
               </div>
             </div>
             <div>
-              <h4 className="text-xs font-bold text-gray-700 mb-1">Ziel-Relais</h4>
+              <h4 className="text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Ziel-Relais</h4>
               <RepeaterSearchInput
                 value={form.to_callsign}
                 onSelect={handleSelectTo}
                 placeholder="Rufzeichen suchen..."
                 label="Ziel"
               />
-              <input value={form.to_frequency} onChange={e => setForm({...form, to_frequency: e.target.value})} placeholder="Freq MHz" type="number" step="0.001" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded mb-1" />
+              <input value={form.to_frequency} onChange={e => setForm({...form, to_frequency: e.target.value})} placeholder="Freq MHz" type="number" step="0.001" className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded mb-1" />
               <div className="flex gap-1">
-                <input value={form.to_lat} onChange={e => setForm({...form, to_lat: e.target.value})} placeholder="Lat" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded" />
-                <input value={form.to_lng} onChange={e => setForm({...form, to_lng: e.target.value})} placeholder="Lng" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded" />
+                <input value={form.to_lat} onChange={e => setForm({...form, to_lat: e.target.value})} placeholder="Lat" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100" />
+                <input value={form.to_lng} onChange={e => setForm({...form, to_lng: e.target.value})} placeholder="Lng" type="number" step="0.0001" className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100" />
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
-            <select value={form.link_type} onChange={e => setForm({...form, link_type: e.target.value})} className="px-2 py-1.5 text-xs border border-gray-200 rounded">
+            <select value={form.link_type} onChange={e => setForm({...form, link_type: e.target.value})} className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100">
               <option value="permanent">Permanent</option>
               <option value="temporary">Temporär</option>
             </select>
-            <select value={form.line_style} onChange={e => setForm({...form, line_style: e.target.value})} className="px-2 py-1.5 text-xs border border-gray-200 rounded">
+            <select value={form.line_style} onChange={e => setForm({...form, line_style: e.target.value})} className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100">
               {LINE_STYLES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
-            <input value={form.network} onChange={e => setForm({...form, network: e.target.value})} placeholder="Netzwerk (Brandmeister, XLX...)" className="px-2 py-1.5 text-xs border border-gray-200 rounded" />
+            <input value={form.network} onChange={e => setForm({...form, network: e.target.value})} placeholder="Netzwerk (Brandmeister, XLX...)" className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100" />
           </div>
 
           <div className="flex items-center gap-2">
-            <Palette className="w-3.5 h-3.5 text-gray-400" />
+            <Palette className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
             {COLORS.map(c => (
               <button key={c} type="button" onClick={() => setForm({...form, color: c})}
                 className={`w-6 h-6 rounded-full border-2 ${form.color === c ? "border-gray-900 scale-110" : "border-white"} transition-transform`}
@@ -315,13 +360,13 @@ export default function RepeaterLinkManager() {
             ))}
           </div>
 
-          <input value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Beschreibung (z.B. Crosslink 2m/70cm, EchoLink, Brandmeister TG...)" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded" />
+          <input value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Beschreibung (z.B. Crosslink 2m/70cm, EchoLink, Brandmeister TG...)" className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100" />
 
           <div className="flex gap-2">
             <button type="submit" className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800">
               {editingId ? "Aktualisieren" : "Verlinkung erstellen"}
             </button>
-            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">
+            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="px-3 py-1.5 text-xs text-gray-600 dark:text-slate-400 hover:bg-gray-100 rounded-lg">
               Abbrechen
             </button>
           </div>
@@ -331,7 +376,7 @@ export default function RepeaterLinkManager() {
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-300" /></div>
       ) : links.length === 0 ? (
-        <div className="text-center py-8 text-sm text-gray-400">
+        <div className="text-center py-8 text-sm text-gray-400 dark:text-slate-500">
           <Link2 className="w-8 h-8 text-gray-200 mx-auto mb-2" />
           Noch keine Verlinkungen erfasst
         </div>
@@ -341,13 +386,13 @@ export default function RepeaterLinkManager() {
             <>
               <h4 className="text-xs font-bold text-amber-600 uppercase tracking-wide mt-2">Wartend ({pendingLinks.length})</h4>
               {pendingLinks.map(link => (
-                <div key={link.id} className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200">
+                <div key={link.id} className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: link.color || "#3b82f6" }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-900 truncate">
+                    <div className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate">
                       {link.from_callsign} → {link.to_callsign}
                     </div>
-                    <div className="text-[10px] text-gray-500 truncate">
+                    <div className="text-[10px] text-gray-500 dark:text-slate-400 truncate">
                       {link.network || link.description || "Keine Beschreibung"} · von {link.submitted_by_name || "Unbekannt"}
                     </div>
                   </div>
@@ -359,20 +404,20 @@ export default function RepeaterLinkManager() {
           )}
           <h4 className="text-xs font-bold text-green-600 uppercase tracking-wide mt-2">Aktiv ({approvedLinks.length})</h4>
           {approvedLinks.map(link => (
-            <div key={link.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+            <div key={link.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
               <svg width="20" height="4" className="flex-shrink-0">
                 <line x1="0" y1="2" x2="20" y2="2" stroke={link.color || "#3b82f6"} strokeWidth="2"
                   strokeDasharray={link.line_style === "dashed" ? "4 2" : link.line_style === "dotted" ? "1 2" : "none"} />
               </svg>
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-gray-900 truncate">
+                <div className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate">
                   {link.from_callsign}{link.from_frequency ? ` ${link.from_frequency.toFixed(4)}` : ""} → {link.to_callsign}{link.to_frequency ? ` ${link.to_frequency.toFixed(4)}` : ""}
                 </div>
-                <div className="text-[10px] text-gray-500 truncate">
+                <div className="text-[10px] text-gray-500 dark:text-slate-400 truncate">
                   {link.link_type === "permanent" ? "Permanent" : "Temporär"} · {link.network || link.description || "Keine Beschreibung"}
                 </div>
               </div>
-              <button onClick={() => handleEdit(link)} className="p-1 hover:bg-gray-200 rounded text-gray-600" title="Bearbeiten"><Edit3 className="w-3.5 h-3.5" /></button>
+              <button onClick={() => handleEdit(link)} className="p-1 hover:bg-gray-200 rounded text-gray-600 dark:text-slate-400" title="Bearbeiten"><Edit3 className="w-3.5 h-3.5" /></button>
               <button onClick={() => handleDelete(link.id)} className="p-1 hover:bg-red-100 rounded text-red-600" title="Löschen"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           ))}
