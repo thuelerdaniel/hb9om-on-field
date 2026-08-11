@@ -11,7 +11,8 @@ import {
   cacheFromServer, getReferenceTypeStats, clearReferenceType,
   getServerDataCounts, getOfflineReadiness, isOfflineReady, getCachedAt,
   getLocalCacheStats, clearLocalReferenceCache,
-  getOfflineCountryFilter, getTruncatedFlag, getStoredServerCounts
+  getOfflineCountryFilter, getTruncatedFlag, getStoredServerCounts,
+  getCachedCountriesForType
 } from "@/lib/offlineDataCache";
 import CountryFilterDialog from "@/components/settings/CountryFilterDialog";
 
@@ -294,8 +295,9 @@ export default function OfflineManager() {
             const isDownloading = downloadingTypes.has(type);
             const hasLocal = local.count > 0;
             const countryFilter = getOfflineCountryFilter(type);
-            const supportsCountryFilter = type !== "qrz";
+            const supportsCountryFilter = true;
             const isTruncated = getTruncatedFlag(type);
+            const autoSplitCountries = (!countryFilter || countryFilter.length === 0) ? getCachedCountriesForType(type) : [];
 
             return (
               <div key={type} className={`flex items-center gap-2 p-2.5 rounded-lg border ${hasLocal ? 'bg-green-50/50 border-green-200' : 'bg-white border-gray-200'}`}>
@@ -313,14 +315,17 @@ export default function OfflineManager() {
                     {serverCount != null && serverCount > 0 && (
                       <span className="text-gray-400">· Server: {serverCount.toLocaleString("de-CH")}</span>
                     )}
-                    {serverCount != null && serverCount > local.count && isTruncated && (
+                    {serverCount != null && serverCount > local.count && (isTruncated || autoSplitCountries.length > 0) && (
                       <span className="text-red-500 font-medium">· Speicherlimit erreicht</span>
                     )}
-                    {serverCount != null && serverCount > local.count && !isTruncated && (!countryFilter || countryFilter.length === 0) && (
+                    {serverCount != null && serverCount > local.count && !isTruncated && autoSplitCountries.length === 0 && (!countryFilter || countryFilter.length === 0) && (
                       <span className="text-amber-500">· Update verfügbar</span>
                     )}
                     {countryFilter && countryFilter.length > 0 && (
                       <span className="text-blue-500">· {countryFilter.length} Länder</span>
+                    )}
+                    {autoSplitCountries.length > 0 && (
+                      <span className="text-gray-400">· {autoSplitCountries.length} Länder (auto)</span>
                     )}
                   </div>
                 </div>

@@ -46,15 +46,6 @@ const STEPS = [
     check: (readiness) => readiness.private_nodes,
   },
   {
-    id: "qrz",
-    title: "QRZ.com-Abfragen zwischenspeichern",
-    description: "Bereits abgefragte QRZ-Daten lokal speichern, damit Operator-Info auch offline verfügbar ist. In den Einstellungen unter «Offline-Modus» bei «QRZ.com Abfragen» den Download-Button antippen.",
-    icon: User,
-    link: "/settings",
-    linkLabel: "Zu Offline & Speicher",
-    check: (readiness) => readiness.qrz,
-  },
-  {
     id: "map_tiles",
     title: "Offline-Karten herunterladen",
     description: "Kacheln für Ihr Einsatzgebiet herunterladen, damit die Hintergrundkarte offline angezeigt wird. Auf der Karte den Download-Button (links) antippen und Gebiet + Zoom-Stufen wählen.",
@@ -231,7 +222,7 @@ export default function OfflineChecklist() {
       {/* Footer hint */}
       <div className="px-5 py-3 bg-amber-50 border-t border-amber-100">
         <p className="text-[11px] text-amber-700 leading-relaxed">
-          💡 Tipp: Die Schritte 1–6 werden automatisch erkannt, sobald die entsprechenden Daten lokal gespeichert sind. Die Schritte 7 (Backup) und 8 (Offline-Modus testen) müssen manuell abgehakt werden.
+          💡 Tipp: Die Schritte 1–5 werden automatisch erkannt, sobald die entsprechenden Daten lokal gespeichert sind. Die Schritte 6 (Backup) und 7 (Offline-Modus testen) müssen manuell abgehakt werden.
         </p>
       </div>
     </div>

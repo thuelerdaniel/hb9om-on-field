@@ -359,60 +359,180 @@ function storeWithBudget(key, refs, slimmed, budgetBytes) {
 // — loaded via getReferencesInBounds backend function instead of ReferenceData
 const POINT_TYPES = { sota: true, pota: true, hbff: true };
 
-// Download a single reference type from the server.
-// SOTA/POTA/WWFF are loaded via the getReferencesInBounds backend function (which reads
-// from individual point entities). Other types are loaded from ReferenceData.references.
-// Merges ALL entries and slims down references to fit within localStorage quota.
-export async function cacheTypeFromServer(type) {
-  try {
-    let allRefs;
-
-    if (POINT_TYPES[type]) {
-      // Load from individual point entities via backend function (worldwide bounds, high limit)
-      const response = await base44.functions.invoke('getReferencesInBounds', {
-        bounds: { north: 90, south: -90, east: 180, west: -180 },
-        types: [type],
-        max_per_type: 200000
-      });
-      // functions.invoke returns an Axios response — data is in response.data
-      const refsData = response?.data?.references || response?.references || {};
-      allRefs = refsData[type] || [];
-      // Fallback: if point entity is empty, load from ReferenceData (pre-migration data)
-      if (allRefs.length === 0) {
-        const entries = await base44.entities.ReferenceData.filter({ type });
-        allRefs = [];
-        (entries || []).forEach(entry => {
-          if (entry?.references && Array.isArray(entry.references)) {
-            allRefs = allRefs.concat(entry.references);
-          }
-        });
-      }
-    } else {
-      // Load from ReferenceData entity
+// Load all refs for a type — from point entities (SOTA/POTA/WWFF) or ReferenceData (others).
+// Shared by cacheTypeFromServer and cacheTypeFromServerByCountries.
+async function loadAllRefsForType(type) {
+  if (POINT_TYPES[type]) {
+    // Load from individual point entities via backend function (worldwide bounds, high limit)
+    const response = await base44.functions.invoke('getReferencesInBounds', {
+      bounds: { north: 90, south: -90, east: 180, west: -180 },
+      types: [type],
+      max_per_type: 200000
+    });
+    // functions.invoke returns an Axios response — data is in response.data
+    const refsData = response?.data?.references || response?.references || {};
+    let refs = refsData[type] || [];
+    // Fallback: if point entity is empty, load from ReferenceData (pre-migration data)
+    if (refs.length === 0) {
       const entries = await base44.entities.ReferenceData.filter({ type });
-      allRefs = [];
+      refs = [];
       (entries || []).forEach(entry => {
         if (entry?.references && Array.isArray(entry.references)) {
-          allRefs = allRefs.concat(entry.references);
+          refs = refs.concat(entry.references);
         }
       });
     }
+    return refs;
+  }
+  // Load from ReferenceData entity
+  const entries = await base44.entities.ReferenceData.filter({ type });
+  let refs = [];
+  (entries || []).forEach(entry => {
+    if (entry?.references && Array.isArray(entry.references)) {
+      refs = refs.concat(entry.references);
+    }
+  });
+  return refs;
+}
 
-    // Try to store full data first
+// Countries sorted by proximity to Switzerland — CH first, then neighbors, then Europe, then world.
+// Used by autoSplitByCountry to prioritize nearby countries when storage is limited.
+const CH_PRIORITY = [
+  'CH', 'LI', 'AT', 'DE', 'FR', 'IT', 'ES', 'PT', 'BE', 'NL', 'LU',
+  'DK', 'SE', 'NO', 'FI', 'IS', 'GB', 'IE', 'PL', 'CZ', 'SK', 'HU',
+  'SI', 'HR', 'RS', 'BA', 'ME', 'AL', 'MK', 'EE', 'LV', 'LT', 'GR',
+  'BG', 'RO', 'TR', 'CY', 'MT', 'AD', 'SM', 'MC', 'IM', 'FO', 'JE', 'GG', 'XK', 'GI',
+  'US', 'CA', 'MX', 'CU', 'BS', 'DO', 'JM',
+  'BR', 'AR', 'CL', 'CO', 'PE', 'EC', 'VE', 'UY', 'PY', 'BO',
+  'JP', 'KR', 'CN', 'IN', 'ID', 'TH', 'MY', 'PH', 'SG', 'NP', 'IL', 'AE', 'SA',
+  'IR', 'IQ', 'JO', 'LB', 'SY', 'KZ', 'GE', 'AM', 'AZ',
+  'ZA', 'MA', 'TN', 'DZ', 'LY', 'EG', 'ET', 'KE', 'NG', 'GH', 'BW', 'ZW', 'NA',
+  'AU', 'NZ', 'PG', 'FJ'
+];
+
+// Auto-split refs by country when the full dataset doesn't fit in a single localStorage key.
+// Each country gets its own key with PER_COUNTRY_BUDGET_BYTES.
+// Countries are stored in proximity-to-CH order so nearby countries are prioritized.
+// Refs with no country code go into a special "XX" key.
+// Returns { stored, count, slimmed, truncated }.
+function autoSplitByCountry(type, refs, useSlimmed = false) {
+  // Group refs by country
+  const byCountry = {};
+  const noCountry = [];
+  for (const ref of refs) {
+    const iso2 = getRefCountryCode(ref, type);
+    if (iso2) {
+      if (!byCountry[iso2]) byCountry[iso2] = [];
+      byCountry[iso2].push(ref);
+    } else {
+      noCountry.push(ref);
+    }
+  }
+
+  // Sort countries by proximity to Switzerland
+  const sortedCountries = Object.keys(byCountry).sort((a, b) => {
+    const aIdx = CH_PRIORITY.indexOf(a);
+    const bIdx = CH_PRIORITY.indexOf(b);
+    if (aIdx === -1 && bIdx === -1) return 0;
+    if (aIdx === -1) return 1;
+    if (bIdx === -1) return -1;
+    return aIdx - bIdx;
+  });
+
+  // Clear old single-key and per-country keys
+  const key = TYPE_CACHE_KEYS[type];
+  if (key) localStorage.removeItem(key);
+  clearPerCountryKeys(type);
+
+  let totalStored = 0;
+  let anyTruncated = false;
+  let anySlimmed = useSlimmed;
+  const storedCountries = [];
+
+  for (const country of sortedCountries) {
+    const countryRefs = byCountry[country];
+    const countryKey = `hb9om_refs_${type}_${country}`;
+
+    let result = storeWithBudget(countryKey, countryRefs, useSlimmed, PER_COUNTRY_BUDGET_BYTES);
+    if (result.truncated && !useSlimmed) {
+      const slimRefs = countryRefs.map(slimReference);
+      const slimResult = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
+      if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
+    }
+    if (!result.stored && !useSlimmed) {
+      const slimRefs = countryRefs.map(slimReference);
+      result = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
+    }
+
+    if (result.stored) {
+      totalStored += result.count;
+      if (result.truncated) anyTruncated = true;
+      if (result.slimmed) anySlimmed = true;
+      storedCountries.push(country);
+    } else {
+      // Quota exceeded — can't store more countries
+      anyTruncated = true;
+      break;
+    }
+  }
+
+  // Store refs with no country in a special "XX" key
+  if (noCountry.length > 0) {
+    const xxKey = `hb9om_refs_${type}_XX`;
+    let result = storeWithBudget(xxKey, noCountry, useSlimmed, PER_COUNTRY_BUDGET_BYTES);
+    if (!result.stored && !useSlimmed) {
+      const slimRefs = noCountry.map(slimReference);
+      result = storeWithBudget(xxKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
+    }
+    if (result.stored) {
+      totalStored += result.count;
+      if (result.truncated) anyTruncated = true;
+      if (result.slimmed) anySlimmed = true;
+      storedCountries.push('XX');
+    }
+  }
+
+  if (storedCountries.length > 0) {
+    setCachedCountriesForType(type, storedCountries);
+    // Clear country filter — auto-split means all countries are stored, no user filter
+    setOfflineCountryFilter(type, null);
+    return { stored: true, count: totalStored, slimmed: anySlimmed, truncated: anyTruncated };
+  }
+  return { stored: false, count: 0, error: "Speicher voll – kein Land gespeichert" };
+}
+
+// Download a single reference type from the server.
+// SOTA/POTA/WWFF are loaded via the getReferencesInBounds backend function (which reads
+// from individual point entities). Other types are loaded from ReferenceData.references.
+// If the full dataset doesn't fit in a single localStorage key, auto-splits by country
+// (each country gets its own key) to avoid hitting the storage limit.
+export async function cacheTypeFromServer(type) {
+  try {
+    const allRefs = await loadAllRefsForType(type);
+
     const key = TYPE_CACHE_KEYS[type];
     if (!key) return { success: false, count: 0, error: "Unbekannter Typ" };
 
-    // Try full data first; if truncated, try slimmed to fit more
+    // Store metadata FIRST (before data, while localStorage quota is still available).
+    // If we store data first and quota is full, metadata can't be saved → UI shows no hints.
+    storeServerCount(type, allRefs.length);
+    storeCountryCounts(type, allRefs);
+
+    // Strategy: try full data → if truncated, auto-split by country → if still fails, slimmed
     let result = storeWithBudget(key, allRefs, false, PER_TYPE_BUDGET_BYTES);
+
     if (result.truncated) {
-      const slimRefs = allRefs.map(slimReference);
-      const slimResult = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
-      if (slimResult.stored && slimResult.count >= result.count) {
-        result = slimResult; // slimmed fits more than truncated full
-      }
+      // Full data doesn't fit — auto-split by country (full, not slimmed)
+      result = autoSplitByCountry(type, allRefs, false);
     }
+
     if (!result.stored) {
-      // Full data didn't store at all — try slimmed
+      // Auto-split with full data failed — try slimmed auto-split
+      result = autoSplitByCountry(type, allRefs, true);
+    }
+
+    if (!result.stored) {
+      // Last resort: try slimmed single key
       const slimRefs = allRefs.map(slimReference);
       result = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
     }
@@ -421,11 +541,9 @@ export async function cacheTypeFromServer(type) {
       return { success: false, count: 0, error: result.error };
     }
 
-    // Set timestamp — catch quota error (data is already stored, don't fail)
-    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-    storeServerCount(type, allRefs.length);
-    storeCountryCounts(type, allRefs);
+    // Store truncated flag and timestamp AFTER data (might fail if quota full — non-critical)
     storeTruncatedFlag(type, result.truncated || false);
+    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
     return { success: true, count: result.count, slimmed: result.slimmed, total: allRefs.length, truncated: result.truncated || false };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
@@ -586,14 +704,6 @@ export function getReferenceTypeStats() {
       stats.private_nodes = { count: Array.isArray(arr) ? arr.length : 0, size: ("hb9om_refs_private_nodes".length + data.length) * 2 };
     } else { stats.private_nodes = { count: 0, size: 0 }; }
   } catch { stats.private_nodes = { count: 0, size: 0 }; }
-  // QRZ
-  try {
-    const data = localStorage.getItem(QRZ_CACHE_KEY);
-    if (data) {
-      const arr = JSON.parse(data);
-      stats.qrz = { count: Array.isArray(arr) ? arr.length : 0, size: (QRZ_CACHE_KEY.length + data.length) * 2 };
-    } else { stats.qrz = { count: 0, size: 0 }; }
-  } catch { stats.qrz = { count: 0, size: 0 }; }
   return stats;
 }
 
@@ -673,11 +783,6 @@ export async function getServerDataCounts() {
     const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
     counts.private_nodes = (nodes || []).length;
   } catch { counts.private_nodes = 0; }
-  // QRZ
-  try {
-    const qrz = await base44.entities.QrzLookup.list("-created_date", 500);
-    counts.qrz = (qrz || []).length;
-  } catch { counts.qrz = 0; }
   return counts;
 }
 
@@ -703,12 +808,28 @@ export function getOfflineReadiness() {
 
 // --- Country-based filtering for offline downloads ---
 
-// Get the list of countries that have cached data for a type (per-country split)
+// Get the list of countries that have cached data for a type (per-country split).
+// First tries the stored list (fast path). If missing (e.g. quota was full after data
+// was stored and the list couldn't be saved), scans localStorage for per-country keys.
 export function getCachedCountriesForType(type) {
   try {
     const data = localStorage.getItem(`hb9om_offline_countries_data_${type}`);
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+    if (data) {
+      const arr = JSON.parse(data);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    }
+  } catch {}
+  // Fallback: scan localStorage for per-country keys (reliable when stored list is missing)
+  const countries = [];
+  const prefix = `hb9om_refs_${type}_`;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(prefix)) {
+      const country = key.substring(prefix.length);
+      if (country.length >= 2) countries.push(country);
+    }
+  }
+  return countries;
 }
 
 // Store the list of countries that have cached data for a type
@@ -778,40 +899,10 @@ export function setOfflineCountryFilter(type, countries) {
 // so that one large country cannot consume the budget of another.
 export async function cacheTypeFromServerByCountries(type, countryCodes) {
   try {
-    let allRefs;
+    const allRefs = await loadAllRefsForType(type);
 
-    if (POINT_TYPES[type]) {
-      // Load from individual point entities via backend function (worldwide bounds, high limit)
-      const response = await base44.functions.invoke('getReferencesInBounds', {
-        bounds: { north: 90, south: -90, east: 180, west: -180 },
-        types: [type],
-        max_per_type: 200000
-      });
-      // functions.invoke returns an Axios response — data is in response.data
-      const refsData = response?.data?.references || response?.references || {};
-      allRefs = refsData[type] || [];
-      // Fallback: if point entity is empty, load from ReferenceData (pre-migration data)
-      if (allRefs.length === 0) {
-        const entries = await base44.entities.ReferenceData.filter({ type });
-        allRefs = [];
-        (entries || []).forEach(entry => {
-          if (entry?.references && Array.isArray(entry.references)) {
-            allRefs = allRefs.concat(entry.references);
-          }
-        });
-      }
-    } else {
-      // Load from ReferenceData entity
-      const entries = await base44.entities.ReferenceData.filter({ type });
-      allRefs = [];
-      (entries || []).forEach(entry => {
-        if (entry?.references && Array.isArray(entry.references)) {
-          allRefs = allRefs.concat(entry.references);
-        }
-      });
-    }
-
-    // Store country counts from full data (for dialog display)
+    // Store metadata FIRST (before data, while quota is available)
+    storeServerCount(type, allRefs.length);
     storeCountryCounts(type, allRefs);
 
     const key = TYPE_CACHE_KEYS[type];
@@ -832,9 +923,8 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
       if (!result.stored) return { success: false, count: 0, error: result.error };
       clearPerCountryKeys(type);
       setOfflineCountryFilter(type, countryCodes);
-      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-      storeServerCount(type, allRefs.length);
       storeTruncatedFlag(type, result.truncated || false);
+      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
       return { success: true, count: result.count, slimmed: result.slimmed, total: allRefs.length, allTotal: allRefs.length, truncated: result.truncated || false, countries: 0 };
     }
 
@@ -884,9 +974,8 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
 
     setCachedCountriesForType(type, storedCountries);
     setOfflineCountryFilter(type, countryCodes);
-    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-    storeServerCount(type, allRefs.length);
     storeTruncatedFlag(type, anyTruncated);
+    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
     return {
       success: true, count: totalStored, slimmed: anySlimmed,
       total: totalFiltered, allTotal: allRefs.length,

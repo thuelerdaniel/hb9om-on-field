@@ -510,7 +510,7 @@ export const SECTIONS = [
       },
       {
         title: "Offline-Modus & lokaler Speicher (vereinheitlicht)",
-        body: "In den Einstellungen unter «Offline-Modus & lokaler Speicher» finden Sie alles für den Offline-Betrieb an einem Ort: Schalter für den Offline-Modus, Bereitschaftsanzeige mit fehlenden Daten, Gesamtspeicher-Übersicht, Pro-Layer-Schalter mit Download-Buttons für jeden Daten-Typ (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme, Relais, APRS, QRZ), «Alle laden»-Button, Offline-Karten-Verwaltung und «Alle Offline-Daten löschen». Die Offline-Checkliste in der Hilfe führt Schritt für Schritt durch alle Punkte.",
+        body: "In den Einstellungen unter «Offline-Modus & lokaler Speicher» finden Sie alles für den Offline-Betrieb an einem Ort: Schalter für den Offline-Modus, Bereitschaftsanzeige mit fehlenden Daten, Gesamtspeicher-Übersicht, Pro-Layer-Schalter mit Download-Buttons für jeden Daten-Typ (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme, Relais, APRS), «Alle laden»-Button, Offline-Karten-Verwaltung und «Alle Offline-Daten löschen». Die Offline-Checkliste in der Hilfe führt Schritt für Schritt durch alle Punkte.",
         steps: [
           { icon: "wifi", text: "Offline-Modus Schalter aktivieren/deaktivieren" },
           { icon: "database", text: "Pro Layer: Download-Button für jeden Daten-Typ" },
@@ -520,7 +520,7 @@ export const SECTIONS = [
           { icon: "mapPin", text: "Offline-Karten: Gebiete verwalten und löschen" },
           { icon: "trash2", text: "«Alle Offline-Daten löschen» für kompletten Reset" }
         ],
-        tip: "Tipp: Die Offline-Checkliste in der Hilfe (oben) hat direkte Links zu jedem Schritt."
+        tip: "Tipp: Bei grossen Datensätzen (SOTA, POTA, WWFF) wird automatisch nach Land aufgeteilt, damit kein Speicherlimit erreicht wird. Näher an der Schweiz gelegene Länder werden priorisiert."
       },
       {
         title: "Meine Änderungsanträge",
@@ -868,7 +868,6 @@ export const SETUP_CHECKLIST = [
       { text: "Offline-Karten für Einsatzgebiete herunterladen (Download-Icon auf Karte)", mandatory: false },
       { text: "Referenzdaten pro Layer herunterladen (Einstellungen → Offline-Modus → «Alle laden»)", mandatory: false },
       { text: "Relais- und APRS-Daten lokal speichern (Einstellungen → Offline-Modus)", mandatory: false },
-      { text: "QRZ-Abfragen zwischenspeichern (Einstellungen → Offline-Modus)", mandatory: false },
       { text: "Offline-Modus aktivieren und testen (Wifi-Icon auf Karte)", mandatory: false }
     ]
   },
