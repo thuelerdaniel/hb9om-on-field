@@ -123,29 +123,29 @@ export default function OfflineChecklist() {
   };
 
   return (
-    <div className="bg-white rounded-xl border-2 border-blue-200 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border-2 border-blue-200 dark:border-slate-800 overflow-hidden">
       {/* Header */}
-      <div className={`px-5 py-4 ${isComplete ? 'bg-green-50' : 'bg-blue-50'}`}>
+      <div className={`px-5 py-4 ${isComplete ? 'bg-green-50 dark:bg-green-950' : 'bg-blue-50 dark:bg-blue-950'}`}>
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isComplete ? 'bg-green-500' : 'bg-blue-500'}`}>
             {isComplete ? <CheckCircle2 className="w-5 h-5 text-white" /> : <Wifi className="w-5 h-5 text-white" />}
           </div>
           <div className="flex-1">
-            <h2 className="text-sm font-bold text-gray-900">
+            <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">
               {isComplete ? "100% Offline bereit! ✓" : "Offline-Checkliste – Schritt für Schritt"}
             </h2>
-            <p className="text-xs text-gray-600 mt-0.5">
+            <p className="text-xs text-gray-600 dark:text-slate-300 mt-0.5">
               {isComplete
                 ? "Alle Schritte erledigt – die App funktioniert vollständig offline."
                 : `${completedCount} von ${totalCount} Schritten erledigt – ${progressPct}%`}
             </p>
           </div>
           <div className="text-right flex-shrink-0">
-            <div className="text-2xl font-bold text-gray-900">{progressPct}%</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-slate-100">{progressPct}%</div>
           </div>
         </div>
         {/* Progress bar */}
-        <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="mt-3 h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-500 ${isComplete ? 'bg-green-500' : 'bg-blue-500'}`}
             style={{ width: `${progressPct}%` }}
@@ -154,7 +154,7 @@ export default function OfflineChecklist() {
       </div>
 
       {/* Storage overview */}
-      <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-xs">
+      <div className="px-5 py-3 bg-gray-50 dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
         <span className="text-gray-500 flex items-center gap-1.5">
           <HardDrive className="w-3.5 h-3.5" /> Lokaler Speicher
         </span>
@@ -164,7 +164,7 @@ export default function OfflineChecklist() {
       </div>
 
       {/* Steps */}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 dark:divide-slate-800">
         {STEPS.map((step, idx) => {
           const isAutoChecked = step.check(readiness, offlineAreas);
           const isChecked = checked[step.id] || isAutoChecked;
@@ -220,7 +220,7 @@ export default function OfflineChecklist() {
       </div>
 
       {/* Footer hint */}
-      <div className="px-5 py-3 bg-amber-50 border-t border-amber-100">
+      <div className="px-5 py-3 bg-amber-50 dark:bg-amber-950 border-t border-amber-100 dark:border-amber-900">
         <p className="text-[11px] text-amber-700 leading-relaxed">
           💡 Tipp: Die Schritte 1–5 werden automatisch erkannt, sobald die entsprechenden Daten lokal gespeichert sind. Die Schritte 6 (Backup) und 7 (Offline-Modus testen) müssen manuell abgehakt werden.
         </p>

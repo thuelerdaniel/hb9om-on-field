@@ -22,6 +22,8 @@ export function getLastSync() {
   return localStorage.getItem(LAST_SYNC_KEY);
 }
 
+// Pending = offline entries not yet confirmed on server.
+// Optimistic in-flight creates (background sync running) are NOT counted as pending.
 export function getPendingCount() {
   return loadLocal().filter(e => e._pendingSync || e._pendingUpdate || e._pendingDelete).length;
 }
@@ -32,10 +34,17 @@ function isOnline() {
   return true;
 }
 
-// Sync server data, preserving pending offline entries
+// Notify subscribers that the local cache changed (e.g. background sync completed)
+function notifyCacheChanged() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("log-cache-changed"));
+  }
+}
+
+// Sync server data, preserving pending offline + optimistic in-flight entries
 export async function syncFromServer() {
   const local = loadLocal();
-  const pending = local.filter(e => e._pendingSync || e._pendingUpdate || e._pendingDelete);
+  const localOnly = local.filter(e => e._pendingSync || e._pendingUpdate || e._pendingDelete || e._optimistic);
 
   if (!isOnline()) return local;
 
@@ -43,10 +52,9 @@ export async function syncFromServer() {
     const serverData = await base44.entities.Log.list("-qso_date", 500);
     if (serverData) {
       const serverIds = new Set(serverData.map(e => e.id));
-      // Keep pending entries not yet on server, plus pending updates/deletes
-      const localOnly = pending.filter(e => !serverIds.has(e.id) || e._pendingUpdate || e._pendingDelete);
-      // Hide pending-delete entries from display
-      const visibleLocalOnly = localOnly.filter(e => !e._pendingDelete);
+      // Keep pending entries not yet on server, plus pending updates/deletes, plus optimistic in-flight
+      const keptLocal = localOnly.filter(e => !serverIds.has(e.id) || e._pendingUpdate || e._pendingDelete);
+      const visibleLocalOnly = keptLocal.filter(e => !e._pendingDelete);
       const merged = [...serverData, ...visibleLocalOnly];
       saveLocal(merged);
       localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
@@ -56,36 +64,65 @@ export async function syncFromServer() {
   return local;
 }
 
-export async function createEntry(payload) {
+// Optimistic create: write to local cache immediately, sync to server in background.
+// Returns immediately (synchronously) so the form can close without waiting on a
+// slow cellular connection. The server create runs in the background; on success the
+// optimistic temp entry is replaced with the real server entry, on failure it is
+// converted to an offline pending entry for later retry by syncPending().
+export function createEntry(payload) {
   const local = loadLocal();
-
-  if (isOnline()) {
-    try {
-      const entry = await base44.entities.Log.create(payload);
-      local.unshift(entry);
-      saveLocal(local);
-      return entry;
-    } catch (e) {
-      // Server failed — fall through to offline save
-    }
-  }
-
-  // Offline: save locally with temp ID and pending flag
-  const tempId = "offline_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-  const offlineEntry = {
+  const tempId = "optimistic_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+  const optimisticEntry = {
     ...payload,
     id: tempId,
     created_date: new Date().toISOString(),
     updated_date: new Date().toISOString(),
-    _pendingSync: true,
-    _offline: true
+    _optimistic: true,
   };
-  local.unshift(offlineEntry);
+  local.unshift(optimisticEntry);
   saveLocal(local);
-  return offlineEntry;
+
+  if (isOnline()) {
+    // Background server sync — does not block the caller
+    (async () => {
+      try {
+        const serverEntry = await base44.entities.Log.create(payload);
+        const cur = loadLocal();
+        const idx = cur.findIndex(e => e.id === tempId);
+        if (idx >= 0) {
+          cur[idx] = serverEntry;
+          saveLocal(cur);
+        }
+        notifyCacheChanged();
+      } catch (e) {
+        // Server failed — convert to offline pending for later retry
+        const cur = loadLocal();
+        const idx = cur.findIndex(e => e.id === tempId);
+        if (idx >= 0) {
+          const offlineId = "offline_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+          cur[idx] = { ...cur[idx], id: offlineId, _optimistic: false, _pendingSync: true, _offline: true };
+          saveLocal(cur);
+        }
+        notifyCacheChanged();
+      }
+    })();
+  } else {
+    // Offline: convert to pending sync entry so syncPending retries later
+    const cur = loadLocal();
+    const idx = cur.findIndex(e => e.id === tempId);
+    if (idx >= 0) {
+      const offlineId = "offline_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+      cur[idx] = { ...cur[idx], id: offlineId, _optimistic: false, _pendingSync: true, _offline: true };
+      saveLocal(cur);
+    }
+  }
+
+  return optimisticEntry;
 }
 
-export async function updateEntry(id, payload) {
+// Optimistic update: write to local cache immediately, sync to server in background.
+// Returns immediately so the form closes without waiting on the server.
+export function updateEntry(id, payload) {
   const local = loadLocal();
   const idx = local.findIndex(e => e.id === id);
 
@@ -95,41 +132,64 @@ export async function updateEntry(id, payload) {
       local[idx] = { ...local[idx], ...payload, updated_date: new Date().toISOString(), _pendingSync: true };
       saveLocal(local);
     }
-    return local[idx];
+    return idx >= 0 ? local[idx] : null;
   }
 
-  // Update locally first
+  // Optimistic in-flight entry (temp id, server create still pending in background)
+  if (id.startsWith("optimistic_")) {
+    if (idx >= 0) {
+      local[idx] = { ...local[idx], ...payload, updated_date: new Date().toISOString() };
+      saveLocal(local);
+    }
+    return idx >= 0 ? local[idx] : null;
+  }
+
+  // Real server entry: update locally first
   if (idx >= 0) {
     local[idx] = { ...local[idx], ...payload, updated_date: new Date().toISOString() };
     saveLocal(local);
   }
 
   if (isOnline()) {
-    try {
-      const entry = await base44.entities.Log.update(id, payload);
-      if (idx >= 0) {
-        local[idx] = { ...local[idx], ...entry };
-        saveLocal(local);
+    // Background server sync — does not block the caller
+    (async () => {
+      try {
+        const entry = await base44.entities.Log.update(id, payload);
+        const cur = loadLocal();
+        const i = cur.findIndex(e => e.id === id);
+        if (i >= 0) {
+          cur[i] = { ...cur[i], ...entry };
+          saveLocal(cur);
+        }
+        notifyCacheChanged();
+      } catch (e) {
+        // Mark as pending update for later retry
+        const cur = loadLocal();
+        const i = cur.findIndex(e => e.id === id);
+        if (i >= 0) {
+          cur[i]._pendingUpdate = true;
+          saveLocal(cur);
+        }
+        notifyCacheChanged();
       }
-      return entry;
-    } catch (e) {
-      // Mark as pending update
+    })();
+  } else {
+    if (idx >= 0) {
+      local[idx]._pendingUpdate = true;
+      saveLocal(local);
     }
   }
 
-  if (idx >= 0) {
-    local[idx]._pendingUpdate = true;
-    saveLocal(local);
-  }
-  return local[idx];
+  return idx >= 0 ? local[idx] : null;
 }
 
 export async function deleteEntry(id) {
   const local = loadLocal();
 
-  // Offline-only entry: just remove locally
-  if (id.startsWith("offline_")) {
+  // Offline-only or optimistic entry: just remove locally
+  if (id.startsWith("offline_") || id.startsWith("optimistic_")) {
     saveLocal(local.filter(e => e.id !== id));
+    notifyCacheChanged();
     return;
   }
 
@@ -137,6 +197,7 @@ export async function deleteEntry(id) {
     try {
       await base44.entities.Log.delete(id);
       saveLocal(local.filter(e => e.id !== id));
+      notifyCacheChanged();
       return;
     } catch (e) {
       // Mark as pending delete
@@ -156,7 +217,8 @@ export async function deleteMany(ids) {
   }
 }
 
-// Retry all pending operations (creates, updates, deletes)
+// Retry all pending operations (creates, updates, deletes).
+// Optimistic in-flight entries are skipped — they have their own background sync.
 export async function syncPending() {
   if (!isOnline()) return { synced: 0, remaining: 0 };
 
@@ -184,7 +246,7 @@ export async function syncPending() {
   for (let i = 0; i < local.length; i++) {
     const entry = local[i];
     if (!entry._pendingUpdate || entry._pendingDelete) continue;
-    if (!entry.id || entry.id.startsWith("offline_")) continue;
+    if (!entry.id || entry.id.startsWith("offline_") || entry.id.startsWith("optimistic_")) continue;
 
     const { _pendingSync, _offline, _pendingUpdate, _pendingDelete, id: _id, created_date, updated_date, created_by_id, ...payload } = entry;
     try {
@@ -200,7 +262,7 @@ export async function syncPending() {
   const survivors = [];
   for (const entry of local) {
     if (entry._pendingDelete) {
-      if (entry.id && !entry.id.startsWith("offline_")) {
+      if (entry.id && !entry.id.startsWith("offline_") && !entry.id.startsWith("optimistic_")) {
         try {
           await base44.entities.Log.delete(entry.id);
           synced++;
@@ -225,6 +287,6 @@ export async function syncPending() {
 // Auto-sync when connection is restored
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
-    syncPending().catch(() => {});
+    syncPending().then(() => notifyCacheChanged()).catch(() => {});
   });
 }

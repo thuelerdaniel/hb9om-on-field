@@ -181,19 +181,19 @@ export default function BandPlanInfo() {
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
       >
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-50">
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-50 dark:bg-indigo-950">
           <Radio className="w-5 h-5 text-indigo-600" />
         </div>
         <div className="flex-1 text-left">
-          <h2 className="text-sm font-bold text-gray-900">IARU Bandplan (Region 1)</h2>
-          <p className="text-xs text-gray-500">Frequenzbereiche und Modi für alle Amateurfunk-Bänder</p>
+          <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">IARU Bandplan (Region 1)</h2>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Frequenzbereiche und Modi für alle Amateurfunk-Bänder</p>
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        {expanded ? <ChevronUp className="w-4 h-4 text-gray-400 dark:text-slate-500" /> : <ChevronDown className="w-4 h-4 text-gray-400 dark:text-slate-500" />}
       </button>
 
       {expanded && (
@@ -213,17 +213,17 @@ export default function BandPlanInfo() {
 
           <div className="space-y-2.5">
             {BAND_DATA.map((b, i) => (
-              <div key={i} className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-900">{b.band}</span>
-                  <span className="text-[10px] text-gray-500 font-mono">{b.range}</span>
+              <div key={i} className="border border-gray-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 dark:bg-slate-900 px-3 py-2 flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-900 dark:text-slate-100">{b.band}</span>
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 font-mono">{b.range}</span>
                 </div>
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-gray-50 dark:divide-slate-800">
                   {b.segments.map((s, j) => (
                     <div key={j} className="flex items-center gap-2 px-3 py-1.5 text-xs">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getModeColor(s.mode) }} />
-                      <span className="font-mono text-gray-600 w-28 flex-shrink-0">{s.freq}</span>
-                      <span className="text-gray-700">{s.mode}</span>
+                      <span className="font-mono text-gray-600 dark:text-slate-300 w-28 flex-shrink-0">{s.freq}</span>
+                      <span className="text-gray-700 dark:text-slate-200">{s.mode}</span>
                     </div>
                   ))}
                 </div>
@@ -233,9 +233,9 @@ export default function BandPlanInfo() {
 
           <div className="mt-3 flex flex-wrap gap-2 text-[10px]">
             {["CW", "DATA", "USB/LSB-Voice", "FM-Voice", "BAKEN", "Relais"].map(m => (
-              <span key={m} className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded">
+              <span key={m} className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-slate-900 rounded">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getModeColor(m) }} />
-                <span className="text-gray-600">{m}</span>
+                <span className="text-gray-600 dark:text-slate-300">{m}</span>
               </span>
             ))}
           </div>

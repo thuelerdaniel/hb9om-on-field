@@ -123,16 +123,16 @@ export default function FeatureSuggestion() {
   const pendingCount = requests.filter(r => r.status === "pending" || r.status === "in_review" || r.status === "planned").length;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="p-4 border-b border-gray-100">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden">
+      <div className="p-4 border-b border-gray-100 dark:border-slate-800">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-yellow-50">
               <Lightbulb className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">Funktionsvorschläge</h2>
-              <p className="text-xs text-gray-500">Schlagen Sie neue Funktionen vor und verfolgen Sie den Status</p>
+              <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">Funktionsvorschläge</h2>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Schlagen Sie neue Funktionen vor und verfolgen Sie den Status</p>
             </div>
           </div>
           {pendingCount > 0 && (
@@ -157,7 +157,7 @@ export default function FeatureSuggestion() {
       </div>
 
       {showForm && (
-        <div className="p-4 bg-gray-50 border-b border-gray-100 space-y-3">
+        <div className="p-4 bg-gray-50 dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 space-y-3">
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Titel *</label>
             <input
@@ -166,7 +166,7 @@ export default function FeatureSuggestion() {
               onChange={e => setTitle(e.target.value)}
               placeholder="z.B. Dunkelmodus für die Karte"
               maxLength={120}
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
           <div>
@@ -174,7 +174,7 @@ export default function FeatureSuggestion() {
             <select
               value={category}
               onChange={e => setCategory(e.target.value)}
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             >
               {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
@@ -189,7 +189,7 @@ export default function FeatureSuggestion() {
               placeholder="Beschreiben Sie Ihren Vorschlag möglichst detailliert..."
               rows={4}
               maxLength={2000}
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
             />
           </div>
           <div>
@@ -200,7 +200,7 @@ export default function FeatureSuggestion() {
               onChange={e => setComment(e.target.value)}
               placeholder="Optional..."
               maxLength={500}
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
           <button
@@ -253,7 +253,7 @@ export default function FeatureSuggestion() {
                           {status.label}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold text-gray-900 truncate">{r.title}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{r.title}</p>
                       <p className="text-[10px] text-gray-400 mt-0.5">
                         {new Date(r.created_date).toLocaleString('de-CH')}
                       </p>
@@ -264,7 +264,7 @@ export default function FeatureSuggestion() {
                   {isExpanded && (
                     <div className="mt-2 space-y-2">
                       {r.description && (
-                        <p className="text-xs text-gray-600 leading-relaxed">{r.description}</p>
+                        <p className="text-xs text-gray-600 dark:text-slate-300 leading-relaxed">{r.description}</p>
                       )}
                       {r.submitter_comment && (
                         <div className="flex items-start gap-1.5 text-xs text-gray-500 p-2 bg-gray-50 rounded-lg">

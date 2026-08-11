@@ -22,7 +22,7 @@ export default function BottomNavigation() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-[999] bg-white border-t border-gray-200 flex items-center justify-around"
+      className="fixed bottom-0 left-0 right-0 z-[999] bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center justify-around"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {NAV_ITEMS.map(item => {
@@ -32,7 +32,7 @@ export default function BottomNavigation() {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex flex-col items-center gap-0.5 px-4 py-2 transition-colors ${active ? "text-gray-900" : "text-gray-400"}`}
+            className={`flex flex-col items-center gap-0.5 px-4 py-2 transition-colors ${active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}
           >
             <Icon className={`w-5 h-5 ${active ? "scale-110" : ""} transition-transform`} />
             <span className="text-[10px] font-medium">{item.label}</span>
@@ -41,7 +41,7 @@ export default function BottomNavigation() {
       })}
       <button
         onClick={handleLogout}
-        className="flex flex-col items-center gap-0.5 px-4 py-2 text-gray-400 hover:text-red-500 transition-colors"
+        className="flex flex-col items-center gap-0.5 px-4 py-2 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
         title="Abmelden"
       >
         <LogOut className="w-5 h-5" />
