@@ -117,3 +117,46 @@ export async function loadAllPoints(
   }
   return allPoints;
 }
+
+/**
+ * Load points within geographic bounds using database-level filtering.
+ * Uses $gte/$lte operators on lat/lng to avoid loading ALL records (which exceeds
+ * the app entity read traffic volume limit for large datasets like 181k SotaPoint).
+ *
+ * @param base44 - The Base44 SDK client (with asServiceRole)
+ * @param entityName - Entity name: 'SotaPoint' | 'PotaPoint' | 'WwffPoint'
+ * @param bounds - { north, south, east, west } geographic bounds
+ * @returns Array of point records within bounds
+ */
+export async function loadPointsInBounds(
+  base44: any,
+  entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint',
+  bounds: { north: number; south: number; east: number; west: number }
+): Promise<any[]> {
+  const entity = base44.asServiceRole?.entities?.[entityName];
+  if (!entity) {
+    console.error(`[loadPointsInBounds] entity not found: ${entityName}`);
+    return [];
+  }
+
+  const query: any = {
+    lat: { $gte: bounds.south, $lte: bounds.north },
+    lng: { $gte: bounds.west, $lte: bounds.east },
+  };
+
+  const LIMIT = 5000;
+  const MAX_PAGES = 20; // 20 * 5000 = 100k records max per bounds query
+  const allPoints: any[] = [];
+
+  try {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const result: any[] = await entity.filter(query, '-created_date', LIMIT, page * LIMIT);
+      if (!Array.isArray(result) || result.length === 0) break;
+      allPoints.push(...result);
+      if (result.length < LIMIT) break;
+    }
+  } catch (e: any) {
+    console.error(`[loadPointsInBounds] filter error for ${entityName}:`, e?.message || String(e));
+  }
+  return allPoints;
+}

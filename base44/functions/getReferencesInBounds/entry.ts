@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { loadAllPoints } from '../../shared/pointUpsert.ts';
+import { loadAllPoints, loadPointsInBounds } from '../../shared/pointUpsert.ts';
 
 // Returns only references within the given map bounds — avoids sending 180k+ worldwide
 // references to the client on initial load. The client calls this on map ready and on
@@ -38,16 +38,21 @@ async function loadReferenceData(base44, type: string): Promise<any[]> {
   return refs;
 }
 
-async function loadType(base44, type: string): Promise<any[]> {
-  // Point types (sota, pota, hbff) are NOT cached — they're loaded from individual
-  // entity records and the in-memory cache can go stale across Lambda instances.
-  // Always load fresh from the database. Fall back to ReferenceData if the point
-  // entity is empty (e.g. migration not yet completed, or fetch not yet run).
+async function loadType(base44, type: string, bounds?: { north: number; south: number; east: number; west: number }): Promise<any[]> {
+  // Point types (sota, pota, hbff) — use database-level bounds filtering to avoid
+  // loading ALL records (181k SotaPoint exceeds the read traffic volume limit).
+  // Falls back to loadAllPoints only if bounds are not provided (e.g. offline cache).
   if (POINT_TYPES[type]) {
     const ptConfig = POINT_TYPES[type];
+    if (bounds) {
+      const points = await loadPointsInBounds(base44, ptConfig.entity, bounds);
+      if (points.length > 0) return points.map(ptConfig.normalize);
+      // Fallback: load from ReferenceData (pre-migration data)
+      return loadReferenceData(base44, type);
+    }
+    // No bounds — load all (used by offline cache downloads)
     const points = await loadAllPoints(base44, ptConfig.entity);
     if (points.length > 0) return points.map(ptConfig.normalize);
-    // Fallback: load from ReferenceData (pre-migration data)
     return loadReferenceData(base44, type);
   }
 
@@ -88,11 +93,11 @@ export default async function(req: Request): Promise<Response> {
     // max_per_type overrides the default cap — used by offline cache downloads to get all points
     const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;
 
-    // Load each type in parallel — small types finish fast, large types take longer
+    // Load each type in parallel — point types use database-level bounds filtering
     const results = await Promise.all(
       allTypes.map(async (type) => {
         try {
-          const refs = await loadType(base44, type);
+          const refs = await loadType(base44, type, bounds);
           if (!refs || refs.length === 0) return { type, filtered: [] };
 
           const filtered: any[] = [];
