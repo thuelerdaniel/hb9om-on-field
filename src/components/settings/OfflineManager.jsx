@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Wifi, WifiOff, Download, Loader2, CheckCircle2, AlertCircle, Trash2,
-  Database, HardDrive, MapPin, Radio, Zap, Search, Layers, ChevronDown, Info, X
+  Database, HardDrive, MapPin, Radio, Zap, Search, Layers, ChevronDown, Info, X, Globe
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
@@ -9,8 +9,10 @@ import {
   cacheTypeFromServer, cacheRepeatersFromServer, cachePrivateNodesFromServer,
   cacheQrzFromServer, cacheFromServer, getReferenceTypeStats, clearReferenceType,
   getServerDataCounts, getOfflineReadiness, isOfflineReady, getCachedAt,
-  getLocalCacheStats, clearLocalReferenceCache
+  getLocalCacheStats, clearLocalReferenceCache,
+  getOfflineCountryFilter
 } from "@/lib/offlineDataCache";
+import CountryFilterDialog from "@/components/settings/CountryFilterDialog";
 
 const TYPE_LABELS = {
   sota: "SOTA – Berggipfel",
@@ -50,6 +52,7 @@ export default function OfflineManager() {
   const [offlineCachedAt, setOfflineCachedAt] = useState(() => getCachedAt());
   const [expandedLayers, setExpandedLayers] = useState(false);
   const [missingHint, setMissingHint] = useState(null);
+  const [countryFilterType, setCountryFilterType] = useState(null);
 
   const refreshStats = useCallback(() => {
     setLocalStats(getReferenceTypeStats());
@@ -287,6 +290,8 @@ export default function OfflineManager() {
             const serverCount = serverCounts?.[type];
             const isDownloading = downloadingTypes.has(type);
             const hasLocal = local.count > 0;
+            const countryFilter = getOfflineCountryFilter(type);
+            const supportsCountryFilter = type !== "qrz";
 
             return (
               <div key={type} className={`flex items-center gap-2 p-2.5 rounded-lg border ${hasLocal ? 'bg-green-50/50 border-green-200' : 'bg-white border-gray-200'}`}>
@@ -307,9 +312,21 @@ export default function OfflineManager() {
                     {serverCount != null && serverCount > local.count && (
                       <span className="text-amber-500">· Update verfügbar</span>
                     )}
+                    {countryFilter && countryFilter.length > 0 && (
+                      <span className="text-blue-500">· {countryFilter.length} Länder</span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  {supportsCountryFilter && (
+                    <button
+                      onClick={() => setCountryFilterType(type)}
+                      className={`p-1.5 rounded-lg ${countryFilter ? 'text-blue-500 bg-blue-50' : 'text-gray-600 hover:bg-gray-100'}`}
+                      title="Nach Ländern filtern"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDownloadType(type)}
                     disabled={isDownloading}
@@ -383,6 +400,15 @@ export default function OfflineManager() {
         >
           <Trash2 className="w-3.5 h-3.5" /> Alle Offline-Daten löschen
         </button>
+      )}
+
+      {countryFilterType && (
+        <CountryFilterDialog
+          type={countryFilterType}
+          typeLabel={TYPE_LABELS[countryFilterType] || countryFilterType}
+          onClose={() => setCountryFilterType(null)}
+          onDownloaded={() => { refreshStats(); loadData(); }}
+        />
       )}
     </section>
   );

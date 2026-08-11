@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { getCountryFromSotaCode, getCountryFromPotaRef, getCountryFromWwffCode, getCountryFromWwbotaScheme, getCountryByName } from "@/lib/countries";
 
 const CACHE_KEY = "hb9om_offline_refs";
 const OVERRIDES_KEY = "hb9om_offline_overrides";
@@ -370,6 +371,7 @@ export async function cacheTypeFromServer(type) {
     // Set timestamp — catch quota error (data is already stored, don't fail)
     try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
     storeServerCount(type, allRefs.length);
+    storeCountryCounts(type, allRefs);
     return { success: true, count: result.count, slimmed: result.slimmed, total: allRefs.length, truncated: result.truncated || false };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
@@ -382,6 +384,7 @@ export async function cacheRepeatersFromServer() {
     const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
     const arr = repeaters || [];
     storeServerCount("repeater", arr.length);
+    storeCountryCounts("repeater", arr);
     // Try full data first; if truncated, try slimmed to fit more
     let result = storeWithBudget("hb9om_refs_repeater", arr, false, PER_TYPE_BUDGET_BYTES);
     if (result.truncated) {
@@ -518,6 +521,8 @@ export function clearReferenceType(type) {
   if (type === "private_nodes") localStorage.removeItem("hb9om_refs_private_nodes");
   if (type === "qrz") localStorage.removeItem(QRZ_CACHE_KEY);
   localStorage.removeItem(`hb9om_server_count_${type}`);
+  localStorage.removeItem(`hb9om_offline_countries_${type}`);
+  localStorage.removeItem(`hb9om_country_counts_${type}`);
 }
 
 // Store server count for a type (called after successful download)
@@ -584,4 +589,148 @@ export function getOfflineReadiness() {
   readiness.allRefs = readiness.sota && readiness.pota && readiness.hbff && readiness.wwbota &&
     readiness.castle && readiness.iota && readiness.lighthouse;
   return readiness;
+}
+
+// --- Country-based filtering for offline downloads ---
+
+// Get country code for a reference based on its type
+function getRefCountryCode(ref, type) {
+  if (!ref) return null;
+  if (type === 'sota') return getCountryFromSotaCode(ref.code || ref.reference);
+  if (type === 'pota') return getCountryFromPotaRef(ref.code || ref.reference);
+  if (type === 'repeater' || type === 'private_nodes') return ref.country_code || null;
+  if (type === 'hbff') return getCountryFromWwffCode(ref.code || ref.reference);
+  if (type === 'wwbota') return getCountryFromWwbotaScheme(ref.scheme);
+  if (type === 'castle' || type === 'lighthouse' || type === 'iota') return getCountryByName(ref.country);
+  return null;
+}
+
+// Store country counts for a type (called after fetching all data)
+function storeCountryCounts(type, refs) {
+  try {
+    const counts = {};
+    for (const ref of refs) {
+      const iso2 = getRefCountryCode(ref, type);
+      if (iso2) counts[iso2] = (counts[iso2] || 0) + 1;
+    }
+    localStorage.setItem(`hb9om_country_counts_${type}`, JSON.stringify(counts));
+  } catch {}
+}
+
+// Get country counts for a type (from last download)
+export function getCountryCountsForType(type) {
+  try {
+    const data = localStorage.getItem(`hb9om_country_counts_${type}`);
+    return data ? JSON.parse(data) : {};
+  } catch { return {}; }
+}
+
+// Get/set the user's country filter selection for a type
+export function getOfflineCountryFilter(type) {
+  try {
+    const data = localStorage.getItem(`hb9om_offline_countries_${type}`);
+    return data ? JSON.parse(data) : null;
+  } catch { return null; }
+}
+
+export function setOfflineCountryFilter(type, countries) {
+  try {
+    localStorage.setItem(`hb9om_offline_countries_${type}`, JSON.stringify(countries));
+  } catch {}
+}
+
+// Download a reference type filtered by selected countries
+export async function cacheTypeFromServerByCountries(type, countryCodes) {
+  try {
+    const entries = await base44.entities.ReferenceData.filter({ type });
+    let allRefs = [];
+    (entries || []).forEach(entry => {
+      if (entry?.references && Array.isArray(entry.references)) {
+        allRefs = allRefs.concat(entry.references);
+      }
+    });
+
+    // Store country counts from full data (for dialog display)
+    storeCountryCounts(type, allRefs);
+
+    // Filter by selected countries
+    const filtered = countryCodes.length > 0
+      ? allRefs.filter(ref => {
+          const iso2 = getRefCountryCode(ref, type);
+          return iso2 && countryCodes.includes(iso2);
+        })
+      : allRefs;
+
+    const key = TYPE_CACHE_KEYS[type];
+    if (!key) return { success: false, count: 0, error: "Unbekannter Typ" };
+
+    // Try full data first; if truncated, try slimmed to fit more
+    let result = storeWithBudget(key, filtered, false, PER_TYPE_BUDGET_BYTES);
+    if (result.truncated) {
+      const slimRefs = filtered.map(slimReference);
+      const slimResult = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
+      if (slimResult.stored && slimResult.count >= result.count) {
+        result = slimResult;
+      }
+    }
+    if (!result.stored) {
+      const slimRefs = filtered.map(slimReference);
+      result = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
+    }
+
+    if (!result.stored) {
+      return { success: false, count: 0, error: result.error };
+    }
+
+    setOfflineCountryFilter(type, countryCodes);
+    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+    storeServerCount(type, allRefs.length);
+    return {
+      success: true, count: result.count, slimmed: result.slimmed,
+      total: filtered.length, allTotal: allRefs.length,
+      truncated: result.truncated || false, countries: countryCodes.length
+    };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
+}
+
+// Download repeaters filtered by selected countries
+export async function cacheRepeatersFromServerByCountries(countryCodes) {
+  try {
+    const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
+    const arr = repeaters || [];
+    storeServerCount("repeater", arr.length);
+    storeCountryCounts("repeater", arr);
+
+    // Filter by selected countries
+    const filtered = countryCodes.length > 0
+      ? arr.filter(r => r.country_code && countryCodes.includes(r.country_code))
+      : arr;
+
+    let result = storeWithBudget("hb9om_refs_repeater", filtered, false, PER_TYPE_BUDGET_BYTES);
+    if (result.truncated) {
+      const slimmed = filtered.map(slimRepeater);
+      const slimResult = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
+      if (slimResult.stored && slimResult.count >= result.count) {
+        result = slimResult;
+      }
+    }
+    if (!result.stored) {
+      const slimmed = filtered.map(slimRepeater);
+      result = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
+    }
+    if (result.stored) {
+      setOfflineCountryFilter("repeater", countryCodes);
+      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+      return {
+        success: true, count: result.count, slimmed: result.slimmed,
+        total: filtered.length, allTotal: arr.length,
+        truncated: result.truncated || false, countries: countryCodes.length
+      };
+    }
+    return { success: false, count: 0, error: result.error };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
 }
