@@ -29,12 +29,14 @@ import RepeaterLayer from "@/components/map/RepeaterLayer";
 import RepeaterFilter from "@/components/map/RepeaterFilter";
 import AprsFilter from "@/components/map/AprsFilter";
 import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
+import TotaLayer from "@/components/map/TotaLayer";
+import TotaFilter from "@/components/map/TotaFilter";
 import PrivateNodeLayer from "@/components/map/PrivateNodeLayer";
 import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
-import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups, loadCachedPrivateNodes } from "@/lib/offlineDataCache";
+import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { getWwbotaColor } from "@/lib/wwbotaSchemes";
@@ -381,6 +383,15 @@ export default function Home() {
     return null;
   });
   const [bmSearchQuery, setBmSearchQuery] = useState("");
+  const [totaData, setTotaData] = useState([]);
+  const [totaFilterTypes, setTotaFilterTypes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_tota_filter_types");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+  const [totaSearchQuery, setTotaSearchQuery] = useState("");
   const [adminLinks, setAdminLinks] = useState([]);
   const [privateNodes, setPrivateNodes] = useState([]);
   const [linkSuggestTarget, setLinkSuggestTarget] = useState(null);
@@ -425,6 +436,9 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_bm_filter_types", JSON.stringify(bmFilterTypes || []));
   }, [bmFilterTypes]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_tota_filter_types", JSON.stringify(totaFilterTypes || []));
+  }, [totaFilterTypes]);
   useEffect(() => {
     localStorage.setItem("hb9om_fox_hunting_mode", foxHuntingMode);
   }, [foxHuntingMode]);
@@ -581,6 +595,9 @@ export default function Home() {
       // Load cached private nodes (APRS + BrandMeister) for offline use
       const cachedNodes = loadCachedPrivateNodes();
       if (cachedNodes && cachedNodes.length > 0) setPrivateNodes(cachedNodes);
+      // Load cached TOTA points for offline use
+      const cachedTota = loadCachedTota();
+      if (cachedTota && cachedTota.length > 0) setTotaData(cachedTota);
       setServerCacheLoaded(true);
       setServerCacheLoading(false);
       return;
@@ -850,6 +867,17 @@ export default function Home() {
     });
   }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
 
+  // Load TOTA points from DB when TOTA layer is active (queued — ~12k records)
+  useEffect(() => {
+    if (!serverCacheLoaded || (!activeLayers.includes("tota") && !showQsoForm) || totaData.length > 0 || isOffline) return;
+    enqueueWorldwideFetch(async () => {
+      try {
+        const data = await base44.entities.TotaPoint.list("-created_date", 20000);
+        if (data && data.length > 0) setTotaData(data);
+      } catch (e) { /* silent */ }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch]);
+
   const handleEdit = useCallback((data, layerType) => {
     setEditTarget({ data, layerType });
   }, []);
@@ -902,6 +930,16 @@ export default function Home() {
       const lighthouses = lighthouseData.length > 0 ? lighthouseData : LIGHTHOUSE_DATA;
       lighthouses.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
     }
+    if (activeLayers.includes("tota") && totaData.length > 0) {
+      totaData.forEach(t => {
+        if (t.lat && t.lng) markers.push({
+          ...t,
+          layerType: "tota",
+          color: t.type === 'antenna' ? "#8b5cf6" : "#f97316",
+          layerLabel: t.type === 'antenna' ? "TOTA Antenne" : "TOTA Turm"
+        });
+      });
+    }
 
     // Skip override copy when no overrides exist (common case — avoids 50k object copies)
     const hasOverrides = Object.keys(serverOverrides).length > 0 || Object.keys(localOverrides).length > 0;
@@ -922,7 +960,7 @@ export default function Home() {
           lng: ov?.manual_lng != null ? ov.manual_lng : (localOv?.lng ?? m.lng),
         };
       });
-  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, localOverrides, serverOverrides, activeContinents, activeCountries]);
+  }, [activeLayers, sotaData, potaData, hbffData, wwbotaData, castleData, totaData, localOverrides, serverOverrides, activeContinents, activeCountries]);
 
   // Castle match statistics for legend
   const castleStats = useMemo(() => {
@@ -1014,6 +1052,46 @@ export default function Home() {
     return result.length;
   }, [brandmeisterNodes, bmFilterTypes, bmSearchQuery]);
 
+  // Filtered TOTA count for filter panel
+  const filteredTotaCount = useMemo(() => {
+    if (totaFilterTypes && totaFilterTypes.length === 0) return 0;
+    let result = totaData;
+    if (totaFilterTypes && totaFilterTypes.length > 0) {
+      result = result.filter(t => totaFilterTypes.includes(t.type));
+    }
+    if (totaSearchQuery.length >= 2) {
+      const q = totaSearchQuery.toLowerCase();
+      result = result.filter(t =>
+        (t.name || "").toLowerCase().includes(q) ||
+        (t.code || "").toLowerCase().includes(q) ||
+        (t.subtype || "").toLowerCase().includes(q) ||
+        (t.usage || "").toLowerCase().includes(q)
+      );
+    }
+    return result.length;
+  }, [totaData, totaFilterTypes, totaSearchQuery]);
+
+  // Calculate filter button positions to prevent overlap
+  // Order: repeater, aprs, brandmeister, tota
+  const filterOffsets = useMemo(() => {
+    const offsets = {};
+    const filterOrder = [
+      { id: 'repeater', active: activeLayers.includes('repeater') && repeaters.length > 0 },
+      { id: 'aprs', active: activeLayers.includes('aprs') && aprsNodes.length > 0 },
+      { id: 'brandmeister', active: activeLayers.includes('brandmeister') && brandmeisterNodes.length > 0 },
+      { id: 'tota', active: activeLayers.includes('tota') && totaData.length > 0 },
+    ];
+    const positionClasses = ['left-3', 'left-36', 'left-72', 'left-[440px]'];
+    let pos = 0;
+    for (const f of filterOrder) {
+      if (f.active) {
+        offsets[f.id] = positionClasses[pos] || 'left-3';
+        pos++;
+      }
+    }
+    return offsets;
+  }, [activeLayers, repeaters.length, aprsNodes.length, brandmeisterNodes.length, totaData.length]);
+
   // Country list for filter dropdown
   const repeaterCountries = useMemo(() => {
     const counts = {};
@@ -1049,6 +1127,16 @@ export default function Home() {
     iotaAvail.forEach(i => markers.push({ ...i, layerType: "iota", color: LAYER_COLORS.iota, layerLabel: "IOTA" }));
     const lighthousesAvail = lighthouseData.length > 0 ? lighthouseData : LIGHTHOUSE_DATA;
     lighthousesAvail.forEach(l => markers.push({ ...l, layerType: "lighthouse", color: LAYER_COLORS.lighthouse, layerLabel: "Leuchtturm" }));
+    if (totaData.length > 0) {
+      totaData.forEach(t => {
+        if (t.lat && t.lng) markers.push({
+          ...t,
+          layerType: "tota",
+          color: t.type === 'antenna' ? "#8b5cf6" : "#f97316",
+          layerLabel: t.type === 'antenna' ? "TOTA Antenne" : "TOTA Turm"
+        });
+      });
+    }
     // Include repeaters for QSO form worldwide search
     if (repeaters.length > 0) {
       repeaters.forEach(r => {
@@ -1078,7 +1166,7 @@ export default function Home() {
         lng: ov.manual_lng != null ? ov.manual_lng : m.lng,
       };
     });
-  }, [showQsoForm, sotaData, potaData, hbffData, wwbotaData, castleData, iotaData, lighthouseData, serverOverrides, repeaters]);
+  }, [showQsoForm, sotaData, potaData, hbffData, wwbotaData, castleData, iotaData, lighthouseData, totaData, serverOverrides, repeaters]);
 
   // Search (debounced)
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -1518,6 +1606,16 @@ export default function Home() {
             />
           )}
 
+          {activeLayers.includes("tota") && totaData.length > 0 && (
+            <TotaLayer
+              points={totaData}
+              filterTypes={totaFilterTypes}
+              searchQuery={totaSearchQuery}
+              performanceMode={performanceMode}
+              userPosition={currentPosition}
+            />
+          )}
+
           {flyTo && <MapBounds center={flyTo} zoom={flyZoom} />}
         </MapContainer>
 
@@ -1535,29 +1633,6 @@ export default function Home() {
           activeCountries={activeCountries}
           onToggleCountry={handleToggleCountry}
         />
-
-        {activeLayers.includes("aprs") && aprsNodes.length > 0 && (
-          <AprsFilter
-            filterTypes={aprsFilterTypes}
-            onFilterTypesChange={setAprsFilterTypes}
-            searchQuery={aprsSearchQuery}
-            onSearchQueryChange={setAprsSearchQuery}
-            nodeCount={aprsNodes.length}
-            visibleCount={filteredAprsCount}
-          />
-        )}
-
-        {activeLayers.includes("brandmeister") && brandmeisterNodes.length > 0 && (
-          <BrandMeisterFilter
-            filterTypes={bmFilterTypes}
-            onFilterTypesChange={setBmFilterTypes}
-            searchQuery={bmSearchQuery}
-            onSearchQueryChange={setBmSearchQuery}
-            nodeCount={brandmeisterNodes.length}
-            visibleCount={filteredBmCount}
-            leftOffsetClass={activeLayers.includes("aprs") && aprsNodes.length > 0 ? "left-40" : "left-16"}
-          />
-        )}
 
         {activeLayers.includes("repeater") && repeaters.length > 0 && (
           <RepeaterFilter
@@ -1579,6 +1654,43 @@ export default function Home() {
             radiusKm={repeaterRadiusKm}
             onRadiusKmChange={setRepeaterRadiusKm}
             userPosition={currentPosition}
+            leftOffsetClass={filterOffsets.repeater || "left-3"}
+          />
+        )}
+
+        {activeLayers.includes("aprs") && aprsNodes.length > 0 && (
+          <AprsFilter
+            filterTypes={aprsFilterTypes}
+            onFilterTypesChange={setAprsFilterTypes}
+            searchQuery={aprsSearchQuery}
+            onSearchQueryChange={setAprsSearchQuery}
+            nodeCount={aprsNodes.length}
+            visibleCount={filteredAprsCount}
+            leftOffsetClass={filterOffsets.aprs || "left-3"}
+          />
+        )}
+
+        {activeLayers.includes("brandmeister") && brandmeisterNodes.length > 0 && (
+          <BrandMeisterFilter
+            filterTypes={bmFilterTypes}
+            onFilterTypesChange={setBmFilterTypes}
+            searchQuery={bmSearchQuery}
+            onSearchQueryChange={setBmSearchQuery}
+            nodeCount={brandmeisterNodes.length}
+            visibleCount={filteredBmCount}
+            leftOffsetClass={filterOffsets.brandmeister || "left-3"}
+          />
+        )}
+
+        {activeLayers.includes("tota") && totaData.length > 0 && (
+          <TotaFilter
+            filterTypes={totaFilterTypes}
+            onFilterTypesChange={setTotaFilterTypes}
+            searchQuery={totaSearchQuery}
+            onSearchQueryChange={setTotaSearchQuery}
+            pointCount={totaData.length}
+            visibleCount={filteredTotaCount}
+            leftOffsetClass={filterOffsets.tota || "left-3"}
           />
         )}
 

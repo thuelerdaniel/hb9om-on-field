@@ -185,6 +185,7 @@ export function clearLocalReferenceCache() {
   clearPerCountryKeys("repeater");
   localStorage.removeItem("hb9om_refs_repeater");
   localStorage.removeItem("hb9om_refs_private_nodes");
+  localStorage.removeItem("hb9om_refs_tota");
   localStorage.removeItem(OVERRIDES_KEY);
   localStorage.removeItem(QRZ_CACHE_KEY);
   localStorage.removeItem(TIMESTAMP_KEY);
@@ -195,6 +196,7 @@ export function clearLocalReferenceCache() {
   }
   localStorage.removeItem("hb9om_server_count_repeater");
   localStorage.removeItem("hb9om_server_count_private_nodes");
+  localStorage.removeItem("hb9om_server_count_tota");
   localStorage.removeItem("hb9om_server_count_qrz");
   localStorage.removeItem("hb9om_truncated_repeater");
   localStorage.removeItem("hb9om_truncated_private_nodes");
@@ -716,6 +718,46 @@ export async function cacheTypeFromServer(type) {
   }
 }
 
+// Download TOTA points from the server (TotaPoint entity)
+export async function cacheTotaFromServer() {
+  try {
+    const points = await base44.entities.TotaPoint.list("-created_date", 20000);
+    const arr = points || [];
+    storeServerCount("tota", arr.length);
+    let result = storeWithBudget("hb9om_refs_tota", arr, false, PER_TYPE_BUDGET_BYTES);
+    const slimTota = () => arr.map(t => ({
+      id: t.id, code: t.code, name: t.name, type: t.type, subtype: t.subtype,
+      lat: t.lat, lng: t.lng, country: t.country, country_code: t.country_code,
+      source: t.source, usage: t.usage, locator: t.locator,
+      height_m: t.height_m, spot_height_m: t.spot_height_m,
+    }));
+    if (result.truncated) {
+      const slimResult = storeWithBudget("hb9om_refs_tota", slimTota(), true, PER_TYPE_BUDGET_BYTES);
+      if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
+    }
+    if (!result.stored) {
+      result = storeWithBudget("hb9om_refs_tota", slimTota(), true, PER_TYPE_BUDGET_BYTES);
+    }
+    if (result.stored) {
+      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+      storeTruncatedFlag("tota", result.truncated || false);
+      return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, truncated: result.truncated || false };
+    }
+    storeTruncatedFlag("tota", false);
+    return { success: false, count: 0, error: result.error };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
+}
+
+// Load cached TOTA points
+export function loadCachedTota() {
+  try {
+    const data = localStorage.getItem("hb9om_refs_tota");
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
 // Download repeaters from the server (Repeater entity)
 export async function cacheRepeatersFromServer() {
   try {
@@ -862,6 +904,8 @@ export function getReferenceTypeStats() {
   }
   // Repeaters
   stats.repeater = getTypeStats("repeater", "hb9om_refs_repeater");
+  // TOTA
+  stats.tota = getTypeStats("tota", "hb9om_refs_tota");
   // Private nodes
   try {
     const data = localStorage.getItem("hb9om_refs_private_nodes");
@@ -880,6 +924,7 @@ export function clearReferenceType(type) {
   if (key) localStorage.removeItem(key);
   if (type === "repeater") localStorage.removeItem("hb9om_refs_repeater");
   if (type === "private_nodes") localStorage.removeItem("hb9om_refs_private_nodes");
+  if (type === "tota") localStorage.removeItem("hb9om_refs_tota");
   if (type === "qrz") localStorage.removeItem(QRZ_CACHE_KEY);
   localStorage.removeItem(`hb9om_server_count_${type}`);
   localStorage.removeItem(`hb9om_offline_countries_${type}`);
@@ -949,6 +994,10 @@ export async function getServerDataCounts() {
     const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
     counts.private_nodes = (nodes || []).length;
   } catch { counts.private_nodes = 0; }
+  try {
+    const tota = await base44.entities.TotaPoint.list("-created_date", 20000);
+    counts.tota = (tota || []).length;
+  } catch { counts.tota = 0; }
   return counts;
 }
 
@@ -965,6 +1014,7 @@ export function getOfflineReadiness() {
     lighthouse: stats.lighthouse.count > 0,
     repeater: stats.repeater.count > 0,
     private_nodes: stats.private_nodes.count > 0,
+    tota: stats.tota.count > 0,
     mapTiles: false, // set by caller from offlineMapStore
   };
   readiness.allRefs = readiness.sota && readiness.pota && readiness.hbff && readiness.wwbota &&

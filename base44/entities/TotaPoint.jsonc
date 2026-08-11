@@ -1,0 +1,73 @@
+{
+  "name": "TotaPoint",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "TOTA Referenz-Code (z.B. OKR-0001, CH-ANT-0001, CH-TWR-0001)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name der Antenne oder des Turms"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "antenna",
+        "tower"
+      ],
+      "description": "Typ: Antenne (CH) oder Turm/Aussichtsturm"
+    },
+    "subtype": {
+      "type": "string",
+      "description": "Untertyp (z.B. Aussichtsturm, Sendeturm, Antenne klein)"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "country": {
+      "type": "string",
+      "description": "Land"
+    },
+    "country_code": {
+      "type": "string",
+      "description": "Laendercode (z.B. CH, DE, CZ)"
+    },
+    "source": {
+      "type": "string",
+      "description": "Datenquelle (swiss_csv, wwtota.com)"
+    },
+    "usage": {
+      "type": "string",
+      "description": "Nutzung (z.B. Aussichtsturm)"
+    },
+    "locator": {
+      "type": "string",
+      "description": "Maidenhead Locator"
+    },
+    "height_m": {
+      "type": "number",
+      "description": "Hoehe des Turms in Metern"
+    },
+    "spot_height_m": {
+      "type": "number",
+      "description": "Standorthoehe ue.M. in Metern"
+    }
+  },
+  "required": [
+    "type",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

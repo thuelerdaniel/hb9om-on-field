@@ -12,6 +12,7 @@ import ExternalSourcesList from "@/components/admin/ExternalSourcesList";
 import IndividualSourceReload from "@/components/admin/IndividualSourceReload";
 import ChangelogEmailSender from "@/components/admin/ChangelogEmailSender";
 import RestorePointManager from "@/components/admin/RestorePointManager";
+import TotaManager from "@/components/admin/TotaManager";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -733,6 +734,9 @@ export default function AdminPanel({
 
       {/* Restore Point Manager */}
       <RestorePointManager />
+
+      {/* TOTA Manager — Swiss CSV upload + worldwide refresh */}
+      <TotaManager />
 
       {/* External Sources List with PDF Export */}
       <ExternalSourcesList />

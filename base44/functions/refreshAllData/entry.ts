@@ -131,6 +131,10 @@ Deno.serve(async (req) => {
       { type: 'castle', fn: () => fetchCastleDataSlim(overridesByType.get('castle') || new Map()) },
     ];
 
+    // TOTA worldwide — invoke fetchTota function (Swiss CSV data requires manual admin upload)
+    // Run as a separate step after the main task loop, not as a taskDef entry.
+    let totaResult = null;
+
     // Run tasks SEQUENTIALLY (not in parallel) to avoid peak memory exhaustion.
     // The SOTA CSV alone is ~125k lines (~15MB text + ~15MB parsed array).
     // Running all 6 tasks concurrently caused worker OOM crashes ("user worker threw exception").
@@ -223,6 +227,21 @@ Deno.serve(async (req) => {
       }
     } catch (e) {
       results.push({ type: 'aprs', status: 'failed', count: 0, error: e.message || String(e), duration_ms: 0 });
+    }
+
+    // TOTA worldwide — fetch from wwtota.com (Swiss CSV data requires manual admin upload)
+    try {
+      const totaStart = Date.now();
+      const totaRes = await base44.functions.invoke('fetchTota', { action: 'fetchWorldwide' });
+      const totaData = totaRes?.data || totaRes;
+      results.push({
+        type: 'tota',
+        status: 'success',
+        count: totaData?.worldwide_imported || 0,
+        duration_ms: Date.now() - totaStart,
+      });
+    } catch (e) {
+      results.push({ type: 'tota', status: 'failed', count: 0, error: e.message || String(e), duration_ms: 0 });
     }
 
     const totalDuration = Date.now() - startTime;

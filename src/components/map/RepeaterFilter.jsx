@@ -23,6 +23,7 @@ export default function RepeaterFilter({
   radiusKm,
   onRadiusKmChange,
   userPosition,
+  leftOffsetClass = "left-3",
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -42,7 +43,7 @@ export default function RepeaterFilter({
   }, [countries]);
 
   return (
-    <div className="absolute top-3 left-3 z-[1005]">
+    <div className={`absolute top-3 ${leftOffsetClass} z-[1005]`}>
       {/* Toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}

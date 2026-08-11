@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   Wifi, WifiOff, Download, Loader2, CheckCircle2, AlertCircle, Trash2,
   Database, HardDrive, MapPin, Radio, Zap, Search, Layers, ChevronDown, Info, X, Globe,
-  Mountain, Trees, Castle, Anchor, Building
+  Mountain, Trees, Castle, Anchor, Building, RadioTower
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
@@ -26,13 +26,14 @@ const TYPE_LABELS = {
   lighthouse: "Leuchttürme",
   repeater: "Amateurfunk-Relais",
   private_nodes: "APRS & BrandMeister Nodes",
+  tota: "TOTA – Türme & Antennen",
   qrz: "QRZ.com Abfragen",
 };
 
 const TYPE_ICONS = {
   sota: Mountain, pota: Trees, hbff: Trees, wwbota: Building,
   castle: Castle, iota: MapPin, lighthouse: Anchor,
-  repeater: Radio, private_nodes: Wifi, qrz: Search,
+  repeater: Radio, private_nodes: Wifi, tota: RadioTower, qrz: Search,
 };
 
 const formatBytes = (bytes) => {
@@ -81,6 +82,7 @@ export default function OfflineManager() {
     if (!readiness.lighthouse) missing.push("Leuchttürme");
     if (!readiness.repeater) missing.push("Relais");
     if (!readiness.private_nodes) missing.push("APRS/BrandMeister");
+    if (!readiness.tota) missing.push("TOTA");
     if (!readiness.mapTiles) missing.push("Offline-Karten");
     setMissingHint(missing);
   }, []);
@@ -128,6 +130,10 @@ export default function OfflineManager() {
       let result;
       if (type === "repeater") result = await cacheRepeatersFromServer();
       else if (type === "private_nodes") result = await cachePrivateNodesFromServer();
+      else if (type === "tota") {
+        const { cacheTotaFromServer } = await import("@/lib/offlineDataCache");
+        result = await cacheTotaFromServer();
+      }
       else result = await cacheTypeFromServer(type);
 
       if (result.success) {
@@ -203,7 +209,7 @@ export default function OfflineManager() {
     localStats.wwbota?.count > 0 && localStats.castle?.count > 0 && localStats.iota?.count > 0 && localStats.lighthouse?.count > 0;
   const fullyReady = allRefsReady && offlineAreas.length > 0;
 
-  const allTypes = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "private_nodes"];
+  const allTypes = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "private_nodes", "tota"];
 
   return (
     <section className="bg-white rounded-xl border border-gray-200 p-4">

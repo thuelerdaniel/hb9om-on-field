@@ -89,6 +89,18 @@ const DATA_SOURCES = [
     status: "Aktiv",
   },
   {
+    name: "TOTA – Towers on the Air",
+    type: "Referenz-Daten",
+    url: "https://wwtota.com/",
+    modality: "HTML-Scraping (Turmliste) + CSV-Upload (Schweiz)",
+    scope: "Weltweit (~5300 Türme in 17 Ländern) + Schweiz (~6900 Antennen & Türme)",
+    auth: "Keine (öffentlich)",
+    updateFrequency: "Geplant (refreshAllData — worldwide) + Manuell (Admin — Schweizer CSV-Upload)",
+    rateLimit: "Keine bekannt",
+    description: "TOTA ist ein internationales Programm für Aussichtstürme. Worldwide-Daten werden von wwtota.com gescraped (Maidenhead-Locator → Koordinaten). Schweizer Daten werden als CSV-Dateien (Antennen.csv & Turm.csv mit LV95-Koordinaten) vom Admin manuell hochgeladen. In der Schweiz wird zwischen Antennen und Türmen getrennt.",
+    status: "Aktiv",
+  },
+  {
     name: "Amateurfunk-Relais (RepeaterBook)",
     type: "Relais-Daten",
     url: "https://www.repeaterbook.com/",

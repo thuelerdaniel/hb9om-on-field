@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2 } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
@@ -88,6 +88,13 @@ const LAYER_GROUPS = [
     icon: Network,
     color: "#14b8a6",
     description: "DMR-Relais und Hotspots im BrandMeister-Netzwerk mit Talkgroups (TG) und DMR-IDs — eigenständiges Netzwerk, nicht APRS"
+  },
+  {
+    id: "tota",
+    label: "TOTA – Towers on the Air",
+    icon: RadioTower,
+    color: "#f97316",
+    description: "Aussichtstürme und Antennen weltweit (wwtota.com) — in der Schweiz getrennt nach Antennen und Türmen"
   }
 ];
 
