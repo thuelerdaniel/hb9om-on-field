@@ -2,6 +2,7 @@ import React, { memo, useMemo, useRef, useEffect, useCallback } from "react";
 import { CircleMarker, Polyline, Popup, useMap, Marker, Circle } from "react-leaflet";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
+import DraggablePopup from "@/components/map/DraggablePopup";
 import { getModeColor, repeaterMatchesMode, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { isInContinents } from "@/lib/continents";
@@ -528,18 +529,16 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         const color = getModeColor(r.primary_mode);
         // Combine RepeaterBook crosslinks + admin-managed links for popup display
         const linkedResolved = [...resolveLinkedRepeaters(r), ...resolveAdminLinks(r)];
-        const popup = (
-          <Popup autoPan={false}>
-            <RepeaterPopup
-              repeater={r}
-              linkedRepeaters={linkedResolved}
-              userPosition={userPosition}
-              onSuggestLink={onSuggestLink}
-              onToggleCoverage={onToggleCoverage}
-              showCoverageForThis={individualCoverage && individualCoverage.has(r.id)}
-              isAdmin={isAdmin}
-            />
-          </Popup>
+        const popupContent = (
+          <RepeaterPopup
+            repeater={r}
+            linkedRepeaters={linkedResolved}
+            userPosition={userPosition}
+            onSuggestLink={onSuggestLink}
+            onToggleCoverage={onToggleCoverage}
+            showCoverageForThis={individualCoverage && individualCoverage.has(r.id)}
+            isAdmin={isAdmin}
+          />
         );
         if (performanceMode) {
           return (
@@ -554,7 +553,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
                 fillOpacity: r.status === "off-air" ? 0.3 : 0.85,
               }}
             >
-              {popup}
+              <DraggablePopup autoPan={false}>
+                {popupContent}
+              </DraggablePopup>
             </CircleMarker>
           );
         }
@@ -564,7 +565,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
             position={[r.lat, r.lng]}
             icon={getRepeaterIcon(color)}
           >
-            {popup}
+            <DraggablePopup autoPan={false}>
+              {popupContent}
+            </DraggablePopup>
           </Marker>
         );
       })}

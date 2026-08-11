@@ -2,6 +2,7 @@ import React, { memo, useState, useRef, useEffect, useCallback } from "react";
 import { Marker, Popup, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
+import DraggablePopup from "@/components/map/DraggablePopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
 
 // Hard cap on markers rendered at once — prevents "page not responding" on extreme loads.
@@ -151,9 +152,9 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
                 fillOpacity: 0.85,
               }}
             >
-              <Popup>
+              <DraggablePopup>
                 <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} />
-              </Popup>
+              </DraggablePopup>
             </CircleMarker>
           );
         })}
@@ -172,9 +173,9 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
             position={[m.lat, m.lng]}
             icon={getShapeIcon(m.layerType, m.color)}
           >
-            <Popup>
+            <DraggablePopup>
               <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} />
-            </Popup>
+            </DraggablePopup>
           </Marker>
         );
       })}

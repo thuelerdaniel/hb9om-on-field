@@ -3,6 +3,7 @@ import { CircleMarker, Popup, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import { Radio, Globe, Signal, Network, MapPin, Navigation, Hash } from "lucide-react";
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
+import DraggablePopup from "@/components/map/DraggablePopup";
 
 const NODE_TYPE_LABELS = {
   repeater_node: "Digipeater / Relais",
@@ -204,10 +205,8 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
     <>
       {renderNodes.map((n, idx) => {
         const color = colorMap[n.node_type] || colorMap.other;
-        const popup = (
-          <Popup>
-            <PrivateNodePopup node={n} userPosition={userPosition} colorScheme={colorScheme} />
-          </Popup>
+        const popupContent = (
+          <PrivateNodePopup node={n} userPosition={userPosition} colorScheme={colorScheme} />
         );
         if (performanceMode) {
           return (
@@ -222,7 +221,9 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
                 fillOpacity: 0.85,
               }}
             >
-              {popup}
+              <DraggablePopup>
+                {popupContent}
+              </DraggablePopup>
             </CircleMarker>
           );
         }
@@ -232,7 +233,9 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
             position={[n.lat, n.lng]}
             icon={getNodeIcon(n.node_type, color)}
           >
-            {popup}
+            <DraggablePopup>
+              {popupContent}
+            </DraggablePopup>
           </Marker>
         );
       })}

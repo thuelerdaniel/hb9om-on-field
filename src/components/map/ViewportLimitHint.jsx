@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { AlertTriangle, ChevronDown, X, ZoomIn, Layers, Settings, Database } from "lucide-react";
+import { AlertTriangle, ChevronDown, X, ZoomIn, Layers, Settings, Database, GripVertical } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useDraggable } from "@/hooks/useDraggable";
 
 /**
  * Red blinking hint shown above the legend when the viewport contains more
@@ -19,6 +20,8 @@ export default function ViewportLimitHint({ visibleCount, maxRender, totalCount,
     }
   }, [visibleCount, maxRender]);
 
+  const { containerRef, handleRef } = useDraggable();
+
   if (dismissed || visibleCount <= maxRender) return null;
 
   const handleDismiss = () => {
@@ -28,9 +31,10 @@ export default function ViewportLimitHint({ visibleCount, maxRender, totalCount,
   };
 
   return (
-    <div className="absolute bottom-[8.5rem] left-3 z-[1001] max-w-[calc(100%-11rem)] sm:max-w-sm bg-white rounded-lg shadow-2xl border-2 border-red-500 overflow-hidden">
-      {/* Blinking red header */}
-      <div className="viewport-limit-blink flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500 text-white">
+    <div ref={containerRef} className="absolute bottom-[8.5rem] left-3 z-[1001] max-w-[calc(100%-11rem)] sm:max-w-sm bg-white rounded-lg shadow-2xl border-2 border-red-500 overflow-hidden">
+      {/* Blinking red header — draggable via handleRef */}
+      <div ref={handleRef} className="viewport-limit-blink flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500 text-white cursor-grab active:cursor-grabbing">
+        <GripVertical className="w-3 h-3 flex-shrink-0 opacity-50" />
         <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
         <span className="text-[11px] font-bold flex-1">Nicht alle Daten angezeigt</span>
         <span className="text-[10px] font-mono bg-white/20 px-1.5 py-0.5 rounded">

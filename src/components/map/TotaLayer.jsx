@@ -5,6 +5,7 @@ import { RadioTower, Signal, Building } from "lucide-react";
 import { isInContinents } from "@/lib/continents";
 import { isInCountries } from "@/lib/countries";
 import { getMarkerSvg } from "@/lib/markerShapes";
+import DraggablePopup from "@/components/map/DraggablePopup";
 
 // Colors for TOTA types
 const TOTA_COLORS = {
@@ -106,9 +107,8 @@ export default function TotaLayer({
         const color = TOTA_COLORS[point.type] || "#6b7280";
         const Icon = TOTA_TYPE_ICONS[point.type] || Building;
 
-        const popup = (
-          <Popup>
-            <div className="text-xs space-y-1.5 min-w-[180px]">
+        const popupContent = (
+          <div className="text-xs space-y-1.5 min-w-[180px]">
               <div className="flex items-center gap-1.5 font-bold text-sm text-gray-900 border-b pb-1.5 mb-1.5">
                 <Icon className="w-4 h-4" style={{ color }} />
                 {point.name || point.code}
@@ -245,8 +245,7 @@ export default function TotaLayer({
                   </p>
                 </div>
               </details>
-            </div>
-          </Popup>
+          </div>
         );
 
         // Performance mode: use CircleMarker (lighter rendering for 5k+ points)
@@ -263,7 +262,9 @@ export default function TotaLayer({
                 weight: 2,
               }}
             >
-              {popup}
+              <DraggablePopup>
+                {popupContent}
+              </DraggablePopup>
             </CircleMarker>
           );
         }
@@ -275,7 +276,9 @@ export default function TotaLayer({
             position={[point.lat, point.lng]}
             icon={getTotaIcon(point.type, color)}
           >
-            {popup}
+            <DraggablePopup>
+              {popupContent}
+            </DraggablePopup>
           </Marker>
         );
       })}

@@ -137,9 +137,12 @@ function toast({ ...props }) {
     },
   });
 
-  setTimeout(() => {
-    dismiss();
-  }, duration);
+  // duration === 0 means persistent — user must close manually (no auto-dismiss)
+  if (duration > 0) {
+    setTimeout(() => {
+      dismiss();
+    }, duration);
+  }
 
   return {
     id,

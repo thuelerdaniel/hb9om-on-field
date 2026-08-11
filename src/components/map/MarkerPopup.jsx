@@ -72,10 +72,25 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
       {data.code && <p className="text-xs text-gray-500 mb-1">Referenz: <span className="font-mono font-semibold">{data.code}</span></p>}
       {data.reference && !data.code && <p className="text-xs text-gray-500 mb-1">Referenz: <span className="font-mono font-semibold">{data.reference}</span></p>}
 
+      {/* SOTA points — always visible (prominent badge) */}
+      {layerType === "sota" && data.points != null && (
+        <div className="inline-flex items-center gap-1 mb-1.5 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
+          ⭐ {data.points} SOTA-Punkte
+        </div>
+      )}
+      {/* SOTA altitude — always visible */}
+      {layerType === "sota" && data.altitude_m != null && (
+        <p className="text-xs text-gray-500 mb-1">Höhe: {data.altitude_m} m ü.M.</p>
+      )}
+      {layerType === "sota" && data.alt != null && data.altitude_m == null && (
+        <p className="text-xs text-gray-500 mb-1">Höhe: {data.alt} m ü.M.</p>
+      )}
+
       {showDetails && (
         <>
-          {data.alt && <p className="text-xs text-gray-500">Höhe: {data.alt} m ü.M.</p>}
-          {data.points && <p className="text-xs text-gray-500">Punkte: {data.points}</p>}
+          {data.alt && layerType !== "sota" && <p className="text-xs text-gray-500">Höhe: {data.alt} m ü.M.</p>}
+          {data.points && layerType !== "sota" && <p className="text-xs text-gray-500">Punkte: {data.points}</p>}
+          {layerType === "sota" && data.altitude_m == null && data.alt == null && data.points == null && null}
           {data.region && <p className="text-xs text-gray-500">Region: {data.region}</p>}
           {data.locationDesc && <p className="text-xs text-gray-500">Ort: {data.locationDesc}</p>}
           {data.parkType && <p className="text-xs text-gray-500">Typ: {data.parkType}</p>}
