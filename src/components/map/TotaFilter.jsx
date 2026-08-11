@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { RadioTower, Signal, ChevronDown, X, Search, Info } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { RadioTower, Signal, ChevronDown, X, Search, Info, Globe } from "lucide-react";
+import { getCountriesByContinent } from "@/lib/countries";
 
 const TOTA_TYPES = [
   { id: "tower", label: "Türme / Aussichtstürme", icon: RadioTower, color: "#f97316" },
@@ -15,6 +16,9 @@ export default function TotaFilter({
   onSearchQueryChange,
   pointCount,
   visibleCount,
+  points = [],
+  filterCountry,
+  onFilterCountryChange,
   leftOffsetClass = "left-16",
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,6 +34,17 @@ export default function TotaFilter({
       onFilterTypesChange([...current, type]);
     }
   };
+
+  // Build country list from TOTA points
+  const countries = useMemo(() => {
+    const counts = {};
+    for (const p of points) {
+      const cc = p.country_code || (p.source === "swiss_csv" ? "CH" : "?");
+      counts[cc] = counts[cc] || { code: cc, name: p.country || cc, count: 0 };
+      counts[cc].count++;
+    }
+    return Object.values(counts).sort((a, b) => b.count - a.count);
+  }, [points]);
 
   return (
     <div className={`absolute top-3 ${leftOffsetClass} z-[1005]`}>
@@ -132,6 +147,37 @@ export default function TotaFilter({
             )}
           </div>
 
+          {/* Country filter */}
+          {countries.length > 1 && (
+            <div className="p-3 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                  <Globe className="w-3 h-3" /> Land
+                </h4>
+                {filterCountry !== "all" && (
+                  <button
+                    onClick={() => onFilterCountryChange("all")}
+                    className="text-[10px] text-orange-600 hover:underline"
+                  >
+                    Alle
+                  </button>
+                )}
+              </div>
+              <select
+                value={filterCountry}
+                onChange={(e) => onFilterCountryChange(e.target.value)}
+                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
+              >
+                <option value="all">Alle Länder ({pointCount})</option>
+                {countries.map(c => (
+                  <option key={c.code} value={c.code}>
+                    {c.name} ({c.count})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center gap-1.5 mb-1.5">
               <Info className="w-3.5 h-3.5 text-gray-400" />
@@ -143,7 +189,7 @@ export default function TotaFilter({
               TOTA (Towers on the Air) ist ein internationales Programm für
               Aussichtstürme. In der Schweiz werden Antennen und Türme aus
               lokalen Datenquellen getrennt dargestellt. Weltweit Daten von
-              wwtota.com.
+              wwtota.com (5300+ Türme in 17 Ländern).
             </p>
           </div>
 

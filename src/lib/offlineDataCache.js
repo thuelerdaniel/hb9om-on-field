@@ -752,10 +752,124 @@ export async function cacheTotaFromServer() {
 
 // Load cached TOTA points
 export function loadCachedTota() {
+  // Check for per-country keys first (country-filtered download)
+  const countries = getCachedCountriesForType("tota");
+  if (countries.length > 0) {
+    const merged = [];
+    for (const country of countries) {
+      try {
+        const data = localStorage.getItem(`hb9om_refs_tota_${country}`);
+        if (data) {
+          const arr = JSON.parse(data);
+          if (Array.isArray(arr)) merged.push(...arr);
+        }
+      } catch {}
+    }
+    return merged.length > 0 ? merged : [];
+  }
   try {
     const data = localStorage.getItem("hb9om_refs_tota");
     return data ? JSON.parse(data) : [];
   } catch { return []; }
+}
+
+// Download TOTA points filtered by selected countries.
+// Each country is stored in its own localStorage key (hb9om_refs_tota_{country}).
+export async function cacheTotaFromServerByCountries(countryCodes) {
+  try {
+    // TOTA has ~10k records — load all with pagination, then filter by country
+    const all = await loadAllTotaPoints();
+    const arr = all || [];
+
+    // Clear old data FIRST to free space
+    localStorage.removeItem("hb9om_refs_tota");
+    clearPerCountryKeys("tota");
+
+    const availableSpace = await estimateAvailableSpace();
+    if (availableSpace < 10240) {
+      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
+    }
+    const dynamicBudget = PER_COUNTRY_BUDGET_BYTES;
+
+    storeServerCount("tota", arr.length);
+    storeCountryCounts("tota", arr);
+
+    // If no countries selected, store all in single key
+    if (countryCodes.length === 0) {
+      let result = storeWithBudget("hb9om_refs_tota", arr, false, PER_TYPE_BUDGET_BYTES);
+      if (result.stored) {
+        clearPerCountryKeys("tota");
+        setOfflineCountryFilter("tota", countryCodes);
+        try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+        storeTruncatedFlag("tota", result.truncated || false);
+        return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, allTotal: arr.length, truncated: result.truncated || false, countries: 0 };
+      }
+      storeTruncatedFlag("tota", false);
+      return { success: false, count: 0, error: result.error };
+    }
+
+    // Group by country (derive from country_code or source)
+    const byCountry = {};
+    for (const t of arr) {
+      const iso2 = t.country_code || (t.source === "swiss_csv" ? "CH" : "");
+      if (iso2 && countryCodes.includes(iso2)) {
+        if (!byCountry[iso2]) byCountry[iso2] = [];
+        byCountry[iso2].push(t);
+      }
+    }
+
+    // Sort countries by size (smallest first)
+    const sortedCountries = Object.entries(byCountry).sort((a, b) => a[1].length - b[1].length);
+
+    let totalStored = 0, totalFiltered = 0;
+    let anyTruncated = false, anySlimmed = false;
+    const storedCountries = [];
+
+    for (const [country, refs] of sortedCountries) {
+      const countryKey = `hb9om_refs_tota_${country}`;
+      let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
+      if (result.stored) {
+        totalStored += result.count;
+        totalFiltered += refs.length;
+        if (result.truncated) anyTruncated = true;
+        if (result.slimmed) anySlimmed = true;
+        storedCountries.push(country);
+      }
+    }
+
+    if (storedCountries.length === 0) {
+      if (Object.keys(byCountry).length === 0) {
+        return { success: false, count: 0, error: "Keine Daten für die ausgewählten Länder gefunden" };
+      }
+      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
+    }
+
+    setCachedCountriesForType("tota", storedCountries);
+    setOfflineCountryFilter("tota", countryCodes);
+    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+    storeTruncatedFlag("tota", anyTruncated);
+    return {
+      success: true, count: totalStored, slimmed: anySlimmed,
+      total: totalFiltered, allTotal: arr.length,
+      truncated: anyTruncated, countries: storedCountries.length
+    };
+  } catch (e) {
+    return { success: false, count: 0, error: e.message };
+  }
+}
+
+// Load all TOTA points with pagination (SDK caps at 5000 per call)
+async function loadAllTotaPoints() {
+  const LIMIT = 5000;
+  const MAX_PAGES = 10; // 10 * 5000 = 50k records max
+  const allPoints = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const result = await base44.entities.TotaPoint.list('-created_date', LIMIT, page * LIMIT);
+    if (!Array.isArray(result) || result.length === 0) break;
+    allPoints.push(...result);
+    if (result.length < LIMIT) break;
+  }
+  return allPoints;
 }
 
 // Download repeaters from the server (Repeater entity)

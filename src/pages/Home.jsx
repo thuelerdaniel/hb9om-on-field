@@ -296,6 +296,7 @@ export default function Home() {
         if (refs.castle) setCastleData(prev => mergeRefs(prev, refs.castle));
         if (refs.iota) setIotaData(prev => mergeRefs(prev, refs.iota));
         if (refs.lighthouse) setLighthouseData(prev => mergeRefs(prev, refs.lighthouse));
+        if (refs.tota) setTotaData(prev => mergeRefs(prev, refs.tota));
         typesToFetch.forEach(t => {
           loadedBoundsRef.current[t] = unionBounds(loadedBoundsRef.current[t], bnds);
         });
@@ -392,6 +393,7 @@ export default function Home() {
     return null;
   });
   const [totaSearchQuery, setTotaSearchQuery] = useState("");
+  const [totaFilterCountry, setTotaFilterCountry] = useState(() => localStorage.getItem("hb9om_tota_filter_country") || "all");
   const [adminLinks, setAdminLinks] = useState([]);
   const [privateNodes, setPrivateNodes] = useState([]);
   const [linkSuggestTarget, setLinkSuggestTarget] = useState(null);
@@ -439,6 +441,9 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_tota_filter_types", JSON.stringify(totaFilterTypes || []));
   }, [totaFilterTypes]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_tota_filter_country", totaFilterCountry);
+  }, [totaFilterCountry]);
   useEffect(() => {
     localStorage.setItem("hb9om_fox_hunting_mode", foxHuntingMode);
   }, [foxHuntingMode]);
@@ -867,16 +872,8 @@ export default function Home() {
     });
   }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
 
-  // Load TOTA points from DB when TOTA layer is active (queued — ~12k records)
-  useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("tota") && !showQsoForm) || totaData.length > 0 || isOffline) return;
-    enqueueWorldwideFetch(async () => {
-      try {
-        const data = await base44.entities.TotaPoint.list("-created_date", 20000);
-        if (data && data.length > 0) setTotaData(data);
-      } catch (e) { /* silent */ }
-    });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch]);
+  // TOTA points are loaded via getReferencesInBounds (bounds-based, like SOTA/POTA)
+  // No separate TotaPoint.list() call needed — the bounds fetch effect handles it.
 
   const handleEdit = useCallback((data, layerType) => {
     setEditTarget({ data, layerType });
@@ -1059,6 +1056,9 @@ export default function Home() {
     if (totaFilterTypes && totaFilterTypes.length > 0) {
       result = result.filter(t => totaFilterTypes.includes(t.type));
     }
+    if (totaFilterCountry !== "all") {
+      result = result.filter(t => (t.country_code || (t.source === "swiss_csv" ? "CH" : "")) === totaFilterCountry);
+    }
     if (totaSearchQuery.length >= 2) {
       const q = totaSearchQuery.toLowerCase();
       result = result.filter(t =>
@@ -1068,8 +1068,12 @@ export default function Home() {
         (t.usage || "").toLowerCase().includes(q)
       );
     }
+    // Apply continent/country filters
+    result = result
+      .filter(t => isInContinents(t.lat, t.lng, activeContinents))
+      .filter(t => isInCountries(t, activeCountries));
     return result.length;
-  }, [totaData, totaFilterTypes, totaSearchQuery]);
+  }, [totaData, totaFilterTypes, totaSearchQuery, totaFilterCountry, activeContinents, activeCountries]);
 
   // Calculate filter button positions to prevent overlap
   // Order: repeater, aprs, brandmeister, tota
@@ -1613,6 +1617,9 @@ export default function Home() {
               searchQuery={totaSearchQuery}
               performanceMode={performanceMode}
               userPosition={currentPosition}
+              activeContinents={activeContinents}
+              activeCountries={activeCountries}
+              filterCountry={totaFilterCountry}
             />
           )}
 
@@ -1690,6 +1697,9 @@ export default function Home() {
             onSearchQueryChange={setTotaSearchQuery}
             pointCount={totaData.length}
             visibleCount={filteredTotaCount}
+            points={totaData}
+            filterCountry={totaFilterCountry}
+            onFilterCountryChange={setTotaFilterCountry}
             leftOffsetClass={filterOffsets.tota || "left-3"}
           />
         )}

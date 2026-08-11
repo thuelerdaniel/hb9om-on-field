@@ -4,7 +4,7 @@ import { getCountriesByContinent } from "@/lib/countries";
 import { useToast } from "@/components/ui/use-toast";
 import {
   cacheTypeFromServerByCountries, cacheRepeatersFromServerByCountries,
-  cachePrivateNodesFromServerByCountries,
+  cachePrivateNodesFromServerByCountries, cacheTotaFromServerByCountries,
   getCountryCountsForType, getOfflineCountryFilter
 } from "@/lib/offlineDataCache";
 
@@ -46,6 +46,7 @@ export default function CountryFilterDialog({ type, typeLabel, onClose, onDownlo
       let result;
       if (type === "repeater") result = await cacheRepeatersFromServerByCountries(selected);
       else if (type === "private_nodes") result = await cachePrivateNodesFromServerByCountries(selected);
+      else if (type === "tota") result = await cacheTotaFromServerByCountries(selected);
       else result = await cacheTypeFromServerByCountries(type, selected);
 
       if (result.success) {

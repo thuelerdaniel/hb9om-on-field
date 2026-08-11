@@ -26,6 +26,15 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
     entity: 'WwffPoint',
     normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link })
   },
+  tota: {
+    entity: 'TotaPoint',
+    normalize: (r) => ({
+      code: r.code, name: r.name, type: r.type, subtype: r.subtype,
+      lat: r.lat, lng: r.lng, country: r.country, country_code: r.country_code,
+      source: r.source, usage: r.usage, locator: r.locator,
+      height_m: r.height_m, spot_height_m: r.spot_height_m,
+    })
+  },
 };
 
 async function loadReferenceData(base44, type: string): Promise<any[]> {
@@ -88,7 +97,7 @@ export default async function(req: Request): Promise<Response> {
 
     const allTypes = Array.isArray(types) && types.length > 0
       ? types
-      : ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
+      : ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota'];
 
     // max_per_type overrides the default cap — used by offline cache downloads to get all points
     const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;

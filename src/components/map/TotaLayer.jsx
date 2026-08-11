@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { CircleMarker, Popup, useMap } from "react-leaflet";
 import { RadioTower, Signal, Building, Zap } from "lucide-react";
+import { isInContinents } from "@/lib/continents";
+import { isInCountries } from "@/lib/countries";
 
 // Colors for TOTA types
 const TOTA_COLORS = {
@@ -30,16 +32,22 @@ export default function TotaLayer({
   searchQuery,
   performanceMode,
   userPosition,
+  activeContinents = [],
+  activeCountries = [],
+  filterCountry = "all",
 }) {
   const map = useMap();
 
-  // Filter points by type and search query
+  // Filter points by type, search query, continent and country
   const filteredPoints = useMemo(() => {
     let result = points;
     // null or all = no filter; array = filter by selected types
     if (filterTypes && filterTypes.length === 0) return [];
     if (filterTypes && filterTypes.length > 0) {
       result = result.filter((p) => filterTypes.includes(p.type));
+    }
+    if (filterCountry !== "all") {
+      result = result.filter(p => (p.country_code || (p.source === "swiss_csv" ? "CH" : "")) === filterCountry);
     }
     if (searchQuery && searchQuery.length >= 2) {
       const q = searchQuery.toLowerCase();
@@ -51,8 +59,12 @@ export default function TotaLayer({
           (p.usage || "").toLowerCase().includes(q)
       );
     }
+    // Apply continent/country filters (same logic as MapMarkers for SOTA/POTA)
+    result = result
+      .filter(p => isInContinents(p.lat, p.lng, activeContinents))
+      .filter(p => isInCountries(p, activeCountries));
     return result;
-  }, [points, filterTypes, searchQuery]);
+  }, [points, filterTypes, searchQuery, activeContinents, activeCountries, filterCountry]);
 
   // Viewport bounds filtering — only render markers within the current viewport
   const visiblePoints = useMemo(() => {

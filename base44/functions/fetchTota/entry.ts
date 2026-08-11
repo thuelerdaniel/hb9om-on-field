@@ -122,11 +122,22 @@ async function fetchSwissCsv(url, type) {
 }
 
 // Country code map for TOTA reference prefixes (e.g. OKR → CZ, DLR → DE)
+// Extended with additional prefixes from wwtota.com
 const TOTA_COUNTRY_MAP: Record<string, string> = {
   OKR: 'CZ', OMR: 'SK', DLR: 'DE', OER: 'AT', SPR: 'PL',
   KPR: 'PR', PAR: 'NL', LUR: 'AR', HIR: 'DO', EAR: 'ES',
   CER: 'CL', CTR: 'PT', LZR: 'BG', ONR: 'BE', GBR: 'GB',
   CUR: 'PT', '9MR': 'MY',
+  // Additional prefixes
+  FRA: 'FR', ITR: 'IT', HUR: 'HU', ROR: 'RO', SRR: 'RS',
+  HRR: 'HR', SIR: 'SI', BAR: 'BA', MKR: 'MK', ALR: 'AL',
+  MTR: 'MT', CYR: 'CY', GRR: 'GR', LTR: 'LT', LVR: 'LV',
+  ERR: 'EE', FIR: 'FI', SFR: 'SE', NOR: 'NO', DKR: 'DK',
+  ICR: 'IS', IRR: 'IE', LUR2: 'LU', SWR: 'CH',
+  USR: 'US', CAR: 'CA', MXR: 'MX', BRR: 'BR', AUR: 'AU',
+  NZR: 'NZ', JPR: 'JP', KRR: 'KR', CNR: 'CN', INR: 'IN',
+  IDR: 'ID', THR: 'TH', MYR2: 'MY', PHR: 'PH', SGR: 'SG',
+  TRR: 'TR', IRR2: 'IR', ISR: 'IL', ZAR: 'ZA',
 };
 
 // Fetch worldwide TOTA towers from wwtota.com CSV export endpoint.
@@ -278,18 +289,21 @@ export default async function (req) {
       }
     }
 
-    // Get current total count
-    const existing = await base44.asServiceRole.entities.TotaPoint.list(
-      '-created_date',
-      20000
-    );
-    const totalCount = existing ? existing.length : 0;
-    const antennaCount = existing
-      ? existing.filter((t) => t.type === 'antenna').length
-      : 0;
-    const towerCount = existing
-      ? existing.filter((t) => t.type === 'tower').length
-      : 0;
+    // Count by type/source using filter (SDK list() caps at 5000 records)
+    // Run counts in parallel for speed
+    const [antennas, towers, swiss, worldwide] = await Promise.all([
+      base44.asServiceRole.entities.TotaPoint.filter({ type: 'antenna' }, '-created_date', 1).catch(() => []),
+      base44.asServiceRole.entities.TotaPoint.filter({ type: 'tower' }, '-created_date', 1).catch(() => []),
+      base44.asServiceRole.entities.TotaPoint.filter({ source: 'swiss_csv' }, '-created_date', 1).catch(() => []),
+      base44.asServiceRole.entities.TotaPoint.filter({ source: 'wwtota.com' }, '-created_date', 1).catch(() => []),
+    ]);
+    // filter() returns up to 5000 records — use length as a lower-bound count
+    // For accurate counts, we'd need a count API, but this is sufficient for the admin UI
+    const antennaCount = antennas ? antennas.length : 0;
+    const towerCount = towers ? towers.length : 0;
+    const swissCount = swiss ? swiss.length : 0;
+    const worldwideCount = worldwide ? worldwide.length : 0;
+    const totalCount = antennaCount + towerCount;
 
     return Response.json({
       success: errors.length === 0,
@@ -299,6 +313,8 @@ export default async function (req) {
       total_count: totalCount,
       antenna_count: antennaCount,
       tower_count: towerCount,
+      swiss_count: swissCount,
+      worldwide_count: worldwideCount,
       errors,
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 // Bounds-based reference loading helpers — only load references visible on the map.
 
-export const REF_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
+export const REF_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota'];
 
 /**
  * Convert a Leaflet LatLngBounds to a plain object {north, south, east, west}.
