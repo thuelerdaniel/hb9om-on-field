@@ -172,8 +172,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [showRefDropdown, setShowRefDropdown] = useState(false);
   const [showRefCodeDropdown, setShowRefCodeDropdown] = useState(false);
   const [showRefNameDropdown, setShowRefNameDropdown] = useState(false);
-  const [showGeneral, setShowGeneral] = useState(true);
-
   const wakeLockRef = useRef(null);
   const qrzInFlightRef = useRef(false);
 
@@ -474,20 +472,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         </div>
 
         <div className="p-4 space-y-2">
-          {/* Allgemeine Section */}
-          <div className="p-4 bg-gray-50 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setShowGeneral(!showGeneral)}
-              className="w-full flex items-center justify-between mb-2"
-            >
-              <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                <Radio className="w-3.5 h-3.5" /> Allgemeine
-              </label>
-              <span className="text-xs text-gray-400">{showGeneral ? "▾" : "▸"}</span>
-            </button>
-            {showGeneral && (
-              <div className="space-y-2">
           {/* QSO Partner */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rufzeichen (QSO-Partner)</label>
@@ -652,9 +636,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
               </button>
             </div>
           )}
-            </div>
-            )}
-          </div>
 
           {/* Standort / Referenz */}
           <div className="p-4 bg-gray-50 rounded-xl">
