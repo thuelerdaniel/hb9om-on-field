@@ -1,5 +1,5 @@
 import { base44 } from "@/api/base44Client";
-import { getCountryFromSotaCode, getCountryFromPotaRef, getCountryFromWwffCode, getCountryFromWwbotaScheme, getCountryByName } from "@/lib/countries";
+import { getCountryFromSotaCode, getCountryFromPotaRef, getCountryFromWwffCode, getCountryFromWwbotaScheme, getCountryByName, getCountryFromWcaCode } from "@/lib/countries";
 
 const CACHE_KEY = "hb9om_offline_refs";
 const OVERRIDES_KEY = "hb9om_offline_overrides";
@@ -234,8 +234,9 @@ export async function cacheFromServer() {
 
 // --- Per-type cache operations ---
 
-// Slim down a reference to essential fields only — reduces JSON size by ~60-70%
-// (drops verbose fields like link, description, elevation, etc. that aren't needed offline)
+// Slim down a reference to essential fields only — reduces JSON size by ~70-80%.
+// Only keeps fields needed for offline map display (markers + popups).
+// Drops verbose fields: link (URLs useless offline), canton, region, wcaLocation, active.
 function slimReference(ref) {
   const s = {
     code: ref.code || ref.reference,
@@ -243,12 +244,10 @@ function slimReference(ref) {
     lat: ref.lat,
     lng: ref.lng,
   };
-  if (ref.canton) s.canton = ref.canton;
+  // parkType needed for POTA popup display
   if (ref.parkType) s.parkType = ref.parkType;
+  // scheme needed for WWBOTA color coding
   if (ref.scheme) s.scheme = ref.scheme;
-  if (ref.region) s.region = ref.region;
-  if (ref.wcaLocation) s.wcaLocation = ref.wcaLocation;
-  if (ref.link) s.link = ref.link;
   return s;
 }
 
@@ -286,7 +285,7 @@ const PER_TYPE_BUDGET_BYTES = 1.5 * 1024 * 1024; // 1.5MB per type
 // Per-country storage budget — when downloading by country, each country gets its own
 // localStorage key with this budget. This allows 6-10 countries to fit without hitting
 // the quota limit that a single large key would reach.
-const PER_COUNTRY_BUDGET_BYTES = 1 * 1024 * 1024; // 1MB per country
+const PER_COUNTRY_BUDGET_BYTES = 2.5 * 1024 * 1024; // 2.5MB per country
 
 // Try to store data in localStorage — if quota exceeded, try progressively smaller subsets
 function tryStoreRepeater(key, arr) {
@@ -355,11 +354,25 @@ function storeWithBudget(key, refs, slimmed, budgetBytes) {
   return { stored: false, count: 0, error: "Speicher voll – zu gross für lokalen Speicher" };
 }
 
-// Estimate available localStorage space by trying progressively larger test strings.
-// Returns approximate available bytes (0 if localStorage is full).
-function estimateAvailableSpace() {
+// Estimate available localStorage space.
+// Primary: navigator.storage.estimate() (accurate, returns actual quota + usage).
+// Fallback: progressively larger test strings (max 8MB).
+async function estimateAvailableSpace() {
+  // Try Storage API first (accurate quota)
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      if (est && est.quota) {
+        const available = est.quota - (est.usage || 0);
+        // Cap at 50MB — enough for all reference layers without consuming the entire browser quota
+        return Math.min(available, 50 * 1024 * 1024);
+      }
+    }
+  } catch {}
+
+  // Fallback: test-based estimation with larger sizes
   const testKey = "__hb9om_space_test__";
-  const sizes = [100 * 1024, 500 * 1024, 1024 * 1024, 2 * 1024 * 1024];
+  const sizes = [100 * 1024, 500 * 1024, 1024 * 1024, 2 * 1024 * 1024, 4 * 1024 * 1024, 8 * 1024 * 1024];
   let available = 0;
   for (const size of sizes) {
     try {
@@ -920,7 +933,8 @@ function getRefCountryCode(ref, type) {
   if (type === 'repeater' || type === 'private_nodes') return ref.country_code || null;
   if (type === 'hbff') return getCountryFromWwffCode(ref.code || ref.reference);
   if (type === 'wwbota') return getCountryFromWwbotaScheme(ref.scheme);
-  if (type === 'castle' || type === 'lighthouse' || type === 'iota') return getCountryByName(ref.country);
+  if (type === 'castle') return getCountryFromWcaCode(ref.code) || getCountryByName(ref.country);
+  if (type === 'lighthouse' || type === 'iota') return getCountryByName(ref.country);
   return null;
 }
 
@@ -973,12 +987,12 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
     clearPerCountryKeys(type);
 
     // Estimate available space and calculate dynamic per-country budget
-    const availableSpace = estimateAvailableSpace();
+    const availableSpace = await estimateAvailableSpace();
     if (availableSpace < 10240) {
       return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
     }
     const numCountries = countryCodes.length || 1;
-    const dynamicBudget = Math.min(PER_COUNTRY_BUDGET_BYTES, Math.floor(availableSpace / numCountries * 0.8));
+    const dynamicBudget = Math.min(PER_COUNTRY_BUDGET_BYTES, Math.floor(availableSpace / numCountries * 0.9));
 
     // Store metadata AFTER clearing (while space is available)
     storeServerCount(type, allRefs.length);
@@ -1014,12 +1028,17 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
       }
     }
 
+    // Sort countries by size (smallest first) so small countries are stored before
+    // large ones — prevents a large country (e.g. DE with 16k POTA parks) from
+    // consuming all available localStorage space, leaving none for smaller countries.
+    const sortedCountries = Object.entries(byCountry).sort((a, b) => a[1].length - b[1].length);
+
     // Store each country in its own key with dynamic budget
     let totalStored = 0, totalFiltered = 0;
     let anyTruncated = false, anySlimmed = false;
     const storedCountries = [];
 
-    for (const [country, refs] of Object.entries(byCountry)) {
+    for (const [country, refs] of sortedCountries) {
       const countryKey = `hb9om_refs_${type}_${country}`;
       let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
       if (result.truncated) {
@@ -1073,12 +1092,12 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
     clearPerCountryKeys("repeater");
 
     // Estimate available space and calculate dynamic per-country budget
-    const availableSpace = estimateAvailableSpace();
+    const availableSpace = await estimateAvailableSpace();
     if (availableSpace < 10240) {
       return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
     }
     const numCountries = countryCodes.length || 1;
-    const dynamicBudget = Math.min(PER_COUNTRY_BUDGET_BYTES, Math.floor(availableSpace / numCountries * 0.8));
+    const dynamicBudget = Math.min(PER_COUNTRY_BUDGET_BYTES, Math.floor(availableSpace / numCountries * 0.9));
 
     storeServerCount("repeater", arr.length);
     storeCountryCounts("repeater", arr);

@@ -7,7 +7,7 @@ export default function FoxHuntingSwitch({ mode, onModeChange }) {
   const isFox = mode === "fox";
 
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1005]">
+    <div className="absolute top-[3.75rem] left-1/2 -translate-x-1/2 z-[1005]">
       <div className="bg-white shadow-lg rounded-full border border-gray-200 flex items-center p-0.5">
         <button
           onClick={() => onModeChange("fox")}
@@ -35,7 +35,7 @@ export default function FoxHuntingSwitch({ mode, onModeChange }) {
         </button>
       </div>
       {showHint && (
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
+        <div className="absolute top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
           🎯 Hunting-Modul kommt bald — Fuchsjagd-DF-Tools in Entwicklung
         </div>
       )}

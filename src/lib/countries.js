@@ -189,6 +189,15 @@ export function getCountryFromWwbotaScheme(scheme) {
   return WWBOTA_SCHEME_TO_ISO[scheme.toUpperCase()] || null;
 }
 
+// Get ISO2 country code from a WCA castle code (e.g., "HB-00027" → "CH")
+// WCA codes use DXCC prefixes (same as SOTA) + number, e.g. "HB-00027", "DL-00001", "F-00001"
+export function getCountryFromWcaCode(code) {
+  if (!code) return null;
+  const prefix = code.split('-')[0].toUpperCase();
+  if (!prefix) return null;
+  return SOTA_TO_ISO[prefix] || null;
+}
+
 // Get ISO2 country code from a WWFF reference code (e.g., "DLFF-0001" → "DE")
 // WWFF refs use DXCC prefix + "FF" + number. The DXCC prefix maps to ISO2 via SOTA_TO_ISO.
 export function getCountryFromWwffCode(code) {
