@@ -42,6 +42,11 @@
     "manual_lng": {
       "type": "number",
       "description": "Manuell gesetzter Laengengrad"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
     }
   },
   "required": [
