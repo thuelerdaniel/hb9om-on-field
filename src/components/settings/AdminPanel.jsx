@@ -13,6 +13,7 @@ import IndividualSourceReload from "@/components/admin/IndividualSourceReload";
 import ChangelogEmailSender from "@/components/admin/ChangelogEmailSender";
 import RestorePointManager from "@/components/admin/RestorePointManager";
 import TotaManager from "@/components/admin/TotaManager";
+import MobileSelect from "@/components/ui/MobileSelect";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -629,25 +630,28 @@ export default function AdminPanel({
 
         {/* Scope selector + calc button */}
         <div className="flex items-center gap-2">
-          <select
-            value={coverageScope}
-            onChange={e => setCoverageScope(e.target.value)}
-            className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-300"
-          >
-            <option value="CH">Schweiz</option>
-            <option value="DE">Deutschland</option>
-            <option value="FR">Frankreich</option>
-            <option value="IT">Italien</option>
-            <option value="AT">Österreich</option>
-            <option value="GB">Grossbritannien</option>
-            <option value="ES">Spanien</option>
-            <option value="US">USA</option>
-            <option value="CA">Kanada</option>
-            <option value="JP">Japan</option>
-            <option value="AU">Australien</option>
-            <option value="BR">Brasilien</option>
-            <option value="all">Weltweit (alle)</option>
-          </select>
+          <div className="w-40 flex-shrink-0">
+            <MobileSelect
+              value={coverageScope}
+              onValueChange={setCoverageScope}
+              triggerClassName="text-xs"
+              options={[
+                { value: "CH", label: "Schweiz" },
+                { value: "DE", label: "Deutschland" },
+                { value: "FR", label: "Frankreich" },
+                { value: "IT", label: "Italien" },
+                { value: "AT", label: "Österreich" },
+                { value: "GB", label: "Grossbritannien" },
+                { value: "ES", label: "Spanien" },
+                { value: "US", label: "USA" },
+                { value: "CA", label: "Kanada" },
+                { value: "JP", label: "Japan" },
+                { value: "AU", label: "Australien" },
+                { value: "BR", label: "Brasilien" },
+                { value: "all", label: "Weltweit (alle)" }
+              ]}
+            />
+          </div>
           <button
             onClick={handleCalcCoverage}
             disabled={coverageLoading}

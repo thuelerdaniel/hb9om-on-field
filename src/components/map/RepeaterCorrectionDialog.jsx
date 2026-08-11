@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { AlertTriangle, X, Loader2, Send } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import MobileSelect from "@/components/ui/MobileSelect";
 
 const FIELD_OPTIONS = [
   { value: "frequency", label: "Frequenz" },
@@ -94,15 +95,12 @@ export default function RepeaterCorrectionDialog({ repeater, onClose }) {
 
           <div>
             <label className="text-xs font-bold text-gray-700 block mb-1">Was ist falsch?</label>
-            <select
+            <MobileSelect
               value={fieldName}
-              onChange={(e) => handleFieldChange(e.target.value)}
-              className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded"
-            >
-              {FIELD_OPTIONS.map(f => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
+              onValueChange={handleFieldChange}
+              triggerClassName="w-full text-xs"
+              options={FIELD_OPTIONS.map(f => ({ value: f.value, label: f.label }))}
+            />
           </div>
 
           {currentValue && (

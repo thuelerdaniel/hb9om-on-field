@@ -204,7 +204,7 @@ export default function Log() {
         {view === "list" && (
         <PullToRefresh onRefresh={loadEntries}>
         {/* Toolbar */}
-        <div className={`bg-white rounded-xl border border-gray-200 p-3 mb-4 flex flex-wrap items-center gap-2`}>
+        <div className={`bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-3 mb-4 flex flex-wrap items-center gap-2`}>
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <Filter className="w-4 h-4" />
             <span>Filter:</span>
@@ -286,7 +286,7 @@ export default function Log() {
             {filtered.map(entry => (
               <div
                 key={entry.id}
-                className={`bg-white rounded-xl border p-4 ${entry.status === "archived" ? "border-gray-100 opacity-60" : "border-gray-200"}`}
+                className={`bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border p-4 ${entry.status === "archived" ? "border-gray-100 dark:border-slate-800 opacity-60" : "border-gray-200 dark:border-slate-700"}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link2, X, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import MobileSelect from "@/components/ui/MobileSelect";
 
 const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6"];
 const LINE_STYLES = [
@@ -82,29 +83,38 @@ export default function RepeaterLinkSuggestDialog({ fromRepeater, allRepeaters, 
 
           <div>
             <label className="text-xs font-bold text-gray-700 block mb-1">Ziel-Relais (nach Distanz)</label>
-            <select value={toRepeaterId} onChange={e => setToRepeaterId(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded" required>
-              <option value="">— Relais wählen —</option>
-              {candidates.map(r => (
-                <option key={r.id} value={r.id}>
-                  {r.callsign} {r.frequency?.toFixed(4)} MHz — {r.location_name || r.country || ""}
-                </option>
-              ))}
-            </select>
+            <MobileSelect
+              value={toRepeaterId}
+              onValueChange={setToRepeaterId}
+              triggerClassName="w-full text-xs"
+              options={[
+                { value: "", label: "— Relais wählen —" },
+                ...candidates.map(r => ({ value: r.id, label: `${r.callsign} ${r.frequency?.toFixed(4)} MHz — ${r.location_name || r.country || ""}` }))
+              ]}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-bold text-gray-700 block mb-1">Verlinkungsart</label>
-              <select value={linkType} onChange={e => setLinkType(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded">
-                <option value="permanent">Permanent</option>
-                <option value="temporary">Temporär</option>
-              </select>
+              <MobileSelect
+                value={linkType}
+                onValueChange={setLinkType}
+                triggerClassName="w-full text-xs"
+                options={[
+                  { value: "permanent", label: "Permanent" },
+                  { value: "temporary", label: "Temporär" }
+                ]}
+              />
             </div>
             <div>
               <label className="text-xs font-bold text-gray-700 block mb-1">Strichart</label>
-              <select value={lineStyle} onChange={e => setLineStyle(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded">
-                {LINE_STYLES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
+              <MobileSelect
+                value={lineStyle}
+                onValueChange={setLineStyle}
+                triggerClassName="w-full text-xs"
+                options={LINE_STYLES.map(s => ({ value: s.id, label: s.label }))}
+              />
             </div>
           </div>
 

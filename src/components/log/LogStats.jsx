@@ -77,22 +77,22 @@ export default function LogStats({ entries }) {
     <div className="space-y-4">
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
           <Radio className="w-4 h-4 text-gray-400 mb-1" />
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
           <p className="text-[10px] text-gray-500">QSOs gesamt</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
           <Globe className="w-4 h-4 text-gray-400 mb-1" />
           <p className="text-2xl font-bold text-gray-900">{stats.uniqueCallsigns}</p>
           <p className="text-[10px] text-gray-500">einzelne Rufzeichen</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
           <MapPin className="w-4 h-4 text-gray-400 mb-1" />
           <p className="text-2xl font-bold text-gray-900">{stats.uniqueRefs}</p>
           <p className="text-[10px] text-gray-500">Referenzen aktiviert</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
           <Building className="w-4 h-4 text-gray-400 mb-1" />
           <p className="text-2xl font-bold text-gray-900">{stats.clubstationCount}</p>
           <p className="text-[10px] text-gray-500">Clubstations-QSOs</p>
@@ -100,7 +100,7 @@ export default function LogStats({ entries }) {
       </div>
 
       {/* By Band */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
+      <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
         <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
           <BarChart3 className="w-4 h-4" /> QSOs pro Band
         </h2>
@@ -117,7 +117,7 @@ export default function LogStats({ entries }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* By Mode */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
             <Radio className="w-4 h-4" /> QSOs pro Mode
           </h2>
@@ -133,7 +133,7 @@ export default function LogStats({ entries }) {
         </section>
 
         {/* By Reference Type */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
             <MapPin className="w-4 h-4" /> QSOs pro Referenz
           </h2>
@@ -156,7 +156,7 @@ export default function LogStats({ entries }) {
       </div>
 
       {/* By Month */}
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
+      <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
         <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
           <Calendar className="w-4 h-4" /> QSOs pro Monat
         </h2>

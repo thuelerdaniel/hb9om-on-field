@@ -503,7 +503,7 @@ function HelpSection({ section }) {
   }, []);
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors"
@@ -611,7 +611,7 @@ export default function Help() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <button onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate("/")} className="p-1.5 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -737,7 +737,7 @@ export default function Help() {
             <a
               key={s.id}
               href={`#${s.id}`}
-              className="px-3 py-2.5 text-sm font-semibold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 flex items-center gap-2 transition-colors"
+              className="px-3 py-2.5 text-sm font-semibold bg-white dark:bg-slate-800 dark:text-slate-100 border border-gray-200 dark:border-slate-700 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 hover:border-gray-300 flex items-center gap-2 transition-colors"
             >
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: s.color + '15' }}>
                 <s.icon className="w-4 h-4" style={{ color: s.color }} />

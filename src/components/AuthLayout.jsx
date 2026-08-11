@@ -2,7 +2,7 @@ import React from "react";
 
 export default function AuthLayout({ icon: Icon, title, subtitle, footer, headerExtra, children }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 relative" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       {headerExtra}
       <div className="w-full max-w-md">
         <div className="text-center mb-10">

@@ -10,6 +10,7 @@ import BackupSection from "@/components/settings/BackupSection";
 import AdminPanel from "@/components/settings/AdminPanel";
 import { DEMO_EMAIL } from "@/lib/constants";
 import OfflineManager from "@/components/settings/OfflineManager";
+import MobileSelect from "@/components/ui/MobileSelect";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -364,7 +365,7 @@ export default function Settings() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24">
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Profil & QRZ</h2></div>
         {/* User Profile */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
             <User className="w-4 h-4" /> Mein Profil
           </h2>
@@ -525,14 +526,14 @@ export default function Settings() {
             )}
           </div>
           {qrzLookups.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+            <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-8 text-center">
               <Search className="w-10 h-10 text-gray-200 mx-auto mb-2" />
               <p className="text-sm text-gray-400">Noch keine QRZ-Abfragen durchgeführt</p>
             </div>
           ) : (
             <div className="space-y-2">
               {qrzLookups.map(entry => (
-                <div key={entry.id} className="bg-white rounded-xl border border-gray-200 p-3">
+                <div key={entry.id} className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       {entry.lookup_status === 'success'
@@ -566,7 +567,7 @@ export default function Settings() {
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Karte & Anzeige</h2></div>
         {/* Performance Mode */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
@@ -657,7 +658,7 @@ export default function Settings() {
         </section>
 
         {/* GPS Tracking */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
@@ -677,20 +678,21 @@ export default function Settings() {
           {gpsTrackingEnabled && (
             <div className="mt-3 pt-3 border-t border-gray-100">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktualisierungsintervall</label>
-              <select
+              <MobileSelect
                 value={gpsTrackingInterval}
-                onChange={(e) => handleGpsIntervalChange(parseInt(e.target.value))}
-                className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                <option value={30}>30 Sekunden</option>
-                <option value={60}>1 Minute</option>
-                <option value={120}>2 Minuten</option>
-                <option value={300}>5 Minuten</option>
-                <option value={600}>10 Minuten</option>
-                <option value={900}>15 Minuten</option>
-                <option value={1800}>30 Minuten</option>
-                <option value={3600}>1 Stunde</option>
-              </select>
+                onValueChange={(v) => handleGpsIntervalChange(parseInt(v))}
+                triggerClassName="w-full mt-1 text-sm"
+                options={[
+                  { value: 30, label: "30 Sekunden" },
+                  { value: 60, label: "1 Minute" },
+                  { value: 120, label: "2 Minuten" },
+                  { value: 300, label: "5 Minuten" },
+                  { value: 600, label: "10 Minuten" },
+                  { value: 900, label: "15 Minuten" },
+                  { value: 1800, label: "30 Minuten" },
+                  { value: 3600, label: "1 Stunde" }
+                ]}
+              />
               <p className="text-[10px] text-gray-400 mt-1">Kürzeres Intervall = genauere Position, aber höherer Akkuverbrauch.</p>
             </div>
           )}
@@ -705,7 +707,7 @@ export default function Settings() {
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Anträge & Feedback</h2></div>
         {/* Change Requests - available for all users */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
@@ -731,7 +733,7 @@ export default function Settings() {
         </section>
 
         {/* Feature Requests - available for all users */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
@@ -801,7 +803,7 @@ export default function Settings() {
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Konto</h2></div>
         {/* Logout */}
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-gray-900">Abmelden</h3>
@@ -820,7 +822,7 @@ export default function Settings() {
 
         {/* Delete Account — hidden for demo user (admins delete via user management) */}
         {currentUser?.email !== DEMO_EMAIL && (
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-gray-900">Konto löschen</h3>
