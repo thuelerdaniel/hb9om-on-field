@@ -355,41 +355,84 @@ function storeWithBudget(key, refs, slimmed, budgetBytes) {
   return { stored: false, count: 0, error: "Speicher voll – zu gross für lokalen Speicher" };
 }
 
+// Estimate available localStorage space by trying progressively larger test strings.
+// Returns approximate available bytes (0 if localStorage is full).
+function estimateAvailableSpace() {
+  const testKey = "__hb9om_space_test__";
+  const sizes = [100 * 1024, 500 * 1024, 1024 * 1024, 2 * 1024 * 1024];
+  let available = 0;
+  for (const size of sizes) {
+    try {
+      localStorage.setItem(testKey, "x".repeat(size));
+      localStorage.removeItem(testKey);
+      available = size;
+    } catch {
+      localStorage.removeItem(testKey);
+      break;
+    }
+  }
+  return available;
+}
+
 // Types stored as individual point entities (SotaPoint, PotaPoint, WwffPoint)
 // — loaded via getReferencesInBounds backend function instead of ReferenceData
 const POINT_TYPES = { sota: true, pota: true, hbff: true };
 
 // Load all refs for a type — from point entities (SOTA/POTA/WWFF) or ReferenceData (others).
 // Shared by cacheTypeFromServer and cacheTypeFromServerByCountries.
+//
+// Point types are loaded with client-side pagination: the SDK caps list/filter at 5000
+// records per call, so we paginate using a created_date cursor to load ALL records
+// (e.g., POTA has 89k+ records). Without pagination, only the 5000 newest records
+// would be loaded, which may all be from one country — making country-filtered
+// downloads fail with "no data for selected countries".
 async function loadAllRefsForType(type) {
   if (POINT_TYPES[type]) {
-    // Load from individual point entities via backend function (worldwide bounds, high limit)
-    const response = await base44.functions.invoke('getReferencesInBounds', {
-      bounds: { north: 90, south: -90, east: 180, west: -180 },
-      types: [type],
-      max_per_type: 200000
-    });
-    // functions.invoke returns an Axios response — data is in response.data
-    const refsData = response?.data?.references || response?.references || {};
-    let refs = refsData[type] || [];
+    const entityMap = { sota: 'SotaPoint', pota: 'PotaPoint', hbff: 'WwffPoint' };
+    const normalizeMap = {
+      sota: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng }),
+      pota: (r) => ({ code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng, parkType: r.parkType, active: r.active }),
+      hbff: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link }),
+    };
+    const entityName = entityMap[type];
+    const normalize = normalizeMap[type];
+    const LIMIT = 5000;
+    const MAX_PAGES = 50; // Safety cap: 50 * 5000 = 250k records
+    const allRefs = [];
+    let cursor = null;
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      let result;
+      if (cursor) {
+        result = await base44.entities[entityName].filter({ created_date: { $lt: cursor } }, '-created_date', LIMIT);
+      } else {
+        result = await base44.entities[entityName].list('-created_date', LIMIT);
+      }
+      if (!Array.isArray(result) || result.length === 0) break;
+      allRefs.push(...result.map(normalize));
+      if (result.length < LIMIT) break;
+      cursor = result[result.length - 1].created_date;
+    }
+
     // Fallback: if point entity is empty, load from ReferenceData (pre-migration data)
-    if (refs.length === 0) {
+    if (allRefs.length === 0) {
       const entries = await base44.entities.ReferenceData.filter({ type });
-      refs = [];
+      const refs = [];
       (entries || []).forEach(entry => {
         if (entry?.references && Array.isArray(entry.references)) {
-          refs = refs.concat(entry.references);
+          refs.push(...entry.references);
         }
       });
+      return refs;
     }
-    return refs;
+    return allRefs;
   }
   // Load from ReferenceData entity
   const entries = await base44.entities.ReferenceData.filter({ type });
-  let refs = [];
+  const refs = [];
   (entries || []).forEach(entry => {
     if (entry?.references && Array.isArray(entry.references)) {
-      refs = refs.concat(entry.references);
+      refs.push(...entry.references);
     }
   });
   return refs;
@@ -901,12 +944,24 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
   try {
     const allRefs = await loadAllRefsForType(type);
 
-    // Store metadata FIRST (before data, while quota is available)
-    storeServerCount(type, allRefs.length);
-    storeCountryCounts(type, allRefs);
-
     const key = TYPE_CACHE_KEYS[type];
     if (!key) return { success: false, count: 0, error: "Unbekannter Typ" };
+
+    // Clear old data FIRST to free space before storing metadata
+    localStorage.removeItem(key);
+    clearPerCountryKeys(type);
+
+    // Estimate available space and calculate dynamic per-country budget
+    const availableSpace = estimateAvailableSpace();
+    if (availableSpace < 10240) {
+      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
+    }
+    const numCountries = countryCodes.length || 1;
+    const dynamicBudget = Math.min(PER_COUNTRY_BUDGET_BYTES, Math.floor(availableSpace / numCountries * 0.8));
+
+    // Store metadata AFTER clearing (while space is available)
+    storeServerCount(type, allRefs.length);
+    storeCountryCounts(type, allRefs);
 
     // If no countries selected, store all in single key (legacy behavior)
     if (countryCodes.length === 0) {
@@ -938,26 +993,22 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
       }
     }
 
-    // Clear old single-key cache and per-country keys before writing new ones
-    localStorage.removeItem(key);
-    clearPerCountryKeys(type);
-
-    // Store each country in its own key with per-country budget
+    // Store each country in its own key with dynamic budget
     let totalStored = 0, totalFiltered = 0;
     let anyTruncated = false, anySlimmed = false;
     const storedCountries = [];
 
     for (const [country, refs] of Object.entries(byCountry)) {
       const countryKey = `hb9om_refs_${type}_${country}`;
-      let result = storeWithBudget(countryKey, refs, false, PER_COUNTRY_BUDGET_BYTES);
+      let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
       if (result.truncated) {
         const slimRefs = refs.map(slimReference);
-        const slimResult = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
+        const slimResult = storeWithBudget(countryKey, slimRefs, true, dynamicBudget);
         if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
       }
       if (!result.stored) {
         const slimRefs = refs.map(slimReference);
-        result = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
+        result = storeWithBudget(countryKey, slimRefs, true, dynamicBudget);
       }
       if (result.stored) {
         totalStored += result.count;
@@ -969,7 +1020,10 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
     }
 
     if (storedCountries.length === 0) {
-      return { success: false, count: 0, error: "Speicher voll – kein Land gespeichert" };
+      if (Object.keys(byCountry).length === 0) {
+        return { success: false, count: 0, error: "Keine Daten für die ausgewählten Länder gefunden" };
+      }
+      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
     }
 
     setCachedCountriesForType(type, storedCountries);
@@ -992,6 +1046,19 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
   try {
     const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
     const arr = repeaters || [];
+
+    // Clear old data FIRST to free space
+    localStorage.removeItem("hb9om_refs_repeater");
+    clearPerCountryKeys("repeater");
+
+    // Estimate available space and calculate dynamic per-country budget
+    const availableSpace = estimateAvailableSpace();
+    if (availableSpace < 10240) {
+      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
+    }
+    const numCountries = countryCodes.length || 1;
+    const dynamicBudget = Math.min(PER_COUNTRY_BUDGET_BYTES, Math.floor(availableSpace / numCountries * 0.8));
+
     storeServerCount("repeater", arr.length);
     storeCountryCounts("repeater", arr);
 
@@ -1027,25 +1094,21 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
       }
     }
 
-    // Clear old single-key and per-country keys
-    localStorage.removeItem("hb9om_refs_repeater");
-    clearPerCountryKeys("repeater");
-
     let totalStored = 0, totalFiltered = 0;
     let anyTruncated = false, anySlimmed = false;
     const storedCountries = [];
 
     for (const [country, refs] of Object.entries(byCountry)) {
       const countryKey = `hb9om_refs_repeater_${country}`;
-      let result = storeWithBudget(countryKey, refs, false, PER_COUNTRY_BUDGET_BYTES);
+      let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
       if (result.truncated) {
         const slimmed = refs.map(slimRepeater);
-        const slimResult = storeWithBudget(countryKey, slimmed, true, PER_COUNTRY_BUDGET_BYTES);
+        const slimResult = storeWithBudget(countryKey, slimmed, true, dynamicBudget);
         if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
       }
       if (!result.stored) {
         const slimmed = refs.map(slimRepeater);
-        result = storeWithBudget(countryKey, slimmed, true, PER_COUNTRY_BUDGET_BYTES);
+        result = storeWithBudget(countryKey, slimmed, true, dynamicBudget);
       }
       if (result.stored) {
         totalStored += result.count;
@@ -1057,7 +1120,10 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
     }
 
     if (storedCountries.length === 0) {
-      return { success: false, count: 0, error: "Speicher voll – kein Land gespeichert" };
+      if (Object.keys(byCountry).length === 0) {
+        return { success: false, count: 0, error: "Keine Daten für die ausgewählten Länder gefunden" };
+      }
+      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
     }
 
     setCachedCountriesForType("repeater", storedCountries);
