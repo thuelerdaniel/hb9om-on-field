@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell, RadioTower, Signal, Network } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
@@ -75,12 +75,14 @@ const SECTIONS = [
           { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Blume – Flora & Fauna Naturreservate" },
           { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunker (Halbkuppel mit Schiessscharte) – Militärische Bunker, farbig nach Land" },
           { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Burg mit Zinnen und Tor – Burgen und Schlösser" },
+          { icon: RadioTower, color: "#f97316", name: "TOTA", desc: "Aussichtsturm mit Antenne – Türme und Antennen weltweit (wwtota.com), in der Schweiz getrennt nach Antennen und Türmen" },
           { icon: Diamond, color: "#3498db", name: "IOTA", desc: "Raute mit Welle – Inseln" },
           { icon: Anchor, color: "#f39c12", name: "WLOTA/ARLHS", desc: "Leuchtturm mit Lichtstrahlen – Leuchttürme" },
           { icon: Hexagon, color: "#16a085", name: "BLN – Natur Zonen (nur in CH)", desc: "Sechseck mit Blatt – Bundesinventare / Naturzonen" },
           { icon: Zap, color: "#dc2626", name: "Gefahren & Störquellen (nur in CH)", desc: "Blitz – Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender" },
           { icon: Radio, color: "#3b82f6", name: "Amateurfunk-Relais", desc: "Turm mit Blitz – FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen, farbig nach Modulation" },
-          { icon: Wifi, color: "#8b5cf6", name: "APRS", desc: "APRS-Standard-Symbole – Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetterstation), Stern mit I (IGate) – farbig nach Node-Typ" }
+          { icon: Wifi, color: "#8b5cf6", name: "APRS", desc: "APRS-Standard-Symbole – Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetterstation), Stern mit I (IGate) – farbig nach Node-Typ" },
+          { icon: Network, color: "#14b8a6", name: "BrandMeister", desc: "DMR-Quadrat mit doppelten Wellen – DMR-Relais und Hotspots im BrandMeister-Netzwerk mit Talkgroups" }
         ]
       },
       {
@@ -127,13 +129,25 @@ const SECTIONS = [
           { icon: Trees, color: "#8e44ad", name: "WWFF", desc: "Worldwide Flora & Fauna – Naturreservate", url: "https://wwff.co/directory/" },
           { icon: Building, color: "#795548", name: "WWBOTA", desc: "Bunkers on the Air – Militärische Bunker, farbig nach Land", url: "https://wwbota.net/map/" },
           { icon: Castle, color: "#e67e22", name: "WCA/COTA", desc: "Castles on the Air – Burgen und Schlösser", url: "https://wcagroup.org/?page_id=207" },
+          { icon: RadioTower, color: "#f97316", name: "TOTA", desc: "Towers on the Air – Aussichtstürme und Antennen weltweit (wwtota.com)", url: "https://wwtota.com/seznam/?lang=de" },
           { icon: Navigation, color: "#3498db", name: "IOTA", desc: "Islands on the Air – Inseln", url: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html" },
           { icon: Anchor, color: "#f39c12", name: "WLOTA/ARLHS", desc: "Lighthouses on the Air – Leuchttürme", url: "https://wlol.arlhs.com/" },
           { icon: Trees, color: "#16a085", name: "BLN – Natur Zonen (nur in CH)", desc: "Bundesinventare – Auengebiete, Moore etc. (nur in CH — map.geo.admin.ch)", url: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html" },
           { icon: Zap, color: "#dc2626", name: "Gefahren & Störquellen (nur in CH)", desc: "Hochspannungsleitungen und Starkstromanlagen (nur in CH — map.geo.admin.ch)", url: "https://map.geo.admin.ch/" },
           { icon: Radio, color: "#3b82f6", name: "Amateurfunk-Relais", desc: "FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen", url: "https://www.repeaterbook.com/" },
-          { icon: Wifi, color: "#8b5cf6", name: "APRS", desc: "Amateur Radio Positioning – Digipeater, IGates, Wetter, Hotspots und mobile Nutzer", url: "https://aprs.fi/" }
+          { icon: Wifi, color: "#8b5cf6", name: "APRS", desc: "Amateur Radio Positioning – Digipeater, IGates, Wetter, Hotspots und mobile Nutzer", url: "https://aprs.fi/" },
+          { icon: Network, color: "#14b8a6", name: "BrandMeister", desc: "DMR-Netzwerk – Relais und Hotspots mit Talkgroups und DMR-IDs", url: "https://brandmeister.network/" }
         ]
+      },
+      {
+        title: "TOTA – Towers on the Air",
+        body: "TOTA (Towers on the Air) ist ein internationales Programm für Aktivierungen von Aussichtstürmen, Antennen und ähnlichen Bauwerken. Die Daten stammen von wwtota.com (5300+ Türme in 17 Ländern). In der Schweiz werden Antennen und Türme aus lokalen Datenquellen getrennt dargestellt. Der TOTA-Filter (oben links) erlaubt das Filtern nach Typ (Antennen/Türme), Land und Namenssuche. Im Marker-Popup finden Sie Links zur TOTA-Detailseite auf wwtota.com und zur vollständigen TOTA-Tabelle. Die TOTA-Daten werden über den Backend-Funktion fetchTota geladen und im TotaPoint-Entity gespeichert. Administratoren können Schweizer CSV-Daten über den TOTA-Manager im Admin-Panel hochladen.",
+        example: "TOTA-Layer aktivieren → TOTA-Filter oben links → Typ «Türme» wählen → nur Aussichtstürme werden angezeigt → Marker anklicken für Detailseite auf wwtota.com."
+      },
+      {
+        title: "BrandMeister – DMR-Netzwerk",
+        body: "BrandMeister ist ein weltweites DMR-Netzwerk mit Talkgroups (TGs) und DMR-IDs. Die BrandMeister-Ebene zeigt DMR-Relais und Hotspots im BrandMeister-Netzwerk – eigenständiges Netzwerk, nicht APRS. Der BrandMeister-Filter (oben links) erlaubt das Filtern nach Node-Typ (Repeater, Hotspot, Other) und Namenssuche. Im Popup finden Sie DMR-ID, Talkgroups, Netzwerk-Details und einen Link zum BrandMeister-Dashboard. Die Daten werden separat von APRS verwaltet und haben eine eigene Farbe (türkis).",
+        example: "BrandMeister-Layer aktivieren → BrandMeister-Filter oben links → Typ «Repeater» wählen → nur DMR-Relais werden angezeigt → Marker anklicken für DMR-Details und Dashboard-Link."
       },
       {
         title: "Burgen & Schlösser – Wikipedia",

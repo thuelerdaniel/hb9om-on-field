@@ -230,6 +230,22 @@ export const ADMIN_SECTIONS = [
         tip: "Tipp: Die SWISS-ARTG-Daten umfassen 6 Standorte: Hörnli (DMR+FM), Uetliberg (D-STAR), Schleitheim (FM/SVXLink), Landstuhl (Winlink), Bullet (Winlink), Hohe Buche (23cm FM)."
       },
       {
+        title: "TOTA-Daten verwalten (Towers on the Air)",
+        body: "TOTA (Towers on the Air) ist ein internationales Programm für Aussichtstürme und Antennen. Die weltweiten Daten stammen von wwtota.com (5300+ Türme in 17 Ländern) und werden über den Backend-Funktion fetchTota geladen. Schweizer Daten können als CSV-Dateien über den TOTA-Manager im Admin-Panel hochgeladen werden – getrennt nach Antennen und Türmen. Im TOTA-Manager sehen Sie die aktuellen Datenbankstatistiken (Anzahl Antennen, Türme, Datenquellen) und können CSV-Dateien importieren oder die weltweite Synchronisation auslösen. CSV-Vorlagen können heruntergeladen werden.",
+        steps: [
+          { icon: "settings", text: "Admin-Panel -> TOTA-Manager" },
+          { icon: "upload", text: "Schweizer CSV-Datei hochladen (Antennen oder Türme)" },
+          { icon: "globe", text: "«Weltweite Synchronisation» für wwtota.com-Daten" },
+          { icon: "download", text: "CSV-Vorlage herunterladen für korrektes Format" },
+          { icon: "check", text: "Datenbankstatistiken zeigen Anzahl pro Typ und Quelle" }
+        ],
+        links: [
+          { label: "wwtota.com TOTA-Tabelle", url: "https://wwtota.com/seznam/?lang=de" },
+          { label: "wwtota.com Regeln", url: "https://wwtota.com/rules/" }
+        ],
+        tip: "Tipp: Schweizer CSV-Daten müssen im Format code,name,type,lat,lng,subtype,usage,locator,height_m,spot_height_m sein. Der Typ muss 'antenna' oder 'tower' sein."
+      },
+      {
         title: "Externe Daten prüfen",
         body: "Mit «Anbindung prüfen» testen Sie, ob alle Datenquellen, aus denen die Karte ihre Referenzpunkte aufbaut, erreichbar und funktionsfähig sind. Geprüft werden die Referenzquellen (SOTA, POTA, WWFF, WWBOTA, Leuchttürme, Burgen, IOTA) sowie die Relais-Quellen und die Geokodierungs-Hilfsquellen (OpenStreetMap, Wikidata, map.geo.admin.ch), von denen die Burg-Zuordnung abhängt. Zusätzlich werden Referenzen ohne Koordinaten («Datenlücken») angezeigt, die nicht als Kartenpunkte erstellt werden können.",
         steps: [

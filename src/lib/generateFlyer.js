@@ -146,7 +146,7 @@ export async function generateFlyer() {
       color: GREEN,
       items: [
         "Interaktive Karte mit allen Schweizer Amateurfunk-Referenzen",
-        "SOTA · POTA · HBFF · WWBOTA · Burgen & Schlösser · Leuchttürme (ARLHS WLOL) · IOTA",
+        "SOTA · POTA · HBFF · WWBOTA · Burgen & Schlösser · TOTA · Leuchttürme (ARLHS WLOL) · IOTA",
         "Bundesinventare: Auengebiete, Moore & weitere Naturzonen",
         "SwissTopo-Karten: Strassenkarte, Satellit & offizielle Landeskarten",
         "GPS-Positionierung mit Radius-Suche (100 m – 10 km)",
@@ -276,7 +276,7 @@ export async function generateFlyer() {
   y += 10;
 
   const exclusives = [
-    "Einziges Tool, das SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme & IOTA für die Schweiz vereint",
+    "Einziges Tool, das SOTA, POTA, HBFF, WWBOTA, Burgen, TOTA, Leuchttürme & IOTA für die Schweiz vereint",
     "Offizielle ARLHS WLOL Leuchtturm-Referenzen (SWI-001 bis SWI-006) verifiziert",
     "SwissTopo-Karten in 4 offiziellen Massstäben integriert",
     "Gefahren & Störquellen-Layer über map.geo.admin.ch (Bundesamt für Energie)",

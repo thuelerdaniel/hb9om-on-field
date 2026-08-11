@@ -583,8 +583,30 @@ const CH_PRIORITY = [
 // Countries are stored in proximity-to-CH order so nearby countries are prioritized.
 // Refs with no country code go into a special "XX" key.
 // Returns { stored, count, slimmed, truncated }.
-function autoSplitByCountry(type, refs, useSlimmed = false) {
-  // Group refs by country
+// Slim down a TOTA point to essential fields
+function slimTota(t) {
+  return {
+    id: t.id, code: t.code, name: t.name, type: t.type, subtype: t.subtype,
+    lat: t.lat, lng: t.lng, country: t.country, country_code: t.country_code,
+    source: t.source, usage: t.usage, locator: t.locator,
+    height_m: t.height_m, spot_height_m: t.spot_height_m,
+  };
+}
+
+// Slim down a private node to essential fields
+function slimPrivateNode(n) {
+  return {
+    id: n.id, callsign: n.callsign, node_type: n.node_type, frequency: n.frequency,
+    mode: n.mode, network: n.network, node_number: n.node_number,
+    location_name: n.location_name, country: n.country, country_code: n.country_code,
+    lat: n.lat, lng: n.lng, description: n.description, aprs_symbol: n.aprs_symbol,
+    source: n.source, status: n.status
+  };
+}
+
+// Generic auto-split by country with a custom slimming function
+// Used by TOTA, repeaters, and APRS which have their own slimming logic.
+function autoSplitByCountryGeneric(type, refs, useSlimmed, slimFn) {
   const byCountry = {};
   const noCountry = [];
   for (const ref of refs) {
@@ -623,12 +645,12 @@ function autoSplitByCountry(type, refs, useSlimmed = false) {
 
     let result = storeWithBudget(countryKey, countryRefs, useSlimmed, PER_COUNTRY_BUDGET_BYTES);
     if (result.truncated && !useSlimmed) {
-      const slimRefs = countryRefs.map(slimReference);
+      const slimRefs = countryRefs.map(slimFn);
       const slimResult = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
       if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
     }
     if (!result.stored && !useSlimmed) {
-      const slimRefs = countryRefs.map(slimReference);
+      const slimRefs = countryRefs.map(slimFn);
       result = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
     }
 
@@ -649,7 +671,7 @@ function autoSplitByCountry(type, refs, useSlimmed = false) {
     const xxKey = `hb9om_refs_${type}_XX`;
     let result = storeWithBudget(xxKey, noCountry, useSlimmed, PER_COUNTRY_BUDGET_BYTES);
     if (!result.stored && !useSlimmed) {
-      const slimRefs = noCountry.map(slimReference);
+      const slimRefs = noCountry.map(slimFn);
       result = storeWithBudget(xxKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
     }
     if (result.stored) {
@@ -667,6 +689,11 @@ function autoSplitByCountry(type, refs, useSlimmed = false) {
     return { stored: true, count: totalStored, slimmed: anySlimmed, truncated: anyTruncated };
   }
   return { stored: false, count: 0, error: "Speicher voll – kein Land gespeichert" };
+}
+
+// Original auto-split for reference types — uses slimReference
+function autoSplitByCountry(type, refs, useSlimmed = false) {
+  return autoSplitByCountryGeneric(type, refs, useSlimmed, slimReference);
 }
 
 // Download a single reference type from the server.
@@ -721,22 +748,22 @@ export async function cacheTypeFromServer(type) {
 // Download TOTA points from the server (TotaPoint entity)
 export async function cacheTotaFromServer() {
   try {
-    const points = await base44.entities.TotaPoint.list("-created_date", 20000);
+    const points = await loadAllTotaPoints();
     const arr = points || [];
     storeServerCount("tota", arr.length);
+    storeCountryCounts("tota", arr);
     let result = storeWithBudget("hb9om_refs_tota", arr, false, PER_TYPE_BUDGET_BYTES);
-    const slimTota = () => arr.map(t => ({
-      id: t.id, code: t.code, name: t.name, type: t.type, subtype: t.subtype,
-      lat: t.lat, lng: t.lng, country: t.country, country_code: t.country_code,
-      source: t.source, usage: t.usage, locator: t.locator,
-      height_m: t.height_m, spot_height_m: t.spot_height_m,
-    }));
     if (result.truncated) {
-      const slimResult = storeWithBudget("hb9om_refs_tota", slimTota(), true, PER_TYPE_BUDGET_BYTES);
-      if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
+      // Auto-split by country (full, not slimmed)
+      result = autoSplitByCountryGeneric("tota", arr, false, slimTota);
     }
     if (!result.stored) {
-      result = storeWithBudget("hb9om_refs_tota", slimTota(), true, PER_TYPE_BUDGET_BYTES);
+      // Auto-split with slimmed data
+      result = autoSplitByCountryGeneric("tota", arr, true, slimTota);
+    }
+    if (!result.stored) {
+      // Last resort: slimmed single key
+      result = storeWithBudget("hb9om_refs_tota", arr.map(slimTota), true, PER_TYPE_BUDGET_BYTES);
     }
     if (result.stored) {
       try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
@@ -879,18 +906,16 @@ export async function cacheRepeatersFromServer() {
     const arr = repeaters || [];
     storeServerCount("repeater", arr.length);
     storeCountryCounts("repeater", arr);
-    // Try full data first; if truncated, try slimmed to fit more
+    // Try full data first; if truncated, auto-split by country; if still fails, slimmed
     let result = storeWithBudget("hb9om_refs_repeater", arr, false, PER_TYPE_BUDGET_BYTES);
     if (result.truncated) {
-      const slimmed = arr.map(slimRepeater);
-      const slimResult = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
-      if (slimResult.stored && slimResult.count >= result.count) {
-        result = slimResult; // slimmed fits more than truncated full
-      }
+      result = autoSplitByCountryGeneric("repeater", arr, false, slimRepeater);
     }
     if (!result.stored) {
-      const slimmed = arr.map(slimRepeater);
-      result = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
+      result = autoSplitByCountryGeneric("repeater", arr, true, slimRepeater);
+    }
+    if (!result.stored) {
+      result = storeWithBudget("hb9om_refs_repeater", arr.map(slimRepeater), true, PER_TYPE_BUDGET_BYTES);
     }
     if (result.stored) {
       try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
@@ -907,25 +932,20 @@ export async function cacheRepeatersFromServer() {
 // Download private nodes (APRS) from the server
 export async function cachePrivateNodesFromServer() {
   try {
-    const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
+    const nodes = await base44.entities.PrivateNode.list("-created_date", 10000);
     const arr = nodes || [];
     storeServerCount("private_nodes", arr.length);
+    storeCountryCounts("private_nodes", arr);
+    // Try full data first; if truncated, auto-split by country; if still fails, slimmed
     let result = storeWithBudget("hb9om_refs_private_nodes", arr, false, PER_TYPE_BUDGET_BYTES);
-    const slimNodes = () => arr.map(n => ({
-      id: n.id, callsign: n.callsign, node_type: n.node_type, frequency: n.frequency,
-      mode: n.mode, network: n.network, node_number: n.node_number,
-      location_name: n.location_name, country: n.country, country_code: n.country_code,
-      lat: n.lat, lng: n.lng, description: n.description, aprs_symbol: n.aprs_symbol,
-      source: n.source, status: n.status
-    }));
     if (result.truncated) {
-      const slimResult = storeWithBudget("hb9om_refs_private_nodes", slimNodes(), true, PER_TYPE_BUDGET_BYTES);
-      if (slimResult.stored && slimResult.count >= result.count) {
-        result = slimResult;
-      }
+      result = autoSplitByCountryGeneric("private_nodes", arr, false, slimPrivateNode);
     }
     if (!result.stored) {
-      result = storeWithBudget("hb9om_refs_private_nodes", slimNodes(), true, PER_TYPE_BUDGET_BYTES);
+      result = autoSplitByCountryGeneric("private_nodes", arr, true, slimPrivateNode);
+    }
+    if (!result.stored) {
+      result = storeWithBudget("hb9om_refs_private_nodes", arr.map(slimPrivateNode), true, PER_TYPE_BUDGET_BYTES);
     }
     if (result.stored) {
       try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
@@ -973,8 +993,22 @@ export function loadCachedRepeaters() {
   } catch { return []; }
 }
 
-// Load cached private nodes
+// Load cached private nodes — merges per-country keys if present
 export function loadCachedPrivateNodes() {
+  const countries = getCachedCountriesForType("private_nodes");
+  if (countries.length > 0) {
+    const merged = [];
+    for (const country of countries) {
+      try {
+        const data = localStorage.getItem(`hb9om_refs_private_nodes_${country}`);
+        if (data) {
+          const arr = JSON.parse(data);
+          if (Array.isArray(arr)) merged.push(...arr);
+        }
+      } catch {}
+    }
+    return merged;
+  }
   try {
     const data = localStorage.getItem("hb9om_refs_private_nodes");
     return data ? JSON.parse(data) : [];
@@ -1020,14 +1054,8 @@ export function getReferenceTypeStats() {
   stats.repeater = getTypeStats("repeater", "hb9om_refs_repeater");
   // TOTA
   stats.tota = getTypeStats("tota", "hb9om_refs_tota");
-  // Private nodes
-  try {
-    const data = localStorage.getItem("hb9om_refs_private_nodes");
-    if (data) {
-      const arr = JSON.parse(data);
-      stats.private_nodes = { count: Array.isArray(arr) ? arr.length : 0, size: ("hb9om_refs_private_nodes".length + data.length) * 2 };
-    } else { stats.private_nodes = { count: 0, size: 0 }; }
-  } catch { stats.private_nodes = { count: 0, size: 0 }; }
+  // Private nodes — supports per-country keys
+  stats.private_nodes = getTypeStats("private_nodes", "hb9om_refs_private_nodes");
   return stats;
 }
 
@@ -1192,6 +1220,7 @@ function getRefCountryCode(ref, type) {
   if (type === 'wwbota') return getCountryFromWwbotaScheme(ref.scheme);
   if (type === 'castle') return getCountryFromWcaCode(ref.code) || getCountryByName(ref.country);
   if (type === 'lighthouse' || type === 'iota') return getCountryByName(ref.country);
+  if (type === 'tota') return ref.country_code || (ref.source === 'swiss_csv' ? 'CH' : null);
   return null;
 }
 

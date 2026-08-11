@@ -439,7 +439,7 @@ export default function Home() {
     localStorage.setItem("hb9om_bm_filter_types", JSON.stringify(bmFilterTypes || []));
   }, [bmFilterTypes]);
   useEffect(() => {
-    localStorage.setItem("hb9om_tota_filter_types", JSON.stringify(totaFilterTypes || []));
+    localStorage.setItem("hb9om_tota_filter_types", JSON.stringify(totaFilterTypes));
   }, [totaFilterTypes]);
   useEffect(() => {
     localStorage.setItem("hb9om_tota_filter_country", totaFilterCountry);
