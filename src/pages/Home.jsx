@@ -36,6 +36,7 @@ import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
+import { loadAllPrivateNodes } from "@/lib/paginatedLoader";
 import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
@@ -861,15 +862,23 @@ export default function Home() {
     });
   }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
 
-  // Load private nodes from DB when APRS or BrandMeister layer is active (queued — heavy query)
+  // Load private nodes from DB when APRS or BrandMeister layer is active.
+  // Uses cursor-based pagination — loads ALL nodes in batches of 2000 (not capped at 10k)
+  // and displays markers progressively as each batch arrives.
   useEffect(() => {
     if (!serverCacheLoaded || (!activeLayers.includes("aprs") && !activeLayers.includes("brandmeister")) || privateNodes.length > 0 || isOffline) return;
+    let cancelled = false;
     enqueueWorldwideFetch(async () => {
       try {
-        const data = await base44.entities.PrivateNode.list("-created_date", 10000);
-        if (data && data.length > 0) setPrivateNodes(data);
+        await loadAllPrivateNodes({
+          onBatch: (batch, totalLoaded) => {
+            if (cancelled) return;
+            setPrivateNodes(prev => prev.length === 0 ? batch : [...prev, ...batch]);
+          },
+        });
       } catch (e) { /* silent */ }
     });
+    return () => { cancelled = true; };
   }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
 
   // TOTA points are loaded via getReferencesInBounds (bounds-based, like SOTA/POTA)

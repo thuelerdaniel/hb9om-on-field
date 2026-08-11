@@ -191,8 +191,21 @@ export async function fetchAprsData(base44: any, apiKey: string) {
   // Step 0: Fetch BrandMeister devices — PRIMARY source (13k+ European DMR repeaters with coords)
   const bmDevices = await fetchBrandMeisterDevices();
 
-  // Load existing nodes ONCE — reused in all steps (avoids redundant DB queries)
-  const existingNodes = await base44.asServiceRole.entities.PrivateNode.list("-updated_date", 10000);
+  // Load existing nodes ONCE — offset-paginated to get ALL nodes (not capped at 10k).
+  // With 33k+ BrandMeister devices worldwide, a single list(10k) misses 23k+ nodes.
+  // Skip-based pagination streams batches of 2000 without peak memory spikes.
+  const existingNodes: any[] = [];
+  {
+    const BATCH = 2000;
+    let skip = 0;
+    do {
+      const batch = await base44.asServiceRole.entities.PrivateNode.list("-updated_date", BATCH, skip);
+      if (!batch || batch.length === 0) break;
+      existingNodes.push(...batch);
+      if (existingNodes.length >= 60000) break;
+      skip += BATCH;
+    } while (true);
+  }
   const existingByCallsign = new Map<string, any>();
   for (const n of existingNodes) {
     if (n.callsign) existingByCallsign.set(n.callsign.toUpperCase(), n);
