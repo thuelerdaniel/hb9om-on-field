@@ -1,0 +1,37 @@
+{
+  "name": "WwffPoint",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "WWFF Reference (z.B. DLFF-0123)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Naturschutzgebiet-Name"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "link": {
+      "type": "string",
+      "description": "Web-Link zum Gebiet"
+    }
+  },
+  "required": [
+    "code",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

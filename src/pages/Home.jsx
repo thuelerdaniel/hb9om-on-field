@@ -33,7 +33,7 @@ import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
-import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
+import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { getWwbotaColor } from "@/lib/wwbotaSchemes";
@@ -282,13 +282,17 @@ export default function Home() {
       const res = await base44.functions.invoke("getReferencesInBounds", { bounds: bnds, types: typesToFetch });
       if (res.data?.references) {
         const refs = res.data.references;
-        if (refs.sota) { setSotaData(prev => { const m = mergeRefs(prev, refs.sota); cacheReferenceType('sota', m); return m; }); }
-        if (refs.pota) { setPotaData(prev => { const m = mergeRefs(prev, refs.pota); cacheReferenceType('pota', m); return m; }); }
-        if (refs.hbff) { setHbffData(prev => { const m = mergeRefs(prev, refs.hbff); cacheReferenceType('hbff', m); return m; }); }
-        if (refs.wwbota) { setWwbotaData(prev => { const m = mergeRefs(prev, refs.wwbota); cacheReferenceType('wwbota', m); return m; }); }
-        if (refs.castle) { setCastleData(prev => { const m = mergeRefs(prev, refs.castle); cacheReferenceType('castle', m); return m; }); }
-        if (refs.iota) { setIotaData(prev => { const m = mergeRefs(prev, refs.iota); cacheReferenceType('iota', m); return m; }); }
-        if (refs.lighthouse) { setLighthouseData(prev => { const m = mergeRefs(prev, refs.lighthouse); cacheReferenceType('lighthouse', m); return m; }); }
+        // Only update in-memory state — do NOT overwrite the offline cache.
+        // cacheReferenceType was called here previously, but it overwrote the full
+        // offline download (e.g. 11k SOTA refs) with a smaller viewport subset (~3k),
+        // destroying the user's saved offline data on every map pan.
+        if (refs.sota) setSotaData(prev => mergeRefs(prev, refs.sota));
+        if (refs.pota) setPotaData(prev => mergeRefs(prev, refs.pota));
+        if (refs.hbff) setHbffData(prev => mergeRefs(prev, refs.hbff));
+        if (refs.wwbota) setWwbotaData(prev => mergeRefs(prev, refs.wwbota));
+        if (refs.castle) setCastleData(prev => mergeRefs(prev, refs.castle));
+        if (refs.iota) setIotaData(prev => mergeRefs(prev, refs.iota));
+        if (refs.lighthouse) setLighthouseData(prev => mergeRefs(prev, refs.lighthouse));
         typesToFetch.forEach(t => {
           loadedBoundsRef.current[t] = unionBounds(loadedBoundsRef.current[t], bnds);
         });

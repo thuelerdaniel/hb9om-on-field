@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Wifi, WifiOff, Download, Loader2, CheckCircle2, AlertCircle, Trash2,
-  Database, HardDrive, MapPin, Radio, Zap, Search, Layers, ChevronDown, Info, X, Globe
+  Database, HardDrive, MapPin, Radio, Zap, Search, Layers, ChevronDown, Info, X, Globe,
+  Mountain, Trees, Castle, Anchor, Building
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { getOfflineAreas, deleteArea, clearAllTiles, getStorageEstimate } from "@/lib/offlineMapStore";
@@ -10,7 +11,7 @@ import {
   cacheQrzFromServer, cacheFromServer, getReferenceTypeStats, clearReferenceType,
   getServerDataCounts, getOfflineReadiness, isOfflineReady, getCachedAt,
   getLocalCacheStats, clearLocalReferenceCache,
-  getOfflineCountryFilter
+  getOfflineCountryFilter, getTruncatedFlag, getStoredServerCounts
 } from "@/lib/offlineDataCache";
 import CountryFilterDialog from "@/components/settings/CountryFilterDialog";
 
@@ -28,9 +29,9 @@ const TYPE_LABELS = {
 };
 
 const TYPE_ICONS = {
-  sota: MapPin, pota: Database, hbff: Database, wwbota: Database,
-  castle: Database, iota: MapPin, lighthouse: MapPin,
-  repeater: Radio, private_nodes: Zap, qrz: Search,
+  sota: Mountain, pota: Trees, hbff: Trees, wwbota: Building,
+  castle: Castle, iota: MapPin, lighthouse: Anchor,
+  repeater: Radio, private_nodes: Wifi, qrz: Search,
 };
 
 const formatBytes = (bytes) => {
@@ -92,6 +93,8 @@ export default function OfflineManager() {
   // Fetch server counts (how many records are available per type)
   const handleFetchCounts = async () => {
     setLoadingCounts(true);
+    // Show stored counts immediately (from last download — no API call needed)
+    setServerCounts(prev => ({ ...getStoredServerCounts(), ...prev }));
     try {
       const counts = await getServerDataCounts();
       setServerCounts(counts);
@@ -292,6 +295,7 @@ export default function OfflineManager() {
             const hasLocal = local.count > 0;
             const countryFilter = getOfflineCountryFilter(type);
             const supportsCountryFilter = type !== "qrz";
+            const isTruncated = getTruncatedFlag(type);
 
             return (
               <div key={type} className={`flex items-center gap-2 p-2.5 rounded-lg border ${hasLocal ? 'bg-green-50/50 border-green-200' : 'bg-white border-gray-200'}`}>
@@ -309,7 +313,10 @@ export default function OfflineManager() {
                     {serverCount != null && serverCount > 0 && (
                       <span className="text-gray-400">· Server: {serverCount.toLocaleString("de-CH")}</span>
                     )}
-                    {serverCount != null && serverCount > local.count && (
+                    {serverCount != null && serverCount > local.count && isTruncated && (
+                      <span className="text-red-500 font-medium">· Speicherlimit erreicht</span>
+                    )}
+                    {serverCount != null && serverCount > local.count && !isTruncated && (!countryFilter || countryFilter.length === 0) && (
                       <span className="text-amber-500">· Update verfügbar</span>
                     )}
                     {countryFilter && countryFilter.length > 0 && (

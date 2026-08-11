@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { fetchSotaSummits } from '../../shared/sotaFetcher.ts';
+import { upsertPoints } from '../../shared/pointUpsert.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -12,34 +13,28 @@ Deno.serve(async (req) => {
 
     const result = await fetchSotaSummits(associations || 'all', maxAssociations);
 
-    // Save worldwide data to ReferenceData (server-side cache) so it persists
-    if (result.summits.length > 100) {
-      try {
-        const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'sota' });
-        // Only store essential fields — full summit data (~125k summits) exceeds MongoDB's 16MB document limit
-        const refs = result.summits.map(s => ({
-          code: s.code, name: s.name, lat: s.lat, lng: s.lng
-        }));
-        if (existing && existing.length > 0) {
-          await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
-            references: refs,
-            total_count: refs.length,
-            source: 'sotadata.org.uk CSV',
-            last_updated: new Date().toISOString()
-          });
-        } else {
-          await base44.asServiceRole.entities.ReferenceData.create({
-            type: 'sota',
-            references: refs,
-            total_count: refs.length,
-            source: 'sotadata.org.uk CSV',
-            last_updated: new Date().toISOString()
-          });
-        }
-      } catch (e) { /* save failure is non-fatal */ }
+    // Save as individual SotaPoint records — avoids MongoDB's 16MB document limit
+    // that occurs when storing 180k+ summits in a single ReferenceData.references array.
+    if (result.summits.length > 0) {
+      const points = result.summits.map(s => ({
+        code: s.code,
+        name: s.name || s.code,
+        lat: s.lat,
+        lng: s.lng,
+        altitude_m: s.alt || 0,
+        points: s.points || 0,
+      }));
+      const upsertResult = await upsertPoints(base44, 'SotaPoint', 'sota', points, 'sotadata.org.uk CSV');
+      return Response.json({
+        saved: true,
+        count: upsertResult.created,
+        total: upsertResult.total,
+        association_count: result.association_count,
+        error: upsertResult.error
+      });
     }
 
-    return Response.json({ saved: true, count: result.summits.length, association_count: result.association_count });
+    return Response.json({ saved: true, count: 0, association_count: result.association_count });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

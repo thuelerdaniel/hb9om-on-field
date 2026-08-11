@@ -1,0 +1,41 @@
+{
+  "name": "SotaPoint",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "SOTA Summit Code (z.B. HB/VS-001)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Gipfelname"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "altitude_m": {
+      "type": "number",
+      "description": "Hoehe in Metern ue.M."
+    },
+    "points": {
+      "type": "number",
+      "description": "SOTA-Punkte"
+    }
+  },
+  "required": [
+    "code",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

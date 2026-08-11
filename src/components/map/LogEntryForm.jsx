@@ -604,6 +604,9 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         </div>
 
         <div className="p-4 space-y-2">
+          {/* Allgemeine */}
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Allgemeine</h3>
+
           {/* QSO Partner */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rufzeichen (QSO-Partner)</label>

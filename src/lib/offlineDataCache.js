@@ -191,10 +191,13 @@ export function clearLocalReferenceCache() {
   // Clear stored server counts
   for (const type of Object.keys(TYPE_CACHE_KEYS)) {
     localStorage.removeItem(`hb9om_server_count_${type}`);
+    localStorage.removeItem(`hb9om_truncated_${type}`);
   }
   localStorage.removeItem("hb9om_server_count_repeater");
   localStorage.removeItem("hb9om_server_count_private_nodes");
   localStorage.removeItem("hb9om_server_count_qrz");
+  localStorage.removeItem("hb9om_truncated_repeater");
+  localStorage.removeItem("hb9om_truncated_private_nodes");
 }
 
 export async function cacheFromServer() {
@@ -352,19 +355,36 @@ function storeWithBudget(key, refs, slimmed, budgetBytes) {
   return { stored: false, count: 0, error: "Speicher voll – zu gross für lokalen Speicher" };
 }
 
-// Download a single reference type from the server (ReferenceData entity)
-// Merges ALL entries of the type (handles multi-batch storage) and slims down
-// references to fit within localStorage quota
+// Types stored as individual point entities (SotaPoint, PotaPoint, WwffPoint)
+// — loaded via getReferencesInBounds backend function instead of ReferenceData
+const POINT_TYPES = { sota: true, pota: true, hbff: true };
+
+// Download a single reference type from the server.
+// SOTA/POTA/WWFF are loaded via the getReferencesInBounds backend function (which reads
+// from individual point entities). Other types are loaded from ReferenceData.references.
+// Merges ALL entries and slims down references to fit within localStorage quota.
 export async function cacheTypeFromServer(type) {
   try {
-    const entries = await base44.entities.ReferenceData.filter({ type });
-    // Merge ALL entries of this type (not just the first — data may be in multiple batches)
-    let allRefs = [];
-    (entries || []).forEach(entry => {
-      if (entry?.references && Array.isArray(entry.references)) {
-        allRefs = allRefs.concat(entry.references);
-      }
-    });
+    let allRefs;
+
+    if (POINT_TYPES[type]) {
+      // Load from individual point entities via backend function (worldwide bounds, high limit)
+      const response = await base44.functions.invoke('getReferencesInBounds', {
+        bounds: { north: 90, south: -90, east: 180, west: -180 },
+        types: [type],
+        max_per_type: 200000
+      });
+      allRefs = (response?.references?.[type]) || [];
+    } else {
+      // Load from ReferenceData entity
+      const entries = await base44.entities.ReferenceData.filter({ type });
+      allRefs = [];
+      (entries || []).forEach(entry => {
+        if (entry?.references && Array.isArray(entry.references)) {
+          allRefs = allRefs.concat(entry.references);
+        }
+      });
+    }
 
     // Try to store full data first
     const key = TYPE_CACHE_KEYS[type];
@@ -393,6 +413,7 @@ export async function cacheTypeFromServer(type) {
     try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
     storeServerCount(type, allRefs.length);
     storeCountryCounts(type, allRefs);
+    storeTruncatedFlag(type, result.truncated || false);
     return { success: true, count: result.count, slimmed: result.slimmed, total: allRefs.length, truncated: result.truncated || false };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
@@ -421,8 +442,10 @@ export async function cacheRepeatersFromServer() {
     }
     if (result.stored) {
       try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+      storeTruncatedFlag("repeater", result.truncated || false);
       return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, truncated: result.truncated || false };
     }
+    storeTruncatedFlag("repeater", false);
     return { success: false, count: 0, error: result.error };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
@@ -454,8 +477,10 @@ export async function cachePrivateNodesFromServer() {
     }
     if (result.stored) {
       try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+      storeTruncatedFlag("private_nodes", result.truncated || false);
       return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, truncated: result.truncated || false };
     }
+    storeTruncatedFlag("private_nodes", false);
     return { success: false, count: 0, error: result.error };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
@@ -571,6 +596,7 @@ export function clearReferenceType(type) {
   localStorage.removeItem(`hb9om_server_count_${type}`);
   localStorage.removeItem(`hb9om_offline_countries_${type}`);
   localStorage.removeItem(`hb9om_country_counts_${type}`);
+  localStorage.removeItem(`hb9om_truncated_${type}`);
 }
 
 // Store server count for a type (called after successful download)
@@ -586,6 +612,31 @@ export function getStoredServerCount(type) {
     const v = localStorage.getItem(`hb9om_server_count_${type}`);
     return v ? parseInt(v) : null;
   } catch { return null; }
+}
+
+// Store whether the last download was truncated (storage limit reached)
+export function storeTruncatedFlag(type, truncated) {
+  try {
+    localStorage.setItem(`hb9om_truncated_${type}`, String(truncated));
+  } catch {}
+}
+
+// Get whether the last download was truncated (storage limit reached)
+export function getTruncatedFlag(type) {
+  try {
+    return localStorage.getItem(`hb9om_truncated_${type}`) === "true";
+  } catch { return false; }
+}
+
+// Get stored server counts for all reference types (from localStorage, synchronous)
+// Use this for immediate display before live counts are fetched.
+export function getStoredServerCounts() {
+  const counts = {};
+  for (const type of Object.keys(TYPE_CACHE_KEYS)) {
+    const stored = getStoredServerCount(type);
+    if (stored != null) counts[type] = stored;
+  }
+  return counts;
 }
 
 // Get server-side counts for all data types (for showing download hints)
@@ -716,13 +767,26 @@ export function setOfflineCountryFilter(type, countries) {
 // so that one large country cannot consume the budget of another.
 export async function cacheTypeFromServerByCountries(type, countryCodes) {
   try {
-    const entries = await base44.entities.ReferenceData.filter({ type });
-    let allRefs = [];
-    (entries || []).forEach(entry => {
-      if (entry?.references && Array.isArray(entry.references)) {
-        allRefs = allRefs.concat(entry.references);
-      }
-    });
+    let allRefs;
+
+    if (POINT_TYPES[type]) {
+      // Load from individual point entities via backend function (worldwide bounds, high limit)
+      const response = await base44.functions.invoke('getReferencesInBounds', {
+        bounds: { north: 90, south: -90, east: 180, west: -180 },
+        types: [type],
+        max_per_type: 200000
+      });
+      allRefs = (response?.references?.[type]) || [];
+    } else {
+      // Load from ReferenceData entity
+      const entries = await base44.entities.ReferenceData.filter({ type });
+      allRefs = [];
+      (entries || []).forEach(entry => {
+        if (entry?.references && Array.isArray(entry.references)) {
+          allRefs = allRefs.concat(entry.references);
+        }
+      });
+    }
 
     // Store country counts from full data (for dialog display)
     storeCountryCounts(type, allRefs);
@@ -747,6 +811,7 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
       setOfflineCountryFilter(type, countryCodes);
       try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
       storeServerCount(type, allRefs.length);
+      storeTruncatedFlag(type, result.truncated || false);
       return { success: true, count: result.count, slimmed: result.slimmed, total: allRefs.length, allTotal: allRefs.length, truncated: result.truncated || false, countries: 0 };
     }
 
@@ -798,6 +863,7 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
     setOfflineCountryFilter(type, countryCodes);
     try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
     storeServerCount(type, allRefs.length);
+    storeTruncatedFlag(type, anyTruncated);
     return {
       success: true, count: totalStored, slimmed: anySlimmed,
       total: totalFiltered, allTotal: allRefs.length,
@@ -833,8 +899,10 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
         clearPerCountryKeys("repeater");
         setOfflineCountryFilter("repeater", countryCodes);
         try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+        storeTruncatedFlag("repeater", result.truncated || false);
         return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, allTotal: arr.length, truncated: result.truncated || false, countries: 0 };
       }
+      storeTruncatedFlag("repeater", false);
       return { success: false, count: 0, error: result.error };
     }
 
@@ -883,6 +951,7 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
     setCachedCountriesForType("repeater", storedCountries);
     setOfflineCountryFilter("repeater", countryCodes);
     try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+    storeTruncatedFlag("repeater", anyTruncated);
     return {
       success: true, count: totalStored, slimmed: anySlimmed,
       total: totalFiltered, allTotal: arr.length,

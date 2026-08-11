@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { fetchPotaParks, POTA_ENTITIES } from '../../shared/potaFetcher.ts';
+import { upsertPoints } from '../../shared/pointUpsert.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -13,7 +14,6 @@ Deno.serve(async (req) => {
     // Determine entity codes to fetch
     let entityCodes: string[];
     if (!entities || entities === 'all') {
-      // Try API entity list first
       let apiEntities: string[] = [];
       try {
         const listResp = await fetch('https://api.pota.app/program/entities', {
@@ -37,71 +37,30 @@ Deno.serve(async (req) => {
       entityCodes = entityCodes.slice(0, maxEntities);
     }
 
-    // Load existing ReferenceData to merge with (prevents data loss on timeout)
-    let existingRef: any = null;
-    let allParks: any[] = [];
-    try {
-      const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'pota' });
-      if (existing && existing.length > 0) {
-        existingRef = existing[0];
-        allParks = existing[0].references || [];
-      }
-    } catch {}
-    const existingRefs = new Set(allParks.map((p: any) => p.reference));
+    // Fetch all parks worldwide
+    const result = await fetchPotaParks(entityCodes);
 
-    // Fetch in small batches, saving after each batch.
-    // This prevents data loss if the function times out before reaching all continents.
-    const BATCH_SIZE = 12;
-    let batchesCompleted = 0;
-
-    for (let i = 0; i < entityCodes.length; i += BATCH_SIZE) {
-      const chunk = entityCodes.slice(i, i + BATCH_SIZE);
-      try {
-        const result = await fetchPotaParks(chunk);
-        let newCount = 0;
-        for (const park of result.parks) {
-          if (!existingRefs.has(park.reference)) {
-            allParks.push(park);
-            existingRefs.add(park.reference);
-            newCount++;
-          }
-        }
-        batchesCompleted++;
-
-        // Save after each batch (merge with existing data)
-        if (allParks.length > 10) {
-          try {
-            const refs = allParks.map(p => ({
-              reference: p.reference, name: p.name, lat: p.lat, lng: p.lng,
-              locationDesc: p.locationDesc, parkType: p.parkType, active: p.active
-            }));
-            if (existingRef) {
-              await base44.asServiceRole.entities.ReferenceData.update(existingRef.id, {
-                references: refs,
-                total_count: refs.length,
-                source: 'api.pota.app',
-                last_updated: new Date().toISOString()
-              });
-            } else {
-              existingRef = await base44.asServiceRole.entities.ReferenceData.create({
-                type: 'pota',
-                references: refs,
-                total_count: refs.length,
-                source: 'api.pota.app',
-                last_updated: new Date().toISOString()
-              });
-            }
-          } catch (e) { /* save failure is non-fatal */ }
-        }
-      } catch { /* batch failure — continue with next batch */ }
+    // Save as individual PotaPoint records — avoids MongoDB's 16MB document limit
+    if (result.parks.length > 0) {
+      const points = result.parks.map(p => ({
+        code: p.reference,
+        name: p.name || p.reference,
+        lat: p.lat,
+        lng: p.lng,
+        parkType: p.parkType || '',
+        active: p.active !== false,
+      }));
+      const upsertResult = await upsertPoints(base44, 'PotaPoint', 'pota', points, 'api.pota.app');
+      return Response.json({
+        saved: true,
+        count: upsertResult.created,
+        total: upsertResult.total,
+        entity_count: entityCodes.length,
+        error: upsertResult.error
+      });
     }
 
-    return Response.json({
-      saved: true,
-      count: allParks.length,
-      entity_count: entityCodes.length,
-      batches_completed: batchesCompleted
-    });
+    return Response.json({ saved: true, count: 0, entity_count: entityCodes.length });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

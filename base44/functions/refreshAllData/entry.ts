@@ -4,24 +4,23 @@ import { fetchPotaParks } from '../../shared/potaFetcher.ts';
 import { fetchWwffData, fetchWwbotaData as fetchWwbotaDataShared } from '../../shared/referenceFetchers.ts';
 import { fetchCastleDataComplete } from '../../shared/castleFetcher.ts';
 import { fetchAprsData } from '../../shared/aprsFetcher.ts';
+import { upsertPoints } from '../../shared/pointUpsert.ts';
 
 // --- Data fetchers ---
 
 async function fetchSotaData() {
   // Worldwide: fetch all SOTA associations globally.
-  // Only store essential fields (code, name, lat, lng) — the full CSV has ~125k summits
-  // and storing all fields (alt, points, activationCount, region) exceeds MongoDB's 16MB
-  // document size limit, causing "update command document too large" errors.
+  // Returns full summit data (code, name, lat, lng, alt, points) — stored as individual
+  // SotaPoint records to avoid MongoDB's 16MB document limit.
   const result = await fetchSotaSummits('all');
   return result.summits.map(s => ({
-    code: s.code, name: s.name, lat: s.lat, lng: s.lng
+    code: s.code, name: s.name, lat: s.lat, lng: s.lng,
+    altitude_m: s.alt || 0, points: s.points || 0
   }));
 }
 
 async function fetchCastleDataSlim(castleOverrides) {
   // Worldwide WCA castles — strip to essential fields to stay under MongoDB's 16MB limit.
-  // The full castle objects include wcaName, wcaLocation, canton, matchSource, countryPrefix
-  // which add up to 23MB+ with 50k+ worldwide entries.
   const castles = await fetchCastleDataComplete(castleOverrides);
   return castles.map(c => ({
     code: c.code, name: c.name, lat: c.lat, lng: c.lng
@@ -31,13 +30,30 @@ async function fetchCastleDataSlim(castleOverrides) {
 async function fetchPotaData() {
   // Worldwide: fetch all POTA entities globally
   const result = await fetchPotaParks('all');
-  return result.parks;
+  return result.parks.map(p => ({
+    code: p.reference, name: p.name, lat: p.lat, lng: p.lng,
+    parkType: p.parkType || '', active: p.active !== false
+  }));
 }
 
-// WWFF (worldwide) replaces Swiss-only HBFF — shared fetcher in referenceFetchers.ts
-const fetchHbffData = fetchWwffData;
+// WWFF (worldwide) replaces Swiss-only HBFF — stored as individual WwffPoint records
+async function fetchHbffData() {
+  const refs = await fetchWwffData();
+  return refs.map(r => ({
+    code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link || ''
+  }));
+}
+
 // WWBOTA worldwide — shared fetcher in referenceFetchers.ts (no HBBOTA filter)
 const fetchWwbotaData = fetchWwbotaDataShared;
+
+// Types that use individual point entities (SotaPoint, PotaPoint, WwffPoint)
+// instead of a giant references array in ReferenceData.
+const POINT_ENTITY_TYPES = {
+  sota: { entity: 'SotaPoint', source: 'sotadata.org.uk CSV' },
+  pota: { entity: 'PotaPoint', source: 'api.pota.app' },
+  hbff: { entity: 'WwffPoint', source: 'wwff.co CSV (worldwide)' },
+};
 
 async function fetchLighthouseData() {
   const resp = await fetch('https://wllw.org/ILLW-flat.txt', { headers: { 'User-Agent': 'HB9OM-OnField/1.0' } });
@@ -136,9 +152,19 @@ Deno.serve(async (req) => {
             }
           }
         }
-        const now = new Date().toISOString();
 
-        // Upsert ReferenceData
+        // Save: use individual point entities for sota/pota/hbff (avoids 16MB document limit),
+        // or ReferenceData.references array for smaller types (wwbota, lighthouse, castle).
+        if (POINT_ENTITY_TYPES[t.type]) {
+          const ptConfig = POINT_ENTITY_TYPES[t.type];
+          const upsertResult = await upsertPoints(base44, ptConfig.entity, t.type, items, ptConfig.source);
+          const result: any = { type: t.type, status: 'success', count: upsertResult.created, duration_ms: Date.now() - taskStart };
+          if (upsertResult.error) result.warning = upsertResult.error;
+          results.push(result);
+          continue;
+        }
+
+        const now = new Date().toISOString();
         const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: t.type });
         if (existing.length > 0) {
           await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {

@@ -1,5 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { fetchReferenceSource, SOURCE_LABELS } from '../../shared/referenceFetchers.ts';
+import { upsertPoints } from '../../shared/pointUpsert.ts';
+
+// Types that use individual point entities instead of ReferenceData.references
+const POINT_ENTITY_MAP = {
+  sota: { entity: 'SotaPoint', source: 'sotadata.org.uk CSV' },
+  pota: { entity: 'PotaPoint', source: 'api.pota.app' },
+  hbff: { entity: 'WwffPoint', source: 'wwff.co CSV (worldwide)' },
+};
 
 // Individual data source refresher — allows admins to reload a single source
 // (sota, pota, hbff, wwbota, castle, lighthouse, iota, repeater) on demand.
@@ -84,8 +92,13 @@ export default async function(req: Request): Promise<Response> {
         await base44.asServiceRole.entities.Repeater.bulkCreate(repRecords.slice(i, i + 100));
       }
       savedCount = repRecords.length;
+    } else if (POINT_ENTITY_MAP[source]) {
+      // Save sota/pota/hbff as individual point records (avoids 16MB document limit)
+      const ptConfig = POINT_ENTITY_MAP[source];
+      const upsertResult = await upsertPoints(base44, ptConfig.entity, source, items, ptConfig.source);
+      savedCount = upsertResult.created;
     } else {
-      // Save to ReferenceData entity
+      // Save to ReferenceData entity (wwbota, lighthouse, castle, iota)
       const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: source });
       if (existing.length > 0) {
         await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {

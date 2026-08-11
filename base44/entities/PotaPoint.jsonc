@@ -1,0 +1,42 @@
+{
+  "name": "PotaPoint",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "POTA Reference (z.B. PA-0123)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Parkname"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "parkType": {
+      "type": "string",
+      "description": "Park-Typ (z.B. National Park, State Park)"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob der Park aktiv ist"
+    }
+  },
+  "required": [
+    "code",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

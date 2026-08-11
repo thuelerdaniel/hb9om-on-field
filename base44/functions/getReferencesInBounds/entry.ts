@@ -1,22 +1,54 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { loadAllPoints } from '../../shared/pointUpsert.ts';
 
 // Returns only references within the given map bounds — avoids sending 180k+ worldwide
 // references to the client on initial load. The client calls this on map ready and on
 // pan/zoom, accumulating results.
 //
-// Loads ONLY the requested types individually (not all 7 ReferenceData records), so
-// small types (lighthouse, iota) are fast even when large types (sota) exist.
+// SOTA, POTA, and WWFF are stored as individual records (SotaPoint, PotaPoint, WwffPoint)
+// to avoid MongoDB's 16MB BSON document limit. Other types (wwbota, castle, iota, lighthouse)
+// remain in ReferenceData.references arrays (well under the limit).
 
 const typeCache: Record<string, { refs: any[]; time: number }> = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Types stored as individual point entities (not in ReferenceData.references)
+const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint'; normalize: (r: any) => any }> = {
+  sota: {
+    entity: 'SotaPoint',
+    normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng })
+  },
+  pota: {
+    entity: 'PotaPoint',
+    normalize: (r) => ({ code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng, parkType: r.parkType, active: r.active })
+  },
+  hbff: {
+    entity: 'WwffPoint',
+    normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link })
+  },
+};
 
 async function loadType(base44, type: string): Promise<any[]> {
   const cached = typeCache[type];
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
-  const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
-  if (!records || records.length === 0) return [];
-  const refs = records[0].references || [];
+  let refs: any[];
+
+  if (POINT_TYPES[type]) {
+    // Load from individual point entity (SotaPoint, PotaPoint, WwffPoint)
+    const ptConfig = POINT_TYPES[type];
+    const points = await loadAllPoints(base44, ptConfig.entity);
+    refs = points.map(ptConfig.normalize);
+  } else {
+    // Load from ReferenceData.references array (wwbota, castle, iota, lighthouse)
+    const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
+    if (!records || records.length === 0) return [];
+    refs = [];
+    for (const rec of records) {
+      if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
+    }
+  }
+
   typeCache[type] = { refs, time: Date.now() };
   return refs;
 }
@@ -30,7 +62,7 @@ export default async function(req: Request): Promise<Response> {
     if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { bounds, types } = body || {};
+    const { bounds, types, max_per_type } = body || {};
 
     if (!bounds || typeof bounds.north !== 'number' || typeof bounds.south !== 'number' ||
         typeof bounds.east !== 'number' || typeof bounds.west !== 'number') {
@@ -40,6 +72,9 @@ export default async function(req: Request): Promise<Response> {
     const allTypes = Array.isArray(types) && types.length > 0
       ? types
       : ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
+
+    // max_per_type overrides the default cap — used by offline cache downloads to get all points
+    const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;
 
     // Load each type in parallel — small types finish fast, large types take longer
     const results = await Promise.all(
@@ -56,7 +91,7 @@ export default async function(req: Request): Promise<Response> {
               filtered.push(ref);
             }
           }
-          return { type, filtered: filtered.length > MAX_PER_TYPE ? filtered.slice(0, MAX_PER_TYPE) : filtered };
+          return { type, filtered: filtered.length > effectiveMax ? filtered.slice(0, effectiveMax) : filtered };
         } catch {
           // If one type fails (timeout/memory), others still succeed
           return { type, filtered: [] };

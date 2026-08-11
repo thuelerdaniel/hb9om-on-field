@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { loadAllPoints } from '../../shared/pointUpsert.ts';
 
 // Searches ALL cached references (worldwide, not bounds-limited) by code or name.
 // Used by the QSO Log Form autocomplete to find references that are not yet loaded
@@ -12,18 +13,43 @@ const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
 
+// Types stored as individual point entities (not in ReferenceData.references)
+const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint'; normalize: (r: any) => any }> = {
+  sota: {
+    entity: 'SotaPoint',
+    normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng })
+  },
+  pota: {
+    entity: 'PotaPoint',
+    normalize: (r) => ({ code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng, parkType: r.parkType, active: r.active })
+  },
+  hbff: {
+    entity: 'WwffPoint',
+    normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link })
+  },
+};
+
 async function loadType(base44, type: string): Promise<any[]> {
   const cached = typeCache[type];
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
-  const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
-  if (!records || records.length === 0) return [];
-  // Merge ALL records for this type — some types are saved in multiple batches.
-  // Use concat (not push(...spread)) — spread exceeds call stack for 180k+ element arrays.
-  let refs: any[] = [];
-  for (const rec of records) {
-    if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
+  let refs: any[];
+
+  if (POINT_TYPES[type]) {
+    // Load from individual point entity (SotaPoint, PotaPoint, WwffPoint)
+    const ptConfig = POINT_TYPES[type];
+    const points = await loadAllPoints(base44, ptConfig.entity);
+    refs = points.map(ptConfig.normalize);
+  } else {
+    // Load from ReferenceData.references array (wwbota, castle, iota, lighthouse)
+    const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
+    if (!records || records.length === 0) return [];
+    refs = [];
+    for (const rec of records) {
+      if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
+    }
   }
+
   typeCache[type] = { refs, time: Date.now() };
   return refs;
 }
