@@ -1,5 +1,36 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+// SSRF guard: only https is allowed, and private/internal IPs are blocked.
+function assertSafeUrl(rawUrl: string, label = 'url') {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error(`Ungültige ${label}: keine gültige URL`);
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`Ungültige ${label}: nur https:// erlaubt`);
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host === '::1' || host === '[::1]') {
+    throw new Error(`Ungültige ${label}: localhost nicht erlaubt`);
+  }
+  // Block IPv4 literals in private/reserved ranges (127/8, 10/8, 172.16-31, 192.168, 169.254 link-local, 0.0.0.0)
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [a, b] = [parseInt(ipv4[1], 10), parseInt(ipv4[2], 10)];
+    const isPrivate =
+      a === 0 || a === 127 || a === 10 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254);
+    if (isPrivate) {
+      throw new Error(`Ungültige ${label}: private/interne IP nicht erlaubt`);
+    }
+  }
+  return parsed;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -8,6 +39,9 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action, webdav_url, webdav_username, webdav_password, backup_data, backup_filename } = body;
+
+    // Validate WebDAV URL against SSRF whenever it is supplied
+    if (webdav_url) assertSafeUrl(webdav_url, 'WebDAV-URL');
 
     if (action === 'test') {
       // Test WebDAV connection by doing a PROPFIND
@@ -84,6 +118,8 @@ Deno.serve(async (req) => {
 
     if (action === 'download') {
       // Download a backup file from WebDAV
+      if (!body.file_url) return Response.json({ error: 'Missing file_url' }, { status: 400 });
+      assertSafeUrl(body.file_url, 'file_url');
       const authHeader = 'Basic ' + btoa(webdav_username + ':' + webdav_password);
       const resp = await fetch(body.file_url, {
         method: 'GET',
