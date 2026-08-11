@@ -370,11 +370,11 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const flattenServerRefs = (references) => {
     const colorMap = {
       sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
-      castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12"
+      castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12", repeater: "#3b82f6"
     };
     const labelMap = {
       sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
-      castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm"
+      castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm", repeater: "Relais"
     };
     const matches = [];
     for (const [type, refs] of Object.entries(references || {})) {

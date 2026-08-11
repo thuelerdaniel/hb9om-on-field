@@ -10,6 +10,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 const typeCache: Record<string, { refs: any[]; time: number }> = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
+const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
+
 async function loadType(base44, type: string): Promise<any[]> {
   const cached = typeCache[type];
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
@@ -23,6 +25,31 @@ async function loadType(base44, type: string): Promise<any[]> {
     if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
   }
   typeCache[type] = { refs, time: Date.now() };
+  return refs;
+}
+
+// Load repeaters from the Repeater entity (separate from ReferenceData).
+// Normalizes to the same shape: { code, name, lat, lng, ... }.
+let repeaterCache: { refs: any[]; time: number } | null = null;
+
+async function loadRepeaters(base44): Promise<any[]> {
+  if (repeaterCache && Date.now() - repeaterCache.time < CACHE_TTL) return repeaterCache.refs;
+  const repeaters = await base44.asServiceRole.entities.Repeater.list('-created_date', 10000);
+  const refs = (repeaters || [])
+    .filter(r => r.lat != null && r.lng != null)
+    .map(r => ({
+      code: r.callsign,
+      reference: r.callsign,
+      name: `${r.callsign} ${r.frequency != null ? r.frequency.toFixed(4) + ' MHz' : ''}`.trim() + (r.location_name ? ` · ${r.location_name}` : ''),
+      lat: r.lat,
+      lng: r.lng,
+      frequency: r.frequency,
+      location_name: r.location_name,
+      country: r.country,
+      country_code: r.country_code,
+      primary_mode: r.primary_mode,
+    }));
+  repeaterCache = { refs, time: Date.now() };
   return refs;
 }
 
@@ -53,7 +80,7 @@ export default async function(req: Request): Promise<Response> {
     const q = query.toLowerCase().trim();
     const allTypes = Array.isArray(types) && types.length > 0
       ? types
-      : ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
+      : [...REFERENCE_TYPES, 'repeater'];
 
     const hasCenter = center && typeof center.lat === 'number' && typeof center.lng === 'number';
 
@@ -61,7 +88,10 @@ export default async function(req: Request): Promise<Response> {
     const results = await Promise.all(
       allTypes.map(async (type) => {
         try {
-          const refs = await loadType(base44, type);
+          // Repeater is a separate entity, not in ReferenceData
+          const refs = type === 'repeater'
+            ? await loadRepeaters(base44)
+            : await loadType(base44, type);
           if (!refs || refs.length === 0) return { type, matches: [] };
 
           // Collect ALL matches — do NOT break early, otherwise closer references
