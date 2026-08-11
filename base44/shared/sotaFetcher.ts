@@ -30,6 +30,59 @@ function parseCsvLine(line: string): string[] {
   return fields;
 }
 
+// ISO2 country code → SOTA association prefix mapping.
+// SOTA uses DXCC-based prefixes (e.g., HB=Switzerland, DL=Germany, F=France),
+// NOT ISO2 codes. This reverse map is needed for offline downloads where the
+// user selects countries by ISO2 code.
+const ISO2_TO_SOTA_PREFIX: Record<string, string[]> = {
+  CH: ['HB'], LI: ['HB0'], DE: ['DL'], AT: ['OE'], FR: ['F'], IT: ['I'],
+  ES: ['EA'], PT: ['CT'], GB: ['G', 'GM', 'GW', 'GI', 'GD'], IE: ['EI'],
+  BE: ['ON'], NL: ['PA'], LU: ['LX'], DK: ['OZ'], SE: ['SM'], NO: ['LA'],
+  FI: ['OH'], IS: ['TF'], PL: ['SP'], CZ: ['OK'], SK: ['OM'], HU: ['HA'],
+  SI: ['S5'], HR: ['9A'], RS: ['YU'], BA: ['E7'], ME: ['4O'], AL: ['ZA'],
+  MK: ['Z3'], EE: ['ES'], LV: ['YL'], LT: ['LY'], GR: ['SV'], BG: ['LZ'],
+  RO: ['YO'], TR: ['TA'], CY: ['5B', 'H2'], MT: ['9H'], AD: ['C31'],
+  SM: ['T7'], MC: ['3A'], IM: ['GD'], FO: ['FO'], JE: ['GJ'], GG: ['GU'],
+  XK: ['Z6'],
+  US: ['W', 'K', 'KH6', 'KL7', 'KP2', 'KP3', 'KP4'], CA: ['VE', 'VY'],
+  MX: ['XE', 'XF', 'XG'], JP: ['JA'], KR: ['HL'], CN: ['BY'], IN: ['VU'],
+  TH: ['HS'], MY: ['9M'], PH: ['DU'], SG: ['9V'], NP: ['9N'], IL: ['4X'],
+  AE: ['A6'], SA: ['HZ'], ZA: ['ZS'], MA: ['CN'], TN: ['3V'], DZ: ['7X'],
+  LY: ['5A'], EG: ['SU'], ET: ['ET'], KE: ['5Z'], NG: ['5N'], GH: ['9G1'],
+  AU: ['VK'], NZ: ['ZL'], PG: ['P2'], FJ: ['3D2'], BR: ['PY', 'PP', 'PQ'],
+  AR: ['LU', 'AY', 'LO', 'LP'], CL: ['CE', 'CA'], CO: ['HK'], PE: ['OA'],
+  EC: ['HC'], VE: ['YV'], UY: ['CX'], PY: ['ZP'], BO: ['CP'],
+};
+
+export function iso2ToSotaPrefixes(iso2Codes: string[]): string[] {
+  const prefixes = new Set<string>();
+  for (const iso2 of iso2Codes) {
+    const mapped = ISO2_TO_SOTA_PREFIX[iso2.toUpperCase()];
+    if (mapped) {
+      for (const p of mapped) prefixes.add(p);
+    }
+  }
+  return Array.from(prefixes);
+}
+
+// Fetch SOTA summits for specific ISO2 countries (or all if empty).
+// Used by fetchSotaForOffline backend function for offline downloads.
+export async function fetchSotaSummitsForCountries(
+  iso2Codes: string[]
+): Promise<{ summits: any[]; source: string }> {
+  if (!iso2Codes || iso2Codes.length === 0) {
+    // Fetch all
+    const result = await fetchSotaSummits('all');
+    return { summits: result.summits, source: 'SOTA CSV (worldwide)' };
+  }
+  const prefixes = iso2ToSotaPrefixes(iso2Codes);
+  if (prefixes.length === 0) {
+    return { summits: [], source: 'SOTA CSV (no matching prefixes)' };
+  }
+  const result = await fetchSotaSummits(prefixes);
+  return { summits: result.summits, source: `SOTA CSV (${prefixes.join(', ')})` };
+}
+
 export async function fetchSotaSummits(
   scope: string | string[] = 'all',
   maxAssociations?: number

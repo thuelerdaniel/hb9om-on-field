@@ -354,36 +354,52 @@ function storeWithBudget(key, refs, slimmed, budgetBytes) {
   return { stored: false, count: 0, error: "Speicher voll – zu gross für lokalen Speicher" };
 }
 
-// Estimate available localStorage space.
-// Primary: navigator.storage.estimate() (accurate, returns actual quota + usage).
-// Fallback: progressively larger test strings (max 8MB).
+// Estimate available localStorage space by directly testing localStorage writes.
+// navigator.storage.estimate() is NOT reliable here — it reports the origin's total
+// storage quota (IndexedDB, service workers, etc.), which is often 1GB+, while
+// localStorage has its own separate limit (typically 5-10MB per origin).
+// Using the Storage API value leads to over-estimating available space, causing
+// localStorage.setItem to fail with "QuotaExceededError" even though estimate()
+// reported plenty of room. The only reliable way to know the localStorage limit is
+// to actually try writing to it.
 async function estimateAvailableSpace() {
-  // Try Storage API first (accurate quota)
-  try {
-    if (navigator.storage && navigator.storage.estimate) {
-      const est = await navigator.storage.estimate();
-      if (est && est.quota) {
-        const available = est.quota - (est.usage || 0);
-        // Cap at 50MB — enough for all reference layers without consuming the entire browser quota
-        return Math.min(available, 50 * 1024 * 1024);
-      }
-    }
-  } catch {}
-
-  // Fallback: test-based estimation with larger sizes
   const testKey = "__hb9om_space_test__";
-  const sizes = [100 * 1024, 500 * 1024, 1024 * 1024, 2 * 1024 * 1024, 4 * 1024 * 1024, 8 * 1024 * 1024];
+
+  // Binary search for the max test string that fits in localStorage.
+  // Range: 100KB to 15MB — covers typical mobile (5MB) and desktop (10MB) limits.
+  const lo = 100 * 1024;
+  const hi = 15 * 1024 * 1024;
   let available = 0;
-  for (const size of sizes) {
+
+  // First try the midpoint (≈7.5MB) — if it fits, we know the limit is high
+  // and can skip the lower sizes. If it fails, we search down.
+  let left = lo, right = hi;
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
     try {
-      localStorage.setItem(testKey, "x".repeat(size));
+      localStorage.setItem(testKey, "x".repeat(mid));
       localStorage.removeItem(testKey);
-      available = size;
+      available = mid;
+      left = mid + 1;
     } catch {
       localStorage.removeItem(testKey);
-      break;
+      right = mid - 1;
     }
   }
+
+  // Fallback: if binary search failed entirely (even 100KB didn't fit), try
+  // navigator.storage.estimate() as a last resort — better than returning 0.
+  if (available === 0) {
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const est = await navigator.storage.estimate();
+        if (est && est.quota) {
+          return Math.min(est.quota - (est.usage || 0), 5 * 1024 * 1024);
+        }
+      }
+    } catch {}
+  }
+
   return available;
 }
 
@@ -419,6 +435,54 @@ async function loadAllRefsForType(type, countryCodes = null) {
           lng: p.lng,
           parkType: p.parkType,
           active: p.active
+        }));
+      }
+    } catch (e) {
+      // Fall through to database loading as fallback
+    }
+  }
+
+  // SOTA: fetch directly from sotadata.org.uk CSV via backend function.
+  // The database has 180k+ SotaPoint records but the SDK caps reads at 6500 per session.
+  // Going straight to the source CSV API bypasses this limit entirely.
+  if (type === 'sota') {
+    try {
+      const response = await base44.functions.invoke('fetchSotaForOffline', {
+        countries: countryCodes && countryCodes.length > 0 ? countryCodes : 'all'
+      });
+      const data = response?.data || response;
+      const summits = data?.summits || [];
+      if (summits.length > 0) {
+        return summits.map(s => ({
+          code: s.code,
+          name: s.name,
+          lat: s.lat,
+          lng: s.lng,
+          altitude_m: s.alt,
+          points: s.points
+        }));
+      }
+    } catch (e) {
+      // Fall through to database loading as fallback
+    }
+  }
+
+  // WWFF: fetch directly from wwff.co CSV via backend function.
+  // Same 6500-record SDK limit issue as SOTA and POTA.
+  if (type === 'hbff') {
+    try {
+      const response = await base44.functions.invoke('fetchWwffForOffline', {
+        countries: countryCodes && countryCodes.length > 0 ? countryCodes : 'all'
+      });
+      const data = response?.data || response;
+      const refs = data?.refs || [];
+      if (refs.length > 0) {
+        return refs.map(r => ({
+          code: r.code,
+          name: r.name,
+          lat: r.lat,
+          lng: r.lng,
+          link: r.link
         }));
       }
     } catch (e) {

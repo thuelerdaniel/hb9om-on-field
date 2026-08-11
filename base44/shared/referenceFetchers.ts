@@ -134,6 +134,45 @@ export async function fetchHbffData(): Promise<any[]> {
   return fetchWwffData();
 }
 
+// ISO2 → DXCC prefix map (same DXCC prefixes used by SOTA and WWFF).
+// Reused from sotaFetcher to avoid circular imports — duplicated here for the
+// WWFF offline filter.
+const ISO2_TO_Dxcc: Record<string, string[]> = {
+  CH: ['HB'], LI: ['HB0'], DE: ['DL'], AT: ['OE'], FR: ['F'], IT: ['I'],
+  ES: ['EA'], PT: ['CT'], GB: ['G', 'GM', 'GW', 'GI', 'GD'], IE: ['EI'],
+  BE: ['ON'], NL: ['PA'], LU: ['LX'], DK: ['OZ'], SE: ['SM'], NO: ['LA'],
+  FI: ['OH'], IS: ['TF'], PL: ['SP'], CZ: ['OK'], SK: ['OM'], HU: ['HA'],
+  SI: ['S5'], HR: ['9A'], RS: ['YU'], BA: ['E7'], ME: ['4O'], AL: ['ZA'],
+  MK: ['Z3'], EE: ['ES'], LV: ['YL'], LT: ['LY'], GR: ['SV'], BG: ['LZ'],
+  RO: ['YO'], TR: ['TA'], CY: ['5B', 'H2'], MT: ['9H'], AD: ['C31'],
+  SM: ['T7'], MC: ['3A'],
+  US: ['W', 'K'], CA: ['VE', 'VY'], JP: ['JA'], KR: ['HL'], CN: ['BY'],
+  IN: ['VU'], AU: ['VK'], NZ: ['ZL'], ZA: ['ZS'], BR: ['PY', 'PP', 'PQ'],
+  AR: ['LU', 'AY', 'LO', 'LP'], CL: ['CE', 'CA'],
+};
+
+// Fetch WWFF data filtered by ISO2 countries (or all if empty).
+// Used by fetchWwffForOffline backend function for offline downloads.
+export async function fetchWwffDataForCountries(iso2Codes: string[]): Promise<any[]> {
+  const allRefs = await fetchWwffData();
+  if (!iso2Codes || iso2Codes.length === 0) return allRefs;
+
+  const prefixes = new Set<string>();
+  for (const iso2 of iso2Codes) {
+    const mapped = ISO2_TO_Dxcc[iso2.toUpperCase()];
+    if (mapped) for (const p of mapped) prefixes.add(p);
+  }
+  if (prefixes.size === 0) return allRefs;
+
+  // WWFF code format: "DLFF-0001" — DXCC prefix is everything before "FF"
+  return allRefs.filter(r => {
+    if (!r.code) return false;
+    const refPart = r.code.split('-')[0].toUpperCase();
+    const dxcc = refPart.replace(/FF$/, '');
+    return prefixes.has(dxcc);
+  });
+}
+
 // Proper CSV line parser — handles quoted fields containing commas (e.g., "Chisholm, AB, Red Deer Filter Centre")
 // The WWBOTA CSV has ~2'800 rows with quoted Name/Type fields that the naive split(',') would break.
 function parseCsvLineWWBOTA(line: string): string[] {
