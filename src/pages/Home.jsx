@@ -33,7 +33,7 @@ import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
-import { cacheReferenceData, loadCachedReferenceData, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
+import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { getWwbotaColor } from "@/lib/wwbotaSchemes";
@@ -183,21 +183,26 @@ export default function Home() {
   });
   const mapRef = useRef(null);
   const loadedBoundsRef = useRef({});
-  // Worldwide fetch queue — heavy backend fetches (fetchSOTA, fetchPOTA, etc.) are processed
-  // ONE AT A TIME to prevent blocking when many layers are activated simultaneously.
-  // Viewport data (fetchRefsInBounds) is NOT queued — it's a fast DB read and runs immediately,
-  // so the displayed map area loads first, then worldwide data loads sequentially in the background.
+  // Worldwide fetch queue — heavy backend fetches (fetchSOTA, fetchPOTA, etc.) run with
+  // limited concurrency (2 at a time) to parallelize independent type fetches without
+  // overwhelming the backend or the main thread. Network I/O doesn't block the UI; the
+  // previous 1-at-a-time queue added 35-70s of serial delay when activating multiple layers.
   const worldwideFetchQueue = useRef([]);
-  const worldwideFetching = useRef(false);
+  const worldwideActive = useRef(0);
+  const MAX_CONCURRENT_FETCHES = 2;
   const enqueueWorldwideFetch = useCallback(async (fetchFn) => {
     worldwideFetchQueue.current.push(fetchFn);
-    if (worldwideFetching.current) return;
-    worldwideFetching.current = true;
-    while (worldwideFetchQueue.current.length > 0) {
-      const fn = worldwideFetchQueue.current.shift();
-      try { await fn(); } catch (e) { /* silent */ }
+    // If under the concurrency limit, start a worker that drains the queue
+    if (worldwideActive.current >= MAX_CONCURRENT_FETCHES) return;
+    worldwideActive.current++;
+    try {
+      while (worldwideFetchQueue.current.length > 0) {
+        const fn = worldwideFetchQueue.current.shift();
+        try { await fn(); } catch (e) { /* silent */ }
+      }
+    } finally {
+      worldwideActive.current--;
     }
-    worldwideFetching.current = false;
   }, []);
   const [mapReady, setMapReady] = useState(false);
   const [mapBounds, setMapBounds] = useState(null);
@@ -271,13 +276,13 @@ export default function Home() {
       const res = await base44.functions.invoke("getReferencesInBounds", { bounds: bnds, types: typesToFetch });
       if (res.data?.references) {
         const refs = res.data.references;
-        if (refs.sota) setSotaData(prev => mergeRefs(prev, refs.sota));
-        if (refs.pota) setPotaData(prev => mergeRefs(prev, refs.pota));
-        if (refs.hbff) setHbffData(prev => mergeRefs(prev, refs.hbff));
-        if (refs.wwbota) setWwbotaData(prev => mergeRefs(prev, refs.wwbota));
-        if (refs.castle) setCastleData(prev => mergeRefs(prev, refs.castle));
-        if (refs.iota) setIotaData(prev => mergeRefs(prev, refs.iota));
-        if (refs.lighthouse) setLighthouseData(prev => mergeRefs(prev, refs.lighthouse));
+        if (refs.sota) { setSotaData(prev => { const m = mergeRefs(prev, refs.sota); cacheReferenceType('sota', m); return m; }); }
+        if (refs.pota) { setPotaData(prev => { const m = mergeRefs(prev, refs.pota); cacheReferenceType('pota', m); return m; }); }
+        if (refs.hbff) { setHbffData(prev => { const m = mergeRefs(prev, refs.hbff); cacheReferenceType('hbff', m); return m; }); }
+        if (refs.wwbota) { setWwbotaData(prev => { const m = mergeRefs(prev, refs.wwbota); cacheReferenceType('wwbota', m); return m; }); }
+        if (refs.castle) { setCastleData(prev => { const m = mergeRefs(prev, refs.castle); cacheReferenceType('castle', m); return m; }); }
+        if (refs.iota) { setIotaData(prev => { const m = mergeRefs(prev, refs.iota); cacheReferenceType('iota', m); return m; }); }
+        if (refs.lighthouse) { setLighthouseData(prev => { const m = mergeRefs(prev, refs.lighthouse); cacheReferenceType('lighthouse', m); return m; }); }
         typesToFetch.forEach(t => {
           loadedBoundsRef.current[t] = unionBounds(loadedBoundsRef.current[t], bnds);
         });
@@ -516,31 +521,76 @@ export default function Home() {
     };
   }, []);
 
-  // Load reference data on mount — offline uses local cache; online uses bounds-based loading
+  // Load reference data on mount — only parse cache for ACTIVE layer types to avoid
+  // blocking on startup when only 1-2 layers are active but 100k+ refs are cached.
   useEffect(() => {
     setServerOverrides(loadCachedOverrides());
     setCacheLoaded(true);
 
-    // ALWAYS load local cache first for instant display (online + offline)
-    const localCache = loadCachedReferenceData();
-    if (localCache) {
-      if (localCache.sota) setSotaData(localCache.sota);
-      if (localCache.pota) setPotaData(localCache.pota);
-      if (localCache.hbff) setHbffData(localCache.hbff);
-      if (localCache.wwbota) setWwbotaData(localCache.wwbota);
-      if (localCache.castle) setCastleData(localCache.castle);
-      if (localCache.iota) setIotaData(localCache.iota);
-      if (localCache.lighthouse) setLighthouseData(localCache.lighthouse);
+    // Load ONLY active layer types from per-type cache keys (fast, lazy parsing)
+    const typesToLoad = activeLayers.filter(l => ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'].includes(l));
+    let hasLocalData = false;
+    for (const type of typesToLoad) {
+      const refs = loadCachedReferenceType(type);
+      if (refs && refs.length > 0) {
+        hasLocalData = true;
+        if (type === 'sota') setSotaData(refs);
+        else if (type === 'pota') setPotaData(refs);
+        else if (type === 'hbff') setHbffData(refs);
+        else if (type === 'wwbota') setWwbotaData(refs);
+        else if (type === 'castle') setCastleData(refs);
+        else if (type === 'iota') setIotaData(refs);
+        else if (type === 'lighthouse') setLighthouseData(refs);
+      }
     }
 
     if (isOffline) {
+      // Offline: load ALL cached types (not just active) for QSO form availability
+      const localCache = loadCachedReferenceData();
+      if (localCache) {
+        if (localCache.sota) setSotaData(localCache.sota);
+        if (localCache.pota) setPotaData(localCache.pota);
+        if (localCache.hbff) setHbffData(localCache.hbff);
+        if (localCache.wwbota) setWwbotaData(localCache.wwbota);
+        if (localCache.castle) setCastleData(localCache.castle);
+        if (localCache.iota) setIotaData(localCache.iota);
+        if (localCache.lighthouse) setLighthouseData(localCache.lighthouse);
+      }
       setServerCacheLoaded(true);
       setServerCacheLoading(false);
       return;
     }
-    // Online mode: local cache already loaded above for instant display.
-    // Bounds-based effect (below) fetches only visible references as diff/refresh.
+    // Online mode with local cache: mark as loaded immediately so splash dismisses fast.
+    if (hasLocalData) {
+      setServerCacheLoaded(true);
+      setServerCacheLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOffline]);
+
+  // Lazy-load cached data when a new layer is activated (not loaded on mount).
+  // Avoids a server fetch when the data is already in the per-type local cache.
+  const loadedCacheTypes = useRef(new Set());
+  useEffect(() => {
+    if (!cacheLoaded) return;
+    const refTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
+    for (const type of refTypes) {
+      if (!activeLayers.includes(type) && !showQsoForm) continue;
+      if (loadedCacheTypes.current.has(type)) continue;
+      loadedCacheTypes.current.add(type);
+      const refs = loadCachedReferenceType(type);
+      if (refs && refs.length > 0) {
+        if (type === 'sota' && sotaData.length === 0) setSotaData(refs);
+        else if (type === 'pota' && potaData.length === 0) setPotaData(refs);
+        else if (type === 'hbff' && hbffData.length === 0) setHbffData(refs);
+        else if (type === 'wwbota' && wwbotaData.length === 0) setWwbotaData(refs);
+        else if (type === 'castle' && castleData.length === 0) setCastleData(refs);
+        else if (type === 'iota' && iotaData.length === 0) setIotaData(refs);
+        else if (type === 'lighthouse' && lighthouseData.length === 0) setLighthouseData(refs);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLayers, cacheLoaded, showQsoForm]);
 
   // Bounds-based fetch: load only references within the current map viewport.
   // Fires on map ready, pan/zoom (debounced 500ms), and layer toggle. Accumulates loaded data.
@@ -563,7 +613,7 @@ export default function Home() {
       fetchRefsInBounds(bnds, typesToFetch)
         .catch(() => {})
         .finally(() => { setServerCacheLoaded(true); setServerCacheLoading(false); });
-    }, 500);
+    }, 300);
     return () => clearTimeout(t);
   }, [mapReady, mapBounds, activeLayers, isOffline, cacheLoaded, serverCacheLoaded, fetchRefsInBounds, showQsoForm]);
 
