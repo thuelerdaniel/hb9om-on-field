@@ -99,6 +99,13 @@ Deno.serve(async (req) => {
     let body = {};
     try { body = await req.json(); } catch {}
 
+    // Authorization: scheduled automation runs have no user context and are allowed.
+    // Manual (UI) runs require an authenticated admin user.
+    if (body.scheduled !== true) {
+      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Scheduled runs pass { scheduled: true } from the automation. Manual UI runs send no flag.
     // Only scheduled runs respect the auto_update toggle; manual runs always proceed.
     // Each admin has their own AppSetting record (RLS), so check ALL records — not just settings[0].
