@@ -16,7 +16,12 @@ async function loadType(base44, type: string): Promise<any[]> {
 
   const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
   if (!records || records.length === 0) return [];
-  const refs = records[0].references || [];
+  // Merge ALL records for this type — some types are saved in multiple batches.
+  // Use concat (not push(...spread)) — spread exceeds call stack for 180k+ element arrays.
+  let refs: any[] = [];
+  for (const rec of records) {
+    if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
+  }
   typeCache[type] = { refs, time: Date.now() };
   return refs;
 }
@@ -29,7 +34,7 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const MAX_PER_TYPE = 30;
+const MAX_PER_TYPE = 50;
 const MIN_QUERY_LENGTH = 2;
 
 export default async function(req: Request): Promise<Response> {
@@ -57,12 +62,16 @@ export default async function(req: Request): Promise<Response> {
       allTypes.map(async (type) => {
         try {
           const refs = await loadType(base44, type);
-          if (!refs || refs.length === 0) return { type, matches: [] };
+          if (!refs || refs.length === 0) return { type, matches: [], _refsLoaded: 0 };
 
+          // Collect ALL matches — do NOT break early, otherwise closer references
+          // at the end of the array are missed before the distance sort.
           const matches: any[] = [];
+          let firstRefCode = '';
           for (const ref of refs) {
             const code = (ref.code || ref.reference || '').toLowerCase();
             const name = (ref.name || '').toLowerCase();
+            if (!firstRefCode && code) firstRefCode = code;
             if (code.includes(q) || name.includes(q)) {
               matches.push({
                 ...ref,
@@ -71,7 +80,6 @@ export default async function(req: Request): Promise<Response> {
                   : null
               });
             }
-            if (matches.length >= 100) break; // cap pre-sort
           }
 
           // Sort by distance if center provided, otherwise keep original order
@@ -79,21 +87,24 @@ export default async function(req: Request): Promise<Response> {
             matches.sort((a, b) => (a._distance ?? 9999) - (b._distance ?? 9999));
           }
 
-          return { type, matches: matches.slice(0, MAX_PER_TYPE).map(({ _distance, ...r }) => r) };
-        } catch {
-          return { type, matches: [] };
+          return { type, matches: matches.slice(0, MAX_PER_TYPE).map(({ _distance, ...r }) => r), _refsLoaded: refs.length, _firstRefCode: firstRefCode, _matchesFound: matches.length };
+        } catch (e) {
+          return { type, matches: [], _error: e?.message || String(e) };
         }
       })
     );
 
     const references: Record<string, any[]> = {};
     let count = 0;
-    for (const { type, matches } of results) {
+    const debug: any[] = [];
+    for (const r of results) {
+      const { type, matches, ...rest } = r as any;
       references[type] = matches;
       count += matches.length;
+      debug.push({ type, refsLoaded: (rest as any)?._refsLoaded, firstRefCode: (rest as any)?._firstRefCode, matchesFound: (rest as any)?._matchesFound, error: (rest as any)?._error });
     }
 
-    return Response.json({ references, count });
+    return Response.json({ references, count, _debug: debug });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

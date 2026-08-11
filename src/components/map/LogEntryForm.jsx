@@ -336,7 +336,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     return () => { if (refNameDebounceRef.current) clearTimeout(refNameDebounceRef.current); };
   }, [refName]);
 
-  // Inline autocomplete for refCode — filter markers by code, narrowed to selected refType
+  // Inline autocomplete for refCode — filter ALL available markers by code, narrowed to selected refType
   const refCodeMatches = useMemo(() => {
     if (!debouncedRefCode || debouncedRefCode.length < 2) return [];
     const q = debouncedRefCode.toLowerCase();
@@ -347,10 +347,10 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     if (refType && refType !== "custom" && refType !== "generell") {
       result = result.filter(m => m.layerType === refType);
     }
-    return result.slice(0, 20);
+    return result.slice(0, 50);
   }, [debouncedRefCode, allMarkers, refType]);
 
-  // Inline autocomplete for refName — filter markers by name, narrowed to selected refType
+  // Inline autocomplete for refName — filter ALL available markers by name, narrowed to selected refType
   const refNameMatches = useMemo(() => {
     if (!debouncedRefName || debouncedRefName.length < 2) return [];
     const q = debouncedRefName.toLowerCase();
@@ -361,7 +361,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     if (refType && refType !== "custom" && refType !== "generell") {
       result = result.filter(m => m.layerType === refType);
     }
-    return result.slice(0, 20);
+    return result.slice(0, 50);
   }, [debouncedRefName, allMarkers, refType]);
 
   // Server-side search: finds references NOT yet loaded in allMarkers (worldwide, not bounds-limited).
@@ -398,7 +398,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       types: typesFilter,
       center
     });
-    return res.data?.references ? flattenServerRefs(res.data.references).slice(0, 30) : [];
+    return res.data?.references ? flattenServerRefs(res.data.references).slice(0, 50) : [];
   }, []);
 
   // --- Server search for refCode ---
@@ -462,7 +462,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       const code = (m.code || m.reference || "").toLowerCase();
       return code.includes(debouncedRefCode.toLowerCase()) && !localCodes.has(code);
     });
-    return [...local, ...serverOnly].slice(0, 30);
+    return [...local, ...serverOnly].slice(0, 50);
   }, [refCodeMatches, serverRefCodeMatches, debouncedRefCode]);
 
   // Merge local + server matches for refName (dedup by code, server fills gaps not in allMarkers)
@@ -475,7 +475,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       const name = (m.name || "").toLowerCase();
       return name.includes(q) && !localCodes.has((m.code || m.reference || "").toLowerCase());
     });
-    return [...local, ...serverOnly].slice(0, 30);
+    return [...local, ...serverOnly].slice(0, 50);
   }, [refNameMatches, serverRefNameMatches, debouncedRefName]);
 
   const persistFormValues = () => {
@@ -847,7 +847,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                     className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                   {showRefCodeDropdown && mergedRefCodeMatches.length > 0 && (
-                    <div className="mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
+                    <div className="mt-1 max-h-60 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
                       {mergedRefCodeMatches.map((r, i) => (
                         <button
                           key={i}
@@ -878,7 +878,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                     className="w-full px-3 py-2 text-sm border border-gray-200 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                   {showRefNameDropdown && mergedRefNameMatches.length > 0 && (
-                    <div className="mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
+                    <div className="mt-1 max-h-60 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
                       {mergedRefNameMatches.map((r, i) => (
                         <button
                           key={i}
