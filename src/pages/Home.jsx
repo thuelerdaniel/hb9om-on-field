@@ -563,6 +563,49 @@ export default function Home() {
     };
   }, []);
 
+  // Re-hydrate from local cache when the page becomes visible again (e.g. after sleep mode).
+  // Browsers may clear in-memory data under memory pressure during sleep; this reloads any
+  // emptied data arrays from the local cache and forces Leaflet to redraw so the map and
+  // all active layers stay visible without a network round-trip.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      // Re-check online status — the connection may have changed during sleep
+      setIsOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
+      const refTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
+      for (const type of refTypes) {
+        if (!activeLayers.includes(type) && !showQsoForm) continue;
+        const refs = loadCachedReferenceType(type);
+        if (!refs || refs.length === 0) continue;
+        if (type === 'sota' && sotaData.length === 0) setSotaData(refs);
+        else if (type === 'pota' && potaData.length === 0) setPotaData(refs);
+        else if (type === 'hbff' && hbffData.length === 0) setHbffData(refs);
+        else if (type === 'wwbota' && wwbotaData.length === 0) setWwbotaData(refs);
+        else if (type === 'castle' && castleData.length === 0) setCastleData(refs);
+        else if (type === 'iota' && iotaData.length === 0) setIotaData(refs);
+        else if (type === 'lighthouse' && lighthouseData.length === 0) setLighthouseData(refs);
+      }
+      if (repeaters.length === 0) {
+        const cached = loadCachedRepeaters();
+        if (cached && cached.length > 0) setRepeaters(cached);
+      }
+      if (privateNodes.length === 0) {
+        const cached = loadCachedPrivateNodes();
+        if (cached && cached.length > 0) setPrivateNodes(cached);
+      }
+      if (totaData.length === 0) {
+        const cached = loadCachedTota();
+        if (cached && cached.length > 0) setTotaData(cached);
+      }
+      // Force Leaflet to recalculate its size and redraw tiles after sleep
+      if (mapRef.current) {
+        try { mapRef.current.invalidateSize(); } catch (e) {}
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [activeLayers, showQsoForm, sotaData, potaData, hbffData, wwbotaData, castleData, iotaData, lighthouseData, repeaters, privateNodes, totaData]);
+
   // Load reference data on mount — only parse cache for ACTIVE layer types to avoid
   // blocking on startup when only 1-2 layers are active but 100k+ refs are cached.
   useEffect(() => {
