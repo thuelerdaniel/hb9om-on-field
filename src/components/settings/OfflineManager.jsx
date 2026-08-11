@@ -126,15 +126,29 @@ export default function OfflineManager() {
       else result = await cacheTypeFromServer(type);
 
       if (result.success) {
+        const total = result.total || result.count;
+        const stored = result.count;
+        let desc = `${TYPE_LABELS[type]}: ${stored.toLocaleString("de-CH")} Einträge gespeichert`;
+        let duration = 3000;
+        if (result.truncated && total > stored) {
+          desc = `${TYPE_LABELS[type]}: ${stored.toLocaleString("de-CH")} von ${total.toLocaleString("de-CH")} gespeichert (Speicherlimit – Schweiz-Priorität)`;
+          duration = 6000;
+        } else if (result.slimmed && total > stored) {
+          desc = `${TYPE_LABELS[type]}: ${stored.toLocaleString("de-CH")} von ${total.toLocaleString("de-CH")} gespeichert (reduziert – Speicherplatz)`;
+          duration = 5000;
+        } else if (result.slimmed) {
+          desc = `${TYPE_LABELS[type]}: ${stored.toLocaleString("de-CH")} Einträge gespeichert (reduzierte Felder)`;
+          duration = 4000;
+        }
         toast({
-          title: "Geladen",
-          description: `${TYPE_LABELS[type]}: ${result.count.toLocaleString("de-CH")} Einträge gespeichert`,
-          duration: 3000,
+          title: result.truncated ? "Teilweise geladen" : "Geladen",
+          description: desc,
+          duration,
         });
         refreshStats();
         loadData();
       } else {
-        toast({ title: "Fehler", description: result.error || "Laden fehlgeschlagen", variant: "destructive", duration: 3000 });
+        toast({ title: "Fehler", description: result.error || "Laden fehlgeschlagen", variant: "destructive", duration: 5000 });
       }
     } catch (e) {
       toast({ title: "Fehler", description: e.message || "Laden fehlgeschlagen", variant: "destructive", duration: 3000 });
