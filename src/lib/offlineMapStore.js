@@ -155,6 +155,7 @@ export async function downloadTiles(tiles, tileKeyPrefix, urlTemplate, onProgres
   let downloaded = 0;
   let failed = 0;
   let totalBytes = 0;
+  const failedTiles = [];
 
   for (let i = 0; i < tiles.length; i += CONCURRENCY) {
     const batch = tiles.slice(i, i + CONCURRENCY);
@@ -180,6 +181,7 @@ export async function downloadTiles(tiles, tileKeyPrefix, urlTemplate, onProgres
           totalBytes += blob.size || 0;
         } catch (e) {
           failed++;
+          failedTiles.push(tile);
         }
       })
     );
@@ -192,7 +194,7 @@ export async function downloadTiles(tiles, tileKeyPrefix, urlTemplate, onProgres
     await new Promise((r) => setTimeout(r, 150));
   }
 
-  return { downloaded, failed, total: tiles.length, sizeBytes: totalBytes };
+  return { downloaded, failed, failedTiles, total: tiles.length, sizeBytes: totalBytes };
 }
 
 // --- Offline reference data ---

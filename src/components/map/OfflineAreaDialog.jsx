@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Download, Loader2, CheckCircle2, MapPin, HardDrive, Layers } from "lucide-react";
+import { X, Download, Loader2, CheckCircle2, MapPin, HardDrive, Layers, AlertCircle, RefreshCw } from "lucide-react";
 import {
   calculateTiles,
   downloadTiles,
@@ -34,9 +34,38 @@ export default function OfflineAreaDialog({
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState(null);
   const [done, setDone] = useState(false);
+  const [failedTiles, setFailedTiles] = useState([]);
   const mountedRef = useRef(true);
+  const wakeLockRef = useRef(null);
 
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => () => { mountedRef.current = false; releaseWakeLock(); }, []);
+
+  // Prevent the screen from sleeping while tiles are downloading
+  const acquireWakeLock = async () => {
+    try {
+      if ("wakeLock" in navigator) {
+        wakeLockRef.current = await navigator.wakeLock.request("screen");
+      }
+    } catch (e) { /* silent — wake lock not available */ }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      try { await wakeLockRef.current.release(); } catch (e) {}
+      wakeLockRef.current = null;
+    }
+  };
+
+  // Re-acquire wake lock when the page becomes visible again (it's released on tab hide)
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.visibilityState === "visible" && downloading && !wakeLockRef.current) {
+        await acquireWakeLock();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [downloading]);
 
   useEffect(() => {
     if (mapRef.current) {
@@ -63,7 +92,9 @@ export default function OfflineAreaDialog({
   const handleDownload = async () => {
     if (!bounds || selectedZooms.length === 0) return;
     setDownloading(true);
+    setFailedTiles([]);
     setProgress({ downloaded: 0, failed: 0, total: tileCount, sizeBytes: 0 });
+    await acquireWakeLock();
 
     // Filter reference data by bounds
     const filteredRefs = {};
@@ -81,7 +112,7 @@ export default function OfflineAreaDialog({
       if (mountedRef.current) setProgress(p);
     });
 
-    if (!mountedRef.current) return;
+    if (!mountedRef.current) { await releaseWakeLock(); return; }
 
     // Save area metadata
     const areaName = `Karte ${new Date().toLocaleString("de-CH", {
@@ -103,8 +134,39 @@ export default function OfflineAreaDialog({
       references: filteredRefs,
     });
 
-    if (mountedRef.current) {
-      setDownloading(false);
+    await releaseWakeLock();
+    if (!mountedRef.current) return;
+    setDownloading(false);
+
+    if (result.failedTiles && result.failedTiles.length > 0) {
+      // Keep the dialog open so the user can retry the failed tiles
+      setFailedTiles(result.failedTiles);
+    } else {
+      setDone(true);
+      setTimeout(() => {
+        if (mountedRef.current) onDownloaded();
+      }, 1500);
+    }
+  };
+
+  const handleRetryFailed = async () => {
+    if (failedTiles.length === 0) return;
+    setDownloading(true);
+    setProgress({ downloaded: 0, failed: 0, total: failedTiles.length, sizeBytes: 0 });
+    await acquireWakeLock();
+
+    const result = await downloadTiles(failedTiles, tileKeyPrefix, baseTileUrl, (p) => {
+      if (mountedRef.current) setProgress(p);
+    });
+
+    await releaseWakeLock();
+    if (!mountedRef.current) return;
+    setDownloading(false);
+
+    if (result.failedTiles && result.failedTiles.length > 0) {
+      setFailedTiles(result.failedTiles);
+    } else {
+      setFailedTiles([]);
       setDone(true);
       setTimeout(() => {
         if (mountedRef.current) onDownloaded();
@@ -144,6 +206,30 @@ export default function OfflineAreaDialog({
                 Die Karte ist nun offline verfügbar. Beim Verlust der Verbindung wird automatisch
                 auf die gespeicherte Karte gewechselt.
               </p>
+            </div>
+          ) : !downloading && failedTiles.length > 0 ? (
+            <div className="text-center py-6">
+              <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-gray-900">
+                {failedTiles.length} Kachel(n) fehlgeschlagen
+              </p>
+              <p className="text-xs text-gray-500 mt-1 mb-4">
+                Einige Kacheln konnten nicht geladen werden. Sie können es erneut versuchen.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRetryFailed}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" /> Erneut laden
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  Schliessen
+                </button>
+              </div>
             </div>
           ) : downloading ? (
             <div className="py-6">
