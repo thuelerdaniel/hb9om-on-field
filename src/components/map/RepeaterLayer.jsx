@@ -332,21 +332,8 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
           if (coordMatch.length > 0) toReps = coordMatch;
         }
 
-        // Fallback: use stored coordinates only if the repeaters don't exist in the
-        // DB at all (not in byCallsignAll). If they exist but are filtered out, skip
-        // the line — it would point to a location with no visible marker.
-        const existsFromAll = (byCallsignAll.get(l.from_callsign) || []).some(r =>
-          l.from_frequency == null || Math.abs(r.frequency - l.from_frequency) < 0.001);
-        const existsToAll = (byCallsignAll.get(l.to_callsign) || []).some(r =>
-          l.to_frequency == null || Math.abs(r.frequency - l.to_frequency) < 0.001);
-        if (fromReps.length === 0 && toReps.length === 0 && !existsFromAll && !existsToAll &&
-            l.from_lat != null && l.from_lng != null && l.to_lat != null && l.to_lng != null) {
-          return [{
-            positions: [[l.from_lat, l.from_lng], [l.to_lat, l.to_lng]],
-            color: l.color || "#3b82f6",
-            lineStyle: l.line_style || "dashed",
-          }];
-        }
+        // No fallback to stored coordinates — lines must terminate on actual repeater
+        // markers. If either endpoint is missing from the filtered set, skip the line.
         // Draw lines between matched from×to repeaters (deduped)
         const lines = [];
         const drawn = new Set();
@@ -466,7 +453,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
   const cappedRepeaters = visibleRepeaters.length > MAX ? visibleRepeaters.slice(0, MAX) : visibleRepeaters;
 
   const visibleLines = allLines.filter(line =>
-    paddedBounds.contains(line.positions[0]) || paddedBounds.contains(line.positions[1])
+    paddedBounds.contains(line.positions[0]) && paddedBounds.contains(line.positions[1])
   );
 
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
