@@ -98,6 +98,38 @@ export const MARKER_SHAPES = {
     </svg>`,
     name: "APRS-Stern (Digipeater)"
   },
+  aprs: {
+    // APRS — Funkwellen-Symbol mit Stern
+    svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="14" cy="14" r="11" fill="${color}" stroke="white" stroke-width="1.5"/>
+      <path d="M14 6 L16 12 L22 14 L16 16 L14 22 L12 16 L6 14 L12 12 Z" fill="white" opacity="0.9"/>
+      <path d="M4 14 Q4 8 14 8 Q24 8 24 14" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.5"/>
+      <path d="M4 14 Q4 20 14 20 Q24 20 24 14" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.5"/>
+    </svg>`,
+    name: "APRS (Funkwellen + Stern)"
+  },
+  brandmeister: {
+    // BrandMeister — DMR-Netzwerk mit doppelten Wellen
+    svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="22" height="22" rx="4" fill="${color}" stroke="white" stroke-width="1.5"/>
+      <path d="M7 12 Q10 9 14 12 Q18 15 21 12" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M7 17 Q10 14 14 17 Q18 20 21 17" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <circle cx="14" cy="8" r="1.5" fill="white"/>
+    </svg>`,
+    name: "BrandMeister (DMR-Netzwerk)"
+  },
+  tota: {
+    // TOTA — Aussichtsturm mit Antenne
+    svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 25 L12 8 L16 8 L18 25 Z" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M12 8 L14 3 L16 8" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <line x1="14" y1="3" x2="14" y2="1" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="8" y1="14" x2="20" y2="14" stroke="white" stroke-width="1.2" opacity="0.6"/>
+      <line x1="9" y1="19" x2="19" y2="19" stroke="white" stroke-width="1.2" opacity="0.6"/>
+      <rect x="12.5" y="21" width="3" height="4" fill="white" opacity="0.5"/>
+    </svg>`,
+    name: "TOTA (Aussichtsturm)"
+  },
   custom: {
     // Default circle pin
     svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">

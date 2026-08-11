@@ -41,6 +41,13 @@ const LAYER_GROUPS = [
     description: "Burgen- und Schloss-Referenzen"
   },
   {
+    id: "tota",
+    label: "TOTA – Towers on the Air",
+    icon: RadioTower,
+    color: "#f97316",
+    description: "Aussichtstürme und Antennen weltweit (wwtota.com) — in der Schweiz getrennt nach Antennen und Türmen"
+  },
+  {
     id: "iota",
     label: "IOTA – Islands on the Air",
     icon: MapPin,
@@ -88,13 +95,6 @@ const LAYER_GROUPS = [
     icon: Network,
     color: "#14b8a6",
     description: "DMR-Relais und Hotspots im BrandMeister-Netzwerk mit Talkgroups (TG) und DMR-IDs — eigenständiges Netzwerk, nicht APRS"
-  },
-  {
-    id: "tota",
-    label: "TOTA – Towers on the Air",
-    icon: RadioTower,
-    color: "#f97316",
-    description: "Aussichtstürme und Antennen weltweit (wwtota.com) — in der Schweiz getrennt nach Antennen und Türmen"
   }
 ];
 

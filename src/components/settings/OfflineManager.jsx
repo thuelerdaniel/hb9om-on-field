@@ -171,7 +171,7 @@ export default function OfflineManager() {
   };
 
   const handleDownloadAll = async () => {
-    const types = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "private_nodes"];
+    const types = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "private_nodes", "tota"];
     for (const type of types) {
       await handleDownloadType(type);
     }

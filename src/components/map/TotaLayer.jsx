@@ -162,6 +162,43 @@ export default function TotaLayer({
                 <div className="text-gray-400 text-[10px] pt-1 border-t">
                   {formatCoords(point.lat, point.lng)}
                 </div>
+
+                {/* wwtota.com Links — nur für Punkte mit Code aus der wwtota.com-Datenbank */}
+                {point.code && point.source !== 'swiss_csv' && (
+                  <div className="space-y-1 pt-1.5 border-t">
+                    <a
+                      href={`https://wwtota.com/karta_rozhledny.php?ref=${encodeURIComponent(point.code)}&lang=de`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-center text-white bg-orange-600 rounded-lg px-2 py-1.5 text-xs font-medium hover:bg-orange-700"
+                    >
+                      🔗 TOTA Detailseite (wwtota.com)
+                    </a>
+                    <a
+                      href={`https://wwtota.com/seznam/?lang=de`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-center text-gray-700 bg-gray-100 rounded-lg px-2 py-1 text-xs font-medium hover:bg-gray-200"
+                    >
+                      📋 Alle TOTA-Türme (Tabelle)
+                    </a>
+                  </div>
+                )}
+
+                {/* Schweizer Punkte — Link zu wwtota.com Liste mit Hinweis */}
+                {point.code && point.source === 'swiss_csv' && (
+                  <div className="pt-1.5 border-t">
+                    <a
+                      href={`https://wwtota.com/seznam/?lang=de`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-center text-gray-700 bg-gray-100 rounded-lg px-2 py-1 text-xs font-medium hover:bg-gray-200"
+                    >
+                      📋 TOTA-Türme auf wwtota.com
+                    </a>
+                  </div>
+                )}
+
                 <a
                   href={`https://www.google.com/maps/dir/?api=1&destination=${point.lat},${point.lng}`}
                   target="_blank"
@@ -170,6 +207,36 @@ export default function TotaLayer({
                 >
                   Navigation
                 </a>
+
+                {/* TOTA-Programm Info — erklärt das TOTA-Programm und die wwtota.com-Tabelle */}
+                <details className="pt-1.5 border-t">
+                  <summary className="text-[10px] text-gray-500 cursor-pointer hover:text-gray-700 font-medium">
+                    ℹ️ Über TOTA (Towers on the Air)
+                  </summary>
+                  <div className="text-[10px] text-gray-600 mt-1 space-y-1">
+                    <p>
+                      <strong>TOTA</strong> ist ein Amateurfunk-Programm für Aktivierungen von Aussichtstürmen, Antennen und ähnlichen Bauwerken.
+                      Punkte werden nach Referenznummer (<span className="font-mono">Ref_No</span>), Name, Ort, Bezirk, Region, Höhenpunkt, Höhe, Locator und Zugänglichkeit katalogisiert.
+                    </p>
+                    <p>
+                      Die vollständige Tabelle auf <a href="https://wwtota.com/seznam/?lang=de" target="_blank" rel="noopener noreferrer" className="text-orange-600 underline">wwtota.com/seznam</a> enthält:
+                    </p>
+                    <ul className="list-disc list-inside text-[9px] text-gray-500 pl-1">
+                      <li><strong>Ref_No</strong> — TOTA-Referenzcode</li>
+                      <li><strong>Name</strong> — Turm-/Antennenname</li>
+                      <li><strong>Ort / Bezirk / Region</strong> — Geografische Einordnung</li>
+                      <li><strong>Höhenpunkt</strong> — Standorthöhe ü.M.</li>
+                      <li><strong>Höhe</strong> — Bauwerkshöhe in Metern</li>
+                      <li><strong>Locator</strong> — Maidenhead-Grid-Quadrat</li>
+                      <li><strong>Zugänglich</strong> — Öffentlich erreichbar (YES/NO)</li>
+                      <li><strong>Erstaktivierung</strong> — Datum der ersten TOTA-Aktivierung</li>
+                      <li><strong>Aktivator</strong> — Rufzeichen des Erstaktivierers</li>
+                    </ul>
+                    <p className="text-gray-400">
+                      Quelle: <a href="https://wwtota.com" target="_blank" rel="noopener noreferrer" className="text-orange-600 underline">wwtota.com</a> · <a href="https://wwtota.com/rules/" target="_blank" rel="noopener noreferrer" className="text-orange-600 underline">Regeln</a>
+                    </p>
+                  </div>
+                </details>
               </div>
             </Popup>
           </CircleMarker>
