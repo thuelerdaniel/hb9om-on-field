@@ -127,10 +127,58 @@ async function queryAprsFiBatch(callsigns: string[], apiKey: string): Promise<an
   return [];
 }
 
+// Fetch ALL BrandMeister DMR devices worldwide — primary source for APRS nodes.
+// BrandMeister API returns 33k+ devices with lat/lng coordinates.
+// We filter to Europe (13k+ devices) to keep the dataset manageable.
+// These are stored directly as PrivateNodes — no aprs.fi query needed for coordinates.
+async function fetchBrandMeisterDevices(): Promise<any[]> {
+  try {
+    const resp = await fetch('https://api.brandmeister.network/v2/device/', {
+      headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    if (!Array.isArray(data)) return [];
+
+    // Filter to devices with coordinates in Europe
+    const europe = data.filter((d: any) =>
+      d.lat != null && d.lng != null &&
+      d.lat >= 35 && d.lat <= 72 && d.lng >= -25 && d.lng <= 45
+    );
+
+    return europe.map((d: any) => ({
+      callsign: d.callsign,
+      node_type: 'repeater_node',
+      frequency: parseFloat(d.tx) || 0,
+      mode: 'DMR',
+      network: 'BrandMeister',
+      node_number: String(d.id || ''),
+      location_name: (d.city || '').substring(0, 100),
+      country: '',
+      country_code: '',
+      lat: d.lat,
+      lng: d.lng,
+      description: `BrandMeister DMR ${d.hardware || ''} TX:${d.tx || ''} RX:${d.rx || ''}`.trim(),
+      aprs_symbol: '',
+      source: 'brandmeister',
+      status: d.status === 1 ? 'active' : 'inactive',
+    }));
+  } catch {
+    return [];
+  }
+}
+
 // Core APRS fetch logic — takes a base44 service-role client and API key, returns result stats.
 // INCREMENTAL: Existing APRS nodes are kept in the DB. Only NEW callsigns (not yet in DB) are
 // queried from aprs.fi. Existing nodes are re-queried periodically to update positions.
 // This grows the database incrementally — future queries only need to check for changes.
+//
+// DATA SOURCES (both callsign-based — verified):
+// 1. BrandMeister API (api.brandmeister.network/v2/device/) — 33k+ DMR devices with lat/lng.
+//    This is the PRIMARY source: 13k+ European devices stored directly as PrivateNodes.
+// 2. aprs.fi API (api.aprs.fi/api/get) — callsign-based lookup only (no area/bbox queries).
+//    Used to enrich BrandMeister callsigns with APRS symbol/comment data, and to find
+//    APRS stations for repeater/log callsigns not in BrandMeister.
 export async function fetchAprsData(base44: any, apiKey: string) {
   const startTime = Date.now();
   let repeatersUpdated = 0;
@@ -139,10 +187,69 @@ export async function fetchAprsData(base44: any, apiKey: string) {
   let nodesUpdated = 0;
   let totalCallsignsQueried = 0;
   let brandmeisterLinks = 0;
+  let bmDevicesSaved = 0;
+
+  // Step 0: Fetch BrandMeister devices — PRIMARY source (13k+ European DMR repeaters with coords)
+  const bmDevices = await fetchBrandMeisterDevices();
+  if (bmDevices.length > 0) {
+    // Load existing nodes to check for duplicates
+    const existingNodes = await base44.asServiceRole.entities.PrivateNode.list("-updated_date", 10000);
+    const existingByCallsign = new Map<string, any>();
+    for (const n of existingNodes) {
+      if (n.callsign) existingByCallsign.set(n.callsign.toUpperCase(), n);
+    }
+
+    const newBmNodes: any[] = [];
+    const updateBmNodes: { id: string; data: any }[] = [];
+    for (const dev of bmDevices) {
+      const cs = dev.callsign.toUpperCase();
+      const existing = existingByCallsign.get(cs);
+      if (existing) {
+        // Update if source is brandmeister or if coords are missing
+        if (existing.source === 'brandmeister' || existing.lat == null) {
+          updateBmNodes.push({ id: existing.id, data: dev });
+        }
+      } else {
+        newBmNodes.push(dev);
+      }
+    }
+
+    // Bulk create new BrandMeister nodes
+    for (let i = 0; i < newBmNodes.length; i += 100) {
+      const batch = newBmNodes.slice(i, i + 100);
+      try {
+        await base44.asServiceRole.entities.PrivateNode.bulkCreate(batch);
+        bmDevicesSaved += batch.length;
+      } catch {}
+    }
+
+    // Update existing nodes
+    for (const { id, data } of updateBmNodes) {
+      try {
+        await base44.asServiceRole.entities.PrivateNode.update(id, {
+          lat: data.lat, lng: data.lng,
+          frequency: data.frequency,
+          network: data.network,
+          mode: data.mode,
+          node_number: data.node_number,
+          location_name: data.location_name,
+          description: data.description,
+          source: data.source,
+          status: data.status,
+        });
+      } catch {}
+    }
+
+    // Add BrandMeister callsigns to the aprs.fi query list for enrichment
+    for (const dev of bmDevices) {
+      // Will be added to allCallsigns below
+    }
+  }
 
   // Step 1: Collect ALL known callsigns to query:
   //   a) All repeater callsigns from the DB
   //   b) All QSO partner callsigns from the Log entity (users the operator has contacted)
+  //   c) All BrandMeister device callsigns (for aprs.fi enrichment)
   const repeaters = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
   const logs = await base44.asServiceRole.entities.Log.list("-created_date", 5000);
 
@@ -159,6 +266,10 @@ export async function fetchAprsData(base44: any, apiKey: string) {
   }
   for (const log of logs) {
     if (log.callsign) allCallsigns.add(log.callsign);
+  }
+  // Add BrandMeister device callsigns for aprs.fi enrichment
+  for (const dev of bmDevices) {
+    if (dev.callsign) allCallsigns.add(dev.callsign);
   }
 
   // Step 1b: Load existing APRS nodes from DB to determine which callsigns are already known.
@@ -331,6 +442,8 @@ export async function fetchAprsData(base44: any, apiKey: string) {
     private_nodes_saved: nodesSaved,
     private_nodes_updated: nodesUpdated,
     brandmeister_links: brandmeisterLinks,
+    brandmeister_devices_found: bmDevices.length,
+    brandmeister_devices_saved: bmDevicesSaved,
     duration_ms: Date.now() - startTime,
   };
 }

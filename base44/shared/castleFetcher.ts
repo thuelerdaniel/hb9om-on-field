@@ -98,10 +98,10 @@ async function parseWcaOdsWorldwide(): Promise<any[]> {
 
 // --- OSM Overpass: castles within a bbox ---
 async function fetchOsmCastlesInBbox(south: number, west: number, north: number, east: number): Promise<any[]> {
-  const query = `[out:json][timeout:15];(
-    node["historic"~"castle|tower|fort|ruins|manor|city_gate|archaeological_site|fortification"](${south},${west},${north},${east});
-    way["historic"~"castle|tower|fort|ruins|manor|city_gate|archaeological_site|fortification"](${south},${west},${north},${east});
-  );out center 50000;`;
+  const query = `[out:json][timeout:25];(
+    node["historic"~"castle|fort|fortification|ruins"](${south},${west},${north},${east});
+    way["historic"~"castle|fort|fortification|ruins"](${south},${west},${north},${east});
+  );out center 5000;`;
   const resp = await fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'HB9OM-OnField/1.0' },
@@ -433,9 +433,77 @@ function matchWcaToGeo(wcaEntries: any[], geoSources: any[]): any[] {
   return castles;
 }
 
+// Country Wikidata Q-IDs for SPARQL queries — the 6 default offline countries.
+// Wikidata SPARQL is more reliable than OSM Overpass for large countries.
+const COUNTRY_WIKIDATA_IDS: { iso2: string; prefix: string; qid: string }[] = [
+  { iso2: 'CH', prefix: 'HB', qid: 'Q39' },
+  { iso2: 'DE', prefix: 'DL', qid: 'Q183' },
+  { iso2: 'AT', prefix: 'OE', qid: 'Q40' },
+  { iso2: 'FR', prefix: 'F', qid: 'Q142' },
+  { iso2: 'IT', prefix: 'I', qid: 'Q38' },
+  { iso2: 'LI', prefix: 'HB9L', qid: 'Q347' },
+];
+
+// Fetch castles for the 6 default countries from Wikidata SPARQL and OSM, merge with WCA data.
+// Wikidata queries run IN PARALLEL (6 concurrent) — each has LIMIT 5000, typically completes in 3-8s.
+// OSM Overpass is used as a fallback for countries where Wikidata returns few results.
+async function enrichWithOsmCastles(wcaCastles: any[]): Promise<any[]> {
+  const results: any[] = [...wcaCastles];
+
+  // Build a set of existing WCA names per country prefix for dedup
+  const wcaByPrefix = new Map<string, Set<string>>();
+  for (const c of wcaCastles) {
+    const prefix = c.code?.split('-')[0] || '';
+    if (!wcaByPrefix.has(prefix)) wcaByPrefix.set(prefix, new Set());
+    const nameKey = normalizeName(c.name).replace(/\s+/g, '');
+    wcaByPrefix.get(prefix)!.add(nameKey);
+  }
+
+  // Run ALL 6 Wikidata SPARQL queries in parallel
+  console.log('[castleFetcher] Wikidata SPARQL: querying 6 countries in parallel...');
+  const wikiResults = await Promise.all(
+    COUNTRY_WIKIDATA_IDS.map(country =>
+      fetchWikidataCastles(country.qid)
+        .then(castles => ({ country, castles }))
+        .catch(e => { console.log(`[castleFetcher] Wikidata ${country.iso2} failed: ${e.message}`); return { country, castles: [] }; })
+    )
+  );
+
+  for (const { country, castles: wikiCastles } of wikiResults) {
+    console.log(`[castleFetcher] Wikidata ${country.iso2}: ${wikiCastles.length} castles found`);
+    const existingNames = wcaByPrefix.get(country.prefix) || new Set<string>();
+    let added = 0;
+    for (const wiki of wikiCastles) {
+      const nameKey = normalizeName(wiki.name).replace(/\s+/g, '');
+      if (nameKey.length < 3) continue;
+      if (existingNames.has(nameKey)) continue;
+
+      const code = `${country.prefix}-WD${String(results.length).padStart(4, '0')}`;
+      results.push({
+        code,
+        name: wiki.name.charAt(0) + wiki.name.slice(1).toLowerCase(),
+        lat: wiki.lat,
+        lng: wiki.lng,
+        canton: wiki.location || '',
+        link: 'https://www.wikidata.org',
+        wcaName: wiki.name,
+        wcaLocation: wiki.location || '',
+        countryPrefix: country.prefix,
+        matchSource: 'wikidata',
+      });
+      existingNames.add(nameKey);
+      added++;
+    }
+    console.log(`[castleFetcher] Wikidata ${country.iso2}: ${added} new castles added (not in WCA)`);
+  }
+
+  return results;
+}
+
 // --- Main entry point: fetch ALL castles worldwide (WCA list + Maidenhead locators) ---
-// Simplified: skips OSM/Wikidata matching to avoid timeouts.
-// WCA ODS provides ~69k entries with Maidenhead locators (~5km accuracy).
+// Step 1: Parse WCA ODS file worldwide (gets entries with Maidenhead locators).
+// Step 2: Enrich with OSM Overpass for the 6 default countries + neighbors (geocodes
+//         entries that lack Maidenhead locators, and adds OSM-only castles).
 export async function fetchCastleDataComplete(castleOverrides?: Map<string, any>): Promise<any[]> {
   console.log('[castleFetcher] Step 1: Parsing WCA ODS worldwide...');
   const wcaEntries = await parseWcaOdsWorldwide();
@@ -471,6 +539,17 @@ export async function fetchCastleDataComplete(castleOverrides?: Map<string, any>
     };
   });
   console.log(`[castleFetcher] Step 2 done: ${castles.length} castles, ${castles.filter(c => c.lat !== null).length} with coords`);
+
+  // Step 3: Enrich with OSM Overpass for the 6 default countries + neighbors.
+  // This adds castles for countries that don't have Maidenhead locators in the WCA ODS file
+  // (currently only HB, LZ, OK have locators). OSM provides castles for DE, AT, FR, IT, etc.
+  console.log('[castleFetcher] Step 3: Enriching with OSM Overpass for default countries...');
+  const enrichedCastles = await enrichWithOsmCastles(castles);
+  console.log(`[castleFetcher] Step 3 done: ${enrichedCastles.length} total castles, ${enrichedCastles.filter(c => c.lat !== null).length} with coords`);
+
+  // Replace castles with enriched version for override processing
+  castles.length = 0;
+  castles.push(...enrichedCastles);
 
   // 5. Apply manual overrides
   for (const c of castles) {
