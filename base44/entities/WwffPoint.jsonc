@@ -21,6 +21,11 @@
     "link": {
       "type": "string",
       "description": "Web-Link zum Gebiet"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
     }
   },
   "required": [

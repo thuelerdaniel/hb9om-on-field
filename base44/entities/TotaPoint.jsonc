@@ -57,6 +57,11 @@
     "spot_height_m": {
       "type": "number",
       "description": "Standorthoehe ue.M. in Metern"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
     }
   },
   "required": [

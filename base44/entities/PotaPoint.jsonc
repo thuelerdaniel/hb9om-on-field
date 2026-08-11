@@ -26,6 +26,11 @@
       "type": "boolean",
       "default": true,
       "description": "Ob der Park aktiv ist"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
     }
   },
   "required": [

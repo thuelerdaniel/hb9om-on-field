@@ -164,6 +164,11 @@
       "type": "number",
       "description": "Gelaendefaktor (0.5-1.5) basierend auf Hoehe/Hindernissen",
       "default": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
     }
   },
   "required": [

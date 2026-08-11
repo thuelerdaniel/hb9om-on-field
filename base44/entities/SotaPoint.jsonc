@@ -25,6 +25,11 @@
     "points": {
       "type": "number",
       "description": "SOTA-Punkte"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
     }
   },
   "required": [
