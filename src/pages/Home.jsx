@@ -182,6 +182,22 @@ export default function Home() {
   });
   const mapRef = useRef(null);
   const loadedBoundsRef = useRef({});
+  // Worldwide fetch queue — heavy backend fetches (fetchSOTA, fetchPOTA, etc.) are processed
+  // ONE AT A TIME to prevent blocking when many layers are activated simultaneously.
+  // Viewport data (fetchRefsInBounds) is NOT queued — it's a fast DB read and runs immediately,
+  // so the displayed map area loads first, then worldwide data loads sequentially in the background.
+  const worldwideFetchQueue = useRef([]);
+  const worldwideFetching = useRef(false);
+  const enqueueWorldwideFetch = useCallback(async (fetchFn) => {
+    worldwideFetchQueue.current.push(fetchFn);
+    if (worldwideFetching.current) return;
+    worldwideFetching.current = true;
+    while (worldwideFetchQueue.current.length > 0) {
+      const fn = worldwideFetchQueue.current.shift();
+      try { await fn(); } catch (e) { /* silent */ }
+    }
+    worldwideFetching.current = false;
+  }, []);
   const [mapReady, setMapReady] = useState(false);
   const [mapBounds, setMapBounds] = useState(null);
 
@@ -611,18 +627,18 @@ export default function Home() {
     if (isWorldwide) { sotaWorldwideFetched.current = true; return; }
     sotaWorldwideFetched.current = true;
     setLoading(prev => ({ ...prev, sota: true }));
-    base44.functions.invoke("fetchSOTA", { associations: "all" })
-      .then(res => {
+    enqueueWorldwideFetch(async () => {
+      try {
+        const res = await base44.functions.invoke("fetchSOTA", { associations: "all" });
         if (res.data?.saved) {
-          // Server cache updated — reset loaded bounds and re-fetch viewport from fresh data
           loadedBoundsRef.current.sota = null;
-          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
           if (bnds) fetchRefsInBounds(bnds, ['sota']);
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(prev => ({ ...prev, sota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, sotaData, showQsoForm]);
+      } catch (e) { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, sota: false })); }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, sotaData, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
 
   // Load POTA from API — worldwide fetch if cached data is Swiss-only
   useEffect(() => {
@@ -633,109 +649,128 @@ export default function Home() {
     if (isWorldwide) { potaWorldwideFetched.current = true; return; }
     potaWorldwideFetched.current = true;
     setLoading(prev => ({ ...prev, pota: true }));
-    base44.functions.invoke("fetchPOTA", { entities: "all" })
-      .then(res => {
+    enqueueWorldwideFetch(async () => {
+      try {
+        const res = await base44.functions.invoke("fetchPOTA", { entities: "all" });
         if (res.data?.saved) {
           loadedBoundsRef.current.pota = null;
-          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
           if (bnds) fetchRefsInBounds(bnds, ['pota']);
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(prev => ({ ...prev, pota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, potaData, showQsoForm]);
+      } catch (e) { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, pota: false })); }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, potaData, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
 
   // Load HBFF from API if not cached
   useEffect(() => {
     if (!serverCacheLoaded || (!activeLayers.includes("hbff") && !showQsoForm) || hbffData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, hbff: true }));
-    base44.functions.invoke("fetchHBFF", { batchSize: 500, batchStart: 0 })
-      .then(res => { if (res.data?.references?.length > 0) setHbffData(res.data.references); })
-      .catch(() => {})
-      .finally(() => setLoading(prev => ({ ...prev, hbff: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
+    enqueueWorldwideFetch(async () => {
+      try {
+        const res = await base44.functions.invoke("fetchHBFF", { batchSize: 500, batchStart: 0 });
+        if (res.data?.references?.length > 0) setHbffData(res.data.references);
+      } catch (e) { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, hbff: false })); }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch]);
 
   // Load WWBOTA from API if not cached
   useEffect(() => {
     if (!serverCacheLoaded || (!activeLayers.includes("wwbota") && !showQsoForm) || wwbotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, wwbota: true }));
-    base44.functions.invoke("fetchWWBOTA", {})
-      .then(res => { if (res.data?.bunkers?.length > 0) setWwbotaData(res.data.bunkers); })
-      .catch(() => {})
-      .finally(() => setLoading(prev => ({ ...prev, wwbota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
+    enqueueWorldwideFetch(async () => {
+      try {
+        const res = await base44.functions.invoke("fetchWWBOTA", {});
+        if (res.data?.bunkers?.length > 0) setWwbotaData(res.data.bunkers);
+      } catch (e) { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, wwbota: false })); }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch]);
 
   // Load Castles from API if not cached
   useEffect(() => {
     if (!serverCacheLoaded || (!activeLayers.includes("castle") && !showQsoForm) || castleData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, castle: true }));
-    base44.functions.invoke("fetchCastles", {})
-      .then(res => {
+    enqueueWorldwideFetch(async () => {
+      try {
+        const res = await base44.functions.invoke("fetchCastles", {});
         if (res.data?.saved) {
           loadedBoundsRef.current.castle = null;
-          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
           if (bnds) fetchRefsInBounds(bnds, ['castle']);
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(prev => ({ ...prev, castle: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
+      } catch (e) { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, castle: false })); }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
 
   // Load IOTA from API if not cached
   useEffect(() => {
     if (!serverCacheLoaded || (!activeLayers.includes("iota") && !showQsoForm) || iotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, iota: true }));
-    base44.functions.invoke("fetchIOTA", {})
-      .then(res => {
+    enqueueWorldwideFetch(async () => {
+      try {
+        const res = await base44.functions.invoke("fetchIOTA", {});
         if (res.data?.saved) {
           loadedBoundsRef.current.iota = null;
-          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
           if (bnds) fetchRefsInBounds(bnds, ['iota']);
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(prev => ({ ...prev, iota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
+      } catch (e) { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, iota: false })); }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
 
   // Load Lighthouses from API if not cached
   useEffect(() => {
     if (!serverCacheLoaded || (!activeLayers.includes("lighthouse") && !showQsoForm) || lighthouseData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, lighthouse: true }));
-    base44.functions.invoke("fetchLighthouses", {})
-      .then(res => {
+    enqueueWorldwideFetch(async () => {
+      try {
+        const res = await base44.functions.invoke("fetchLighthouses", {});
         if (res.data?.saved) {
           loadedBoundsRef.current.lighthouse = null;
-          const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+          const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
           if (bnds) fetchRefsInBounds(bnds, ['lighthouse']);
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(prev => ({ ...prev, lighthouse: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
+      } catch (e) { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, lighthouse: false })); }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
 
-  // Load repeaters from DB when repeater layer is active
+  // Load repeaters from DB when repeater layer is active (queued — 10k records is a heavy query)
   useEffect(() => {
     if (!serverCacheLoaded || (!activeLayers.includes("repeater") && !showQsoForm) || repeaters.length > 0 || isOffline) return;
-    base44.entities.Repeater.list("-created_date", 10000)
-      .then(data => { if (data && data.length > 0) setRepeaters(data); })
-      .catch(() => {});
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
+    enqueueWorldwideFetch(async () => {
+      try {
+        const data = await base44.entities.Repeater.list("-created_date", 10000);
+        if (data && data.length > 0) setRepeaters(data);
+      } catch (e) { /* silent */ }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch]);
 
-  // Load approved admin-managed repeater links when repeater layer is active
+  // Load approved admin-managed repeater links when repeater layer is active (queued)
   useEffect(() => {
     if (!serverCacheLoaded || !activeLayers.includes("repeater") || isOffline) return;
-    base44.entities.RepeaterLink.list("-created_date", 500)
-      .then(data => { if (data) setAdminLinks(data); })
-      .catch(() => {});
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+    enqueueWorldwideFetch(async () => {
+      try {
+        const data = await base44.entities.RepeaterLink.list("-created_date", 500);
+        if (data) setAdminLinks(data);
+      } catch (e) { /* silent */ }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
 
-  // Load private nodes from DB when private_nodes layer is active
+  // Load private nodes from DB when private_nodes layer is active (queued — heavy query)
   useEffect(() => {
     if (!serverCacheLoaded || !activeLayers.includes("private_nodes") || privateNodes.length > 0 || isOffline) return;
-    base44.entities.PrivateNode.list("-created_date", 5000)
-      .then(data => { if (data && data.length > 0) setPrivateNodes(data); })
-      .catch(() => {});
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+    enqueueWorldwideFetch(async () => {
+      try {
+        const data = await base44.entities.PrivateNode.list("-created_date", 5000);
+        if (data && data.length > 0) setPrivateNodes(data);
+      } catch (e) { /* silent */ }
+    });
+  }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
 
   const handleEdit = useCallback((data, layerType) => {
     setEditTarget({ data, layerType });
