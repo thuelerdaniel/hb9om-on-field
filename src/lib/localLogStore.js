@@ -41,7 +41,11 @@ function notifyCacheChanged() {
   }
 }
 
-// Sync server data, preserving pending offline + optimistic in-flight entries
+// Sync server data, preserving pending offline + optimistic in-flight entries.
+// Also preserves recently-synced local entries whose updated_date is newer than
+// the server's — this prevents stale server list data (caused by replication lag
+// immediately after a bulk update) from overwriting the fresh local data that
+// syncPending() just wrote from the server's own update response.
 export async function syncFromServer() {
   const local = loadLocal();
   const localOnly = local.filter(e => e._pendingSync || e._pendingUpdate || e._pendingDelete || e._optimistic);
@@ -57,8 +61,31 @@ export async function syncFromServer() {
       const visibleLocalOnly = keptLocal.filter(e => !e._pendingDelete);
       // Entries with pending local updates take precedence over stale server data (prevents race condition)
       const localUpdateIds = new Set(visibleLocalOnly.map(e => e.id));
-      const filteredServerData = serverData.filter(e => !localUpdateIds.has(e.id));
-      const merged = [...filteredServerData, ...visibleLocalOnly];
+      // IDs of entries pending deletion — server versions must NOT reappear in the merged result
+      const pendingDeleteIds = new Set(local.filter(e => e._pendingDelete).map(e => e.id));
+      // Map local entries by ID for quick updated_date comparison
+      const localById = new Map(local.map(e => [e.id, e]));
+
+      // Filter server data:
+      // 1. Skip entries with pending local updates (local takes precedence)
+      // 2. Skip entries pending deletion (don't let deleted entries reappear from server)
+      // 3. Skip entries where the local version has a newer-or-equal updated_date
+      //    (prevents stale server data from overwriting recently-synced local changes)
+      const filteredServerData = serverData.filter(e => {
+        if (localUpdateIds.has(e.id)) return false;
+        if (pendingDeleteIds.has(e.id)) return false;
+        const localEntry = localById.get(e.id);
+        if (localEntry && localEntry.updated_date && e.updated_date) {
+          if (new Date(localEntry.updated_date) >= new Date(e.updated_date)) return false;
+        }
+        return true;
+      });
+
+      // Local entries to keep: not overwritten by server, not pending deletion
+      const serverKeptIds = new Set(filteredServerData.map(e => e.id));
+      const localKept = local.filter(e => !serverKeptIds.has(e.id) && !e._pendingDelete);
+
+      const merged = [...filteredServerData, ...localKept];
       saveLocal(merged);
       localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
       return merged;
