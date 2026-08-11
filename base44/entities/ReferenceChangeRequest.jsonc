@@ -65,6 +65,11 @@
     "reviewed_by_name": {
       "type": "string",
       "description": "Name des pruefenden Admins"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
     }
   },
   "required": [
