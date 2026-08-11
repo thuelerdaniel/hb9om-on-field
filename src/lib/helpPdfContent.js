@@ -440,6 +440,31 @@ export const SECTIONS = [
         ]
       },
       {
+        title: "ADIF-Import",
+        body: "Klicken Sie auf «Import», um eine ADIF-Datei (.adi) hochzuladen und in das Logbuch zu importieren. Die Datei wird vor dem Import validiert: ungültige Einträge werden markiert, Dubletten (gleiche Rufzeichen, Datum, Zeit, Frequenz und Mode) werden erkannt. In der Vorschau sehen Sie alle Datensätze mit Status und können den Import bestätigen. Nach dem Import wird ein Protokoll mit Erfolgs- und Fehlerstatistik angezeigt.",
+        steps: [
+          { icon: "upload", text: "«Import»-Button oben im Logbuch antippen" },
+          { icon: "upload", text: "ADIF-Datei (.adi) auswählen und hochladen" },
+          { icon: "eye", text: "Vorschau: gültige, Dubletten und fehlerhafte Einträge prüfen" },
+          { icon: "check", text: "«Importieren» bestätigen" },
+          { icon: "list", text: "Import-Protokoll zeigt Anzahl importierter und übersprungener Einträge" }
+        ],
+        tip: "Tipp: Dubletten werden automatisch erkannt (gleiche Rufzeichen, Datum, Zeit, Frequenz und Mode). Sie können in der Vorschau markiert werden."
+      },
+      {
+        title: "Mehrfachauswahl und Bulk-Bearbeitung (Umbuchen)",
+        body: "Klicken Sie auf das Kontrollkaestchen-Symbol oben rechts im Logbuch, um den Auswahlmodus zu aktivieren. Tippen Sie auf einzelne Eintraege, um sie auszuwaehlen, oder verwenden Sie «Alle auswaehlen». Eine blaue Aktionsleiste zeigt die Anzahl ausgewaehlter Eintraege und den Button «Umbuchen». Im Bulk-Edit-Dialog koennen Sie mehrere Felder gleichzeitig fuer alle ausgewaehlten Eintraege aendern: Suffix, Referenz-Typ, Referenz-Code, Referenz-Name, Locator, Band, Mode und Status. Zusaetzlich gibt es eine Schnellaktion «Club -> Persoenlich», die Clubstation-Eintraege in persoenliche umwandelt (entfernt Club-Rufzeichen und Operator-Felder) – nur sichtbar wenn Clubstation-Eintraege ausgewaehlt sind. Jedes Feld muss mit einer Checkbox aktiviert werden; nur aktivierte Felder werden ueberschrieben.",
+        steps: [
+          { icon: "checkSquare", text: "Kontrollkaestchen-Symbol (oben rechts) antippen – Auswahlmodus aktiv" },
+          { icon: "check", text: "Eintraege durch Antippen auswaehlen oder «Alle auswaehlen»" },
+          { icon: "user", text: "«Umbuchen»-Button in der blauen Leise antippen" },
+          { icon: "check", text: "Felder per Checkbox aktivieren und neue Werte setzen" },
+          { icon: "building", text: "Schnellaktion «Club -> Persoenlich» fuer Clubstation-QSOs" },
+          { icon: "save", text: "«Anwenden» – Aenderungen werden sofort lokal gespeichert" }
+        ],
+        tip: "Tipp: Die Schnellaktion «Club -> Persoenlich» ist nur sichtbar, wenn Clubstation-Eintraege ausgewaehlt sind. Sie wandelt alle ausgewaehlten Club-QSOs in persoenliche um."
+      },
+      {
         title: "Statistik-Ansicht",
         body: "Über das Balken-Diagramm-Icon oben rechts im Logbuch können Sie zwischen Listen- und Statistik-Ansicht wechseln. Die Statistik zeigt übersichtliche Diagramme zu QSOs pro Band, Mode, Referenz-Typ und Monat.",
         steps: [

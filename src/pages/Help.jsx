@@ -264,6 +264,16 @@ const SECTIONS = [
         example: "Alle QSOs von 2026 exportieren: Nach Datum sortieren → Export klicken → .adi-Datei wird heruntergeladen."
       },
       {
+        title: "ADIF-Import",
+        body: "Klicken Sie auf «Import», um eine ADIF-Datei (.adi) hochzuladen und in das Logbuch zu importieren. Die Datei wird vor dem Import validiert: ungültige Einträge werden markiert, Dubletten (gleiche Rufzeichen, Datum, Zeit, Frequenz und Mode) werden erkannt. In der Vorschau sehen Sie alle Datensätze mit Status (gültig, Dublette, fehlerhaft) und können den Import bestätigen. Nach dem Import wird ein Import-Protokoll mit Erfolgs- und Fehlerstatistik angezeigt. Die importierten QSOs werden lokal gespeichert und im Hintergrund mit dem Server synchronisiert.",
+        example: "ADIF-Datei aus anderem Logbuch hochladen → Vorschau mit Validierung → «Importieren» → Protokoll zeigt Anzahl importierter und übersprungener Einträge."
+      },
+      {
+        title: "Mehrfachauswahl & Bulk-Bearbeitung (Umbuchen)",
+        body: "Klicken Sie auf das Kontrollkästchen-Symbol oben rechts im Logbuch, um den Auswahlmodus zu aktivieren. Tippen Sie auf einzelne Einträge, um sie auszuwählen, oder verwenden Sie «Alle auswählen». Eine blaue Aktionsleiste zeigt die Anzahl ausgewählter Einträge und den Button «Umbuchen». Im Bulk-Edit-Dialog können Sie mehrere Felder gleichzeitig für alle ausgewählten Einträge ändern: Suffix, Referenz-Typ, Referenz-Code, Referenz-Name, Locator, Band, Mode und Status. Zudem gibt es eine Schnellaktion «Club → Persönlich», die Clubstation-Einträge in persönliche umwandelt (entfernt Club-Rufzeichen und Operator-Felder) – nur sichtbar wenn Clubstation-Einträge ausgewählt sind. Jedes Feld muss mit einer Checkbox aktiviert werden; nur aktivierte Felder werden überschrieben. Die Änderungen werden lokal sofort angwendet und im Hintergrund synchronisiert.",
+        example: "10 Clubstation-QSOs auswählen → «Umbuchen» → «Club → Persönlich» aktivieren → «Anwenden» → alle 10 werden zu persönlichen QSOs."
+      },
+      {
         title: "Lokale Speicherung & Synchronisation",
         body: "Ihre QSO-Logeinträge werden lokal im Browser gespeichert (localStorage). Das bedeutet: Die Daten sind sofort verfügbar, auch ohne Internetverbindung. Beim Öffnen des Logbuchs werden zuerst die lokalen Daten angezeigt (sofort), dann wird im Hintergrund mit dem Server synchronisiert. Ein Cloud-Icon neben der Eintragsanzahl zeigt den Synchronisationsstatus an. So haben Sie Ihre Daten immer auf jedem Gerät – lokal zwischengespeichert und online synchronisiert.",
         example: "Logbuch öffnen → lokale Daten erscheinen sofort → Cloud-Icon = synchronisiert."

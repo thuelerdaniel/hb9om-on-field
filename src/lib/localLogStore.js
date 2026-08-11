@@ -55,7 +55,10 @@ export async function syncFromServer() {
       // Keep pending entries not yet on server, plus pending updates/deletes, plus optimistic in-flight
       const keptLocal = localOnly.filter(e => !serverIds.has(e.id) || e._pendingUpdate || e._pendingDelete);
       const visibleLocalOnly = keptLocal.filter(e => !e._pendingDelete);
-      const merged = [...serverData, ...visibleLocalOnly];
+      // Entries with pending local updates take precedence over stale server data (prevents race condition)
+      const localUpdateIds = new Set(visibleLocalOnly.map(e => e.id));
+      const filteredServerData = serverData.filter(e => !localUpdateIds.has(e.id));
+      const merged = [...filteredServerData, ...visibleLocalOnly];
       saveLocal(merged);
       localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
       return merged;
@@ -223,7 +226,7 @@ export function bulkUpdate(ids, payload) {
   const idSet = new Set(ids);
   for (let i = 0; i < local.length; i++) {
     if (idSet.has(local[i].id)) {
-      local[i] = { ...local[i], ...payload, updated_date: new Date().toISOString() };
+      local[i] = { ...local[i], ...payload, updated_date: new Date().toISOString(), _pendingUpdate: true };
     }
   }
   saveLocal(local);
@@ -232,7 +235,7 @@ export function bulkUpdate(ids, payload) {
   if (isOnline()) {
     (async () => {
       for (const id of ids) {
-        // Skip offline/optimistic temp IDs — mark as pending update
+        // Skip offline/optimistic temp IDs — mark as pending sync
         if (id.startsWith("offline_") || id.startsWith("optimistic_")) {
           const cur = loadLocal();
           const idx = cur.findIndex(e => e.id === id);
@@ -247,7 +250,7 @@ export function bulkUpdate(ids, payload) {
           const cur = loadLocal();
           const i = cur.findIndex(e => e.id === id);
           if (i >= 0) {
-            cur[i] = { ...cur[i], ...entry };
+            cur[i] = { ...cur[i], ...entry, _pendingUpdate: false };
             saveLocal(cur);
           }
         } catch (e) {
