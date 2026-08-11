@@ -412,15 +412,21 @@ export async function cachePrivateNodesFromServer() {
     const arr = nodes || [];
     storeServerCount("private_nodes", arr.length);
     let result = storeWithBudget("hb9om_refs_private_nodes", arr, false, PER_TYPE_BUDGET_BYTES);
+    const slimNodes = () => arr.map(n => ({
+      id: n.id, callsign: n.callsign, node_type: n.node_type, frequency: n.frequency,
+      mode: n.mode, network: n.network, node_number: n.node_number,
+      location_name: n.location_name, country: n.country, country_code: n.country_code,
+      lat: n.lat, lng: n.lng, description: n.description, aprs_symbol: n.aprs_symbol,
+      source: n.source, status: n.status
+    }));
+    if (result.truncated) {
+      const slimResult = storeWithBudget("hb9om_refs_private_nodes", slimNodes(), true, PER_TYPE_BUDGET_BYTES);
+      if (slimResult.stored && slimResult.count >= result.count) {
+        result = slimResult;
+      }
+    }
     if (!result.stored) {
-      const slimmed = arr.map(n => ({
-        id: n.id, callsign: n.callsign, node_type: n.node_type, frequency: n.frequency,
-        mode: n.mode, network: n.network, node_number: n.node_number,
-        location_name: n.location_name, country: n.country, country_code: n.country_code,
-        lat: n.lat, lng: n.lng, description: n.description, aprs_symbol: n.aprs_symbol,
-        source: n.source, status: n.status
-      }));
-      result = storeWithBudget("hb9om_refs_private_nodes", slimmed, true, PER_TYPE_BUDGET_BYTES);
+      result = storeWithBudget("hb9om_refs_private_nodes", slimNodes(), true, PER_TYPE_BUDGET_BYTES);
     }
     if (result.stored) {
       try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
