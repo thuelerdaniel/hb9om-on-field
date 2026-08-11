@@ -153,16 +153,58 @@ export function getCountryFromRepeater(r) {
   return r?.country_code || null;
 }
 
-// Get ISO2 for a country name (fuzzy)
+// English country name → ISO2 mapping.
+// IOTA and lighthouse data sources use English country names ("France", "Italy"),
+// but COUNTRIES uses German names ("Frankreich", "Italien"). Without this map,
+// getCountryByName("France") returns null because it can't match "France" to "Frankreich".
+const ENGLISH_NAME_TO_ISO2 = {
+  'switzerland': 'CH', 'liechtenstein': 'LI', 'austria': 'AT', 'germany': 'DE',
+  'france': 'FR', 'italy': 'IT', 'spain': 'ES', 'portugal': 'PT',
+  'united kingdom': 'GB', 'great britain': 'GB', 'britain': 'GB', 'england': 'GB',
+  'scotland': 'GB', 'wales': 'GB', 'ireland': 'IE', 'belgium': 'BE',
+  'netherlands': 'NL', 'holland': 'NL', 'luxembourg': 'LU', 'denmark': 'DK',
+  'sweden': 'SE', 'norway': 'NO', 'finland': 'FI', 'iceland': 'IS',
+  'poland': 'PL', 'czech republic': 'CZ', 'czechia': 'CZ', 'slovakia': 'SK',
+  'hungary': 'HU', 'romania': 'RO', 'bulgaria': 'BG', 'greece': 'GR',
+  'croatia': 'HR', 'slovenia': 'SI', 'serbia': 'RS', 'bosnia and herzegovina': 'BA',
+  'bosnia': 'BA', 'montenegro': 'ME', 'albania': 'AL', 'north macedonia': 'MK',
+  'macedonia': 'MK', 'estonia': 'EE', 'latvia': 'LV', 'lithuania': 'LT',
+  'russia': 'RU', 'ukraine': 'UA', 'belarus': 'BY', 'moldova': 'MD',
+  'turkey': 'TR', 'cyprus': 'CY', 'malta': 'MT', 'andorra': 'AD',
+  'san marino': 'SM', 'monaco': 'MC', 'gibraltar': 'GI',
+  'united states': 'US', 'usa': 'US', 'canada': 'CA', 'mexico': 'MX',
+  'japan': 'JP', 'south korea': 'KR', 'korea': 'KR', 'china': 'CN',
+  'india': 'IN', 'australia': 'AU', 'new zealand': 'NZ',
+  'south africa': 'ZA', 'brazil': 'BR', 'argentina': 'AR', 'chile': 'CL',
+  'colombia': 'CO', 'peru': 'PE', 'ecuador': 'EC', 'venezuela': 'VE',
+  'uruguay': 'UY', 'paraguay': 'PY', 'bolivia': 'BO',
+  'faroe islands': 'FO', 'channel islands': 'JE', 'isle of man': 'IM',
+};
+
+// Get ISO2 for a country name (fuzzy).
+// Tries English name map first (exact match — most reliable for IOTA/lighthouse data),
+// then fuzzy German name match (COUNTRIES array).
 export function getCountryByName(name) {
   if (!name) return null;
-  const lower = name.toLowerCase();
+  const lower = name.toLowerCase().trim();
+
+  // 1. Try English name map first (exact match — most reliable for IOTA/lighthouse data)
+  if (ENGLISH_NAME_TO_ISO2[lower]) return ENGLISH_NAME_TO_ISO2[lower];
+
+  // 2. Try fuzzy German name match (COUNTRIES array)
   const found = COUNTRIES.find(c =>
     c.name.toLowerCase() === lower ||
     c.name.toLowerCase().includes(lower) ||
     lower.includes(c.name.toLowerCase())
   );
-  return found?.iso2 || null;
+  if (found) return found.iso2;
+
+  // 3. Try English name map with partial matching
+  for (const enName of Object.keys(ENGLISH_NAME_TO_ISO2)) {
+    if (lower.includes(enName) || enName.includes(lower)) return ENGLISH_NAME_TO_ISO2[enName];
+  }
+
+  return null;
 }
 
 // Get countries for a specific continent
