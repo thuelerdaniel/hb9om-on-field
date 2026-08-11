@@ -40,9 +40,25 @@ function maidenheadToLatLng(locator) {
   return { lat, lng };
 }
 
-// Parse semicolon-separated CSV line
-function parseCsvLine(line) {
-  return line.split(';').map((v) => v.trim());
+// Parse CSV line with configurable delimiter (semicolon or comma)
+function parseCsvLine(line, delimiter = ';') {
+  // Handle quoted fields that may contain the delimiter
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === delimiter && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
 }
 
 // Fetch and parse Swiss CSV file from URL
@@ -105,76 +121,85 @@ async function fetchSwissCsv(url, type) {
   return records;
 }
 
-// Fetch worldwide TOTA towers from wwtota.com by scraping the tower list HTML table
+// Country code map for TOTA reference prefixes (e.g. OKR → CZ, DLR → DE)
+const TOTA_COUNTRY_MAP: Record<string, string> = {
+  OKR: 'CZ', OMR: 'SK', DLR: 'DE', OER: 'AT', SPR: 'PL',
+  KPR: 'PR', PAR: 'NL', LUR: 'AR', HIR: 'DO', EAR: 'ES',
+  CER: 'CL', CTR: 'PT', LZR: 'BG', ONR: 'BE', GBR: 'GB',
+  CUR: 'PT', '9MR': 'MY',
+};
+
+// Fetch worldwide TOTA towers from wwtota.com CSV export endpoint.
+// The website uses DataTables (client-side JS rendering) so HTML scraping returns
+// an empty tbody. The site provides a CSV download at /servis/generate_csv.php?ref=ALL
+// which returns all 5300+ towers with semicolon-separated columns.
 async function fetchWorldwideTota() {
   try {
-    const resp = await fetch('https://wwtota.com/seznam/?lang=en', {
-      headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'text/html' },
+    const resp = await fetch('https://wwtota.com/servis/generate_csv.php?ref=ALL', {
+      headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'text/csv,*/*' },
     });
     if (!resp.ok) return [];
-    const html = await resp.text();
+    const text = await resp.text();
+    if (!text || text.length < 50) return [];
+
+    // Detect delimiter: semicolon or comma
+    const firstLine = text.split('\n')[0] || '';
+    const delimiter = firstLine.split(';').length > firstLine.split(',').length ? ';' : ',';
+
+    const lines = text.split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return [];
+
+    // Parse header to find column indices
+    const header = parseCsvLine(lines[0], delimiter);
+    const colIdx: Record<string, number> = {};
+    header.forEach((h, i) => {
+      const key = h.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      colIdx[key] = i;
+    });
+
+    // Column name variants (CSV header may be in EN or CS)
+    const refIdx = colIdx['refno'] ?? colIdx['ref_no'] ?? colIdx['ref'] ?? 0;
+    const nameIdx = colIdx['name'] ?? colIdx['nazev'] ?? 1;
+    const townIdx = colIdx['town'] ?? colIdx['obec'] ?? 2;
+    const locIdx = colIdx['locator'] ?? colIdx['lokator'] ?? 7;
+    const heightIdx = colIdx['height'] ?? colIdx['vyska'] ?? 6;
+    const spotIdx = colIdx['spotheight'] ?? colIdx['spotheight'] ?? colIdx['kota'] ?? 5;
+
     const records = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i], delimiter);
+      if (cols.length < 4) continue;
 
-    // Parse table rows — the table has columns:
-    // Ref_No | Name | Town | District | Region | Spot height | Height | Locator | Accessible | ...
-    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-    let match;
-    while ((match = rowRegex.exec(html)) !== null) {
-      const rowHtml = match[1];
-      const cells = [];
-      const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-      let cellMatch;
-      while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-        // Strip HTML tags and decode entities
-        const text = cellMatch[1]
-          .replace(/<[^>]*>/g, '')
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .trim();
-        cells.push(text);
-      }
-      // Need at least 8 columns and a valid Ref_No
-      if (cells.length >= 8 && cells[0] && cells[1] && cells[0].length > 2) {
-        const refNo = cells[0];
-        const name = cells[1];
-        const town = cells[2] || '';
-        const locator = cells[7] || '';
-        const spotHeight = parseFloat(cells[5]) || null;
-        const height = parseFloat(cells[6]) || null;
+      const refNo = (cols[refIdx] || '').trim();
+      const name = (cols[nameIdx] || '').trim();
+      const locator = (cols[locIdx] || '').trim().toUpperCase();
+      const height = parseFloat(cols[heightIdx]) || null;
+      const spotHeight = parseFloat(cols[spotIdx]) || null;
 
-        // Skip header rows or empty rows
-        if (refNo === 'Ref_No' || !refNo.match(/[A-Z]/)) continue;
+      // Skip header rows or invalid refs
+      if (!refNo || refNo === 'Ref_No' || !refNo.match(/[A-Z0-9]/)) continue;
+      if (!locator || locator.length < 4) continue;
 
-        const coords = maidenheadToLatLng(locator);
-        if (coords) {
-          // Derive country code from prefix (e.g. OKR → CZ, DLR → DE)
-          const prefix = refNo.split('-')[0];
-          const countryMap = {
-            OKR: 'CZ', OMR: 'SK', DLR: 'DE', OER: 'AT', SPR: 'PL',
-            KPR: 'PR', PAR: 'NL', LUR: 'AR', HIR: 'DO', EAR: 'ES',
-            CER: 'CL', CTR: 'PT', LZR: 'BG', ONR: 'BE', GBR: 'GB',
-            CUR: 'PT', '9MR': 'MY',
-          };
-          const cc = countryMap[prefix] || '';
-          records.push({
-            code: refNo,
-            name: name,
-            type: 'tower',
-            subtype: 'Lookout Tower',
-            lat: coords.lat,
-            lng: coords.lng,
-            country: '',
-            country_code: cc,
-            source: 'wwtota.com',
-            locator: locator,
-            height_m: height,
-            spot_height_m: spotHeight,
-          });
-        }
-      }
+      const coords = maidenheadToLatLng(locator);
+      if (!coords) continue;
+
+      const prefix = refNo.split('-')[0].toUpperCase();
+      const cc = TOTA_COUNTRY_MAP[prefix] || '';
+
+      records.push({
+        code: refNo,
+        name: name || refNo,
+        type: 'tower',
+        subtype: 'Lookout Tower',
+        lat: coords.lat,
+        lng: coords.lng,
+        country: '',
+        country_code: cc,
+        source: 'wwtota.com',
+        locator: locator,
+        height_m: height,
+        spot_height_m: spotHeight,
+      });
     }
     return records;
   } catch {

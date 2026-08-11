@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { RadioTower, Upload, RefreshCw, Loader2, CheckCircle2, AlertCircle, Signal, Globe, Database } from "lucide-react";
+import { RadioTower, Upload, RefreshCw, Loader2, CheckCircle2, AlertCircle, Signal, Globe, Database, Download } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -102,9 +102,13 @@ export default function TotaManager() {
       const res = await base44.functions.invoke("fetchTota", {
         action: "fetchWorldwide",
       });
+      const count = res.data?.worldwide_imported || 0;
       toast({
-        title: "Worldwide-Daten aktualisiert",
-        description: `${res.data?.worldwide_imported || 0} TOTA-Türme von wwtota.com geladen`,
+        title: count > 0 ? "Worldwide-Daten aktualisiert" : "Keine Daten geladen",
+        description: count > 0
+          ? `${count} TOTA-Türme von wwtota.com geladen`
+          : "wwtota.com lieferte 0 Türme — CSV-Endpunkt möglicherweise nicht erreichbar",
+        variant: count > 0 ? "default" : "destructive",
         duration: 5000,
       });
       fetchStats();
@@ -118,6 +122,41 @@ export default function TotaManager() {
     } finally {
       setWorldwideLoading(false);
     }
+  };
+
+  // Download a CSV template file with the correct format and sample rows
+  const handleDownloadTemplate = (type) => {
+    let csv = "";
+    let filename = "";
+    if (type === "antenna") {
+      // Antennen.csv: OBJEKTART;X_Koord;Y_Koord (LV95)
+      csv = "OBJEKTART;X_Koord;Y_Koord\n" +
+        "Antenne;2683000;1247000\n" +
+        "Antenne klein;2679500;1246800\n" +
+        "Richtfunkantenne;2685000;1249000\n";
+      filename = "Antennen_Vorlage.csv";
+    } else {
+      // Turm.csv: OBJEKTART;NUTZUNG;NAME;X_KOORD;Y_KOORD (LV95)
+      csv = "OBJEKTART;NUTZUNG;NAME;X_KOORD;Y_KOORD\n" +
+        "Aussichtsturm;Aussichtsturm;Uetliberg;2679500;1246800\n" +
+        "Sendeturm;Sendeturm;Bantiger;2620000;1195000\n" +
+        "Aussichtsturm;Aussichtsturm;Chasseral;2578000;1213000\n";
+      filename = "Turm_Vorlage.csv";
+    }
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Vorlage heruntergeladen",
+      description: `${filename} — mit Beispielzeilen und LV95-Koordinaten`,
+      duration: 3000,
+    });
   };
 
   return (
@@ -170,6 +209,20 @@ export default function TotaManager() {
         <p className="text-[10px] text-gray-400 mb-2">
           Antennen.csv (Spalten: OBJEKTART;X_Koord;Y_Koord) und Turm.csv (Spalten: OBJEKTART;NUTZUNG;NAME;X_KOORD;Y_KOORD) mit LV95-Koordinaten.
         </p>
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => handleDownloadTemplate("antenna")}
+            className="flex-1 px-2 py-1.5 text-[11px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 flex items-center justify-center gap-1"
+          >
+            <Download className="w-3 h-3" /> Antennen-Vorlage
+          </button>
+          <button
+            onClick={() => handleDownloadTemplate("tower")}
+            className="flex-1 px-2 py-1.5 text-[11px] font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 flex items-center justify-center gap-1"
+          >
+            <Download className="w-3 h-3" /> Turm-Vorlage
+          </button>
+        </div>
         <div className="space-y-2">
           <div>
             <label className="text-xs font-medium text-gray-700 flex items-center gap-1.5 mb-1">
