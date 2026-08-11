@@ -46,6 +46,11 @@
     "error_message": {
       "type": "string",
       "description": "Fehlermeldung bei fehlgeschlagener Abfrage"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
     }
   },
   "required": [
