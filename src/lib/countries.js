@@ -4,7 +4,7 @@
 export const COUNTRIES = [
   // Europe
   { iso2: 'CH', name: 'Schweiz', continent: 'eu', sota: 'HB', pota: 'CH' },
-  { iso2: 'LI', name: 'Liechtenstein', continent: 'eu', sota: 'HB', pota: 'LI' },
+  { iso2: 'LI', name: 'Liechtenstein', continent: 'eu', sota: 'HB9L', pota: 'LI' },
   { iso2: 'AT', name: 'Österreich', continent: 'eu', sota: 'OE', pota: 'OE' },
   { iso2: 'FR', name: 'Frankreich', continent: 'eu', sota: 'F', pota: 'F' },
   { iso2: 'DE', name: 'Deutschland', continent: 'eu', sota: 'DL', pota: 'DL' },

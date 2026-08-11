@@ -39,8 +39,24 @@ export function cacheReferenceData(data) {
   }
 }
 
-// Load a single type from its per-type key — O(n) parse for only the needed type
+// Load a single type — merges per-country keys if present, otherwise reads single-key cache
 export function loadCachedReferenceType(type) {
+  // Check for per-country keys first (country-filtered download)
+  const countries = getCachedCountriesForType(type);
+  if (countries.length > 0) {
+    const merged = [];
+    for (const country of countries) {
+      try {
+        const data = localStorage.getItem(`hb9om_refs_${type}_${country}`);
+        if (data) {
+          const arr = JSON.parse(data);
+          if (Array.isArray(arr)) merged.push(...arr);
+        }
+      } catch {}
+    }
+    return merged.length > 0 ? merged : null;
+  }
+  // Fallback to single-key cache
   const key = TYPE_CACHE_KEYS[type];
   if (!key) return null;
   try {
@@ -60,15 +76,14 @@ export function cacheReferenceType(type, refs) {
 }
 
 export function loadCachedReferenceData() {
-  // Prefer per-type keys (lazy, avoids parsing all types at once)
+  // Use loadCachedReferenceType which handles per-country keys
   try {
     const result = {};
     let hasAny = false;
     for (const type of Object.keys(TYPE_CACHE_KEYS)) {
-      const key = TYPE_CACHE_KEYS[type];
-      const data = localStorage.getItem(key);
-      if (data) {
-        result[type] = JSON.parse(data);
+      const refs = loadCachedReferenceType(type);
+      if (refs) {
+        result[type] = refs;
         hasAny = true;
       }
     }
@@ -142,17 +157,13 @@ export function getLocalCacheStats() {
   const size = getLocalCacheSize();
   const cachedAt = getCachedAt();
   let count = 0;
-  // Count from per-type keys directly — avoids parsing all types just to count
+  // Count from per-country keys and per-type keys
   for (const type of Object.keys(TYPE_CACHE_KEYS)) {
-    const key = TYPE_CACHE_KEYS[type];
-    const data = localStorage.getItem(key);
-    if (data) {
-      try {
-        const arr = JSON.parse(data);
-        if (Array.isArray(arr)) count += arr.length;
-      } catch {}
-    }
+    const stats = getTypeStats(type, TYPE_CACHE_KEYS[type]);
+    count += stats.count;
   }
+  // Count repeaters (per-country or single-key)
+  count += getTypeStats("repeater", "hb9om_refs_repeater").count;
   // Fallback to legacy cache if per-type keys are empty
   if (count === 0) {
     const cache = loadCachedReferenceData();
@@ -169,6 +180,11 @@ export function getLocalCacheStats() {
 export function clearLocalReferenceCache() {
   localStorage.removeItem(CACHE_KEY);
   for (const key of Object.values(TYPE_CACHE_KEYS)) localStorage.removeItem(key);
+  // Clear per-country keys for all reference types and repeaters
+  for (const type of Object.keys(TYPE_CACHE_KEYS)) clearPerCountryKeys(type);
+  clearPerCountryKeys("repeater");
+  localStorage.removeItem("hb9om_refs_repeater");
+  localStorage.removeItem("hb9om_refs_private_nodes");
   localStorage.removeItem(OVERRIDES_KEY);
   localStorage.removeItem(QRZ_CACHE_KEY);
   localStorage.removeItem(TIMESTAMP_KEY);
@@ -263,6 +279,11 @@ function slimRepeater(r) {
 // from consuming the entire localStorage quota, leaving no room for other types.
 // Total budget across all types: ~6MB, leaving ~2MB for other app data.
 const PER_TYPE_BUDGET_BYTES = 1.5 * 1024 * 1024; // 1.5MB per type
+
+// Per-country storage budget — when downloading by country, each country gets its own
+// localStorage key with this budget. This allows 6-10 countries to fit without hitting
+// the quota limit that a single large key would reach.
+const PER_COUNTRY_BUDGET_BYTES = 1 * 1024 * 1024; // 1MB per country
 
 // Try to store data in localStorage — if quota exceeded, try progressively smaller subsets
 function tryStoreRepeater(key, arr) {
@@ -453,8 +474,22 @@ export async function cacheQrzFromServer() {
   }
 }
 
-// Load cached repeaters
+// Load cached repeaters — merges per-country keys if present
 export function loadCachedRepeaters() {
+  const countries = getCachedCountriesForType("repeater");
+  if (countries.length > 0) {
+    const merged = [];
+    for (const country of countries) {
+      try {
+        const data = localStorage.getItem(`hb9om_refs_repeater_${country}`);
+        if (data) {
+          const arr = JSON.parse(data);
+          if (Array.isArray(arr)) merged.push(...arr);
+        }
+      } catch {}
+    }
+    return merged;
+  }
   try {
     const data = localStorage.getItem("hb9om_refs_repeater");
     return data ? JSON.parse(data) : [];
@@ -469,31 +504,43 @@ export function loadCachedPrivateNodes() {
   } catch { return []; }
 }
 
+// Count stats for a type from per-country keys or single-key cache
+function getTypeStats(type, legacyKey) {
+  const countries = getCachedCountriesForType(type);
+  if (countries.length > 0) {
+    let count = 0, size = 0;
+    for (const country of countries) {
+      const countryKey = `hb9om_refs_${type}_${country}`;
+      try {
+        const data = localStorage.getItem(countryKey);
+        if (data) {
+          const arr = JSON.parse(data);
+          count += Array.isArray(arr) ? arr.length : 0;
+          size += (countryKey.length + data.length) * 2;
+        }
+      } catch {}
+    }
+    return { count, size };
+  }
+  try {
+    const data = localStorage.getItem(legacyKey);
+    if (data) {
+      const arr = JSON.parse(data);
+      return { count: Array.isArray(arr) ? arr.length : 0, size: (legacyKey.length + data.length) * 2 };
+    }
+    return { count: 0, size: 0 };
+  } catch { return { count: 0, size: 0 }; }
+}
+
 // Get per-type local cache stats (count + size in bytes)
 export function getReferenceTypeStats() {
   const stats = {};
   // Reference types from TYPE_CACHE_KEYS
   for (const [type, key] of Object.entries(TYPE_CACHE_KEYS)) {
-    try {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const arr = JSON.parse(data);
-        stats[type] = { count: Array.isArray(arr) ? arr.length : 0, size: (key.length + data.length) * 2 };
-      } else {
-        stats[type] = { count: 0, size: 0 };
-      }
-    } catch {
-      stats[type] = { count: 0, size: 0 };
-    }
+    stats[type] = getTypeStats(type, key);
   }
   // Repeaters
-  try {
-    const data = localStorage.getItem("hb9om_refs_repeater");
-    if (data) {
-      const arr = JSON.parse(data);
-      stats.repeater = { count: Array.isArray(arr) ? arr.length : 0, size: ("hb9om_refs_repeater".length + data.length) * 2 };
-    } else { stats.repeater = { count: 0, size: 0 }; }
-  } catch { stats.repeater = { count: 0, size: 0 }; }
+  stats.repeater = getTypeStats("repeater", "hb9om_refs_repeater");
   // Private nodes
   try {
     const data = localStorage.getItem("hb9om_refs_private_nodes");
@@ -513,8 +560,9 @@ export function getReferenceTypeStats() {
   return stats;
 }
 
-// Clear a single type from local cache
+// Clear a single type from local cache (including per-country keys)
 export function clearReferenceType(type) {
+  clearPerCountryKeys(type);
   const key = TYPE_CACHE_KEYS[type];
   if (key) localStorage.removeItem(key);
   if (type === "repeater") localStorage.removeItem("hb9om_refs_repeater");
@@ -593,6 +641,30 @@ export function getOfflineReadiness() {
 
 // --- Country-based filtering for offline downloads ---
 
+// Get the list of countries that have cached data for a type (per-country split)
+export function getCachedCountriesForType(type) {
+  try {
+    const data = localStorage.getItem(`hb9om_offline_countries_data_${type}`);
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+// Store the list of countries that have cached data for a type
+function setCachedCountriesForType(type, countries) {
+  try {
+    localStorage.setItem(`hb9om_offline_countries_data_${type}`, JSON.stringify(countries));
+  } catch {}
+}
+
+// Clear all per-country keys for a type
+function clearPerCountryKeys(type) {
+  const countries = getCachedCountriesForType(type);
+  for (const country of countries) {
+    localStorage.removeItem(`hb9om_refs_${type}_${country}`);
+  }
+  localStorage.removeItem(`hb9om_offline_countries_data_${type}`);
+}
+
 // Get country code for a reference based on its type
 function getRefCountryCode(ref, type) {
   if (!ref) return null;
@@ -639,7 +711,9 @@ export function setOfflineCountryFilter(type, countries) {
   } catch {}
 }
 
-// Download a reference type filtered by selected countries
+// Download a reference type filtered by selected countries.
+// Each country is stored in its own localStorage key (hb9om_refs_{type}_{country})
+// so that one large country cannot consume the budget of another.
 export async function cacheTypeFromServerByCountries(type, countryCodes) {
   try {
     const entries = await base44.entities.ReferenceData.filter({ type });
@@ -653,49 +727,89 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
     // Store country counts from full data (for dialog display)
     storeCountryCounts(type, allRefs);
 
-    // Filter by selected countries
-    const filtered = countryCodes.length > 0
-      ? allRefs.filter(ref => {
-          const iso2 = getRefCountryCode(ref, type);
-          return iso2 && countryCodes.includes(iso2);
-        })
-      : allRefs;
-
     const key = TYPE_CACHE_KEYS[type];
     if (!key) return { success: false, count: 0, error: "Unbekannter Typ" };
 
-    // Try full data first; if truncated, try slimmed to fit more
-    let result = storeWithBudget(key, filtered, false, PER_TYPE_BUDGET_BYTES);
-    if (result.truncated) {
-      const slimRefs = filtered.map(slimReference);
-      const slimResult = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
-      if (slimResult.stored && slimResult.count >= result.count) {
-        result = slimResult;
+    // If no countries selected, store all in single key (legacy behavior)
+    if (countryCodes.length === 0) {
+      let result = storeWithBudget(key, allRefs, false, PER_TYPE_BUDGET_BYTES);
+      if (result.truncated) {
+        const slimRefs = allRefs.map(slimReference);
+        const slimResult = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
+        if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
+      }
+      if (!result.stored) {
+        const slimRefs = allRefs.map(slimReference);
+        result = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
+      }
+      if (!result.stored) return { success: false, count: 0, error: result.error };
+      clearPerCountryKeys(type);
+      setOfflineCountryFilter(type, countryCodes);
+      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+      storeServerCount(type, allRefs.length);
+      return { success: true, count: result.count, slimmed: result.slimmed, total: allRefs.length, allTotal: allRefs.length, truncated: result.truncated || false, countries: 0 };
+    }
+
+    // Group refs by country
+    const byCountry = {};
+    for (const ref of allRefs) {
+      const iso2 = getRefCountryCode(ref, type);
+      if (iso2 && countryCodes.includes(iso2)) {
+        if (!byCountry[iso2]) byCountry[iso2] = [];
+        byCountry[iso2].push(ref);
       }
     }
-    if (!result.stored) {
-      const slimRefs = filtered.map(slimReference);
-      result = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
+
+    // Clear old single-key cache and per-country keys before writing new ones
+    localStorage.removeItem(key);
+    clearPerCountryKeys(type);
+
+    // Store each country in its own key with per-country budget
+    let totalStored = 0, totalFiltered = 0;
+    let anyTruncated = false, anySlimmed = false;
+    const storedCountries = [];
+
+    for (const [country, refs] of Object.entries(byCountry)) {
+      const countryKey = `hb9om_refs_${type}_${country}`;
+      let result = storeWithBudget(countryKey, refs, false, PER_COUNTRY_BUDGET_BYTES);
+      if (result.truncated) {
+        const slimRefs = refs.map(slimReference);
+        const slimResult = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
+        if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
+      }
+      if (!result.stored) {
+        const slimRefs = refs.map(slimReference);
+        result = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
+      }
+      if (result.stored) {
+        totalStored += result.count;
+        totalFiltered += refs.length;
+        if (result.truncated) anyTruncated = true;
+        if (result.slimmed) anySlimmed = true;
+        storedCountries.push(country);
+      }
     }
 
-    if (!result.stored) {
-      return { success: false, count: 0, error: result.error };
+    if (storedCountries.length === 0) {
+      return { success: false, count: 0, error: "Speicher voll – kein Land gespeichert" };
     }
 
+    setCachedCountriesForType(type, storedCountries);
     setOfflineCountryFilter(type, countryCodes);
     try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
     storeServerCount(type, allRefs.length);
     return {
-      success: true, count: result.count, slimmed: result.slimmed,
-      total: filtered.length, allTotal: allRefs.length,
-      truncated: result.truncated || false, countries: countryCodes.length
+      success: true, count: totalStored, slimmed: anySlimmed,
+      total: totalFiltered, allTotal: allRefs.length,
+      truncated: anyTruncated, countries: storedCountries.length
     };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
   }
 }
 
-// Download repeaters filtered by selected countries
+// Download repeaters filtered by selected countries.
+// Each country is stored in its own localStorage key (hb9om_refs_repeater_{country}).
 export async function cacheRepeatersFromServerByCountries(countryCodes) {
   try {
     const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
@@ -703,33 +817,77 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
     storeServerCount("repeater", arr.length);
     storeCountryCounts("repeater", arr);
 
-    // Filter by selected countries
-    const filtered = countryCodes.length > 0
-      ? arr.filter(r => r.country_code && countryCodes.includes(r.country_code))
-      : arr;
+    // If no countries selected, store all in single key (legacy behavior)
+    if (countryCodes.length === 0) {
+      let result = storeWithBudget("hb9om_refs_repeater", arr, false, PER_TYPE_BUDGET_BYTES);
+      if (result.truncated) {
+        const slimmed = arr.map(slimRepeater);
+        const slimResult = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
+        if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
+      }
+      if (!result.stored) {
+        const slimmed = arr.map(slimRepeater);
+        result = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
+      }
+      if (result.stored) {
+        clearPerCountryKeys("repeater");
+        setOfflineCountryFilter("repeater", countryCodes);
+        try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+        return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, allTotal: arr.length, truncated: result.truncated || false, countries: 0 };
+      }
+      return { success: false, count: 0, error: result.error };
+    }
 
-    let result = storeWithBudget("hb9om_refs_repeater", filtered, false, PER_TYPE_BUDGET_BYTES);
-    if (result.truncated) {
-      const slimmed = filtered.map(slimRepeater);
-      const slimResult = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
-      if (slimResult.stored && slimResult.count >= result.count) {
-        result = slimResult;
+    // Group by country
+    const byCountry = {};
+    for (const r of arr) {
+      if (r.country_code && countryCodes.includes(r.country_code)) {
+        if (!byCountry[r.country_code]) byCountry[r.country_code] = [];
+        byCountry[r.country_code].push(r);
       }
     }
-    if (!result.stored) {
-      const slimmed = filtered.map(slimRepeater);
-      result = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
+
+    // Clear old single-key and per-country keys
+    localStorage.removeItem("hb9om_refs_repeater");
+    clearPerCountryKeys("repeater");
+
+    let totalStored = 0, totalFiltered = 0;
+    let anyTruncated = false, anySlimmed = false;
+    const storedCountries = [];
+
+    for (const [country, refs] of Object.entries(byCountry)) {
+      const countryKey = `hb9om_refs_repeater_${country}`;
+      let result = storeWithBudget(countryKey, refs, false, PER_COUNTRY_BUDGET_BYTES);
+      if (result.truncated) {
+        const slimmed = refs.map(slimRepeater);
+        const slimResult = storeWithBudget(countryKey, slimmed, true, PER_COUNTRY_BUDGET_BYTES);
+        if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
+      }
+      if (!result.stored) {
+        const slimmed = refs.map(slimRepeater);
+        result = storeWithBudget(countryKey, slimmed, true, PER_COUNTRY_BUDGET_BYTES);
+      }
+      if (result.stored) {
+        totalStored += result.count;
+        totalFiltered += refs.length;
+        if (result.truncated) anyTruncated = true;
+        if (result.slimmed) anySlimmed = true;
+        storedCountries.push(country);
+      }
     }
-    if (result.stored) {
-      setOfflineCountryFilter("repeater", countryCodes);
-      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-      return {
-        success: true, count: result.count, slimmed: result.slimmed,
-        total: filtered.length, allTotal: arr.length,
-        truncated: result.truncated || false, countries: countryCodes.length
-      };
+
+    if (storedCountries.length === 0) {
+      return { success: false, count: 0, error: "Speicher voll – kein Land gespeichert" };
     }
-    return { success: false, count: 0, error: result.error };
+
+    setCachedCountriesForType("repeater", storedCountries);
+    setOfflineCountryFilter("repeater", countryCodes);
+    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+    return {
+      success: true, count: totalStored, slimmed: anySlimmed,
+      total: totalFiltered, allTotal: arr.length,
+      truncated: anyTruncated, countries: storedCountries.length
+    };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
   }
