@@ -386,7 +386,33 @@ const POINT_TYPES = { sota: true, pota: true, hbff: true };
 // (e.g., POTA has 89k+ records). Without pagination, only the 5000 newest records
 // would be loaded, which may all be from one country — making country-filtered
 // downloads fail with "no data for selected countries".
-async function loadAllRefsForType(type) {
+async function loadAllRefsForType(type, countryCodes = null) {
+  // POTA: fetch directly from the POTA API via backend function.
+  // The database has 89k+ PotaPoint records but the SDK caps reads at 6500 per session.
+  // Going straight to the source API bypasses this limit entirely.
+  if (type === 'pota') {
+    try {
+      const response = await base44.functions.invoke('fetchPotaForOffline', {
+        entities: countryCodes && countryCodes.length > 0 ? countryCodes : 'all'
+      });
+      const data = response?.data || response;
+      const parks = data?.parks || [];
+      if (parks.length > 0) {
+        return parks.map(p => ({
+          code: p.reference,
+          reference: p.reference,
+          name: p.name,
+          lat: p.lat,
+          lng: p.lng,
+          parkType: p.parkType,
+          active: p.active
+        }));
+      }
+    } catch (e) {
+      // Fall through to database loading as fallback
+    }
+  }
+
   if (POINT_TYPES[type]) {
     const entityMap = { sota: 'SotaPoint', pota: 'PotaPoint', hbff: 'WwffPoint' };
     const normalizeMap = {
@@ -397,21 +423,16 @@ async function loadAllRefsForType(type) {
     const entityName = entityMap[type];
     const normalize = normalizeMap[type];
     const LIMIT = 5000;
-    const MAX_PAGES = 50; // Safety cap: 50 * 5000 = 250k records
+    const MAX_PAGES = 60; // 60 * 5000 = 300k records max
     const allRefs = [];
-    let cursor = null;
 
+    // Skip-based pagination: list(sort, limit, skip) — the SDK's 3rd arg is skip.
+    // Cursor-based pagination doesn't work ($lt not supported by SDK filter).
     for (let page = 0; page < MAX_PAGES; page++) {
-      let result;
-      if (cursor) {
-        result = await base44.entities[entityName].filter({ created_date: { $lt: cursor } }, '-created_date', LIMIT);
-      } else {
-        result = await base44.entities[entityName].list('-created_date', LIMIT);
-      }
+      const result = await base44.entities[entityName].list('-created_date', LIMIT, page * LIMIT);
       if (!Array.isArray(result) || result.length === 0) break;
       allRefs.push(...result.map(normalize));
       if (result.length < LIMIT) break;
-      cursor = result[result.length - 1].created_date;
     }
 
     // Fallback: if point entity is empty, load from ReferenceData (pre-migration data)
@@ -942,7 +963,7 @@ export function setOfflineCountryFilter(type, countries) {
 // so that one large country cannot consume the budget of another.
 export async function cacheTypeFromServerByCountries(type, countryCodes) {
   try {
-    const allRefs = await loadAllRefsForType(type);
+    const allRefs = await loadAllRefsForType(type, countryCodes);
 
     const key = TYPE_CACHE_KEYS[type];
     if (!key) return { success: false, count: 0, error: "Unbekannter Typ" };

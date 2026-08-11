@@ -99,15 +99,21 @@ export async function loadAllPoints(
     console.error(`[loadAllPoints] entity not found: ${entityName}, asServiceRole=${!!base44.asServiceRole}`);
     return [];
   }
-  // SDK list() does not support skip/offset pagination. Use a single high-limit call.
-  // The SDK caps at its own internal max; if the entity has more records than the cap,
-  // some will be missed — but this is the best available approach without skip support.
-  const HIGH_LIMIT = 100000;
+  // Skip-based pagination: list(sort, limit, skip) — the SDK's 3rd arg is skip.
+  // Cursor-based pagination on created_date/id doesn't work ($lt not supported by SDK filter).
+  const LIMIT = 5000;
+  const MAX_PAGES = 60; // 60 * 5000 = 300k records max
+  const allPoints: any[] = [];
+
   try {
-    const page = await entity.list('-created_date', HIGH_LIMIT);
-    return Array.isArray(page) ? page : [];
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const result: any[] = await entity.list('-created_date', LIMIT, page * LIMIT);
+      if (!Array.isArray(result) || result.length === 0) break;
+      allPoints.push(...result);
+      if (result.length < LIMIT) break;
+    }
   } catch (e: any) {
-    console.error(`[loadAllPoints] list error for ${entityName}:`, e?.message || String(e));
-    return [];
+    console.error(`[loadAllPoints] pagination error for ${entityName}:`, e?.message || String(e));
   }
+  return allPoints;
 }
