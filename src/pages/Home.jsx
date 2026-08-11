@@ -531,8 +531,7 @@ export default function Home() {
     const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
     if (!bnds) return;
 
-    const typesToFetch = activeLayers
-      .filter(l => REF_TYPES.includes(l))
+    const typesToFetch = (showQsoForm ? REF_TYPES : activeLayers.filter(l => REF_TYPES.includes(l)))
       .filter(l => !boundsContained(bnds, loadedBoundsRef.current[l]));
 
     if (typesToFetch.length === 0) {
@@ -547,7 +546,7 @@ export default function Home() {
         .finally(() => { setServerCacheLoaded(true); setServerCacheLoading(false); });
     }, 500);
     return () => clearTimeout(t);
-  }, [mapReady, mapBounds, activeLayers, isOffline, cacheLoaded, serverCacheLoaded, fetchRefsInBounds]);
+  }, [mapReady, mapBounds, activeLayers, isOffline, cacheLoaded, serverCacheLoaded, fetchRefsInBounds, showQsoForm]);
 
   // Dismiss splash after minimum 3s AND server cache loaded — uses the time to fetch data in background
   const mountTime = useRef(Date.now());
@@ -575,7 +574,7 @@ export default function Home() {
 
   // Load SOTA from API — worldwide fetch if cached data is Swiss-only
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("sota") || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("sota") && !showQsoForm) || isOffline) return;
     if (sotaWorldwideFetched.current) return;
     // Check if cached data is already worldwide (has summits outside Switzerland bbox)
     const isWorldwide = sotaData.length > 0 && sotaData.some(s => s.lat < 45 || s.lat > 48 || s.lng < 5 || s.lng > 11);
@@ -593,11 +592,11 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, sota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, sotaData]);
+  }, [activeLayers, serverCacheLoaded, isOffline, sotaData, showQsoForm]);
 
   // Load POTA from API — worldwide fetch if cached data is Swiss-only
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("pota") || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("pota") && !showQsoForm) || isOffline) return;
     if (potaWorldwideFetched.current) return;
     // Check if cached data is already worldwide (has parks outside Switzerland bbox)
     const isWorldwide = potaData.length > 0 && potaData.some(p => p.lat < 45 || p.lat > 48 || p.lng < 5 || p.lng > 11);
@@ -614,31 +613,31 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, pota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline, potaData]);
+  }, [activeLayers, serverCacheLoaded, isOffline, potaData, showQsoForm]);
 
   // Load HBFF from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("hbff") || hbffData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("hbff") && !showQsoForm) || hbffData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, hbff: true }));
     base44.functions.invoke("fetchHBFF", { batchSize: 500, batchStart: 0 })
       .then(res => { if (res.data?.references?.length > 0) setHbffData(res.data.references); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, hbff: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
 
   // Load WWBOTA from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("wwbota") || wwbotaData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("wwbota") && !showQsoForm) || wwbotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, wwbota: true }));
     base44.functions.invoke("fetchWWBOTA", {})
       .then(res => { if (res.data?.bunkers?.length > 0) setWwbotaData(res.data.bunkers); })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, wwbota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
 
   // Load Castles from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("castle") || castleData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("castle") && !showQsoForm) || castleData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, castle: true }));
     base44.functions.invoke("fetchCastles", {})
       .then(res => {
@@ -650,11 +649,11 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, castle: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
 
   // Load IOTA from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("iota") || iotaData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("iota") && !showQsoForm) || iotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, iota: true }));
     base44.functions.invoke("fetchIOTA", {})
       .then(res => {
@@ -666,11 +665,11 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, iota: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
 
   // Load Lighthouses from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("lighthouse") || lighthouseData.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("lighthouse") && !showQsoForm) || lighthouseData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, lighthouse: true }));
     base44.functions.invoke("fetchLighthouses", {})
       .then(res => {
@@ -682,15 +681,15 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(prev => ({ ...prev, lighthouse: false })));
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
 
   // Load repeaters from DB when repeater layer is active
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("repeater") || repeaters.length > 0 || isOffline) return;
+    if (!serverCacheLoaded || (!activeLayers.includes("repeater") && !showQsoForm) || repeaters.length > 0 || isOffline) return;
     base44.entities.Repeater.list("-created_date", 10000)
       .then(data => { if (data && data.length > 0) setRepeaters(data); })
       .catch(() => {});
-  }, [activeLayers, serverCacheLoaded, isOffline]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm]);
 
   // Load approved admin-managed repeater links when repeater layer is active
   useEffect(() => {
@@ -1048,7 +1047,7 @@ export default function Home() {
   const positionFixed = positionMode === "fixed";
 
   const hasAnyData = sotaData.length > 0 || potaData.length > 0 || hbffData.length > 0 || wwbotaData.length > 0 || castleData.length > 0 || iotaData.length > 0 || lighthouseData.length > 0;
-  const isLoading = !loadingCancelled && (Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline));
+  const isLoading = !loadingCancelled && !showQsoForm && (Object.values(loading).some(v => v) || serverCacheLoading || (!serverCacheLoaded && !isOffline));
 
   // Cancel loading — aborts the loading indicator and lets the user interact with already-loaded data
   const handleCancelLoading = useCallback(() => {
