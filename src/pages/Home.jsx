@@ -548,6 +548,17 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [mapReady, mapBounds, activeLayers, isOffline, cacheLoaded, serverCacheLoaded, fetchRefsInBounds, showQsoForm]);
 
+  // Load ALL reference types immediately when QSO form opens (no debounce — silent background load)
+  useEffect(() => {
+    if (!showQsoForm || isOffline || !serverCacheLoaded || !mapReady) return;
+    const bnds = mapBounds || (mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null);
+    if (!bnds) return;
+    const typesToFetch = REF_TYPES.filter(t => !boundsContained(bnds, loadedBoundsRef.current[t]));
+    if (typesToFetch.length > 0) {
+      fetchRefsInBounds(bnds, typesToFetch);
+    }
+  }, [showQsoForm, serverCacheLoaded, isOffline, mapReady, mapBounds, fetchRefsInBounds]);
+
   // Dismiss splash after minimum 3s AND server cache loaded — uses the time to fetch data in background
   const mountTime = useRef(Date.now());
   useEffect(() => {
