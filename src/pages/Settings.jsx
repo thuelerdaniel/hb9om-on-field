@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap, Shield, Crosshair, ChevronDown } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
-import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
-import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
-import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
 import BackupSection from "@/components/settings/BackupSection";
-import AdminPanel from "@/components/settings/AdminPanel";
 import { DEMO_EMAIL } from "@/lib/constants";
 import OfflineManager from "@/components/settings/OfflineManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 import ThemeToggle from "@/components/settings/ThemeToggle";
+
+// Lazy-load admin-only component — reduces bundle size for non-admin users
+const AdminPanel = lazy(() => import("@/components/settings/AdminPanel"));
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -76,55 +75,56 @@ export default function Settings() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [logsData, cacheData, qrzData, autoUpdateRes] = await Promise.all([
-        base44.entities.SyncLog.list("-created_date", 10),
-        base44.entities.ReferenceData.list(),
+      // Check admin status FIRST — avoids firing admin-only API calls for non-admins
+      let admin = false;
+      try {
+        const adminRes = await base44.functions.invoke("adminManageUsers", { action: "checkStatus" });
+        admin = adminRes.data?.isAdmin === true;
+        setIsAdmin(admin);
+      } catch (e) { setIsAdmin(false); }
+
+      // Common calls for all users (QRZ log is shown to everyone)
+      const [qrzData] = await Promise.all([
         base44.entities.QrzLookup.list("-created_date", 10),
-        base44.functions.invoke("manageAutoUpdate", { action: "get" })
       ]);
-      setLogs(logsData || []);
-      setCacheStatus(cacheData || []);
       setQrzLookups(qrzData || []);
+
+      // User's own pending change requests (for badge counter)
       base44.entities.ReferenceChangeRequest.filter({ status: "pending" })
         .then(data => setPendingChangeRequests(data?.length || 0))
         .catch(() => {});
-      // Admin: fetch ALL pending requests via backend function (bypasses RLS)
-      base44.functions.invoke("adminManageUsers", { action: "checkStatus" })
-        .then(res => {
-          if (res.data?.isAdmin) {
-            return Promise.all([
-              base44.functions.invoke("manageChangeRequests", { action: "listAll" }),
-              base44.auth.me()
-            ]);
-          }
-          return null;
-        })
-        .then(res => {
-          if (res) {
-            const [reqRes, me] = res;
-            const pending = (reqRes?.data?.requests || []).filter(r => r.status === "pending").length;
-            setAdminPendingRequests(pending);
-            // Also load pending feature requests count
-            return base44.functions.invoke("manageFeatureRequests", { action: "countPending" });
-          }
-          return null;
-        })
-        .then(res => {
-          if (res) setAdminPendingFeatureRequests(res.data?.count || 0);
-        })
-        .catch(() => {});
-      setAutoUpdateEnabled(autoUpdateRes?.data?.enabled !== false);
-      // Load notification preferences
-      const [newUserSettings, dbUpdateSettings, errorSettings] = await Promise.all([
-        base44.entities.AppSetting.filter({ key: "notify_new_user" }),
-        base44.entities.AppSetting.filter({ key: "notify_db_update" }),
-        base44.entities.AppSetting.filter({ key: "notify_app_errors" })
-      ]);
-      if (newUserSettings?.length > 0) setNotifyNewUser(newUserSettings[0].enabled !== false);
-      if (dbUpdateSettings?.length > 0) setNotifyDbUpdate(dbUpdateSettings[0].enabled !== false);
-      if (errorSettings?.length > 0) setNotifyAppErrors(errorSettings[0].enabled !== false);
-      const demoLoginSettings = await base44.entities.AppSetting.filter({ key: "notify_demo_login" });
-      if (demoLoginSettings?.length > 0) setNotifyDemoLogin(demoLoginSettings[0].enabled !== false);
+
+      // Admin-only calls — skipped entirely for non-admins (saves 6-8 API calls)
+      if (admin) {
+        const [logsData, cacheData, autoUpdateRes] = await Promise.all([
+          base44.entities.SyncLog.list("-created_date", 10),
+          base44.entities.ReferenceData.list(),
+          base44.functions.invoke("manageAutoUpdate", { action: "get" })
+        ]);
+        setLogs(logsData || []);
+        setCacheStatus(cacheData || []);
+        setAutoUpdateEnabled(autoUpdateRes?.data?.enabled !== false);
+
+        // Admin pending requests + feature requests count
+        const [reqRes, featRes] = await Promise.all([
+          base44.functions.invoke("manageChangeRequests", { action: "listAll" }),
+          base44.functions.invoke("manageFeatureRequests", { action: "countPending" })
+        ]);
+        setAdminPendingRequests((reqRes?.data?.requests || []).filter(r => r.status === "pending").length);
+        setAdminPendingFeatureRequests(featRes?.data?.count || 0);
+
+        // Notification settings (admin only)
+        const [newUserSettings, dbUpdateSettings, errorSettings, demoLoginSettings] = await Promise.all([
+          base44.entities.AppSetting.filter({ key: "notify_new_user" }),
+          base44.entities.AppSetting.filter({ key: "notify_db_update" }),
+          base44.entities.AppSetting.filter({ key: "notify_app_errors" }),
+          base44.entities.AppSetting.filter({ key: "notify_demo_login" })
+        ]);
+        if (newUserSettings?.length > 0) setNotifyNewUser(newUserSettings[0].enabled !== false);
+        if (dbUpdateSettings?.length > 0) setNotifyDbUpdate(dbUpdateSettings[0].enabled !== false);
+        if (errorSettings?.length > 0) setNotifyAppErrors(errorSettings[0].enabled !== false);
+        if (demoLoginSettings?.length > 0) setNotifyDemoLogin(demoLoginSettings[0].enabled !== false);
+      }
     } catch (e) {
       setLogs([]);
       setCacheStatus([]);
@@ -768,6 +768,7 @@ export default function Settings() {
             </button>
             {showAdminPanel && (
               <div className="space-y-6 p-4 bg-slate-50 dark:bg-slate-900">
+                <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}>
                 <AdminPanel
                   cacheStatus={cacheStatus}
                   loading={loading}
@@ -798,6 +799,7 @@ export default function Settings() {
                   handleSetupDemo={handleSetupDemo}
                   handleVerifyDemoOtp={handleVerifyDemoOtp}
                 />
+                </Suspense>
               </div>
             )}
           </div>
