@@ -523,7 +523,7 @@ export const SECTIONS = [
       },
       {
         title: "QRZ.com Abfrage",
-        body: "Jeder Benutzer kann seine eigenen QRZ.com-Zugangsdaten in den Einstellungen hinterlegen (Benutzername und Passwort). Der Schalter wird erst aktiviert, wenn Anmeldedaten hinterlegt sind. Administratoren und der Demo-Benutzer nutzen automatisch die Club-XML-Subscription.",
+        body: "Jeder Benutzer kann seine eigenen QRZ.com-Zugangsdaten in den Einstellungen hinterlegen (Benutzername und Passwort). Der Schalter wird erst aktiviert, wenn Anmeldedaten hinterlegt sind. Administratoren und der Demo-Benutzer nutzen automatisch die Club-XML-Subscription. Administratoren können zwischen globalen und persönlichen Keys wählen — normale Benutzer behalten immer ihre eigenen Angaben.",
         steps: [
           { icon: "settings", text: "Einstellungen öffnen" },
           { icon: "pencil", text: "QRZ-Benutzername eingeben" },
@@ -532,7 +532,44 @@ export const SECTIONS = [
           { icon: "check", text: "Schalter «QRZ aktivieren» umlegen" },
           { icon: "search", text: "«QRZ-Verbindung testen» für Prüfung" }
         ],
-        tip: "Tipp: Beim Erfassen eines QSOs werden Name, Adresse, Land, Grid-Locator und E-Mail des Operators automatisch von QRZ.com geladen."
+        tip: "Tipp: Beim Erfassen eines QSOs werden Name, Adresse, Land, Grid-Locator und E-Mail des Operators automatisch von QRZ.com geladen. Admins können im Admin-Bereich unter «API-Keys» zwischen globalen und persönlichen Keys wechseln."
+      },
+      {
+        title: "Club-Rufzeichen Verwaltung (Admin)",
+        body: "Administratoren finden in den Einstellungen einen eigenen Reiter «Club-Rufzeichen», der alle Club-bezogenen Konfigurationen zentralisiert: Club-Rufzeichen (z.B. HB9OM), Club-Name, QRZ.com Club-Zugang (Benutzername, Passwort, API-Key für Club-Rufzeichen), APRS.fi API-Key und BrandMeister API-Key. Die Konfiguration wird an allen Orten verwendet, an denen das Club-Rufzeichen benötigt wird (QSO-Logbuch Clubstation-Modus, Filter, Statistiken). Die Eingabe an den verschiedenen Orten bleibt weiterhin möglich, wird aber zentral verwaltet.",
+        steps: [
+          { icon: "settings", text: "Einstellungen → Reiter «Club-Rufzeichen»" },
+          { icon: "building", text: "Club-Rufzeichen eingeben (z.B. HB9OM)" },
+          { icon: "pencil", text: "Club-Name eingeben" },
+          { icon: "keyRound", text: "QRZ Club-Zugang hinterlegen (Benutzername, Passwort, API-Key)" },
+          { icon: "radio", text: "APRS.fi und BrandMeister API-Keys für Club erfassen" },
+          { icon: "save", text: "«Club-Konfiguration speichern»" }
+        ],
+        tip: "Tipp: Der QRZ API-Key für das Club-Rufzeichen wird für QRZ-Abfragen im Clubstation-Modus verwendet. Globale API-Keys (für alle Admins) werden im Admin-Bereich unter «API-Keys» verwaltet."
+      },
+      {
+        title: "API-Key Verwaltung (Admin)",
+        body: "Im Admin-Bereich gibt es einen eigenen Reiter «API-Keys», der alle geforderten API-Keys zentral verwaltet. Globale Keys gelten für alle Administratoren und das Demo-Konto: QRZ.com (Benutzername + Passwort), APRS.fi und BrandMeister. Persönliche Keys überschreiben die globalen Keys — pro Admin einstellbar. Jeder Key kann mit einer Warnung gelöscht werden, die erklärt, was ohne den Key nicht mehr funktioniert. Administratoren können mit einem Schalter zwischen globalen und persönlichen Keys wechseln; normale Benutzer behalten immer ihre eigenen Angaben.",
+        steps: [
+          { icon: "shield", text: "Admin-Bereich → Reiter «API-Keys»" },
+          { icon: "keyRound", text: "Globale Keys erfassen (QRZ, APRS.fi, BrandMeister)" },
+          { icon: "user", text: "Schalter: globale oder persönliche Keys verwenden" },
+          { icon: "pencil", text: "Persönliche Keys pro Admin erfassen (überschreibt global)" },
+          { icon: "trash2", text: "Key löschen mit Warnung — zeigt was nicht mehr funktioniert" }
+        ],
+        tip: "Tipp: BrandMeister API-Key ermöglicht DMR-Relais-Abfragen, Talkgroups und Crosslinks. Ohne Key sind diese Daten nicht verfügbar."
+      },
+      {
+        title: "E-Mail-Report pro Admin (Admin)",
+        body: "Jeder Administrator kann seine persönlichen E-Mail-Report-Einstellungen anpassen: den täglichen Report aktivieren/deaktivieren, eine separate E-Mail-Adresse definieren (mit Verifikation per Code), und jederzeit einen Test-Report auslösen. Die separate E-Mail-Adresse wird verifiziert, damit kein Report ins Leere geht. Ohne separate Angabe wird die Account-E-Mail verwendet.",
+        steps: [
+          { icon: "mail", text: "Admin-Bereich → Reiter «E-Mail-Report Einstellungen»" },
+          { icon: "bell", text: "Täglichen Report aktivieren/deaktivieren" },
+          { icon: "pencil", text: "Separate E-Mail-Adresse eingeben" },
+          { icon: "send", text: "Verifikations-Code senden und bestätigen" },
+          { icon: "send", text: "Test-Report sofort auslösen" }
+        ],
+        tip: "Tipp: Die Verifikation stellt sicher, dass kein Report an eine ungültige Adresse gesendet wird. Der Code ist 10 Minuten gültig."
       },
       {
         title: "Manuelles Backup (Datei)",

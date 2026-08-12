@@ -8,6 +8,7 @@ import { DEMO_EMAIL } from "@/lib/constants";
 import OfflineManager from "@/components/settings/OfflineManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 import ThemeToggle from "@/components/settings/ThemeToggle";
+import ClubCallsignManager from "@/components/settings/ClubCallsignManager";
 import { clearRememberedDecisions, hasRememberedDecisions } from "@/components/map/HeavyLoadConfirmDialog";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
@@ -568,6 +569,10 @@ export default function Settings() {
             </div>
           )}
         </section>
+
+        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Club-Rufzeichen</h2></div>
+        {/* Club Callsign Manager — admin only, but component handles its own visibility */}
+        <ClubCallsignManager />
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Karte & Anzeige</h2></div>
         {/* Performance Mode */}

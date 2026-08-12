@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCircle,
   AlertCircle, Bell, UserPlus, AlertTriangle, Users, User, KeyRound, Lightbulb,
-  RadioTower, Signal, Wrench, Shield, ChevronDown,
+  RadioTower, Signal, Wrench, Shield, ChevronDown, Mail, Network,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,6 +20,8 @@ import TotaManager from "@/components/admin/TotaManager";
 import AdminCollapsibleSection from "@/components/admin/AdminCollapsibleSection";
 import DataCacheOverview from "@/components/admin/DataCacheOverview";
 import DailyRefreshScheduleManager from "@/components/admin/DailyRefreshScheduleManager";
+import ApiKeyManager from "@/components/admin/ApiKeyManager";
+import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import MobileSelect from "@/components/ui/MobileSelect";
 
 const TYPE_LABELS = {
@@ -186,6 +188,14 @@ export default function AdminPanel({
   const recentFailedLog = logs.some(l => l.overall_status === "failed");
   const groupSystemStatus = recentFailedLog ? "error" : "warning";
   const groupSystemLabel = recentFailedLog ? "Fehler im Protokoll" : "Prüfen";
+
+  // Group 6: API-Keys — neutral (no live metric)
+  const groupApiKeysStatus = "neutral";
+  const groupApiKeysLabel = "";
+
+  // Group 7: E-Mail-Settings — neutral
+  const groupEmailStatus = "neutral";
+  const groupEmailLabel = "";
 
   return (
     <>
@@ -674,6 +684,28 @@ export default function AdminPanel({
 
         {/* External Sources List with PDF Export */}
         <ExternalSourcesList />
+      </AdminCollapsibleSection>
+
+      {/* ====== GROUP 6: API-Keys ====== */}
+      <AdminCollapsibleSection
+        title="API-Keys"
+        description="Globale und persönliche API-Keys für QRZ, APRS.fi, BrandMeister"
+        icon={KeyRound}
+        status={groupApiKeysStatus}
+        statusLabel={groupApiKeysLabel}
+      >
+        <ApiKeyManager />
+      </AdminCollapsibleSection>
+
+      {/* ====== GROUP 7: E-Mail-Settings ====== */}
+      <AdminCollapsibleSection
+        title="E-Mail-Report Einstellungen"
+        description="Täglichen Report anpassen, separate E-Mail definieren, Test-Report auslösen"
+        icon={Mail}
+        status={groupEmailStatus}
+        statusLabel={groupEmailLabel}
+      >
+        <AdminEmailSettings />
       </AdminCollapsibleSection>
     </>
   );

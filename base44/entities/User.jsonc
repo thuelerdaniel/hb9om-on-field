@@ -24,6 +24,29 @@
     "aprs_fi_api_key": {
       "type": "string",
       "description": "Pers\u00f6nlicher APRS.fi API-Key"
+    },
+    "brandmeister_api_key": {
+      "type": "string",
+      "description": "Pers\u00f6nlicher BrandMeister API-Key (nur Admins)"
+    },
+    "use_global_keys": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob Admin globale API-Keys (QRZ, APRS.fi, BrandMeister) verwenden soll \u2014 false = pers\u00f6nliche Keys verwenden"
+    },
+    "admin_email_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob dieser Admin den t\u00e4glichen Report per E-Mail erhalten m\u00f6chte"
+    },
+    "admin_email_override": {
+      "type": "string",
+      "description": "Separate E-Mail-Adresse f\u00fcr t\u00e4glichen Report (leer = Account-E-Mail verwenden)"
+    },
+    "admin_email_verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ob die separate E-Mail-Adresse verifiziert wurde"
     }
   },
   "required": [

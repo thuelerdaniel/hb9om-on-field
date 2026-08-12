@@ -93,22 +93,30 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
 
   const fetchExtraCounts = async () => {
     try {
-      // Fetch direct entity counts for layers that don't have ReferenceData entries.
-      // All these entities have public read access (read: true), so base44.entities works.
-      const [totaPoints, approvedLinks, repeaters, privateNodes] = await Promise.all([
+      // Fetch direct entity counts for ALL layers that have their own entity.
+      // This is more reliable than ReferenceData.total_count which can be stale.
+      // For ReferenceData-only layers (lighthouse, castle, wwbota, iota), we count
+      // the actual references array length, not total_count.
+      const [totaPoints, approvedLinks, repeaters, privateNodes, sotaPoints, potaPoints, wwffPoints] = await Promise.all([
         base44.entities.TotaPoint.list("-created_date", 10000),
         base44.entities.RepeaterLink.filter({ status: "approved" }),
         base44.entities.Repeater.list("-created_date", 5000),
         base44.entities.PrivateNode.list("-created_date", 5000),
+        base44.entities.SotaPoint.list("-created_date", 1).then(r => base44.entities.SotaPoint.filter({}).then(f => f.length).catch(() => r?.length || 0)),
+        base44.entities.PotaPoint.list("-created_date", 1).then(r => base44.entities.PotaPoint.filter({}).then(f => f.length).catch(() => r?.length || 0)),
+        base44.entities.WwffPoint.list("-created_date", 1).then(r => base44.entities.WwffPoint.filter({}).then(f => f.length).catch(() => r?.length || 0)),
       ]);
       setExtraCounts({
         tota: totaPoints?.length || 0,
         repeaterLinks: approvedLinks?.length || 0,
         repeaters: repeaters?.length || 0,
         privateNodes: privateNodes?.length || 0,
+        sota: typeof sotaPoints === "number" ? sotaPoints : (sotaPoints?.length || 0),
+        pota: typeof potaPoints === "number" ? potaPoints : (potaPoints?.length || 0),
+        wwff: typeof wwffPoints === "number" ? wwffPoints : (wwffPoints?.length || 0),
       });
     } catch (e) {
-      setExtraCounts({ tota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0 });
+      setExtraCounts({ tota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0, sota: 0, pota: 0, wwff: 0 });
     } finally {
       setLoading(false);
     }
@@ -140,12 +148,25 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   const repeaterCount = extraCounts?.repeaters ?? repData?.totalRepeaters ?? 0;
   const aprsCount = extraCounts?.privateNodes ?? aprsCache?.total ?? 0;
 
+  // For layers with their own entities, use direct entity counts (more reliable than ReferenceData.total_count)
+  const getLayerCount = (layerKey, refEntry) => {
+    // SOTA, POTA, WWFF have their own point entities — use direct count
+    if (layerKey === "sota" && extraCounts?.sota != null) return extraCounts.sota;
+    if (layerKey === "pota" && extraCounts?.pota != null) return extraCounts.pota;
+    if (layerKey === "hbff" && extraCounts?.wwff != null) return extraCounts.wwff;
+    // For ReferenceData-only layers (lighthouse, castle, wwbota, iota):
+    // Use actual references array length as primary count — total_count can be stale
+    const refs = refEntry?.references || [];
+    if (refs.length > 0) return refs.length;
+    return refEntry?.total_count || 0;
+  };
+
   // Compute overall status
   const allStatuses = [];
   for (const layer of REFERENCE_LAYERS) {
     const entry = refDataMap[layer.key];
     const refs = entry?.references || [];
-    const total = entry?.total_count || refs.length;
+    const total = getLayerCount(layer.key, entry);
     const hasCoordFields = refs.length > 0 && refs.some(r => r.lat != null || r.lng != null);
     const withCoords = hasCoordFields ? refs.filter(r => r.lat && r.lng).length : null;
     const lastUpdated = entry?.last_updated ? new Date(entry.last_updated) : null;
@@ -196,7 +217,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
         {REFERENCE_LAYERS.map(layer => {
           const entry = refDataMap[layer.key];
           const refs = entry?.references || [];
-          const total = entry?.total_count || refs.length;
+          const total = getLayerCount(layer.key, entry);
           // ReferenceData.references array may not contain lat/lng (coords are in
           // individual point entities like SotaPoint, PotaPoint). Only show geo/offen
           // when the references actually contain coordinate fields.

@@ -264,17 +264,32 @@ export default async function(req: Request): Promise<Response> {
 
     // --- 4. Get admin users ---
     const allUsers = await base44.asServiceRole.entities.User.list();
-    const admins = allUsers.filter((u: any) => u.role === 'admin' && u.email);
-    if (admins.length === 0) {
-      return Response.json({ status: 'skipped', message: 'Keine Admin-E-Mails gefunden' });
+    let admins = allUsers.filter((u: any) => u.role === 'admin' && u.email);
+
+    // Filter out admins who disabled the daily report
+    admins = admins.filter((u: any) => u.admin_email_enabled !== false);
+
+    // If targetUserId is set (test report for one admin), filter to just that user
+    if (body.targetUserId) {
+      admins = admins.filter((u: any) => u.id === body.targetUserId);
     }
 
-    // --- 5. Verify email by sending a test to the first admin ---
+    if (admins.length === 0) {
+      return Response.json({ status: 'skipped', message: 'Keine Admin-E-Mails gefunden oder alle deaktiviert' });
+    }
+
+    // Build recipient list — use admin_email_override if set and verified, else account email
+    const recipients = admins.map((admin: any) => ({
+      admin,
+      email: (admin.admin_email_override && admin.admin_email_verified) ? admin.admin_email_override : admin.email,
+    }));
+
+    // --- 5. Verify email by sending a test to the first recipient ---
     let emailVerified = false;
     let verifyError = '';
     try {
       await base44.asServiceRole.integrations.Core.SendEmail({
-        to: admins[0].email,
+        to: recipients[0].email,
         subject: `[TEST] HB9OM Daily Report – Email-Verifikation`,
         body: `Dies ist eine automatische Test-E-Mail zur Verifikation des E-Mail-Versands.\n\nWenn Sie diese erhalten, funktioniert der E-Mail-Versand korrekt.\n\nDer vollständige Report folgt separat.`,
       });
@@ -289,22 +304,22 @@ export default async function(req: Request): Promise<Response> {
         status: 'email_failed',
         message: 'E-Mail-Verifikation fehlgeschlagen — kein Report versendet',
         error: verifyError,
-        admin_count: admins.length,
+        admin_count: recipients.length,
       });
     }
 
-    // --- 6. Send the full HTML report to all admins ---
+    // --- 6. Send the full HTML report to all recipients ---
     const sendResults = [];
-    for (const admin of admins) {
+    for (const recipient of recipients) {
       try {
         await base44.asServiceRole.integrations.Core.SendEmail({
-          to: admin.email,
+          to: recipient.email,
           subject: `📡 HB9OM Daily Report – ${today} – ${overallStatus.toUpperCase()}`,
           body: html,
         });
-        sendResults.push({ admin: admin.email, status: 'success' });
+        sendResults.push({ admin: recipient.email, status: 'success' });
       } catch (e: any) {
-        sendResults.push({ admin: admin.email, status: 'failed', error: e?.message || String(e) });
+        sendResults.push({ admin: recipient.email, status: 'failed', error: e?.message || String(e) });
       }
     }
 
