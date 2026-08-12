@@ -638,13 +638,14 @@ export async function fetchRepeaterData(): Promise<any[]> {
     // UK source is optional — don't fail the whole import
   }
 
-  // 1. Fetch list pages — PRIORITY 1 COUNTRIES ONLY (CH, DE, AT, FR, IT, LI)
-  // Priority 2/3 countries are skipped to stay within the platform execution limit.
-  // Worldwide coverage beyond Europe is available via the RepeaterBook website directly.
-  const priority1Countries = COUNTRIES.filter(c => c.priority === 1);
+  // 1. Fetch list pages — ALL COUNTRIES (Priority 1+2+3).
+  // Priority 1: Switzerland + neighbors (full detail fetch)
+  // Priority 2: Rest of Europe (reduced detail fetch)
+  // Priority 3: Asia, Africa, Americas, Oceania (minimal detail fetch)
+  // This gives worldwide coverage across all continents.
   const allRepeaters: any[] = [];
-  for (let i = 0; i < priority1Countries.length; i += LIST_CONCURRENCY) {
-    const chunk = priority1Countries.slice(i, i + LIST_CONCURRENCY);
+  for (let i = 0; i < COUNTRIES.length; i += LIST_CONCURRENCY) {
+    const chunk = COUNTRIES.slice(i, i + LIST_CONCURRENCY);
     const results = await Promise.all(chunk.map(async (country) => {
       try {
         const isNA = country.region_type === 'north_america';
@@ -741,8 +742,22 @@ export async function fetchRepeaterData(): Promise<any[]> {
       if (a.status !== 'on-air' && b.status === 'on-air') return 1;
       return 0;
     });
-    // All fetched countries are priority 1 — use the higher limit
-    const defaultMax = maxPerRegionMap.get(entryCode) || MAX_PER_COUNTRY_PRIORITY_1;
+    // Per-priority detail fetch quota — ensures worldwide coverage within time budget.
+    // Priority 1 (CH+neighbors): 500 detail fetches (full coordinates)
+    // Priority 2 (rest of Europe): 30 detail fetches (key repeaters only)
+    // Priority 3 (Asia/Africa/Americas/Oceania): 15 detail fetches (major repeaters)
+    const country = COUNTRIES.find(c => c.code === entryCode);
+    const priority = country?.priority || 3;
+    let defaultMax: number;
+    if (maxPerRegionMap.has(entryCode)) {
+      defaultMax = maxPerRegionMap.get(entryCode)!;
+    } else if (priority === 1) {
+      defaultMax = MAX_PER_COUNTRY_PRIORITY_1;
+    } else if (priority === 2) {
+      defaultMax = MAX_PER_COUNTRY_PRIORITY_2;
+    } else {
+      defaultMax = MAX_PER_COUNTRY_PRIORITY_3;
+    }
     toFetch.push(...reps.slice(0, defaultMax));
   }
   // Sort final list by country priority for consistent processing

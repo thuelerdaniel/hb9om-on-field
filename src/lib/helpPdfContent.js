@@ -735,7 +735,7 @@ export const SECTIONS = [
       },
       {
         title: "Relais-Filter verwenden",
-        body: "Wenn das Relais-Overlay aktiv ist, erscheint oben links ein Relais-Filter-Button. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten. Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais: Grossbritannien (751), Deutschland (599), Frankreich (439), Italien (220), Schweiz (214), Oesterreich (143), Liechtenstein (1).",
+        body: "Wenn das Relais-Overlay aktiv ist, erscheint oben links ein Relais-Filter-Button. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten. Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais weltweit – Europa (DE, FR, IT, GB, ES, PL, etc.), Asien (JP, IN, MY, TH, KR, PH, ID, CN), Afrika (ZA, MA, KE), Nordamerika (US, CA, MX), Suedamerika (BR, AR, CL, CO), Ozeanien (AU, NZ) und Karibik.",
         steps: [
           { icon: "radioTower", text: "Relais-Filter-Button (oben links) antippen" },
           { icon: "globe", text: "Land filtern (alle Laender oder einzelnes Land waehlen)" },
@@ -751,7 +751,7 @@ export const SECTIONS = [
         steps: [
           { icon: "layers", text: "Layer aktivieren – lokale Daten erscheinen sofort" },
           { icon: "cloud", text: "Online: Server laedt kompletten Datensatz im Hintergrund" },
-          { icon: "check", text: "Karte zeigt alle Daten (z.B. 2300+ Relais aus 7 Laendern)" },
+          { icon: "check", text: "Karte zeigt alle Daten (weltweit 120+ Laender, alle Kontinente)" },
           { icon: "wifiOff", text: "Offline: nur lokaler Cache wird verwendet" }
         ],
         tip: "Tipp: Diese Logik gilt fuer alle Layer – nicht nur Relais. Stale lokale Caches werden immer durch den Server ersetzt, wenn online."
@@ -769,7 +769,7 @@ export const SECTIONS = [
       },
       {
         title: "Verlinkungen nur bei sichtbaren Relais",
-        body: "Verlinkungslinien zwischen Relais werden nur gezeichnet, wenn beide Relais-Marker tatsaechlich auf der Karte sichtbar sind. Wenn durch das Viewport-Capping (max. 1000 Marker pro Ausschnitt) ein Relais nicht als Marker dargestellt wird, werden auch seine Verlinkungslinien ausgeblendet. So entstehen keine Geister-Linien zu unsichtbaren Relais.",
+        body: "Verlinkungslinien zwischen Relais werden nur gezeichnet, wenn beide Relais-Marker tatsaechlich auf der Karte sichtbar sind. Wenn durch das Viewport-Capping (max. 10000 Marker pro Ausschnitt) ein Relais nicht als Marker dargestellt wird, werden auch seine Verlinkungslinien ausgeblendet. So entstehen keine Geister-Linien zu unsichtbaren Relais.",
         steps: [
           { icon: "link2", text: "Verlinkungen erscheinen nur bei sichtbaren Relais-Markern" },
           { icon: "zoomIn", text: "Hineinzoomen: weniger Marker, aber dafuer mit Verlinkungen" },
@@ -779,14 +779,15 @@ export const SECTIONS = [
       },
       {
         title: "Zusaetzliche Relais-Quellen weltweit",
-        body: "Neben RepeaterBook (Hauptquelle fuer 70+ Laender) werden zusaetzliche Datenquellen genutzt: USKA (uska.ch), SWISS-ARTG (swiss-artg.ch), ukrepeater.net (751 UK-Relais), FM-Funknetz.de (Talkgroups weltweit). Weitere potenzielle Quellen: iz8wnh.it (weltweite Relais-Karte mit CSV-Export), dstarusers.org (D-STAR-Relais weltweit), wia.org.au (Australien), m0lxq.com (UK-CSVs).",
+        body: "RepeaterBook ist die Hauptquelle und deckt 120+ Laender weltweit ab (alle Kontinente). Der ARRL Repeater Directory wird seit 2025 von RepeaterBook gespeist. Zusaetzliche Datenquellen: WIA Australia (CSV, VK1-VK8), dstarusers.org (D-STAR weltweit, 40+ Laender), ukrepeater.net (UK-Relais mit Koordinaten), USKA (Schweizer Crosslinks), FM-Funknetz.de (Talkgroups weltweit). Referenz-Quellen: iz8wnh.it (weltweite Relais-Karte mit CSV-Export), OpenRepeater.org (freie API, Schwerpunkt MENA/Asien/Afrika), SARL (Suedafrika), MARTS (Malaysia/IARU Region 3).",
         steps: [
-          { icon: "radioTower", text: "RepeaterBook: 70+ Laender weltweit" },
+          { icon: "radioTower", text: "RepeaterBook: 120+ Laender weltweit (alle Kontinente)" },
           { icon: "link2", text: "USKA: Schweizer Crosslinks und EchoLink-Nodes" },
-          { icon: "globe", text: "ukrepeater.net: 751 UK-Relais" },
-          { icon: "network", text: "FM-Funknetz.de: Talkgroups weltweit" }
+          { icon: "globe", text: "ukrepeater.net: UK-Relais mit Koordinaten" },
+          { icon: "network", text: "FM-Funknetz.de: Talkgroups weltweit" },
+          { icon: "radio", text: "WIA Australia + dstarusers.org: D-STAR weltweit" }
         ],
-        tip: "Tipp: Admins koennen ueber «Einzelne Datenquelle neu laden» neue Quellen hinzufuegen."
+        tip: "Tipp: Die taeigliche Automation um 00:30 UTC aktualisiert alle weltweiten Relais-Daten automatisch."
       },
       {
         title: "Relais-Details abrufen",
