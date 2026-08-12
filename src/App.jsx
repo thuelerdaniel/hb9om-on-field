@@ -10,6 +10,15 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import Settings from '@/pages/Settings';
+import Log from '@/pages/Log';
+import Help from '@/pages/Help';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import ChangeRequests from '@/pages/ChangeRequests';
+import AdminChangeRequests from '@/pages/AdminChangeRequests';
+import AdminFeatureRequests from '@/pages/AdminFeatureRequests';
+import UserManagement from '@/pages/UserManagement';
+import OAuthConsent from '@/pages/OAuthConsent';
 import PageNotFound from '@/lib/PageNotFound';
 
 function AuthenticatedApp() {
@@ -29,8 +38,17 @@ function AuthenticatedApp() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/oauth-consent" element={<OAuthConsent />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/" element={<Home />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/log" element={<Log />} />
+        <Route path="/help" element={<Help />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/change-requests" element={<ChangeRequests />} />
+        <Route path="/admin/change-requests" element={<AdminChangeRequests />} />
+        <Route path="/admin/feature-requests" element={<AdminFeatureRequests />} />
+        <Route path="/admin/users" element={<UserManagement />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

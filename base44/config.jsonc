@@ -1,6 +1,6 @@
 {
   "name": "HB9OM On Field",
-  "description": "Interactive reference map showing SOTA, POTA, and WWFF points for amateur radio operators",
+  "description": "Amateurfunk Referenzkarte mit SOTA, POTA, WWFF, WWBOTA, WCA/COTA, TOTA, IOTA, Leuchttürmen, Relais, APRS, BrandMeister DMR, Schweizer Karten (SwissTopo, BLN, Gefahren), Logbuch und Offline-Unterstützung",
   "site": {
     "installCommand": "npm install",
     "buildCommand": "npm run build",
