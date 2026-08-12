@@ -13,16 +13,16 @@ export const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.ph
 
 export const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-export const MAX_DETAIL_FETCH = 500;
+export const MAX_DETAIL_FETCH = 5000;
 export const MAX_PER_COUNTRY = 500;
-export const MAX_PER_COUNTRY_PRIORITY_1 = 50;   // Switzerland + neighbors — minimal detail for coords
-const MAX_PER_COUNTRY_PRIORITY_2 = 0;     // Rest of Europe — list only (no detail, coords from locator)
-const MAX_PER_COUNTRY_PRIORITY_3 = 0;     // Asia, Africa, Americas, Oceania — list only
-const MAX_PER_US_CA_REGION = 0;           // US/CA — list only (too many states for detail)
+export const MAX_PER_COUNTRY_PRIORITY_1 = 500;  // Switzerland + neighbors — full detail for coords
+const MAX_PER_COUNTRY_PRIORITY_2 = 100;  // Rest of Europe — detail for key repeaters
+const MAX_PER_COUNTRY_PRIORITY_3 = 50;   // Asia, Africa, Americas, Oceania — detail for major repeaters
+const MAX_PER_US_CA_REGION = 50;          // US/CA — detail for key repeaters per state
 const LIST_CONCURRENCY = 20;  // Moderate concurrency — avoid platform worker crash
 const DETAIL_CONCURRENCY = 120;
 const FETCH_TIMEOUT_MS = 4000;
-const DETAIL_DEADLINE_MS = 15000; // 15 seconds for detail fetches — list pages are the priority
+const DETAIL_DEADLINE_MS = 40000; // 40 seconds for detail fetches — more coords
 
 // Fetch with timeout — prevents a single slow/stuck response from blocking the whole batch.
 // Aborts after FETCH_TIMEOUT_MS and returns null (caller treats as failed fetch).

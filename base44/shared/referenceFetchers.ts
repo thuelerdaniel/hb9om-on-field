@@ -303,14 +303,14 @@ export async function fetchLighthouseData(regionId?: string): Promise<any[]> {
   const seen = new Set<string>();
 
   // Wikidata SPARQL — primary source (Overpass API is blocked from backend environment).
-  // Fetches ALL worldwide lighthouses in one query, then filters by region bbox in code.
-  // Wikidata has ~3000+ lighthouses (Q39734) with coordinates.
+  // Fetches ALL worldwide lighthouses (Q39715), including those WITHOUT coordinates.
+  // Lighthouses without coordinates are included so admins can georeference them.
   const sparqlQuery = `SELECT ?item ?itemLabel ?coord ?countryLabel WHERE {
     ?item wdt:P31 wd:Q39715 .
-    ?item wdt:P625 ?coord .
+    OPTIONAL { ?item wdt:P625 ?coord . }
     OPTIONAL { ?item wdt:P17 ?country . }
     SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en,fr,it,es,pt,ru,ja,zh" . }
-  } LIMIT 10000`;
+  } LIMIT 20000`;
   const wdLighthouses: any[] = [];
   try {
     const controller = new AbortController();
@@ -324,28 +324,32 @@ export async function fetchLighthouseData(regionId?: string): Promise<any[]> {
       const data = await resp.json();
       for (const b of (data.results?.bindings || [])) {
         const coordMatch = (b.coord?.value || '').match(/Point\(([\d.-]+)\s+([\d.-]+)\)/);
-        if (!coordMatch) continue;
-        const lng = parseFloat(coordMatch[1]);
-        const lat = parseFloat(coordMatch[2]);
-        if (isNaN(lat) || isNaN(lng)) continue;
-        const name = b.itemLabel?.value || `Lighthouse ${lat.toFixed(4)},${lng.toFixed(4)}`;
-        const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
-        if (seen.has(key)) continue;
-        // Determine which region this lighthouse belongs to
+        const lat = coordMatch ? parseFloat(coordMatch[2]) : null;
+        const lng = coordMatch ? parseFloat(coordMatch[1]) : null;
+        const name = b.itemLabel?.value || `Lighthouse`;
+        // Determine which region this lighthouse belongs to (skip if no coords for region filtering)
         let regionId = '';
-        for (const r of LIGHTHOUSE_REGIONS) {
-          const [s, w, n, e] = r.bbox;
-          if (lat >= s && lat <= n && lng >= w && lng <= e) { regionId = r.id; break; }
+        if (lat != null && lng != null) {
+          for (const r of LIGHTHOUSE_REGIONS) {
+            const [s, w, n, e] = r.bbox;
+            if (lat >= s && lat <= n && lng >= w && lng <= e) { regionId = r.id; break; }
+          }
         }
         // When fetching a specific region, skip lighthouses outside that region
-        if (regions.length === 1 && regionId !== regions[0].id) continue;
-        seen.add(key);
+        if (regions.length === 1 && lat != null && lng != null && regionId !== regions[0].id) continue;
+        // Deduplicate by Wikidata item URI (not by coords — lighthouses without coords would all collide)
+        const itemKey = b.item?.value || '';
+        if (itemKey && seen.has(itemKey)) continue;
+        if (itemKey) seen.add(itemKey);
         wdLighthouses.push({
           code: `WD-LH-${wdLighthouses.length + 1}`,
-          name, lat, lng,
+          name,
+          lat,
+          lng,
           country: b.countryLabel?.value || '',
-          link: 'https://www.wikidata.org/',
+          link: itemKey ? `https://www.wikidata.org/wiki/${itemKey.split('/').pop()}` : 'https://www.wikidata.org/',
           region: regionId || 'unknown',
+          needs_georef: lat == null || lng == null,
         });
       }
     }

@@ -957,8 +957,11 @@ export default function Home() {
         const res = await base44.functions.invoke("fetchLighthouses", {});
         if (res.data?.saved) {
           loadedBoundsRef.current.lighthouse = null;
-          const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
-          if (bnds) fetchRefsInBounds(bnds, ['lighthouse']);
+          // Load ALL lighthouses from ReferenceData (not viewport-bounded) —
+          // 9316 lighthouses is manageable and ensures all are displayed.
+          const lhRecords = await base44.entities.ReferenceData.filter({ type: 'lighthouse' });
+          const allLh = lhRecords && lhRecords.length > 0 ? (lhRecords[0].references || []) : [];
+          if (allLh.length > 0) setLighthouseData(allLh);
         }
       } catch (e) { /* silent — local cache still shows */ }
       finally { setLoading(prev => ({ ...prev, lighthouse: false })); }

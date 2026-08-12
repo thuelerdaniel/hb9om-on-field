@@ -9,6 +9,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import UnmatchedCastles from "@/components/admin/UnmatchedCastles";
 import UnmatchedRepeaters from "@/components/admin/UnmatchedRepeaters";
+import UnmatchedLighthouses from "@/components/admin/UnmatchedLighthouses";
 import AdminDataMaintains from "@/components/admin/AdminDataMaintains";
 import ExternalDataCheck from "@/components/admin/ExternalDataCheck";
 import RepeaterLinkManager from "@/components/admin/RepeaterLinkManager";
@@ -571,6 +572,9 @@ export default function AdminPanel({
       >
         {/* Unmatched Castles Editor */}
         <UnmatchedCastles />
+
+        {/* Unmatched Lighthouses — admin can manually add/refine coordinates */}
+        <UnmatchedLighthouses />
 
         {/* Unmatched Repeaters — admin can manually add/refine coordinates */}
         <UnmatchedRepeaters />

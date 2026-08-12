@@ -116,21 +116,23 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
       // For filter queries (e.g. approved links), use filter method (small datasets)
       if (filter) {
         const results = await base44.entities[entityName].filter(filter);
-        return results ? results.length : 0;
+        return { total: results ? results.length : 0, withCoords: 0 };
       }
-      // For full counts, use skip-based pagination
+      // For full counts, use skip-based pagination — also count records with coordinates
       let count = 0;
+      let withCoords = 0;
       const BATCH = 5000;
       for (let skip = 0; skip < 80000; skip += BATCH) {
         const batch = await base44.entities[entityName].list("_id", BATCH, skip);
         if (!batch || batch.length === 0) break;
         count += batch.length;
+        withCoords += batch.filter(r => r.lat != null && r.lng != null).length;
         if (batch.length < BATCH) break;
         await new Promise(r => setTimeout(r, 200)); // Small delay to avoid 429
       }
-      return count;
+      return { total: count, withCoords };
     } catch (e) {
-      return 0;
+      return { total: 0, withCoords: 0 };
     }
   }
 
@@ -142,14 +144,15 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
       // For SOTA/POTA/WWFF (which can have 100k+ records), we use ReferenceData.total_count
       // as the primary source, and only use direct entity count for smaller entities.
       const approvedLinks = await base44.entities.RepeaterLink.filter({ status: "approved" });
-      const repeaterCount = await countAllRecords("Repeater", null);
-      const totaCount = await countAllRecords("TotaPoint", null);
-      const privateNodeCount = await countAllRecords("PrivateNode", null);
+      const repeaterStats = await countAllRecords("Repeater", null);
+      const totaStats = await countAllRecords("TotaPoint", null);
+      const privateNodeStats = await countAllRecords("PrivateNode", null);
       setExtraCounts({
-        tota: totaCount || 0,
+        tota: totaStats?.total || 0,
         repeaterLinks: approvedLinks?.length || 0,
-        repeaters: repeaterCount || 0,
-        privateNodes: privateNodeCount || 0,
+        repeaters: repeaterStats?.total || 0,
+        repeatersWithCoords: repeaterStats?.withCoords || 0,
+        privateNodes: privateNodeStats?.total || 0,
       });
     } catch (e) {
       setExtraCounts({ tota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0 });
@@ -178,10 +181,11 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
     refDataMap[entry.type] = entry;
   }
 
-  // Build repeater data from coverageProgress
+  // Build repeater data from coverageProgress (for coverage stats only, NOT for count)
   const repData = coverageProgress?.global || null;
-  // Direct counts from entity queries (more reliable than coverageProgress which may not have loaded)
-  const repeaterCount = extraCounts?.repeaters ?? repData?.totalRepeaters ?? 0;
+  // Repeater count comes ONLY from direct entity count (coverageProgress is capped at 10000)
+  const repeaterCount = extraCounts?.repeaters ?? null; // null = still counting
+  const repeatersWithCoords = extraCounts?.repeatersWithCoords ?? null;
   const aprsCount = extraCounts?.privateNodes ?? aprsCache?.total ?? 0;
 
   // For layers with their own entities, use the most reliable count source.
@@ -215,7 +219,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
     allStatuses.push(computeLayerStatus(total, withCoords, total, lastUpdated, isCritical));
   }
   // Repeater status
-  allStatuses.push(computeLayerStatus(repeaterCount, repData?.withCoords, repeaterCount, null, true));
+  allStatuses.push(computeLayerStatus(repeaterCount ?? 0, repeatersWithCoords ?? 0, repeaterCount ?? 0, null, true));
   // APRS status
   allStatuses.push(computeLayerStatus(aprsCount, null, null, null, false));
   // TOTA status
@@ -288,11 +292,11 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           icon={RadioTower}
           color="text-blue-500"
           tooltip="Amateurfunk-Relais weltweit (FM, DMR, D-STAR, Fusion etc.). Daten von RepeaterBook.com, ukrepeater.net, WIA, dstarusers.org. Anzahl aus direktem Entity-Count (Repeater.list)."
-          count={repeaterCount}
-          withCoords={repData?.withCoords || 0}
-          total={repeaterCount}
+          count={repeaterCount ?? 0}
+          withCoords={repeatersWithCoords}
+          total={repeaterCount ?? 0}
           lastUpdated={null}
-          status={computeLayerStatus(repeaterCount, repData?.withCoords, repeaterCount, null, true)}
+          status={computeLayerStatus(repeaterCount ?? 0, repeatersWithCoords ?? 0, repeaterCount ?? 0, null, true)}
           source="RepeaterBook + WIA + dstarusers"
           layerKey="repeater"
           onClick={() => setDetailLayer({ key: "repeater", label: "Relais" })}
