@@ -448,7 +448,12 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     r.lat != null && r.lng != null && paddedBounds.contains([r.lat, r.lng])
   );
 
-  const MAX = 1000;
+  // Viewport culling already limits to the current map area. The cap is a safety net
+  // for extreme zoom-out (e.g. all of Europe with all countries selected). Canvas
+  // rendering (preferCanvas) handles 10k+ markers without noticeable lag.
+  // Previously MAX=1000 caused repeaters to silently disappear when multiple countries
+  // were selected and the viewport contained more than 1000 repeaters.
+  const MAX = 10000;
   const cappedRepeaters = visibleRepeaters.length > MAX ? visibleRepeaters.slice(0, MAX) : visibleRepeaters;
 
   // Only show link lines where BOTH endpoints are actually rendered as markers.

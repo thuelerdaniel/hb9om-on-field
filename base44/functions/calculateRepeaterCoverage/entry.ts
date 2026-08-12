@@ -120,6 +120,19 @@ export default async function(req: any): Promise<Response> {
       }
     }
 
+    // Also include NEW repeaters (no coverage_updated yet) from ANY country —
+    // ensures newly scraped repeaters from DE/AT/FR/IT/GB/AU get coverage calculated
+    // even when the automation runs with countryCode="CH" (the default).
+    const newRepeaters = allRepeaters.filter((r: any) =>
+      r.coverage_updated == null && r.lat != null && r.lng != null
+    );
+    for (const r of newRepeaters) {
+      if (!existingIds.has(r.id)) {
+        repeaters.push(r);
+        existingIds.add(r.id);
+      }
+    }
+
     // Fetch APRS stations (PrivateNodes) for distance-based refinement
     const aprsStations = await base44.asServiceRole.entities.PrivateNode.list("-created_date", 10000);
     const stationsWithCoords = (aprsStations || []).filter((n: any) => n.lat != null && n.lng != null);
