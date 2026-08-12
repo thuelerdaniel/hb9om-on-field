@@ -52,8 +52,12 @@ export default function RepeaterFilter({
   };
 
   const toggleContinent = (continentId) => {
-    const contCountries = getCountriesByContinent(continentId);
-    const contCodes = contCountries.map(c => c.iso2);
+    // Use the actual repeater country data grouped by continent (countriesByContinent),
+    // not the static COUNTRIES array — repeaters may have country codes not in COUNTRIES
+    // (e.g., countries added to RepeaterBook but not yet in our static list).
+    const contCountries = countriesByContinent[continentId] || [];
+    const contCodes = contCountries.map(c => c.code);
+    if (contCodes.length === 0) return;
     const allContinentSelected = contCodes.every(c => selectedCountries.includes(c));
     if (allContinentSelected) {
       onFilterCountriesChange(selectedCountries.filter(c => !contCodes.includes(c)));
@@ -244,10 +248,10 @@ export default function RepeaterFilter({
                       {/* Continent quick-toggle */}
                       <div className="grid grid-cols-3 gap-1 mb-2">
                         {CONTINENTS.map(c => {
-                          const contCountries = getCountriesByContinent(c.id);
-                          const repCount = sortedCountries.filter(rc => contCountries.some(cc => cc.iso2 === rc.code)).reduce((sum, rc) => sum + rc.count, 0);
+                          const contCountries = countriesByContinent[c.id] || [];
+                          const repCount = contCountries.reduce((sum, rc) => sum + rc.count, 0);
                           if (repCount === 0) return null;
-                          const contCodes = contCountries.map(cc => cc.iso2);
+                          const contCodes = contCountries.map(cc => cc.code);
                           const allContinentSelected = contCodes.every(code => selectedCountries.includes(code));
                           const someContinentSelected = contCodes.some(code => selectedCountries.includes(code));
                           return (

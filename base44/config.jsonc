@@ -1,5 +1,6 @@
 {
-  "name": "untitled",
+  "name": "HB9OM On Field",
+  "description": "Interactive reference map showing SOTA, POTA, and WWFF points for amateur radio operators",
   "site": {
     "installCommand": "npm install",
     "buildCommand": "npm run build",
