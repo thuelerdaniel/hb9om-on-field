@@ -149,9 +149,10 @@ export default function AdminPanel({
   const groupRequestsLabel = totalPending > 0 ? `${totalPending} offen` : "Keine offenen";
 
   // Group 2: Daten-Cache & Aktualisierung
+  const cacheLoading = cacheStatus == null;
   const cacheEntries = cacheStatus || [];
   const criticalLayers = ["sota", "pota", "castle"];
-  const missingCritical = criticalLayers.filter(key => {
+  const missingCritical = cacheLoading ? [] : criticalLayers.filter(key => {
     const entry = cacheEntries.find(e => e.type === key);
     const total = entry?.total_count || entry?.references?.length || 0;
     return total === 0;
@@ -161,10 +162,13 @@ export default function AdminPanel({
     return (Date.now() - new Date(e.last_updated).getTime()) > 7 * 24 * 60 * 60 * 1000;
   });
   const repTotal = coverageProgress?.global?.totalRepeaters || 0;
-  const groupCacheStatus = missingCritical.length > 0 || repTotal === 0 ? "error" :
-    staleLayers.length > 0 || (coverageProgress?.pendingRecalc || 0) > 100 ? "warning" : "ok";
-  const groupCacheLabel = missingCritical.length > 0 ? `${missingCritical.length} kritisch fehlen` :
-    staleLayers.length > 0 ? `${staleLayers.length} veraltet` : "Alle aktuell";
+  const groupCacheStatus = cacheLoading ? "warning" :
+    missingCritical.length > 0 ? "error" :
+    staleLayers.length > 0 || repTotal === 0 || (coverageProgress?.pendingRecalc || 0) > 100 ? "warning" : "ok";
+  const groupCacheLabel = cacheLoading ? "Daten laden..." :
+    missingCritical.length > 0 ? `${missingCritical.length} kritisch fehlen` :
+    staleLayers.length > 0 ? `${staleLayers.length} veraltet` :
+    repTotal === 0 ? "Relais laden" : "Alle aktuell";
 
   // Group 3: Relais & Verlinkungen
   const pendingCorrections = repeaterCorrections.length;

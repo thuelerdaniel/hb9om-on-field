@@ -93,16 +93,22 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
 
   const fetchExtraCounts = async () => {
     try {
-      const [totaPoints, approvedLinks] = await Promise.all([
+      // Fetch direct entity counts for layers that don't have ReferenceData entries.
+      // All these entities have public read access (read: true), so base44.entities works.
+      const [totaPoints, approvedLinks, repeaters, privateNodes] = await Promise.all([
         base44.entities.TotaPoint.list("-created_date", 10000),
         base44.entities.RepeaterLink.filter({ status: "approved" }),
+        base44.entities.Repeater.list("-created_date", 5000),
+        base44.entities.PrivateNode.list("-created_date", 5000),
       ]);
       setExtraCounts({
         tota: totaPoints?.length || 0,
         repeaterLinks: approvedLinks?.length || 0,
+        repeaters: repeaters?.length || 0,
+        privateNodes: privateNodes?.length || 0,
       });
     } catch (e) {
-      setExtraCounts({ tota: 0, repeaterLinks: 0 });
+      setExtraCounts({ tota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0 });
     } finally {
       setLoading(false);
     }
@@ -130,6 +136,9 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
 
   // Build repeater data from coverageProgress
   const repData = coverageProgress?.global || null;
+  // Direct counts from entity queries (more reliable than coverageProgress which may not have loaded)
+  const repeaterCount = extraCounts?.repeaters ?? repData?.totalRepeaters ?? 0;
+  const aprsCount = extraCounts?.privateNodes ?? aprsCache?.total ?? 0;
 
   // Compute overall status
   const allStatuses = [];
@@ -144,9 +153,9 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
     allStatuses.push(computeLayerStatus(total, withCoords, total, lastUpdated, isCritical));
   }
   // Repeater status
-  allStatuses.push(computeLayerStatus(repData?.totalRepeaters, repData?.withCoords, repData?.totalRepeaters, null, true));
+  allStatuses.push(computeLayerStatus(repeaterCount, repData?.withCoords, repeaterCount, null, true));
   // APRS status
-  allStatuses.push(computeLayerStatus(aprsCache?.total, null, null, null, false));
+  allStatuses.push(computeLayerStatus(aprsCount, null, null, null, false));
   // TOTA status
   allStatuses.push(computeLayerStatus(extraCounts?.tota, null, null, null, false));
   // Repeater links
@@ -217,11 +226,11 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           label="Relais"
           icon={RadioTower}
           color="text-blue-500"
-          count={repData?.totalRepeaters || 0}
+          count={repeaterCount}
           withCoords={repData?.withCoords || 0}
-          total={repData?.totalRepeaters || 0}
+          total={repeaterCount}
           lastUpdated={null}
-          status={computeLayerStatus(repData?.totalRepeaters, repData?.withCoords, repData?.totalRepeaters, null, true)}
+          status={computeLayerStatus(repeaterCount, repData?.withCoords, repeaterCount, null, true)}
           source="RepeaterBook + WIA + dstarusers"
         />
 
@@ -230,12 +239,12 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           label="APRS-Nodes"
           icon={Signal}
           color="text-purple-500"
-          count={aprsCache?.total || 0}
+          count={aprsCount}
           withCoords={null}
           total={null}
           lastUpdated={null}
-          status={computeLayerStatus(aprsCache?.total, null, null, null, false)}
-          source="APRS.fi"
+          status={computeLayerStatus(aprsCount, null, null, null, false)}
+          source="APRS.fi + BrandMeister"
         />
 
         {/* TOTA layer */}
