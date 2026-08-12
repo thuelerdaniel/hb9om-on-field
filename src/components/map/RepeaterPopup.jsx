@@ -186,9 +186,17 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
       )}
 
       {repeater.coords_from_locator && (
-        <div className="flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400 mb-1.5 bg-amber-50 dark:bg-amber-900/20 rounded px-1.5 py-1 border border-amber-200 dark:border-amber-800/50" title="Die Position wurde aus dem Maidenhead-Locator (Grid Square) abgeleitet und ist ungefähr (±5 km). Genauere Koordinaten sind nicht verfügbar — bitte melden Sie Korrekturen.">
+        <div className="flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400 mb-1.5 bg-amber-50 dark:bg-amber-900/20 rounded px-1.5 py-1 border border-amber-200 dark:border-amber-800/50" title={
+          repeater.coords_geocoded
+            ? "Die Position wurde aus dem Ortsnamen via OpenStreetMap Nominatim geocodiert und ist ungefähr (Stadt/Region, nicht exakter Standort). Genauere Koordinaten sind nicht verfügbar — bitte melden Sie Korrekturen."
+            : "Die Position wurde aus dem Maidenhead-Locator (Grid Square) abgeleitet und ist ungefähr (±5 km). Genauere Koordinaten sind nicht verfügbar — bitte melden Sie Korrekturen."
+        }>
           <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-          <span>Position ungenau (Locator{repeater.locator ? ` ${repeater.locator}` : ''})</span>
+          <span>
+            {repeater.coords_geocoded
+              ? "Standort ungenau (Ortsname)"
+              : `Standort ungenau (Locator${repeater.locator ? ` ${repeater.locator}` : ''})`}
+          </span>
         </div>
       )}
 

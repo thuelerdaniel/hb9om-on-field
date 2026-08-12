@@ -856,6 +856,41 @@ export async function fetchRepeaterData(): Promise<any[]> {
   return allRepeaters;
 }
 
+// ─── Repeater Regions (for sequential region-based updates) ───
+// Like lighthouse regions, repeaters can be fetched per region to avoid
+// platform timeouts. Each region maps to a subset of COUNTRIES.
+export const REPEATER_REGIONS = [
+  { id: 'eu_priority1', label: 'Relais Europa (CH+Nachbarn)' },
+  { id: 'eu_priority2', label: 'Relais Europa (Übrige)' },
+  { id: 'uk', label: 'Relais UK (ukrepeater.net)' },
+  { id: 'na_us', label: 'Relais USA' },
+  { id: 'na_ca', label: 'Relais Kanada' },
+  { id: 'world', label: 'Relais Weltweit (Asien/Afrika/Amerika/Ozeanien)' },
+];
+
+export function getCountriesForRegion(region: string): any[] {
+  if (!region || region === 'all') return COUNTRIES;
+  switch (region) {
+    case 'eu_priority1': return COUNTRIES.filter(c => c.priority === 1 && !c.region_type);
+    case 'eu_priority2': return COUNTRIES.filter(c => c.priority === 2 && !c.region_type);
+    case 'uk': return COUNTRIES.filter(c => c.code === 'GB');
+    case 'na_us': return COUNTRIES.filter(c => c.region_type === 'north_america' && c.country_code === 'US');
+    case 'na_ca': return COUNTRIES.filter(c => c.region_type === 'north_america' && c.country_code === 'CA');
+    case 'world': return COUNTRIES.filter(c => c.priority === 3 && !c.region_type);
+    default: return COUNTRIES;
+  }
+}
+
+export function getCountryCodesForRegion(region: string): string[] {
+  const countries = getCountriesForRegion(region);
+  const codes = new Set<string>();
+  for (const c of countries) {
+    if (c.country_code) codes.add(c.country_code);
+    else codes.add(c.code);
+  }
+  return Array.from(codes);
+}
+
 // ─── Private Nodes / Hotspots ───
 // Scrape RepeaterBook's "Nodes" section for AllStar, EchoLink, and private nodes.
 // These are standalone nodes (not repeaters) that provide access to networks.

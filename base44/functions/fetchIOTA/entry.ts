@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     // Try external IOTA data source
     try {
       references = await fetchIotaData();
-      source = 'iota-world.org CSV';
+      source = references.length > 300 ? 'iota-world.org groups.json (offiziell)' : 'iota-world.org (fallback embedded)';
     } catch (e) {
       // Fallback: empty — frontend local data will be used
       references = [];

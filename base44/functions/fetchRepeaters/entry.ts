@@ -4,6 +4,7 @@ import {
   getBand, maidenheadToLatLng,
   COUNTRIES, UK_BANDS,
   LIST_BASE, NA_LIST_BASE, LIST_PARAMS,
+  REPEATER_REGIONS, getCountriesForRegion, getCountryCodesForRegion,
 } from '../../shared/repeaterScraper.ts';
 
 const FETCH_TIMEOUT_MS = 5000;
@@ -77,195 +78,246 @@ export default async function(req) {
       }
     }
 
+    const region = body.region || 'all';
+
+    // Validate region parameter
+    if (region !== 'all' && !REPEATER_REGIONS.some(r => r.id === region)) {
+      return Response.json({
+        error: `Unknown region: ${region}. Valid: all, ${REPEATER_REGIONS.map(r => r.id).join(', ')}`,
+      }, { status: 400 });
+    }
+
+    const regionCountries = getCountriesForRegion(region);
+    const regionCountryCodes = getCountryCodesForRegion(region);
+
     const countryBreakdown: Record<string, number> = {};
     let totalSaved = 0;
     let withCoords = 0;
+    let deletedCount = 0;
 
-    // --- Step 1: Delete existing repeaters ---
+    // --- Step 1: Delete existing repeaters for this region ---
     currentStep = 'delete_existing';
-    try {
-      for (let attempt = 0; attempt < 50; attempt++) {
-        const existing = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
-        if (!existing || existing.length === 0) break;
-        await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existing.map(r => r.id) } });
+    if (region === 'all') {
+      // Full refresh: delete ALL repeaters
+      try {
+        for (let attempt = 0; attempt < 50; attempt++) {
+          const existing = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
+          if (!existing || existing.length === 0) break;
+          await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existing.map(r => r.id) } });
+          deletedCount += existing.length;
+        }
+      } catch (delErr: any) {
+        return Response.json({
+          status: 'failed',
+          error: `Bestehende Relais konnten nicht gelöscht werden: ${delErr.message || delErr}`,
+          step: currentStep,
+          duration_ms: Date.now() - startTime,
+        }, { status: 500 });
       }
-    } catch (delErr: any) {
-      return Response.json({
-        status: 'failed',
-        error: `Bestehende Relais konnten nicht gelöscht werden: ${delErr.message || delErr}`,
-        step: currentStep,
-        duration_ms: Date.now() - startTime,
-      }, { status: 500 });
+    } else {
+      // Region update: delete only repeaters from this region's countries
+      try {
+        for (let attempt = 0; attempt < 50; attempt++) {
+          const existing = await base44.asServiceRole.entities.Repeater.filter(
+            { country_code: { $in: regionCountryCodes } },
+            "id", 5000, attempt * 5000
+          );
+          if (!existing || existing.length === 0) break;
+          await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existing.map(r => r.id) } });
+          deletedCount += existing.length;
+          if (existing.length < 5000) break;
+        }
+      } catch (delErr: any) {
+        return Response.json({
+          status: 'failed',
+          error: `Bestehende Relais für Region ${region} konnten nicht gelöscht werden: ${delErr.message || delErr}`,
+          step: currentStep,
+          duration_ms: Date.now() - startTime,
+        }, { status: 500 });
+      }
     }
 
-    // --- Step 2: Fetch UK repeaters (ukrepeater.net) and save immediately ---
-    currentStep = 'uk_repeaters';
-    try {
-      const ukResults = await Promise.all(UK_BANDS.map(async (bandInfo: any) => {
-        try {
-          const resp = await fetchWithTimeout(bandInfo.url, {
-            headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
-          });
-          if (!resp || !resp.ok) return [];
-          const html = await resp.text();
-          return parseUkRepeaterList(html);
-        } catch { return []; }
-      }));
-      let ukRepeaters: any[] = [];
-      for (const reps of ukResults) ukRepeaters.push(...reps);
-      // Deduplicate by callsign+frequency
-      const seen = new Set<string>();
-      ukRepeaters = ukRepeaters.filter(r => {
-        const key = r.callsign + '_' + r.frequency;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      // Save UK repeaters
-      const ukRecords = ukRepeaters.map(buildRecord);
-      for (let i = 0; i < ukRecords.length; i += 500) {
-        const batch = ukRecords.slice(i, i + 500);
-        await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
-        totalSaved += batch.length;
-      }
-      for (const r of ukRepeaters) {
-        if (r.lat && r.lng) withCoords++;
-        const cc = r.country_code || '?';
-        countryBreakdown[cc] = (countryBreakdown[cc] || 0) + 1;
-      }
-    } catch {}
-
-    // --- Step 3: Fetch RepeaterBook list pages in batches and save immediately ---
-    currentStep = 'repeaterbook_list';
-    const priority1Countries = COUNTRIES.filter(c => c.priority === 1);
-    const priority1Codes = new Set(priority1Countries.map(c => c.code));
-
-    for (let i = 0; i < COUNTRIES.length; i += BATCH_SIZE) {
-      const chunk = COUNTRIES.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(chunk.map(async (country: any) => {
-        try {
-          const isNA = country.region_type === 'north_america';
-          const stateId = country.state_id || country.code;
-          const cc = country.country_code || country.code;
-          const url = isNA
-            ? `${NA_LIST_BASE}?state_id=${stateId}&country_code=${cc}&${LIST_PARAMS}`
-            : `${LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}`;
-          const resp = await fetchWithTimeout(url, {
-            headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
-          });
-          if (!resp || !resp.ok) return [];
-          const html = await resp.text();
-          return parseRepeaterList(html, cc, country.name, {
-            hasCountyColumn: isNA,
-            stateId,
-            regionType: isNA ? 'north_america' : 'world',
-            entryCode: country.code,
-          });
-        } catch { return []; }
-      }));
-
-      // Collect and save repeaters from this batch
-      let batchRepeaters: any[] = [];
-      for (const reps of results) batchRepeaters.push(...reps);
-      if (batchRepeaters.length === 0) continue;
-
-      // For Priority 1 countries, fetch a few detail pages for coordinates
-      const toDetail = batchRepeaters.filter(r => priority1Codes.has(r._entryCode || r.country_code));
-      if (toDetail.length > 0) {
-        const byCountry = new Map<string, any[]>();
-        for (const rep of toDetail) {
-          const ec = rep._entryCode || rep.country_code;
-          if (!byCountry.has(ec)) byCountry.set(ec, []);
-          byCountry.get(ec)!.push(rep);
-        }
-        const toFetch: any[] = [];
-        for (const [ec, reps] of byCountry) {
-          reps.sort((a, b) => {
-            if (a.status === 'on-air' && b.status !== 'on-air') return -1;
-            if (a.status !== 'on-air' && b.status === 'on-air') return 1;
-            return 0;
-          });
-          toFetch.push(...reps.slice(0, DETAIL_PER_COUNTRY));
-        }
-        // Fetch detail pages (concurrent)
-        await Promise.all(toFetch.map(async (rep: any) => {
+    // --- Step 2: Fetch UK repeaters (only for 'all' or 'uk' region) ---
+    if (region === 'all' || region === 'uk') {
+      currentStep = 'uk_repeaters';
+      try {
+        const ukResults = await Promise.all(UK_BANDS.map(async (bandInfo: any) => {
           try {
-            const resp = await fetchWithTimeout(rep.detailUrl, {
+            const resp = await fetchWithTimeout(bandInfo.url, {
               headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
             });
-            if (!resp || !resp.ok) return;
+            if (!resp || !resp.ok) return [];
             const html = await resp.text();
-            const detail = parseRepeaterDetail(html);
-            if (detail.lat !== null) rep.lat = detail.lat;
-            if (detail.lng !== null) rep.lng = detail.lng;
-            if (detail.web_url) rep.web_url = detail.web_url;
-            if (detail.echolink_node) rep.echolink_node = detail.echolink_node;
-            if (detail.network_links) rep.network_links = detail.network_links;
-            if (detail.locator) rep.locator = detail.locator;
-            if (detail.has_emergency_power) {
-              rep.has_emergency_power = detail.has_emergency_power;
-              rep.power_source = detail.power_source;
-            }
-          } catch {}
+            return parseUkRepeaterList(html);
+          } catch { return []; }
         }));
-      }
-
-      // Build records and save
-      const records = batchRepeaters.map(buildRecord);
-      for (let j = 0; j < records.length; j += 500) {
-        const batch = records.slice(j, j + 500);
-        await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
-        totalSaved += batch.length;
-      }
-      for (const r of batchRepeaters) {
-        if (r.lat && r.lng) withCoords++;
-        const cc = r.country_code || '?';
-        countryBreakdown[cc] = (countryBreakdown[cc] || 0) + 1;
-      }
-      // Clear batch from memory
-      batchRepeaters = [];
+        let ukRepeaters: any[] = [];
+        for (const reps of ukResults) ukRepeaters.push(...reps);
+        // Deduplicate by callsign+frequency
+        const seen = new Set<string>();
+        ukRepeaters = ukRepeaters.filter(r => {
+          const key = r.callsign + '_' + r.frequency;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        // Save UK repeaters
+        const ukRecords = ukRepeaters.map(buildRecord);
+        for (let i = 0; i < ukRecords.length; i += 500) {
+          const batch = ukRecords.slice(i, i + 500);
+          await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
+          totalSaved += batch.length;
+        }
+        for (const r of ukRepeaters) {
+          if (r.lat && r.lng) withCoords++;
+          const cc = r.country_code || '?';
+          countryBreakdown[cc] = (countryBreakdown[cc] || 0) + 1;
+        }
+      } catch {}
     }
 
-    // --- Step 4: Build repeater links from network_links field ---
-    currentStep = 'repeater_links';
-    try {
-      // Fetch all repeaters with coordinates to build callsign lookup
-      const allReps = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
-      const byCallsign = new Map<string, any[]>();
-      for (const rep of allReps) {
-        if (rep.lat == null || rep.lng == null) continue;
-        if (!byCallsign.has(rep.callsign)) byCallsign.set(rep.callsign, []);
-        byCallsign.get(rep.callsign)!.push(rep);
-      }
-      // Build links for repeaters that have network_links in source_id (from detail pages)
-      // We skip this step for now — it requires the network_links field which is not stored
-      // in the entity. Links are built by the scanRepeaterLinks function separately.
-    } catch {}
+    // --- Step 3: Fetch RepeaterBook list pages (skip for UK-only region) ---
+    if (region !== 'uk') {
+      currentStep = 'repeaterbook_list';
+      const countriesToFetch = region === 'all' ? COUNTRIES : regionCountries;
+      const priority1Countries = countriesToFetch.filter(c => c.priority === 1);
+      const priority1Codes = new Set(priority1Countries.map(c => c.code));
 
-    // --- Step 5: Store stable count metadata in ReferenceData ---
-    // The DataCacheOverview reads this instead of paginating through all records
-    // on every mount — gives a stable, instant count that doesn't jump.
+      for (let i = 0; i < countriesToFetch.length; i += BATCH_SIZE) {
+        const chunk = countriesToFetch.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(chunk.map(async (country: any) => {
+          try {
+            const isNA = country.region_type === 'north_america';
+            const stateId = country.state_id || country.code;
+            const cc = country.country_code || country.code;
+            const url = isNA
+              ? `${NA_LIST_BASE}?state_id=${stateId}&country_code=${cc}&${LIST_PARAMS}`
+              : `${LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}`;
+            const resp = await fetchWithTimeout(url, {
+              headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
+            });
+            if (!resp || !resp.ok) return [];
+            const html = await resp.text();
+            return parseRepeaterList(html, cc, country.name, {
+              hasCountyColumn: isNA,
+              stateId,
+              regionType: isNA ? 'north_america' : 'world',
+              entryCode: country.code,
+            });
+          } catch { return []; }
+        }));
+
+        // Collect and save repeaters from this batch
+        let batchRepeaters: any[] = [];
+        for (const reps of results) batchRepeaters.push(...reps);
+        if (batchRepeaters.length === 0) continue;
+
+        // For Priority 1 countries, fetch a few detail pages for coordinates
+        const toDetail = batchRepeaters.filter(r => priority1Codes.has(r._entryCode || r.country_code));
+        if (toDetail.length > 0) {
+          const byCountry = new Map<string, any[]>();
+          for (const rep of toDetail) {
+            const ec = rep._entryCode || rep.country_code;
+            if (!byCountry.has(ec)) byCountry.set(ec, []);
+            byCountry.get(ec)!.push(rep);
+          }
+          const toFetch: any[] = [];
+          for (const [ec, reps] of byCountry) {
+            reps.sort((a, b) => {
+              if (a.status === 'on-air' && b.status !== 'on-air') return -1;
+              if (a.status !== 'on-air' && b.status === 'on-air') return 1;
+              return 0;
+            });
+            toFetch.push(...reps.slice(0, DETAIL_PER_COUNTRY));
+          }
+          // Fetch detail pages (concurrent)
+          await Promise.all(toFetch.map(async (rep: any) => {
+            try {
+              const resp = await fetchWithTimeout(rep.detailUrl, {
+                headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
+              });
+              if (!resp || !resp.ok) return;
+              const html = await resp.text();
+              const detail = parseRepeaterDetail(html);
+              if (detail.lat !== null) rep.lat = detail.lat;
+              if (detail.lng !== null) rep.lng = detail.lng;
+              if (detail.web_url) rep.web_url = detail.web_url;
+              if (detail.echolink_node) rep.echolink_node = detail.echolink_node;
+              if (detail.network_links) rep.network_links = detail.network_links;
+              if (detail.locator) rep.locator = detail.locator;
+              if (detail.has_emergency_power) {
+                rep.has_emergency_power = detail.has_emergency_power;
+                rep.power_source = detail.power_source;
+              }
+            } catch {}
+          }));
+        }
+
+        // Build records and save
+        const records = batchRepeaters.map(buildRecord);
+        for (let j = 0; j < records.length; j += 500) {
+          const batch = records.slice(j, j + 500);
+          await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
+          totalSaved += batch.length;
+        }
+        for (const r of batchRepeaters) {
+          if (r.lat && r.lng) withCoords++;
+          const cc = r.country_code || '?';
+          countryBreakdown[cc] = (countryBreakdown[cc] || 0) + 1;
+        }
+        // Clear batch from memory
+        batchRepeaters = [];
+      }
+    }
+
+    // --- Step 4: Store stable count metadata in ReferenceData ---
     currentStep = 'store_count';
     try {
       const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'repeater' });
-      const countMeta = [{ withCoords, withoutCoords: totalSaved - withCoords, countries: Object.keys(countryBreakdown).length }];
+      let totalCount = totalSaved;
+      let withCoordsCount = withCoords;
+
+      if (region !== 'all') {
+        // Region update: merge with existing metadata
+        const oldMeta = existing[0]?.references?.[0] || {};
+        const oldTotal = existing[0]?.total_count || 0;
+        const oldWithCoords = oldMeta.withCoords || 0;
+        // Approximate: old_total - deleted + new
+        totalCount = Math.max(0, oldTotal - deletedCount) + totalSaved;
+        // Approximate withCoords: old_withCoords * (remaining/old_total) + new_withCoords
+        const remaining = Math.max(0, oldTotal - deletedCount);
+        const remainingRatio = oldTotal > 0 ? remaining / oldTotal : 1;
+        withCoordsCount = Math.round(oldWithCoords * remainingRatio) + withCoords;
+      }
+
+      const countMeta = [{
+        withCoords: withCoordsCount,
+        withoutCoords: totalCount - withCoordsCount,
+        countries: Object.keys(countryBreakdown).length,
+      }];
+      const sourceStr = region === 'all'
+        ? 'RepeaterBook + ukrepeater.net'
+        : `RepeaterBook (${REPEATER_REGIONS.find(r => r.id === region)?.label || region})`;
+
       if (existing.length > 0) {
         await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
-          references: countMeta, total_count: totalSaved,
-          source: 'RepeaterBook + ukrepeater.net', last_updated: new Date().toISOString()
+          references: countMeta, total_count: totalCount,
+          source: sourceStr, last_updated: new Date().toISOString()
         });
       } else {
         await base44.asServiceRole.entities.ReferenceData.create({
-          type: 'repeater', references: countMeta, total_count: totalSaved,
-          source: 'RepeaterBook + ukrepeater.net', last_updated: new Date().toISOString()
+          type: 'repeater', references: countMeta, total_count: totalCount,
+          source: sourceStr, last_updated: new Date().toISOString()
         });
       }
     } catch {}
 
     return Response.json({
       status: 'success',
+      region,
       total_saved: totalSaved,
       with_coordinates: withCoords,
+      deleted: deletedCount,
       countries: Object.keys(countryBreakdown).length,
       country_breakdown: countryBreakdown,
       duration_ms: Date.now() - startTime,

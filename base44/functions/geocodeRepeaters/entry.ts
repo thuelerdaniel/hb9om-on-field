@@ -16,9 +16,14 @@ const RATE_LIMIT_MS = 1100; // 1.1s between requests (Nominatim allows 1/s)
 const MAX_GEOCODES_PER_CALL = 25;
 const BATCH_SIZE = 500;
 
-async function geocodePlace(query: string): Promise<{ lat: number; lng: number } | null> {
+async function geocodePlace(query: string, countryCode?: string): Promise<{ lat: number; lng: number } | null> {
   try {
-    const url = `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=0`;
+    let url = `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=0`;
+    // Restrict results to the repeater's country — dramatically improves accuracy
+    // for US/CA repeaters where city names are ambiguous (e.g., "Springfield" exists in 30+ states)
+    if (countryCode && countryCode.length === 2) {
+      url += `&countrycodes=${countryCode.toLowerCase()}`;
+    }
     const resp = await fetch(url, {
       headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' },
     });
@@ -90,9 +95,14 @@ export default async function(req: Request): Promise<Response> {
     const toGeocode = uniquePlaces.slice(0, maxGeocodes);
 
     // Step 3: Geocode each unique place name (with rate limiting)
+    // Pass the country_code from the first repeater for this place to restrict
+    // Nominatim results to the correct country — critical for US/CA where city
+    // names like "Springfield" exist in many states.
     const geocodedPlaces = new Map<string, { lat: number; lng: number }>();
     for (const place of toGeocode) {
-      const coords = await geocodePlace(place);
+      const placeReps = placeMap.get(place) || [];
+      const cc = placeReps[0]?.country_code || '';
+      const coords = await geocodePlace(place, cc);
       if (coords) geocodedPlaces.set(place, coords);
       await new Promise(r => setTimeout(r, RATE_LIMIT_MS));
     }
@@ -108,6 +118,7 @@ export default async function(req: Request): Promise<Response> {
           lat: coords.lat,
           lng: coords.lng,
           coords_from_locator: true,
+          coords_geocoded: true,
         });
       }
     }

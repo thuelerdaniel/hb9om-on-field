@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { LIGHTHOUSE_REGIONS } from '../../shared/referenceFetchers.ts';
+import { REPEATER_REGIONS } from '../../shared/repeaterScraper.ts';
 
 // --- Source definitions ---
 // Each source has a function to call and a payload. The orchestrator assigns
@@ -22,7 +23,15 @@ const SOURCES = [
   })),
   { source: 'iota', label: 'IOTA', function_name: 'refreshDataSource', function_payload: { source: 'iota', scheduled: true }, order: 7 },
   { source: 'aprs', label: 'APRS.fi', function_name: 'fetchAprsFi', function_payload: { scheduled: true }, order: 8 },
-  { source: 'repeater', label: 'Relais weltweit', function_name: 'fetchRepeaters', function_payload: { scheduled: true }, order: 9 },
+  // Repeater: individual regions (sequential scraping to avoid platform timeouts)
+  // Each region can be triggered separately, like lighthouse regions.
+  ...REPEATER_REGIONS.map((r, i) => ({
+    source: `repeater_${r.id}`,
+    label: r.label,
+    function_name: 'fetchRepeaters',
+    function_payload: { region: r.id, scheduled: true },
+    order: 90 + i,
+  })),
   { source: 'tota', label: 'TOTA weltweit', function_name: 'fetchTota', function_payload: { action: 'fetchWorldwide', scheduled: true }, order: 10 },
   { source: 'fm_funknetz', label: 'FM-Funknetz TGs', function_name: 'fetchFmFunknetz', function_payload: { scheduled: true }, order: 11 },
   { source: 'ch_repeater_links', label: 'CH-Relais-Links', function_name: 'fetchCHRepeaterLinks', function_payload: { scheduled: true }, order: 12 },

@@ -29,6 +29,12 @@
         "iota",
         "aprs",
         "repeater",
+        "repeater_eu_priority1",
+        "repeater_eu_priority2",
+        "repeater_uk",
+        "repeater_na_us",
+        "repeater_na_ca",
+        "repeater_world",
         "tota",
         "fm_funknetz",
         "ch_repeater_links"

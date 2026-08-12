@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Landmark, Lightbulb, Globe, Mountain, TreePine, Shield, Flower, Link2, Headphones, RadioTower, Signal } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Landmark, Lightbulb, Globe, Mountain, TreePine, Shield, Flower, Link2, Headphones, RadioTower, Signal, ChevronDown, ChevronRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
 // Lighthouse regions — individual buttons for sequential scraping.
-// Each region can be triggered separately to avoid Overpass timeouts.
 const LIGHTHOUSE_REGION_SOURCES = [
   { id: 'eu_north', label: 'LH Nordeuropa' },
   { id: 'eu_central', label: 'LH Mitteleuropa' },
@@ -30,25 +29,49 @@ const LIGHTHOUSE_REGION_SOURCES = [
   customPayload: { region: r.id },
 }));
 
-const SOURCES = [
+// Repeater regions — individual buttons for sequential scraping.
+const REPEATER_REGION_SOURCES = [
+  { id: 'eu_priority1', label: 'Relais Europa (CH+Nachbarn)' },
+  { id: 'eu_priority2', label: 'Relais Europa (Übrige)' },
+  { id: 'uk', label: 'Relais UK' },
+  { id: 'na_us', label: 'Relais USA' },
+  { id: 'na_ca', label: 'Relais Kanada' },
+  { id: 'world', label: 'Relais Weltweit' },
+].map(r => ({
+  key: `repeater_${r.id}`,
+  label: r.label,
+  icon: Radio,
+  color: "text-cyan-500",
+  customFunction: "fetchRepeaters",
+  customPayload: { region: r.id },
+}));
+
+// Main sources (always visible, not collapsible)
+const MAIN_SOURCES = [
   { key: "sota", label: "SOTA", icon: Mountain, color: "text-red-500" },
   { key: "pota", label: "POTA", icon: TreePine, color: "text-green-500" },
   { key: "hbff", label: "WWFF", icon: Flower, color: "text-purple-500" },
   { key: "wwbota", label: "WWBOTA", icon: Shield, color: "text-amber-700" },
   { key: "castle", label: "Burgen/Schlösser (Welt)", icon: Landmark, color: "text-orange-500" },
   { key: "lighthouse", label: "Leuchttürme (Alle)", icon: Lightbulb, color: "text-yellow-500", customFunction: "fetchLighthouses", customPayload: { region: "all" } },
-  ...LIGHTHOUSE_REGION_SOURCES,
   { key: "iota", label: "IOTA (Welt)", icon: Globe, color: "text-blue-500" },
   { key: "tota", label: "TOTA (Welt)", icon: RadioTower, color: "text-orange-500", customFunction: "fetchTota", customPayload: { action: "fetchWorldwide" } },
-  { key: "repeater", label: "Relais", icon: Radio, color: "text-cyan-500" },
+  { key: "repeater", label: "Relais (Alle)", icon: Radio, color: "text-cyan-500", customFunction: "fetchRepeaters", customPayload: { region: "all" } },
   { key: "aprs", label: "APRS.fi", icon: Signal, color: "text-purple-500", customFunction: "fetchAprsFi" },
   { key: "ch_repeater_links", label: "CH-Relais-Links", icon: Link2, color: "text-indigo-500", customFunction: "fetchCHRepeaterLinks" },
   { key: "fm_funknetz", label: "FM-Funknetz TGs", icon: Headphones, color: "text-green-500", customFunction: "fetchFmFunknetz" },
 ];
 
+// Collapsible groups for regional sub-sources
+const COLLAPSIBLE_GROUPS = [
+  { title: "Leuchttürme (Regionen)", icon: Lightbulb, color: "text-yellow-500", sources: LIGHTHOUSE_REGION_SOURCES },
+  { title: "Relais (Regionen)", icon: Radio, color: "text-cyan-500", sources: REPEATER_REGION_SOURCES },
+];
+
 export default function IndividualSourceReload() {
   const [loadingSource, setLoadingSource] = useState(null);
   const [results, setResults] = useState([]);
+  const [expandedGroups, setExpandedGroups] = useState({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -66,10 +89,12 @@ export default function IndividualSourceReload() {
   }, [results]);
 
   const handleReload = useCallback(async (sourceKey) => {
+    // Search in all source lists
+    const allSources = [...MAIN_SOURCES, ...COLLAPSIBLE_GROUPS.flatMap(g => g.sources)];
+    const source = allSources.find(s => s.key === sourceKey);
     setLoadingSource(sourceKey);
     const startTime = Date.now();
     try {
-      const source = SOURCES.find(s => s.key === sourceKey);
       const functionName = source?.customFunction || "refreshDataSource";
       const payload = source?.customFunction ? (source.customPayload || {}) : { source: sourceKey };
       const res = await base44.functions.invoke(functionName, payload);
@@ -78,10 +103,10 @@ export default function IndividualSourceReload() {
 
       const entry = {
         source: sourceKey,
-        label: data.label || sourceKey,
+        label: data.label || source?.label || sourceKey,
         status: data.status || (data.error ? "failed" : "success"),
-        count: data.count,
-        withCoords: data.withCoords,
+        count: data.count ?? data.total_saved,
+        withCoords: data.withCoords ?? data.with_coordinates,
         withoutCoords: data.withoutCoords,
         error: data.error,
         duration_ms: data.duration_ms || duration,
@@ -93,7 +118,7 @@ export default function IndividualSourceReload() {
       if (entry.status === "success") {
         toast({
           title: `${entry.label} aktualisiert`,
-          description: `${entry.count} Einträge · ${entry.withCoords} mit Koordinaten · ${(entry.duration_ms / 1000).toFixed(1)}s`,
+          description: `${entry.count != null ? entry.count : '?'} Einträge · ${entry.withCoords != null ? entry.withCoords : '?'} geo · ${(entry.duration_ms / 1000).toFixed(1)}s`,
           duration: 5000,
         });
       } else {
@@ -129,6 +154,34 @@ export default function IndividualSourceReload() {
     localStorage.removeItem("hb9om_source_reload_log");
   }, []);
 
+  const toggleGroup = useCallback((title) => {
+    setExpandedGroups(prev => ({ ...prev, [title]: !prev[title] }));
+  }, []);
+
+  const renderSourceButton = (src) => {
+    const Icon = src.icon;
+    const isLoading = loadingSource === src.key;
+    return (
+      <button
+        key={src.key}
+        onClick={() => handleReload(src.key)}
+        disabled={loadingSource !== null}
+        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border rounded-lg transition-colors disabled:opacity-40 ${
+          isLoading
+            ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 text-blue-600"
+            : "bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-100"
+        }`}
+      >
+        {isLoading ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Icon className={`w-3.5 h-3.5 ${src.color}`} />
+        )}
+        <span className="truncate">{src.label}</span>
+      </button>
+    );
+  };
+
   return (
     <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
       <div className="flex items-center justify-between mb-3">
@@ -150,34 +203,41 @@ export default function IndividualSourceReload() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-        {SOURCES.map(src => {
-          const Icon = src.icon;
-          const isLoading = loadingSource === src.key;
-          return (
-            <button
-              key={src.key}
-              onClick={() => handleReload(src.key)}
-              disabled={loadingSource !== null}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border rounded-lg transition-colors disabled:opacity-40 ${
-                isLoading
-                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 text-blue-600"
-                  : "bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-100"
-              }`}
-            >
-              {isLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Icon className={`w-3.5 h-3.5 ${src.color}`} />
-              )}
-              <span className="truncate">{src.label}</span>
-            </button>
-          );
-        })}
+      {/* Main sources grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+        {MAIN_SOURCES.map(renderSourceButton)}
       </div>
 
+      {/* Collapsible regional groups */}
+      {COLLAPSIBLE_GROUPS.map(group => {
+        const isExpanded = expandedGroups[group.title];
+        const GroupIcon = group.icon;
+        return (
+          <div key={group.title} className="mb-2">
+            <button
+              onClick={() => toggleGroup(group.title)}
+              className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-900 rounded-lg transition-colors"
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
+              <GroupIcon className={`w-3.5 h-3.5 ${group.color}`} />
+              <span>{group.title}</span>
+              <span className="text-[10px] text-gray-400 ml-1">({group.sources.length})</span>
+            </button>
+            {isExpanded && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1.5 pl-6">
+                {group.sources.map(renderSourceButton)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
       {results.length > 0 && (
-        <div className="space-y-1.5 max-h-64 overflow-y-auto">
+        <div className="space-y-1.5 max-h-64 overflow-y-auto mt-3">
           {results.map((r, i) => (
             <div
               key={i}
@@ -193,7 +253,9 @@ export default function IndividualSourceReload() {
               <span className="font-semibold text-gray-900 dark:text-slate-100 min-w-[80px]">{r.label}</span>
               {r.status === "success" ? (
                 <span className="text-gray-600 dark:text-slate-400">
-                  {r.count} Einträge{r.withCoords != null ? ` · ${r.withCoords} geo · ${r.withoutCoords} offen` : ""}
+                  {r.count != null ? `${r.count} Einträge` : ''}
+                  {r.withCoords != null ? ` · ${r.withCoords} geo` : ''}
+                  {r.withoutCoords != null ? ` · ${r.withoutCoords} offen` : ''}
                 </span>
               ) : (
                 <span className="text-red-600 truncate">{r.error}</span>

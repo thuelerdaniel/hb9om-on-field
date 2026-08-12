@@ -486,75 +486,61 @@ function isDuped(geo: any, deduped: any[]): boolean {
 }
 
 // --- IOTA worldwide fetcher (all island groups from iota-world.org) ---
+// Uses the OFFICIAL IOTA groups.json download from iota-world.org.
+// This contains all ~1200 IOTA island groups with bounding-box coordinates.
+// URL: https://www.iota-world.org/islands-on-the-air/downloads/download-file.html?path=groups.json
+// JSON format: [{ refno: "AF-001", name: "Agalega Islands", latitude_max, latitude_min, longitude_max, longitude_min, dxcc_num, ... }]
+// We compute the center of each group from its lat/lng bounding box.
 export async function fetchIotaData(): Promise<any[]> {
-  // IOTA program provides a CSV with all ~1200 island groups
-  // Try the official data source first
-  try {
-    const resp = await fetch('https://www.iota-world.org/iota-data/iota_list.csv', {
-      headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' }
-    });
-    if (resp.ok) {
-      const csv = await resp.text();
-      const lines = csv.trim().split('\n');
-      const iota: any[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',');
-        if (cols.length < 5) continue;
-        const code = cols[0]?.trim();
-        const name = cols[1]?.trim();
-        const lat = parseFloat(cols[2]);
-        const lng = parseFloat(cols[3]);
-        const country = cols[4]?.trim() || '';
-        if (!code || !name) continue;
-        iota.push({
-          code,
-          name,
-          lat: isNaN(lat) ? null : lat,
-          lng: isNaN(lng) ? null : lng,
-          country,
-          link: 'https://www.iota-world.org/'
-        });
-      }
-      if (iota.length > 0) return iota;
-    }
-  } catch {}
-
-  // Fallback: try alternative URL formats
-  const altUrls = [
-    'https://raw.githubusercontent.com/AmateurRadio/IOTA-Data/master/iota_list.csv',
-    'https://www.iota-world.org/export/iota_list.csv',
+  // Official IOTA data from iota-world.org downloads page.
+  // groups.json contains all ~1200 IOTA island groups with bounding-box coordinates.
+  // Try multiple URL patterns — the server may use different paths or redirects.
+  const IOTA_URLS = [
+    'https://www.iota-world.org/islands-on-the-air/downloads/download-file.html?path=groups.json',
+    'https://www.iota-world.org/islands-on-the-air/downloads/groups.json',
+    'https://www.iota-world.org/media/groups.json',
+    'https://www.iota-world.org/islands-on-the-air/downloads/download-file.html?path=fulllist.json',
+    'https://www.iota-world.org/islands-on-the-air/downloads/fulllist.json',
   ];
-  for (const url of altUrls) {
+
+  const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+  for (const url of IOTA_URLS) {
     try {
       const resp = await fetch(url, {
-        headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' }
+        headers: {
+          'User-Agent': BROWSER_UA,
+          'Accept': 'application/json, text/plain, */*',
+        },
+        redirect: 'follow',
       });
       if (!resp.ok) continue;
-      const csv = await resp.text();
-      const lines = csv.trim().split('\n');
+      const text = await resp.text();
+      // Check if the response is actually JSON (not an HTML error page)
+      if (!text.trimStart().startsWith('[') && !text.trimStart().startsWith('{')) continue;
+      const json = JSON.parse(text);
+      if (!Array.isArray(json) || json.length === 0) continue;
+
       const iota: any[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',');
-        if (cols.length < 5) continue;
-        const code = cols[0]?.trim();
-        const name = cols[1]?.trim();
-        const lat = parseFloat(cols[2]);
-        const lng = parseFloat(cols[3]);
-        const country = cols[4]?.trim() || '';
-        if (!code || !name) continue;
-        iota.push({
-          code, name,
-          lat: isNaN(lat) ? null : lat,
-          lng: isNaN(lng) ? null : lng,
-          country,
-          link: 'https://www.iota-world.org/'
-        });
+      const seen = new Set<string>();
+      for (const g of json) {
+        const code = g.refno?.trim();
+        const name = g.name?.trim();
+        if (!code || !name || seen.has(code)) continue;
+        seen.add(code);
+        const latMax = parseFloat(g.latitude_max);
+        const latMin = parseFloat(g.latitude_min);
+        const lngMax = parseFloat(g.longitude_max);
+        const lngMin = parseFloat(g.longitude_min);
+        const lat = (!isNaN(latMax) && !isNaN(latMin)) ? (latMax + latMin) / 2 : null;
+        const lng = (!isNaN(lngMax) && !isNaN(lngMin)) ? (lngMax + lngMin) / 2 : null;
+        iota.push({ code, name, lat, lng, country: '', link: 'https://www.iota-world.org/' });
       }
-      if (iota.length > 0) return iota;
+      if (iota.length > 100) return iota; // Real data has 1000+ entries
     } catch {}
   }
 
-  // Fallback: use embedded worldwide IOTA data (curated ~180 island groups)
+  // Fallback: use embedded worldwide IOTA data (curated subset)
   return IOTA_EMBEDDED_DATA;
 }
 
