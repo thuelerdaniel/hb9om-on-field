@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { loadAllRepeaters, loadAllPrivateNodes } from "@/lib/paginatedLoader";
 import { getCountryFromSotaCode, getCountryFromPotaRef, getCountryFromWwffCode, getCountryFromWwbotaScheme, getCountryByName, getCountryFromWcaCode, getCountryFromLatLng } from "@/lib/countries";
 
 const CACHE_KEY = "hb9om_offline_refs";
@@ -497,7 +498,7 @@ export async function loadAllRefsForType(type, countryCodes = null) {
   // PrivateNode records have no country_code field, so country filtering uses
   // getCountryFromLatLng to derive the country from coordinates.
   if (type === 'private_nodes') {
-    const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
+    const nodes = await loadAllPrivateNodes();
     return (nodes || []).map(n => ({
       callsign: n.callsign,
       node_type: n.node_type,
@@ -804,9 +805,10 @@ export function loadCachedTota() {
 // Each country is stored in its own localStorage key (hb9om_refs_tota_{country}).
 export async function cacheTotaFromServerByCountries(countryCodes) {
   try {
-    // TOTA has ~10k records — load all with pagination, then filter by country
-    const all = await loadAllTotaPoints();
-    const arr = all || [];
+    // Server-side country filtering: only load TOTA points for selected countries
+    // instead of loading all 10k+ points into memory then filtering.
+    // This prevents memory/storage issues on mobile devices.
+    const arr = await loadTotaPointsByCountries(countryCodes);
 
     // Clear old data FIRST to free space
     localStorage.removeItem("hb9om_refs_tota");
@@ -891,7 +893,7 @@ async function loadAllTotaPoints() {
   const MAX_PAGES = 10; // 10 * 5000 = 50k records max
   const allPoints = [];
   for (let page = 0; page < MAX_PAGES; page++) {
-    const result = await base44.entities.TotaPoint.list('-created_date', LIMIT, page * LIMIT);
+    const result = await base44.entities.TotaPoint.list('id', LIMIT, page * LIMIT);
     if (!Array.isArray(result) || result.length === 0) break;
     allPoints.push(...result);
     if (result.length < LIMIT) break;
@@ -899,10 +901,44 @@ async function loadAllTotaPoints() {
   return allPoints;
 }
 
+// Load TOTA points for specific countries using server-side filtering.
+// Avoids loading all 10k+ points into memory when only CH is needed.
+// Swiss CSV points (source="swiss_csv") are included for CH even if country_code is empty.
+// SDK filter caps at 5000 per call — for most countries this is sufficient.
+async function loadTotaPointsByCountries(countryCodes) {
+  if (!countryCodes || countryCodes.length === 0) {
+    return loadAllTotaPoints();
+  }
+  const LIMIT = 5000;
+  const allPoints = [];
+  const seenIds = new Set();
+
+  for (const country of countryCodes) {
+    // Filter by country_code — server-side, only loads matching records
+    try {
+      const points = await base44.entities.TotaPoint.filter({ country_code: country }, 'id', LIMIT);
+      for (const p of (points || [])) {
+        if (!seenIds.has(p.id)) { seenIds.add(p.id); allPoints.push(p); }
+      }
+    } catch { /* continue with other countries */ }
+
+    // Swiss CSV points have source="swiss_csv" — include for CH even if country_code is missing
+    if (country === "CH") {
+      try {
+        const swissPoints = await base44.entities.TotaPoint.filter({ source: "swiss_csv" }, 'id', LIMIT);
+        for (const p of (swissPoints || [])) {
+          if (!seenIds.has(p.id)) { seenIds.add(p.id); allPoints.push(p); }
+        }
+      } catch { /* silent */ }
+    }
+  }
+  return allPoints;
+}
+
 // Download repeaters from the server (Repeater entity)
 export async function cacheRepeatersFromServer() {
   try {
-    const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
+    const repeaters = await loadAllRepeaters();
     const arr = repeaters || [];
     storeServerCount("repeater", arr.length);
     storeCountryCounts("repeater", arr);
@@ -932,7 +968,7 @@ export async function cacheRepeatersFromServer() {
 // Download private nodes (APRS) from the server
 export async function cachePrivateNodesFromServer() {
   try {
-    const nodes = await base44.entities.PrivateNode.list("-created_date", 10000);
+    const nodes = await loadAllPrivateNodes();
     const arr = nodes || [];
     storeServerCount("private_nodes", arr.length);
     storeCountryCounts("private_nodes", arr);
@@ -1126,14 +1162,14 @@ export async function getServerDataCounts() {
     const stored = getStoredServerCount(type);
     if (stored != null) counts[type] = stored;
   }
-  // Repeaters — list with limit to count (1237 repeaters = 1.89MB, acceptable)
+  // Repeaters — use paginated loader for full count (31k+ repeaters, single list capped at 10k)
   try {
-    const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
+    const repeaters = await loadAllRepeaters();
     counts.repeater = (repeaters || []).length;
   } catch { counts.repeater = 0; }
-  // Private nodes
+  // Private nodes — use paginated loader for full count (33k+ nodes, single list capped at 10k)
   try {
-    const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
+    const nodes = await loadAllPrivateNodes();
     counts.private_nodes = (nodes || []).length;
   } catch { counts.private_nodes = 0; }
   try {
@@ -1373,7 +1409,7 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
 // Nodes without country_code get their country derived from lat/lng.
 export async function cachePrivateNodesFromServerByCountries(countryCodes) {
   try {
-    const nodes = await base44.entities.PrivateNode.list("-created_date", 5000);
+    const nodes = await loadAllPrivateNodes();
     const arr = nodes || [];
 
     // Clear old data FIRST to free space
@@ -1454,7 +1490,7 @@ export async function cachePrivateNodesFromServerByCountries(countryCodes) {
 // Each country is stored in its own localStorage key (hb9om_refs_repeater_{country}).
 export async function cacheRepeatersFromServerByCountries(countryCodes) {
   try {
-    const repeaters = await base44.entities.Repeater.list("-created_date", 10000);
+    const repeaters = await loadAllRepeaters();
     const arr = repeaters || [];
 
     // Clear old data FIRST to free space
