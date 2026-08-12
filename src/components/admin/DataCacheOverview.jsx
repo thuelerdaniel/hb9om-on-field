@@ -241,6 +241,14 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   const overallStatus = hasError ? "error" : hasWarning ? "warning" : "ok";
   const overallLabel = hasError ? "Aktion nötig" : hasWarning ? "Prüfen" : "Alle OK";
 
+  // Compute total count across ALL layers
+  const layerCounts = REFERENCE_LAYERS.map(layer => getLayerCount(layer.key, refDataMap[layer.key]));
+  layerCounts.push(repeaterCount ?? 0);
+  layerCounts.push(aprsCount ?? 0);
+  layerCounts.push(extraCounts?.tota ?? 0);
+  layerCounts.push(extraCounts?.repeaterLinks ?? 0);
+  const totalAllRecords = layerCounts.reduce((sum, c) => sum + (c || 0), 0);
+
   return (
     <div className="space-y-3">
       {/* Header with refresh + overall status */}
@@ -264,6 +272,20 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           {refreshing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
           {refreshing ? "Aktualisiert..." : "Aktualisieren"}
         </button>
+      </div>
+
+      {/* Total records counter */}
+      <div
+        className="flex items-center justify-between p-3 rounded-lg border border-blue-200 dark:border-blue-800/50 bg-blue-50/40 dark:bg-blue-900/15"
+        title={`Gesamtanzahl aller gespeicherten Datensätze über alle Layer (SOTA, POTA, WWFF, WWBOTA, Burgen, Leuchttürme, IOTA, Relais, APRS, TOTA, Relais-Verlinkungen). ${loading ? "Wird geladen..." : "Stabiler Gesamtwert aus den autoritativen Counts pro Layer."}`}
+      >
+        <div className="flex items-center gap-2">
+          <Database className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span className="text-xs font-semibold text-gray-900 dark:text-slate-100">Gesamt alle Layer</span>
+        </div>
+        <span className="text-xl font-bold text-blue-700 dark:text-blue-300">
+          {totalAllRecords.toLocaleString("de-CH")}
+        </span>
       </div>
 
       {/* Reference layers grid */}
