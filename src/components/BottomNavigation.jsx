@@ -32,20 +32,19 @@ export default function BottomNavigation() {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex flex-col items-center gap-0.5 px-2 sm:px-4 py-1.5 transition-colors ${active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}
+            className={`flex items-center justify-center px-3 py-1 transition-colors ${active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}
+            title={item.label}
           >
             <Icon className={`w-5 h-5 ${active ? "scale-110" : ""} transition-transform`} />
-            <span className="text-[10px] font-medium">{item.label}</span>
           </Link>
         );
       })}
       <button
         onClick={handleLogout}
-        className="flex flex-col items-center gap-0.5 px-2 sm:px-4 py-1.5 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+        className="flex items-center justify-center px-3 py-1 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
         title="Abmelden"
       >
         <LogOut className="w-5 h-5" />
-        <span className="text-[10px] font-medium">Abmelden</span>
       </button>
     </nav>
   );

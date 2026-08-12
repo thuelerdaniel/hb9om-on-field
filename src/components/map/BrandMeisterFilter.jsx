@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Network, Search, ChevronDown, X, Hash, Radio, Zap } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
+import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 // BrandMeister DMR node types — simpler than APRS since BrandMeister is a DMR network
 // (repeaters and hotspots), not a positioning system with diverse station types.
@@ -25,6 +26,7 @@ export default function BrandMeisterFilter({
   leftOffsetClass = "left-16",
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { containerRef } = useDraggablePosition("drag-bm-filter");
 
   // null or all = no filter (show everything); array = filter by selected types
   const allOn = !filterTypes || filterTypes.length === BM_TYPE_IDS.length;
@@ -40,7 +42,7 @@ export default function BrandMeisterFilter({
   };
 
   return (
-    <div className={`absolute top-16 ${leftOffsetClass} z-[1005]`}>
+    <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1005]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`bg-white shadow-lg rounded-lg p-2.5 transition-colors border flex items-center gap-1.5 ${

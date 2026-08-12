@@ -4,11 +4,13 @@ import { LAYER_GROUPS } from "./LayerControl";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { MODE_COLORS, FILTER_MODES, MODE_LABELS } from "@/lib/repeaterModes";
 import { WWBOTA_LEGEND_SCHEMES } from "@/lib/wwbotaSchemes";
+import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [wwbotaExpanded, setWwbotaExpanded] = useState(false);
+  const { containerRef } = useDraggablePosition("drag-map-legend");
 
   const activeItems = activeLayers
     .map(id => LAYER_GROUPS.find(g => g.id === id))
@@ -21,6 +23,7 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
       <button
         onClick={() => setHidden(false)}
         className="absolute bottom-16 left-3 z-[1000] w-8 h-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
+      style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}
         title="Legende einblenden"
       >
         <Layers className="w-3.5 h-3.5 text-gray-600" />
@@ -29,7 +32,7 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   }
 
   return (
-    <div className="absolute bottom-16 left-3 z-[1000] max-w-[calc(100%-11rem)] bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+    <div ref={containerRef} className="absolute bottom-16 left-3 z-[1000] max-w-[calc(100%-11rem)] bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       {/* Compact single-line header */}
       <div className="flex items-center gap-1.5 px-2.5 py-1.5">
         {castleStats && activeLayers.includes("castle") && (

@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { Crosshair, Radio } from "lucide-react";
+import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 export default function FoxHuntingSwitch({ mode, onModeChange }) {
   const [showHint, setShowHint] = useState(false);
+  const { containerRef } = useDraggablePosition("drag-fox-switch");
 
   const isFox = mode === "fox";
 
   return (
-    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[1005]">
+    <div ref={containerRef} className="absolute top-20 left-1/2 -translate-x-1/2 z-[1005]" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       <div className="bg-white shadow-lg rounded-full border border-gray-200 flex items-center p-0.5">
         <button
           onClick={() => onModeChange("fox")}

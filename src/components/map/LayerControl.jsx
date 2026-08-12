@@ -4,6 +4,7 @@ import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { LAYER_ESTIMATES, formatPointsShort } from "@/components/map/HeavyLoadConfirmDialog";
+import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 const LAYER_GROUPS = [
   {
@@ -115,6 +116,7 @@ const MAP_SCALES = [
 export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCountries, setShowCountries] = useState(false);
+  const { containerRef } = useDraggablePosition("drag-layer-control");
 
   // Countries to display: filtered by selected continents, or all if no continent selected
   const visibleCountries = activeContinents && activeContinents.length > 0
@@ -122,7 +124,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
     : COUNTRIES;
 
   return (
-    <div className="absolute top-16 right-3 z-[1005]">
+    <div ref={containerRef} className="absolute top-16 right-3 z-[1005]" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-white shadow-lg rounded-lg p-2.5 hover:bg-gray-50 transition-colors border border-gray-200"

@@ -3,6 +3,7 @@ import { Wifi, Search, ChevronDown, X, Info } from "lucide-react";
 import { NODE_TYPE_LABELS, NODE_COLORS } from "@/components/map/PrivateNodeLayer";
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
+import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 const ALL_TYPES = Object.keys(NODE_TYPE_LABELS);
 
@@ -19,6 +20,7 @@ export default function AprsFilter({
   leftOffsetClass = "left-16",
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { containerRef } = useDraggablePosition("drag-aprs-filter");
 
   // null or all = no filter (show everything); array = filter by selected types
   const allOn = !filterTypes || filterTypes.length === ALL_TYPES.length;
@@ -34,7 +36,7 @@ export default function AprsFilter({
   };
 
   return (
-    <div className={`absolute top-16 ${leftOffsetClass} z-[1005]`}>
+    <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1005]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`bg-white shadow-lg rounded-lg p-2.5 transition-colors border flex items-center gap-1.5 ${

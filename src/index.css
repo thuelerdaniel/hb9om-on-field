@@ -74,7 +74,7 @@
 /* Static red header for viewport limit hint (no blinking — keeps text readable) */
 
 .leaflet-control-attribution {
-  margin-bottom: calc(48px + env(safe-area-inset-bottom)) !important;
+  margin-bottom: calc(36px + env(safe-area-inset-bottom)) !important;
   border-radius: 4px 0 0 0 !important;
   background: rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(4px);

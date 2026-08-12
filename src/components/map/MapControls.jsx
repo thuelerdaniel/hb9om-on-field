@@ -1,5 +1,6 @@
 import React from "react";
 import { Plus, Minus, Search, Ruler } from "lucide-react";
+import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 const SCALE_LABELS = {
   10000: "1:10k",
@@ -18,9 +19,10 @@ export default function MapControls({
 }) {
   const scaleLabel = lockedScale ? SCALE_LABELS[lockedScale] : "Auto";
   const showScale = baseLayer === "swisstopo";
+  const { containerRef } = useDraggablePosition("drag-map-controls");
 
   return (
-    <div className="absolute right-3 top-28 z-[1000] flex flex-col gap-2">
+    <div ref={containerRef} className="absolute right-3 top-28 z-[1000] flex flex-col gap-2" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       {/* Zoom controls */}
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col items-center overflow-hidden">
         <button

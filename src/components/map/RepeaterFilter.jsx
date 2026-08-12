@@ -3,6 +3,7 @@ import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLi
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
+import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 export default function RepeaterFilter({
   filterModes,
@@ -28,6 +29,7 @@ export default function RepeaterFilter({
   const [isOpen, setIsOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCountryPanel, setShowCountryPanel] = useState(false);
+  const { containerRef } = useDraggablePosition("drag-repeater-filter");
 
   const toggleMode = (mode) => {
     if (filterModes.includes(mode)) {
@@ -87,7 +89,7 @@ export default function RepeaterFilter({
   const hasActiveAdvanced = !isAllSelected || showCoverage || showOnlyLinked || (radiusKm > 0);
 
   return (
-    <div className={`absolute top-16 ${leftOffsetClass} z-[1005]`}>
+    <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1005]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       {/* Toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}

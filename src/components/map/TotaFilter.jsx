@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { RadioTower, Signal, ChevronDown, X, Search, Info } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
+import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 const TOTA_TYPES = [
   { id: "tower", label: "Türme / Aussichtstürme", icon: RadioTower, color: "#f97316" },
@@ -22,6 +23,7 @@ export default function TotaFilter({
   leftOffsetClass = "left-16",
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { containerRef } = useDraggablePosition("drag-tota-filter");
 
   const allOn = !filterTypes || filterTypes.length === TOTA_TYPE_IDS.length;
   const noneOn = filterTypes && filterTypes.length === 0;
@@ -47,7 +49,7 @@ export default function TotaFilter({
   }, [points]);
 
   return (
-    <div className={`absolute top-16 ${leftOffsetClass} z-[1005]`}>
+    <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1005]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`bg-white shadow-lg rounded-lg p-2.5 transition-colors border flex items-center gap-1.5 ${
