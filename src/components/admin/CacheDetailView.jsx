@@ -11,7 +11,7 @@ import { base44 } from "@/api/base44Client";
 
 const PAGE_SIZE = 50;
 const LOAD_BATCH = 5000;
-const MAX_RECORDS = 50000; // Safety limit to avoid excessive loading
+const MAX_RECORDS = 200000; // Safety limit — POTA/WWFF can have 50k+ records
 
 const LAYER_CONFIG = {
   sota: { entity: "SotaPoint", refType: "sota", columns: [
@@ -120,33 +120,53 @@ function exportCsv(data, columns, filename) {
 }
 
 // Paginated loader: loads ALL records from an entity, bypassing the 5000-record
-// platform cap via ID-based cursor pagination. Sorts by _id ascending and uses
-// $gt on the last seen _id to fetch the next batch.
+// platform cap via deterministic id-sorted skip/offset pagination. Uses the same
+// proven pattern as paginatedLoader.js — list("id", BATCH, skip) with id-based
+// deduplication and stall detection. Cursor-based pagination ($gt on id) does not
+// work reliably with the SDK; skip-based pagination with id sort is stable because
+// id is unique per record.
 async function loadAllRecords(entityName, filter, onProgress) {
   const allRecords = [];
-  let lastId = null;
+  const seenIds = new Set();
+  let skip = 0;
+  let stallCount = 0;
 
   while (allRecords.length < MAX_RECORDS) {
-    let query;
-    if (filter) {
-      query = lastId ? { ...filter, _id: { $gt: lastId } } : filter;
-    } else {
-      query = lastId ? { _id: { $gt: lastId } } : {};
-    }
-
     let batch;
     try {
-      batch = await base44.entities[entityName].filter(query, "_id", LOAD_BATCH);
+      if (filter) {
+        batch = await base44.entities[entityName].filter(filter, "id", LOAD_BATCH, skip);
+      } else {
+        batch = await base44.entities[entityName].list("id", LOAD_BATCH, skip);
+      }
     } catch (e) {
       break;
     }
 
     if (!batch || batch.length === 0) break;
-    allRecords.push(...batch);
-    lastId = batch[batch.length - 1].id;
 
-    if (onProgress) onProgress(allRecords.length);
-    if (batch.length < LOAD_BATCH) break;
+    // Deduplicate by id — safety net against pagination instability
+    const newRecords = [];
+    for (const r of batch) {
+      if (r.id && !seenIds.has(r.id)) {
+        seenIds.add(r.id);
+        newRecords.push(r);
+      }
+    }
+
+    if (newRecords.length > 0) {
+      allRecords.push(...newRecords);
+      if (onProgress) onProgress(allRecords.length);
+    }
+
+    if (batch.length < LOAD_BATCH) break; // last page reached
+    if (newRecords.length === 0) {
+      stallCount++;
+      if (stallCount > 3) break;
+    } else {
+      stallCount = 0;
+    }
+    skip += LOAD_BATCH;
   }
 
   return allRecords;
