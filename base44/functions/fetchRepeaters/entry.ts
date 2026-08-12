@@ -92,6 +92,8 @@ export default async function(req) {
       power_source: r.power_source || 'unknown',
       source_id: r.sourceId,
       linked_callsigns: r.linked_callsigns || [],
+      locator: r.locator || '',
+      coords_from_locator: r.coords_from_locator || false,
     }));
 
     let created = 0;

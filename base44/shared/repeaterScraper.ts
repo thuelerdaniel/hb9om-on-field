@@ -13,16 +13,16 @@ const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
 
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 15000;
-const MAX_PER_COUNTRY = 200;
-const MAX_PER_COUNTRY_PRIORITY_1 = 1000; // Switzerland + neighbors — full detail
-const MAX_PER_COUNTRY_PRIORITY_2 = 150;  // Rest of Europe — key repeaters
-const MAX_PER_COUNTRY_PRIORITY_3 = 60;   // Asia, Africa, Americas, Oceania — major repeaters
-const MAX_PER_US_CA_REGION = 80;
+const MAX_DETAIL_FETCH = 30000;
+const MAX_PER_COUNTRY = 500;
+const MAX_PER_COUNTRY_PRIORITY_1 = 2000; // Switzerland + neighbors — full detail
+const MAX_PER_COUNTRY_PRIORITY_2 = 500;  // Rest of Europe — broad coverage
+const MAX_PER_COUNTRY_PRIORITY_3 = 200;   // Asia, Africa, Americas, Oceania — broad coverage
+const MAX_PER_US_CA_REGION = 300;
 const LIST_CONCURRENCY = 12;
 const DETAIL_CONCURRENCY = 120;
 const FETCH_TIMEOUT_MS = 8000;
-const DETAIL_DEADLINE_MS = 300000; // 300 seconds — allows ~3x more detail fetches worldwide
+const DETAIL_DEADLINE_MS = 480000; // 480 seconds — allows worldwide detail fetches
 
 // Fetch with timeout — prevents a single slow/stuck response from blocking the whole batch.
 // Aborts after FETCH_TIMEOUT_MS and returns null (caller treats as failed fetch).
@@ -391,7 +391,7 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
 
 // ─── Detail page parser ───
 
-export function parseRepeaterDetail(html: string): { lat: number | null; lng: number | null; web_url: string | null; echolink_node: string | null; network_links: string; has_emergency_power: boolean; power_source: string } {
+export function parseRepeaterDetail(html: string): { lat: number | null; lng: number | null; web_url: string | null; echolink_node: string | null; network_links: string; has_emergency_power: boolean; power_source: string; locator: string | null } {
   let lat: number | null = null;
   let lng: number | null = null;
   let web_url: string | null = null;
@@ -399,6 +399,7 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
   let network_links = '';
   let has_emergency_power = false;
   let power_source = 'unknown';
+  let locator: string | null = null;
 
   const gmMatch = html.match(/google\.com\/maps\/search\/[^"]*query=([\d.-]+)(?:%2C|,)([\d.-]+)/);
   if (gmMatch) {
@@ -445,6 +446,13 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
     }
   }
 
+  // Extract Maidenhead grid locator (Grid Square) — used for approximate coordinates
+  // RepeaterBook detail pages show it in a table row: <th>Grid</th><td>JN47QM</td>
+  const gridMatch = html.match(/<th[^>]*>\s*Grid(?:\s*Square)?\s*<\/th>\s*<td[^>]*>\s*([A-R]{2}\d{2}[A-X]{2})\s*<\/td>/i)
+    || html.match(/Grid(?:\s*Square)?:\s*([A-R]{2}\d{2}[A-X]{2})/i)
+    || html.match(/\b([A-R]{2}\d{2}[A-X]{2})\b/);
+  if (gridMatch) locator = gridMatch[1].toUpperCase();
+
   // Parse power / backup power info from detail page
   // RepeaterBook shows "Backup Power" and "Solar Power" as features
   const lowerHtml = html.toLowerCase();
@@ -460,7 +468,7 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
     if (power_source === 'unknown') power_source = 'netz';
   }
 
-  return { lat, lng, web_url, echolink_node, network_links, has_emergency_power, power_source };
+  return { lat, lng, web_url, echolink_node, network_links, has_emergency_power, power_source, locator };
 }
 
 // Parse the free-text network_links field into a list of linked repeater identifiers.
@@ -788,6 +796,7 @@ export async function fetchRepeaterData(): Promise<any[]> {
         if (detail.web_url) rep.web_url = detail.web_url;
         if (detail.echolink_node) rep.echolink_node = detail.echolink_node;
         if (detail.network_links) rep.network_links = detail.network_links;
+        if (detail.locator) rep.locator = detail.locator;
         if (detail.has_emergency_power) {
           rep.has_emergency_power = detail.has_emergency_power;
           rep.power_source = detail.power_source;
@@ -796,6 +805,20 @@ export async function fetchRepeaterData(): Promise<any[]> {
         // skip failed detail pages
       }
     }));
+  }
+
+  // 4b. For repeaters still without coordinates, try to derive approximate lat/lng
+  // from the Maidenhead grid locator extracted from the detail page.
+  // This gives an approximate position (±5km for 6-char locator) — marked as imprecise.
+  for (const rep of allRepeaters) {
+    if ((rep.lat === null || rep.lng === null) && rep.locator) {
+      const coords = maidenheadToLatLng(rep.locator);
+      if (coords) {
+        rep.lat = coords[0];
+        rep.lng = coords[1];
+        rep.coords_from_locator = true;
+      }
+    }
   }
 
   // 5. Build linking ONLY from actual crosslink data (network_links field).

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Landmark, Lightbulb, Globe, Mountain, TreePine, Shield, Flower, Link2, Headphones, RadioTower } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Landmark, Lightbulb, Globe, Mountain, TreePine, Shield, Flower, Link2, Headphones, RadioTower, Signal } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -13,6 +13,7 @@ const SOURCES = [
   { key: "iota", label: "IOTA (Welt)", icon: Globe, color: "text-blue-500" },
   { key: "tota", label: "TOTA (Welt)", icon: RadioTower, color: "text-orange-500", customFunction: "fetchTota", customPayload: { action: "fetchWorldwide" } },
   { key: "repeater", label: "Relais", icon: Radio, color: "text-cyan-500" },
+  { key: "aprs", label: "APRS.fi", icon: Signal, color: "text-purple-500", customFunction: "fetchAprsFi" },
   { key: "ch_repeater_links", label: "CH-Relais-Links", icon: Link2, color: "text-indigo-500", customFunction: "fetchCHRepeaterLinks" },
   { key: "fm_funknetz", label: "FM-Funknetz TGs", icon: Headphones, color: "text-green-500", customFunction: "fetchFmFunknetz" },
 ];

@@ -49,6 +49,15 @@
       "type": "number",
       "description": "Laengengrad"
     },
+    "locator": {
+      "type": "string",
+      "description": "Maidenhead Grid Locator (z.B. JN47QM) \u2013 falls vorhanden, wird fuer ungefaehre Position verwendet"
+    },
+    "coords_from_locator": {
+      "type": "boolean",
+      "default": false,
+      "description": "True wenn Koordinaten aus Maidenhead-Locator abgeleitet (ungenaue Position)"
+    },
     "band": {
       "type": "string",
       "description": "Band (10m, 6m, 4m, 2m, 70cm, 23cm)"

@@ -108,23 +108,50 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   const [refreshing, setRefreshing] = useState(false);
   const [detailLayer, setDetailLayer] = useState(null);
 
+  // Count ALL records in an entity, bypassing the 5000-record platform cap.
+  // Uses ID-based cursor pagination. Only paginates if the first batch hits the cap.
+  // Sequential execution with small delay to avoid rate-limiting (429).
+  async function countAllRecords(entityName, filter) {
+    try {
+      const firstQuery = filter || {};
+      const firstBatch = await base44.entities[entityName].filter(firstQuery, "_id", 5000);
+      if (!firstBatch || firstBatch.length < 5000) {
+        return firstBatch ? firstBatch.length : 0;
+      }
+      // Cap hit — paginate to get actual count
+      let count = firstBatch.length;
+      let lastId = firstBatch[firstBatch.length - 1].id;
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 300)); // Small delay to avoid 429
+        const query = filter ? { ...filter, _id: { $gt: lastId } } : { _id: { $gt: lastId } };
+        const batch = await base44.entities[entityName].filter(query, "_id", 5000);
+        if (!batch || batch.length === 0) break;
+        count += batch.length;
+        lastId = batch[batch.length - 1].id;
+        if (batch.length < 5000) break;
+      }
+      return count;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   const fetchExtraCounts = async () => {
     try {
       // Fetch direct entity counts for layers with their own entities.
-      // NOTE: filter({}) is platform-capped at 5000 records.
+      // Uses paginated counting to bypass the 5000-record platform cap.
+      // Sequential execution to avoid rate-limiting (429).
       // For SOTA/POTA/WWFF (which can have 100k+ records), we use ReferenceData.total_count
       // as the primary source, and only use direct entity count for smaller entities.
-      const [totaPoints, approvedLinks, repeaters, privateNodes] = await Promise.all([
-        base44.entities.TotaPoint.list("-created_date", 10000),
-        base44.entities.RepeaterLink.filter({ status: "approved" }),
-        base44.entities.Repeater.list("-created_date", 10000),
-        base44.entities.PrivateNode.list("-created_date", 10000),
-      ]);
+      const approvedLinks = await base44.entities.RepeaterLink.filter({ status: "approved" });
+      const repeaterCount = await countAllRecords("Repeater", null);
+      const totaCount = await countAllRecords("TotaPoint", null);
+      const privateNodeCount = await countAllRecords("PrivateNode", null);
       setExtraCounts({
-        tota: totaPoints?.length || 0,
+        tota: totaCount || 0,
         repeaterLinks: approvedLinks?.length || 0,
-        repeaters: repeaters?.length || 0,
-        privateNodes: privateNodes?.length || 0,
+        repeaters: repeaterCount || 0,
+        privateNodes: privateNodeCount || 0,
       });
     } catch (e) {
       setExtraCounts({ tota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0 });

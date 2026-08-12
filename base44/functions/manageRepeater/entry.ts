@@ -35,6 +35,21 @@ export default async function(req: any): Promise<Response> {
       return Response.json({ success: true, repeater: updated });
     }
 
+    if (action === 'setCoords') {
+      // Admin manually sets/overrides coordinates for a repeater with missing or imprecise position
+      const lat = parseFloat(body?.lat);
+      const lng = parseFloat(body?.lng);
+      if (isNaN(lat) || isNaN(lng)) {
+        return Response.json({ error: 'Valid lat and lng required' }, { status: 400 });
+      }
+      const updated = await base44.asServiceRole.entities.Repeater.update(repeaterId, {
+        lat,
+        lng,
+        coords_from_locator: false,
+      });
+      return Response.json({ success: true, repeater: updated });
+    }
+
     if (action === 'triggerCoverage') {
       // Mark single repeater for recalculation
       await base44.asServiceRole.entities.Repeater.update(repeaterId, { needs_recalc: true });
