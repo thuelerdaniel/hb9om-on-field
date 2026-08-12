@@ -1,9 +1,31 @@
 import React, { useState, useEffect } from "react";
-import { Radio, X, Coffee } from "lucide-react";
+import { Radio, X, Coffee, Database } from "lucide-react";
 import { APP_VERSION } from "@/lib/constants";
+import { base44 } from "@/api/base44Client";
 
 export default function SplashScreen({ onDismiss }) {
   const [visible, setVisible] = useState(true);
+  const [totalRecords, setTotalRecords] = useState(null);
+
+  // Fetch total record count from ReferenceData (fast — 7 records with total_count).
+  // Each reference type (sota, pota, hbff, wwbota, castle, lighthouse, iota) stores
+  // its total_count in the ReferenceData entity. We sum these for a quick total.
+  // Falls back gracefully if the API is unavailable.
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCount = async () => {
+      try {
+        const refData = await base44.entities.ReferenceData.list();
+        if (cancelled || !refData || refData.length === 0) return;
+        const total = refData.reduce((sum, r) => sum + (r.total_count || 0), 0);
+        if (!cancelled && total > 0) setTotalRecords(total);
+      } catch {
+        // Silent — splash screen works without the counter
+      }
+    };
+    fetchCount();
+    return () => { cancelled = true; };
+  }, []);
 
   // No internal auto-dismiss — parent controls timing (min 3s)
   const handleClose = () => {
@@ -12,6 +34,17 @@ export default function SplashScreen({ onDismiss }) {
   };
 
   if (!visible) return null;
+
+  // Format the count for display: e.g. 45000 → "45'000", 125000 → "125 Tausend"
+  const formatCount = (n) => {
+    if (n >= 1000) {
+      const thousands = Math.floor(n / 1000);
+      const remainder = n % 1000;
+      if (remainder === 0) return `${thousands}'000`;
+      return `${thousands}'${String(remainder).padStart(3, '0')}`;
+    }
+    return String(n);
+  };
 
   return (
     <div
@@ -52,6 +85,16 @@ export default function SplashScreen({ onDismiss }) {
             <span className="text-sm font-mono text-slate-200">Version {APP_VERSION}</span>
           </div>
         </a>
+
+        {/* Database record counter */}
+        {totalRecords != null && (
+          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-400/20">
+            <Database className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-xs text-blue-200">
+              Momentan pflegen wir <span className="font-bold text-blue-100">{formatCount(totalRecords)}</span> Datensätze in der App
+            </span>
+          </div>
+        )}
 
         {/* Donation hint */}
         <a

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { RadioTower, Loader2, Pencil, Search, MapPin, AlertTriangle, Check, X, Download } from "lucide-react";
+import { RadioTower, Loader2, Pencil, Search, MapPin, AlertTriangle, Check, X, Download, Zap } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 // Admin component: lists repeaters with missing or imprecise coordinates.
 // - No coordinates (lat/lng null) — admin can manually add lat/lng
 // - Coordinates from Maidenhead locator (coords_from_locator=true) — imprecise, admin can refine
-// Analogous to UnmatchedCastles for the castle layer.
+// - "Auto-Geocode" button: uses Nominatim API to geocode from location_name + country
+//   (marks results as imprecise — city-level accuracy, not exact repeater site)
 
 export default function UnmatchedRepeaters() {
   const [repeaters, setRepeaters] = useState([]);
@@ -16,6 +17,8 @@ export default function UnmatchedRepeaters() {
   const [latInput, setLatInput] = useState("");
   const [lngInput, setLngInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeProgress, setGeocodeProgress] = useState(null);
   const { toast } = useToast();
 
   const loadData = async () => {
@@ -84,6 +87,30 @@ export default function UnmatchedRepeaters() {
     }
   };
 
+  const handleAutoGeocode = async () => {
+    setGeocoding(true);
+    setGeocodeProgress(null);
+    try {
+      const res = await base44.functions.invoke("geocodeRepeaters", { maxGeocodes: 25 });
+      const data = res.data;
+      if (data?.status === "success") {
+        setGeocodeProgress(data);
+        toast({
+          title: "Auto-Geocodierung abgeschlossen",
+          description: `${data.geocoded} Orte geocodiert, ${data.updated_repeaters} Relais aktualisiert. ${data.places_remaining} Orte verbleibend — erneut ausführen für mehr.`,
+          duration: 6000,
+        });
+        loadData();
+      } else {
+        toast({ title: "Fehler", description: data?.error || "Unbekannter Fehler", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Fehler", description: e.message || "Unbekannter Fehler", variant: "destructive" });
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
   const noCoordsCount = repeaters.filter(r => !r.lat || !r.lng).length;
   const impreciseCount = repeaters.filter(r => r.coords_from_locator).length;
 
@@ -93,11 +120,37 @@ export default function UnmatchedRepeaters() {
         <RadioTower className="w-4 h-4" /> Relais ohne/ungenaue Koordinaten
       </h3>
       <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">
-        {repeaters.length} Relais — {noCoordsCount} ohne Koordinaten, {impreciseCount} ungenau (aus Locator)
+        {repeaters.length} Relais — {noCoordsCount} ohne Koordinaten, {impreciseCount} ungenau (aus Locator/Geocodierung)
       </p>
       <p className="text-[10px] text-gray-400 dark:text-slate-500 mb-3">
         Hier können Sie als Admin manuell Koordinaten ergänzen oder verfeinern. Relais ohne Koordinaten werden auf der Karte nicht angezeigt.
       </p>
+
+      {/* Auto-Geocode button */}
+      <div className="flex items-center gap-2 mb-3 p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/50">
+        <Zap className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-blue-900 dark:text-blue-200">
+            Auto-Geocodierung aus Ortsnamen
+          </p>
+          <p className="text-[10px] text-blue-600 dark:text-blue-400">
+            Verwendet OpenStreetMap Nominatim, um Relais aus Ortsnamen zu platzieren (stadtgenau, markiert als "ungenaue Position").
+          </p>
+          {geocodeProgress && (
+            <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5">
+              Letzte Ausführung: {geocodeProgress.geocoded} Orte, {geocodeProgress.updated_repeaters} Relais aktualisiert, {geocodeProgress.places_remaining} verbleibend
+            </p>
+          )}
+        </div>
+        <button
+          onClick={handleAutoGeocode}
+          disabled={geocoding || noCoordsCount === 0}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+        >
+          {geocoding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+          {geocoding ? "Geocodiere..." : "Auto-Geocode"}
+        </button>
+      </div>
 
       <div className="relative mb-3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
@@ -120,7 +173,7 @@ export default function UnmatchedRepeaters() {
                     <span className="font-mono text-xs font-semibold text-gray-700 dark:text-slate-300">{r.callsign}</span>
                     <span className="text-[10px] text-gray-500">{r.frequency?.toFixed(4)} MHz</span>
                     {r.coords_from_locator ? (
-                      <span className="text-[9px] text-amber-600 flex items-center gap-0.5" title="Position aus Maidenhead-Locator abgeleitet (±5 km ungenau)">
+                      <span className="text-[9px] text-amber-600 flex items-center gap-0.5" title="Position aus Maidenhead-Locator oder Geocodierung abgeleitet (stadtgenau, nicht exakter Standort)">
                         <AlertTriangle className="w-2.5 h-2.5" /> ungenau
                       </span>
                     ) : (

@@ -36,7 +36,7 @@ import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import { FILTER_MODES as REPEATER_FILTER_MODES } from "@/lib/repeaterModes";
 import { loadOfflineReferences, getOfflineAreas } from "@/lib/offlineMapStore";
-import { loadAllPrivateNodes } from "@/lib/paginatedLoader";
+import { loadAllPrivateNodes, loadAllRepeaters } from "@/lib/paginatedLoader";
 import { cacheReferenceData, loadCachedReferenceData, loadCachedReferenceType, cacheOverrides, loadCachedOverrides, cacheQrzLookups, loadCachedPrivateNodes, loadCachedRepeaters, loadCachedTota } from "@/lib/offlineDataCache";
 import { isInContinents, CONTINENTS } from "@/lib/continents";
 import { isInCountries, COUNTRIES, getCountriesByContinent } from "@/lib/countries";
@@ -983,7 +983,13 @@ export default function Home() {
     repeaterServerLoadedRef.current = true;
     enqueueWorldwideFetch(async () => {
       try {
-        const data = await base44.entities.Repeater.list("-created_date", 10000);
+        const data = await loadAllRepeaters({
+          onBatch: (batch, totalLoaded) => {
+            // Progressive display: show first batch immediately, then grow
+            setRepeaters(prev => prev.length === 0 ? batch : [...prev, ...batch]);
+          },
+        });
+        // Final set ensures dedup and complete data
         if (data && data.length > 0) setRepeaters(data);
       } catch (e) { /* silent */ }
     });

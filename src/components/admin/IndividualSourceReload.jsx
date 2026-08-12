@@ -3,13 +3,41 @@ import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Land
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
+// Lighthouse regions — individual buttons for sequential scraping.
+// Each region can be triggered separately to avoid Overpass timeouts.
+const LIGHTHOUSE_REGION_SOURCES = [
+  { id: 'eu_north', label: 'LH Nordeuropa' },
+  { id: 'eu_central', label: 'LH Mitteleuropa' },
+  { id: 'eu_south', label: 'LH Südeuropa' },
+  { id: 'eu_east', label: 'LH Osteuropa' },
+  { id: 'na_east', label: 'LH NA-Ost' },
+  { id: 'na_west', label: 'LH NA-West' },
+  { id: 'na_central', label: 'LH NA-Mitte' },
+  { id: 'caribbean', label: 'LH Karibik' },
+  { id: 'sa', label: 'LH Südamerika' },
+  { id: 'africa', label: 'LH Afrika' },
+  { id: 'meast', label: 'LH Naher Osten' },
+  { id: 'sasia', label: 'LH Südasien' },
+  { id: 'easia', label: 'LH Ostasien' },
+  { id: 'seasia', label: 'LH Südostasien' },
+  { id: 'oceania', label: 'LH Ozeanien' },
+].map(r => ({
+  key: `lighthouse_${r.id}`,
+  label: r.label,
+  icon: Lightbulb,
+  color: "text-yellow-500",
+  customFunction: "fetchLighthouses",
+  customPayload: { region: r.id },
+}));
+
 const SOURCES = [
   { key: "sota", label: "SOTA", icon: Mountain, color: "text-red-500" },
   { key: "pota", label: "POTA", icon: TreePine, color: "text-green-500" },
   { key: "hbff", label: "WWFF", icon: Flower, color: "text-purple-500" },
   { key: "wwbota", label: "WWBOTA", icon: Shield, color: "text-amber-700" },
   { key: "castle", label: "Burgen/Schlösser (Welt)", icon: Landmark, color: "text-orange-500" },
-  { key: "lighthouse", label: "Leuchttürme", icon: Lightbulb, color: "text-yellow-500" },
+  { key: "lighthouse", label: "Leuchttürme (Alle)", icon: Lightbulb, color: "text-yellow-500", customFunction: "fetchLighthouses", customPayload: { region: "all" } },
+  ...LIGHTHOUSE_REGION_SOURCES,
   { key: "iota", label: "IOTA (Welt)", icon: Globe, color: "text-blue-500" },
   { key: "tota", label: "TOTA (Welt)", icon: RadioTower, color: "text-orange-500", customFunction: "fetchTota", customPayload: { action: "fetchWorldwide" } },
   { key: "repeater", label: "Relais", icon: Radio, color: "text-cyan-500" },
@@ -165,7 +193,7 @@ export default function IndividualSourceReload() {
               <span className="font-semibold text-gray-900 dark:text-slate-100 min-w-[80px]">{r.label}</span>
               {r.status === "success" ? (
                 <span className="text-gray-600 dark:text-slate-400">
-                  {r.count} Einträge · {r.withCoords} geo · {r.withoutCoords} offen
+                  {r.count} Einträge{r.withCoords != null ? ` · ${r.withCoords} geo · ${r.withoutCoords} offen` : ""}
                 </span>
               ) : (
                 <span className="text-red-600 truncate">{r.error}</span>

@@ -258,17 +258,54 @@ export async function fetchWwbotaData(): Promise<any[]> {
   return bunkers;
 }
 
-export async function fetchLighthouseData(): Promise<any[]> {
-  // Fetch lighthouses worldwide from OSM Overpass API — 2 batches to avoid timeout
-  const BBOXES = [
-    [-60, -180, 85, 180],    // Europe + Asia + Africa (large batch)
-    [-60, -180, 15, -30],    // Americas + Oceania
-  ];
+// Lighthouse regions — smaller bboxes queried sequentially to avoid Overpass timeouts.
+// Each region can be fetched individually via fetchLighthouseData(regionId).
+// The daily refresh orchestrator lists each region separately so admins can trigger
+// individual region updates without waiting for a full worldwide fetch.
+export const LIGHTHOUSE_REGIONS = [
+  { id: 'eu_north', label: 'Leuchttürme Nordeuropa', bbox: [55, -15, 72, 40] },
+  { id: 'eu_central', label: 'Leuchttürme Mitteleuropa', bbox: [45, -10, 56, 30] },
+  { id: 'eu_south', label: 'Leuchttürme Südeuropa', bbox: [35, -10, 46, 30] },
+  { id: 'eu_east', label: 'Leuchttürme Osteuropa', bbox: [40, 20, 60, 60] },
+  { id: 'na_east', label: 'Leuchttürme Nordamerika Ost', bbox: [25, -90, 70, -50] },
+  { id: 'na_west', label: 'Leuchttürme Nordamerika West', bbox: [25, -170, 70, -120] },
+  { id: 'na_central', label: 'Leuchttürme Nordamerika Mitte', bbox: [15, -120, 50, -90] },
+  { id: 'caribbean', label: 'Leuchttürme Karibik', bbox: [10, -90, 30, -60] },
+  { id: 'sa', label: 'Leuchttürme Südamerika', bbox: [-60, -85, 15, -35] },
+  { id: 'africa', label: 'Leuchttürme Afrika', bbox: [-40, -20, 40, 55] },
+  { id: 'meast', label: 'Leuchttürme Naher Osten', bbox: [12, 25, 45, 65] },
+  { id: 'sasia', label: 'Leuchttürme Südasien', bbox: [5, 60, 40, 100] },
+  { id: 'easia', label: 'Leuchttürme Ostasien', bbox: [20, 100, 70, 180] },
+  { id: 'seasia', label: 'Leuchttürme Südostasien', bbox: [-15, 90, 25, 145] },
+  { id: 'oceania', label: 'Leuchttürme Ozeanien', bbox: [-50, 110, 0, 180] },
+];
+
+// Curated Swiss ARLHS WLOL lighthouses (verified coordinates — always included)
+const SWISS_LIGHTHOUSES = [
+  { code: 'SWI-001', name: 'Phare des Pâquis (Genf)', lat: 46.2100, lng: 6.1570, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI1.html' },
+  { code: 'SWI-002', name: 'Genève Jetée du Sud (Genf)', lat: 46.2080, lng: 6.1560, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI2.html' },
+  { code: 'SWI-003', name: 'Morges Jetée du Sud', lat: 46.5061, lng: 6.4990, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI3.html' },
+  { code: 'SWI-004', name: 'Morges Jetée du Nord', lat: 46.5065, lng: 6.4991, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI4.html' },
+  { code: 'SWI-005', name: 'Romanshorn Leuchtturm', lat: 47.5668, lng: 9.3922, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI5.html' },
+  { code: 'SWI-006', name: 'Rorschach Hafen Leuchtturm', lat: 47.4794, lng: 9.4946, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI6.html' },
+];
+
+// Fetch lighthouses from OSM Overpass API for a specific region or all regions.
+// regionId: one of LIGHTHOUSE_REGIONS[].id, or 'all' / undefined for all regions.
+// When fetching a single region, returns only lighthouses in that region's bbox.
+// Swiss curated lighthouses are always included (they're in the eu_central bbox).
+export async function fetchLighthouseData(regionId?: string): Promise<any[]> {
+  const regions = regionId && regionId !== 'all'
+    ? LIGHTHOUSE_REGIONS.filter(r => r.id === regionId)
+    : LIGHTHOUSE_REGIONS;
+
   const allLighthouses: any[] = [];
   const seen = new Set<string>();
-  for (const [south, west, north, east] of BBOXES) {
+
+  for (const region of regions) {
+    const [south, west, north, east] = region.bbox;
     try {
-      const query = `[out:json][timeout:90];(
+      const query = `[out:json][timeout:60];(
         node["man_made"="lighthouse"](${south},${west},${north},${east});
         way["man_made"="lighthouse"](${south},${west},${north},${east});
       );out center 5000;`;
@@ -292,24 +329,24 @@ export async function fetchLighthouseData(): Promise<any[]> {
           name, lat, lng,
           country: e.tags?.['addr:country'] || '',
           link: 'https://www.openstreetmap.org/',
+          region: region.id,
         });
       }
     } catch {}
-    await new Promise(r => setTimeout(r, 2000));
+    // Rate limit between regions (only when fetching multiple)
+    if (regions.length > 1) await new Promise(r => setTimeout(r, 1500));
   }
-  // Add curated Swiss ARLHS WLOL lighthouses (verified coordinates)
-  const swissLighthouses = [
-    { code: 'SWI-001', name: 'Phare des Pâquis (Genf)', lat: 46.2100, lng: 6.1570, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI1.html' },
-    { code: 'SWI-002', name: 'Genève Jetée du Sud (Genf)', lat: 46.2080, lng: 6.1560, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI2.html' },
-    { code: 'SWI-003', name: 'Morges Jetée du Sud', lat: 46.5061, lng: 6.4990, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI3.html' },
-    { code: 'SWI-004', name: 'Morges Jetée du Nord', lat: 46.5065, lng: 6.4991, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI4.html' },
-    { code: 'SWI-005', name: 'Romanshorn Leuchtturm', lat: 47.5668, lng: 9.3922, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI5.html' },
-    { code: 'SWI-006', name: 'Rorschach Hafen Leuchtturm', lat: 47.4794, lng: 9.4946, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI6.html' },
-  ];
-  for (const sl of swissLighthouses) {
-    const key = `${sl.lat.toFixed(3)},${sl.lng.toFixed(3)}`;
-    if (!seen.has(key)) allLighthouses.push(sl);
+
+  // Add curated Swiss lighthouses (always included, even for single-region fetches
+  // that cover Switzerland, i.e. eu_central)
+  const includeSwiss = !regionId || regionId === 'all' || regionId === 'eu_central';
+  if (includeSwiss) {
+    for (const sl of SWISS_LIGHTHOUSES) {
+      const key = `${sl.lat.toFixed(3)},${sl.lng.toFixed(3)}`;
+      if (!seen.has(key)) allLighthouses.push(sl);
+    }
   }
+
   return allLighthouses;
 }
 

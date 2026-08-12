@@ -1,15 +1,25 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { LIGHTHOUSE_REGIONS } from '../../shared/referenceFetchers.ts';
 
 // --- Source definitions ---
 // Each source has a function to call and a payload. The orchestrator assigns
 // a random time within 00:00-06:00 UTC to each source, different every day.
+// Lighthouse regions are listed individually so admins can trigger single-region
+// updates without waiting for a full worldwide fetch.
 const SOURCES = [
   { source: 'sota', label: 'SOTA', function_name: 'refreshDataSource', function_payload: { source: 'sota', scheduled: true }, order: 1 },
   { source: 'pota', label: 'POTA', function_name: 'refreshDataSource', function_payload: { source: 'pota', scheduled: true }, order: 2 },
   { source: 'hbff', label: 'WWFF', function_name: 'refreshDataSource', function_payload: { source: 'hbff', scheduled: true }, order: 3 },
   { source: 'wwbota', label: 'WWBOTA', function_name: 'refreshDataSource', function_payload: { source: 'wwbota', scheduled: true }, order: 4 },
   { source: 'castle', label: 'Burgen/Schlösser', function_name: 'refreshDataSource', function_payload: { source: 'castle', scheduled: true }, order: 5 },
-  { source: 'lighthouse', label: 'Leuchttürme', function_name: 'refreshDataSource', function_payload: { source: 'lighthouse', scheduled: true }, order: 6 },
+  // Lighthouse: individual regions (sequential scraping to avoid Overpass timeouts)
+  ...LIGHTHOUSE_REGIONS.map((r, i) => ({
+    source: `lighthouse_${r.id}`,
+    label: r.label,
+    function_name: 'fetchLighthouses',
+    function_payload: { region: r.id, scheduled: true },
+    order: 60 + i,
+  })),
   { source: 'iota', label: 'IOTA', function_name: 'refreshDataSource', function_payload: { source: 'iota', scheduled: true }, order: 7 },
   { source: 'aprs', label: 'APRS.fi', function_name: 'fetchAprsFi', function_payload: { scheduled: true }, order: 8 },
   { source: 'repeater', label: 'Relais weltweit', function_name: 'fetchRepeaters', function_payload: { scheduled: true }, order: 9 },

@@ -7,6 +7,18 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.81",
+    title: "Leuchtturm-Scraper sequenziell, Relais-Länder-Filter & Daten-Zähler",
+    changes: [
+      "Leuchtturm-Scraper auf 15 sequenzielle Regionen aufgeteilt — keine Timeouts mehr, einzelne Regionen im Aktualisierungsplan triggerbar",
+      "Relais-Länder-Filter repariert: Alle 31000+ Relais werden geladen (vorher nur 10000) — alle Länder wieder auswählbar",
+      "Daten-Zähler konsistent: Layer-Auswahl, Filter und Daten-Cache Übersicht zeigen jetzt die gleiche Gesamtzahl",
+      "Auto-Geocodierung: Relais ohne Koordinaten können aus Ortsnamen via OpenStreetMap Nominatim geocodiert werden (markiert als 'ungenaue Position')",
+      "Splash-Screen zeigt Datenbank-Zähler: 'Momentan pflegen wir XXXXX Datensätze in der App'",
+      "Leuchttürme: Mehr als 6 auf der Karte — sequenzieller Scraper pro Region löst das Timeout-Problem",
+    ],
+  },
+  {
     version: "0.8",
     title: "Weltweite Referenzen, Nordamerika-Relais & Performance",
     changes: [
