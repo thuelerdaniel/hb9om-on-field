@@ -7,6 +7,19 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.82",
+    title: "TOTA weltweit, IOTA erweitert & Multi-Filter",
+    changes: [
+      "TOTA weltweit: 5315 Türme & Antennen von wwtota.com importiert — Aussichtstürme und Sendetürme in aller Welt",
+      "IOTA erweitert: 326 Inselgruppen (vorher 228) — Afrika, Asien, Nord- und Südamerika, Ozeanien ergänzt via KI-Geocodierung",
+      "Multi-Select Länder-Filter: TOTA, APRS und BrandMeister jetzt mit mehrfacher Länder- und Kontinent-Auswahl (wie SOTA/POTA)",
+      "Leuchttürme laden sofort: Alle 9753 Leuchttürme aus ReferenceData statt auf Hintergrund-Fetch zu warten",
+      "Stabile Zähler: ReferenceData.total_count als autoritative Gesamtzahl — keine springenden Zähler mehr zwischen Paginierungsläufen",
+      "Paginierung repariert: id-basierte Sortierung für Relais (31000+) und APRS-Nodes — deterministisch, keine Duplikate oder fehlende Datensätze",
+      "Legende bereinigt: Irreführende Referenz-Anzahl aus der Legende entfernt",
+    ],
+  },
+  {
     version: "0.81",
     title: "Leuchtturm-Scraper sequenziell, Relais-Länder-Filter & Daten-Zähler",
     changes: [
