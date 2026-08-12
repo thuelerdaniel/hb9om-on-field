@@ -11,7 +11,10 @@
         "wwbota",
         "castle",
         "lighthouse",
-        "iota"
+        "iota",
+        "repeater",
+        "aprs",
+        "tota"
       ],
       "description": "Referenz-Typ"
     },
@@ -20,11 +23,11 @@
       "items": {
         "type": "object"
       },
-      "description": "Array der zwischengespeicherten Referenzdaten"
+      "description": "Array der zwischengespeicherten Referenzdaten (bei repeater/aprs/tota: Metadaten-Objekt mit withCoords/withoutCoords)"
     },
     "total_count": {
       "type": "number",
-      "description": "Anzahl der Referenzen"
+      "description": "Anzahl der Referenzen (vom Backend beim Refresh gesetzt \u2014 stabile, autoritative Gesamtzahl)"
     },
     "source": {
       "type": "string",

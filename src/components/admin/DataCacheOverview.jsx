@@ -109,16 +109,14 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   const [detailLayer, setDetailLayer] = useState(null);
 
   // Count ALL records in an entity, bypassing the 5000-record platform cap.
-  // Uses skip/offset pagination (list method supports skip parameter).
-  // Sequential execution with small delay to avoid rate-limiting (429).
+  // Uses deterministic _id-sorted skip/offset pagination. Only used as FALLBACK
+  // when ReferenceData.total_count is not available (i.e. before the first refresh).
   async function countAllRecords(entityName, filter) {
     try {
-      // For filter queries (e.g. approved links), use filter method (small datasets)
       if (filter) {
         const results = await base44.entities[entityName].filter(filter);
         return { total: results ? results.length : 0, withCoords: 0 };
       }
-      // For full counts, use skip-based pagination — also count records with coordinates
       let count = 0;
       let withCoords = 0;
       const BATCH = 5000;
@@ -128,7 +126,6 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
         count += batch.length;
         withCoords += batch.filter(r => r.lat != null && r.lng != null).length;
         if (batch.length < BATCH) break;
-        await new Promise(r => setTimeout(r, 200)); // Small delay to avoid 429
       }
       return { total: count, withCoords };
     } catch (e) {
@@ -138,13 +135,21 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
 
   const fetchExtraCounts = async () => {
     try {
-      // Fetch direct entity counts for layers with their own entities.
-      // Uses paginated counting to bypass the 5000-record platform cap.
-      // Sequential execution to avoid rate-limiting (429).
-      // For SOTA/POTA/WWFF (which can have 100k+ records), we use ReferenceData.total_count
-      // as the primary source, and only use direct entity count for smaller entities.
       const approvedLinks = await base44.entities.RepeaterLink.filter({ status: "approved" });
-      const repeaterStats = await countAllRecords("Repeater", null);
+
+      // Repeater count: use ReferenceData.total_count (stable, set by backend during
+      // refresh) as primary source. Only fall back to pagination if no stored count
+      // exists (before the first refresh). This prevents the count from jumping
+      // between paginated runs — the stored count is the authoritative total.
+      const repRefEntry = (cacheStatus || []).find(e => e.type === "repeater");
+      let repeaterStats;
+      if (repRefEntry?.total_count) {
+        const meta = repRefEntry.references?.[0] || {};
+        repeaterStats = { total: repRefEntry.total_count, withCoords: meta.withCoords || 0 };
+      } else {
+        repeaterStats = await countAllRecords("Repeater", null);
+      }
+
       const totaStats = await countAllRecords("TotaPoint", null);
       const privateNodeStats = await countAllRecords("PrivateNode", null);
       setExtraCounts({
@@ -183,9 +188,13 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
 
   // Build repeater data from coverageProgress (for coverage stats only, NOT for count)
   const repData = coverageProgress?.global || null;
-  // Repeater count comes ONLY from direct entity count (coverageProgress is capped at 10000)
-  const repeaterCount = extraCounts?.repeaters ?? null; // null = still counting
-  const repeatersWithCoords = extraCounts?.repeatersWithCoords ?? null;
+  // Repeater count: primary source is ReferenceData.total_count (stable, set by backend
+  // during refresh). Fallback to extraCounts (paginated count) only if no stored count.
+  // This prevents the count from jumping between runs — the stored value is authoritative.
+  const repeaterRefEntry = refDataMap["repeater"];
+  const repeaterMeta = repeaterRefEntry?.references?.[0] || {};
+  const repeaterCount = repeaterRefEntry?.total_count ?? extraCounts?.repeaters ?? null;
+  const repeatersWithCoords = repeaterMeta.withCoords ?? extraCounts?.repeatersWithCoords ?? null;
   const aprsCount = extraCounts?.privateNodes ?? aprsCache?.total ?? 0;
 
   // For layers with their own entities, use the most reliable count source.
@@ -193,7 +202,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   // (set by backend during refresh) as primary, with references array as fallback.
   // Repeater/PrivateNode/TOTA: use direct entity count (smaller, under 5000 cap).
   const getLayerCount = (layerKey, refEntry) => {
-    if (layerKey === "repeater") return extraCounts?.repeaters ?? 0;
+    if (layerKey === "repeater") return refEntry?.total_count ?? (extraCounts?.repeaters ?? 0);
     if (layerKey === "aprs") return extraCounts?.privateNodes ?? 0;
     if (layerKey === "tota") return extraCounts?.tota ?? 0;
     if (layerKey === "repeaterLinks") return extraCounts?.repeaterLinks ?? 0;
@@ -291,7 +300,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           label="Relais"
           icon={RadioTower}
           color="text-blue-500"
-          tooltip="Amateurfunk-Relais weltweit (FM, DMR, D-STAR, Fusion etc.). Daten von RepeaterBook.com, ukrepeater.net, WIA, dstarusers.org. Anzahl aus direktem Entity-Count (Repeater.list)."
+          tooltip="Amateurfunk-Relais weltweit (FM, DMR, D-STAR, Fusion etc.). Daten von RepeaterBook.com, ukrepeater.net, WIA, dstarusers.org. Gesamtzahl aus ReferenceData.total_count (vom Backend beim Refresh gesetzt — stabil, keine Pagination nötig)."
           count={repeaterCount ?? 0}
           withCoords={repeatersWithCoords}
           total={repeaterCount ?? 0}

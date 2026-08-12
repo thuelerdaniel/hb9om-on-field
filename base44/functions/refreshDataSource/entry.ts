@@ -100,6 +100,22 @@ export default async function(req: Request): Promise<Response> {
         await base44.asServiceRole.entities.Repeater.bulkCreate(repRecords.slice(i, i + 100));
       }
       savedCount = repRecords.length;
+
+      // Store stable count metadata in ReferenceData for the admin overview
+      try {
+        const repWithCoords = repRecords.filter((r: any) => r.lat != null && r.lng != null).length;
+        const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'repeater' });
+        const countMeta = [{ withCoords: repWithCoords, withoutCoords: savedCount - repWithCoords }];
+        if (existing.length > 0) {
+          await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
+            references: countMeta, total_count: savedCount, source, last_updated: now
+          });
+        } else {
+          await base44.asServiceRole.entities.ReferenceData.create({
+            type: 'repeater', references: countMeta, total_count: savedCount, source, last_updated: now
+          });
+        }
+      } catch {}
     } else if (POINT_ENTITY_MAP[source]) {
       // Save sota/pota/hbff as individual point records (avoids 16MB document limit)
       const ptConfig = POINT_ENTITY_MAP[source];

@@ -242,6 +242,26 @@ export default async function(req) {
       // in the entity. Links are built by the scanRepeaterLinks function separately.
     } catch {}
 
+    // --- Step 5: Store stable count metadata in ReferenceData ---
+    // The DataCacheOverview reads this instead of paginating through all records
+    // on every mount — gives a stable, instant count that doesn't jump.
+    currentStep = 'store_count';
+    try {
+      const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'repeater' });
+      const countMeta = [{ withCoords, withoutCoords: totalSaved - withCoords, countries: Object.keys(countryBreakdown).length }];
+      if (existing.length > 0) {
+        await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
+          references: countMeta, total_count: totalSaved,
+          source: 'RepeaterBook + ukrepeater.net', last_updated: new Date().toISOString()
+        });
+      } else {
+        await base44.asServiceRole.entities.ReferenceData.create({
+          type: 'repeater', references: countMeta, total_count: totalSaved,
+          source: 'RepeaterBook + ukrepeater.net', last_updated: new Date().toISOString()
+        });
+      }
+    } catch {}
+
     return Response.json({
       status: 'success',
       total_saved: totalSaved,
