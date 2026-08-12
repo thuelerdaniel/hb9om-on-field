@@ -62,10 +62,14 @@ export default function TotaLayer({
           (p.usage || "").toLowerCase().includes(q)
       );
     }
-    // Apply continent/country filters (same logic as MapMarkers for SOTA/POTA)
-    result = result
-      .filter(p => isInContinents(p.lat, p.lng, activeContinents))
-      .filter(p => isInCountries(p, activeCountries));
+    // Per-layer country filter overrides global LayerControl country filter.
+    // When a specific country is selected in the TotaFilter, the global
+    // activeContinents/activeCountries from LayerControl are NOT applied.
+    if (filterCountry === "all") {
+      result = result
+        .filter(p => isInContinents(p.lat, p.lng, activeContinents))
+        .filter(p => isInCountries(p, activeCountries));
+    }
     return result;
   }, [points, filterTypes, searchQuery, activeContinents, activeCountries, filterCountry]);
 

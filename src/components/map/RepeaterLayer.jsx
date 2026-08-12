@@ -104,21 +104,24 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     let result = repeaters;
     // Exclude repeaters without coordinates — they can't be placed on the map
     result = result.filter(r => r.lat != null && r.lng != null);
-    // Apply LayerControl continent/country filter (same as other markers)
-    if (activeContinents && activeContinents.length > 0) {
-      result = result.filter(r => r.lat != null && r.lng != null && isInContinents(r.lat, r.lng, activeContinents));
-    }
-    if (activeCountries && activeCountries.length > 0) {
-      result = result.filter(r => isInCountries({ ...r, layerType: 'repeater' }, activeCountries));
-    }
-    if (filterCountry && filterCountry !== "all") {
-      if (filterCountry.startsWith("continent:")) {
-        const contId = filterCountry.split(":")[1];
-        const contCountries = getCountriesByContinent(contId).map(c => c.iso2);
-        result = result.filter(r => contCountries.includes(r.country_code));
-      } else {
-        result = result.filter(r => r.country_code === filterCountry);
+    // Per-layer country filter overrides global LayerControl country filter.
+    // When a specific country/continent is selected in the RepeaterFilter,
+    // the global activeContinents/activeCountries from LayerControl are NOT
+    // applied — so the user can show "Schweiz" globally for SOTA/POTA but
+    // still see German repeaters by selecting Germany in the RepeaterFilter.
+    if (filterCountry === "all") {
+      if (activeContinents && activeContinents.length > 0) {
+        result = result.filter(r => r.lat != null && r.lng != null && isInContinents(r.lat, r.lng, activeContinents));
       }
+      if (activeCountries && activeCountries.length > 0) {
+        result = result.filter(r => isInCountries({ ...r, layerType: 'repeater' }, activeCountries));
+      }
+    } else if (filterCountry.startsWith("continent:")) {
+      const contId = filterCountry.split(":")[1];
+      const contCountries = getCountriesByContinent(contId).map(c => c.iso2);
+      result = result.filter(r => contCountries.includes(r.country_code));
+    } else {
+      result = result.filter(r => r.country_code === filterCountry);
     }
     // No modes selected = NO repeaters shown (user must actively choose at least one mode)
     if (!filterModes || filterModes.length === 0) {
@@ -452,9 +455,15 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
   const MAX = 1000;
   const cappedRepeaters = visibleRepeaters.length > MAX ? visibleRepeaters.slice(0, MAX) : visibleRepeaters;
 
-  const visibleLines = allLines.filter(line =>
-    paddedBounds.contains(line.positions[0]) && paddedBounds.contains(line.positions[1])
-  );
+  // Only show link lines where BOTH endpoints are actually rendered as markers.
+  // cappedRepeaters may be a subset of filteredRepeaters (MAX limit), so lines
+  // connecting to repeaters outside the cap would appear without markers.
+  const cappedPositionSet = new Set(cappedRepeaters.map(r => `${r.lat.toFixed(5)},${r.lng.toFixed(5)}`));
+  const visibleLines = allLines.filter(line => {
+    const [p1, p2] = line.positions;
+    return cappedPositionSet.has(`${p1[0].toFixed(5)},${p1[1].toFixed(5)}`) &&
+           cappedPositionSet.has(`${p2[0].toFixed(5)},${p2[1].toFixed(5)}`);
+  });
 
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   const circleRadius = performanceMode ? (isTouch ? 8 : 6) : (isTouch ? 10 : 8);

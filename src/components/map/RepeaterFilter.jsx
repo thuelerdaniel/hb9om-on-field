@@ -136,6 +136,9 @@ export default function RepeaterFilter({
                 })}
               </div>
               {/* Country list — filtered by selected continent if applicable */}
+              <p className="text-[10px] text-blue-600 mb-1 font-medium">
+                ℹ Überschreibt den globalen Länder-Filter aus dem Ebenen-Menü für Relais.
+              </p>
               <div className="max-h-32 overflow-y-auto space-y-0.5">
                 {(() => {
                   let displayCountries = sortedCountries;

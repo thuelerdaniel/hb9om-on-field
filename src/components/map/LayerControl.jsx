@@ -258,7 +258,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             </button>
             {showCountries && (
               <>
-                <p className="text-[10px] text-gray-400 mb-2">Einzelne Länder ein/aus. Alle = keine Auswahl. Funktioniert für SOTA, POTA und Relais.</p>
+                <p className="text-[10px] text-gray-400 mb-2">Einzelne Länder ein/aus. Alle = keine Auswahl. Gilt für SOTA, POTA, Burgen, IOTA, Leuchttürme und WWBOTA. Bei Relais und TOTA überschreibt der jeweilige Layer-Filter diesen globalen Filter.</p>
                 <button
                   onClick={() => {
                     if (activeCountries && activeCountries.length > 0) {

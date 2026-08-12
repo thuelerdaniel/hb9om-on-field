@@ -150,6 +150,9 @@ export default function TotaFilter({
           {/* Country filter */}
           {countries.length > 1 && (
             <div className="p-3 border-b border-gray-100">
+              <p className="text-[10px] text-blue-600 mb-1.5 font-medium">
+                ℹ Überschreibt den globalen Länder-Filter aus dem Ebenen-Menü für TOTA.
+              </p>
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
                   <Globe className="w-3 h-3" /> Land

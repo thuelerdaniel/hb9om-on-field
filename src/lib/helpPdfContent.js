@@ -687,10 +687,10 @@ export const SECTIONS = [
       },
       {
         title: "Relais-Verlinkungen",
-        body: "Relais-Verlinkungen (Linien zwischen Relais) werden nur angezeigt, wenn RepeaterBook.com tatsaechliche Crosslink-Daten fuer ein Relais enthaelt (Feld «Crosslinked to / with»). Gleiches Rufzeichen auf unterschiedlichen Baendern bedeutet NICHT automatisch, dass die Relais zusammengeschaltet sind. Viele Relais teilen sich ein Rufzeichen, arbeiten aber unabhaengig. Die Verlinkungs-Linien zeigen ausschliesslich echte, von der Quelle bestaetigte Querverbindungen.",
+        body: "Relais-Verlinkungen (Linien zwischen Relais) werden nur angezeigt, wenn beide Relais-Marker tatsaechlich auf der Karte sichtbar sind und RepeaterBook.com tatsaechliche Crosslink-Daten enthaelt. Gleiches Rufzeichen auf unterschiedlichen Baendern bedeutet NICHT automatisch, dass die Relais zusammengeschaltet sind. Die Verlinkungs-Linien zeigen ausschliesslich echte, von der Quelle bestaetigte Querverbindungen. Wenn durch Viewport-Capping ein Relais nicht als Marker dargestellt wird, werden auch seine Linien ausgeblendet.",
         steps: [
           { icon: "link2", text: "Verlinkungs-Button (Ketten-Icon) aktivieren" },
-          { icon: "check", text: "Linien erscheinen nur bei echten Crosslinks" },
+          { icon: "check", text: "Linien erscheinen nur bei sichtbaren Relais mit echten Crosslinks" },
           { icon: "eye", text: "Im Popup werden verlinkte Relais nur bei echten Daten angezeigt" }
         ],
         tip: "Tipp: Da viele Relais-Betreiber das Crosslink-Feld nicht ausfuellen, werden oft keine Linien angezeigt. Das ist korrekt – es werden keine falschen Verlinkungen dargestellt."
@@ -746,15 +746,47 @@ export const SECTIONS = [
         tip: "Tipp: Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais. Wahlen Sie ein Land, um nur Relais dieses Landes zu sehen. Wenn ein Land fehlt, wurden noch keine Relais abgefragt – Admins koennen die Daten aktualisieren."
       },
       {
-        title: "Relais-Lade-Reihenfolge (Lokal zuerst, dann Server)",
-        body: "Wenn der Relais-Layer aktiviert wird, laedt die App die Relais in zwei Schritten: 1) Zuerst werden die Relais aus dem lokalen Cache (Offline-Download) geladen – das passiert sofort. 2) Wenn Sie online sind, wird anschliessend im Hintergrund der vollstaendige Datensatz vom Server geladen und ersetzt die lokalen Daten. So ist sichergestellt, dass die Karte immer komplett ist, wenn Sie online sind – auch wenn der lokale Cache unvollstaendig oder veraltet ist. Im Offline-Modus wird nur der lokale Cache verwendet.",
+        title: "Lade-Reihenfolge: Lokal zuerst, dann Server (alle Layer)",
+        body: "Alle Layer (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttuerme, Relais, APRS, TOTA) laden in zwei Schritten: 1) Zuerst werden die Daten aus dem lokalen Cache (Offline-Download) geladen – das passiert sofort. 2) Wenn Sie online sind, wird anschliessend im Hintergrund der vollstaendige Datensatz vom Server geladen und ersetzt die lokalen Daten. Bei langsamer oder fehlender Verbindung wird der Server-Fetch im Hintergrund fortgesetzt; schlaegt er fehl, bleiben die lokalen Daten sichtbar. Im Offline-Modus wird nur der lokale Cache verwendet.",
         steps: [
-          { icon: "layers", text: "Relais-Layer aktivieren – lokale Relais erscheinen sofort" },
+          { icon: "layers", text: "Layer aktivieren – lokale Daten erscheinen sofort" },
           { icon: "cloud", text: "Online: Server laedt kompletten Datensatz im Hintergrund" },
-          { icon: "check", text: "Karte zeigt alle 2300+ Relais aus 7 Laendern" },
+          { icon: "check", text: "Karte zeigt alle Daten (z.B. 2300+ Relais aus 7 Laendern)" },
           { icon: "wifiOff", text: "Offline: nur lokaler Cache wird verwendet" }
         ],
-        tip: "Tipp: Wenn der lokale Cache nur 100 Relais pro Land enthaelt (alte Version), werden beim Online-Gehen alle fehlenden Relais vom Server nachgeladen."
+        tip: "Tipp: Diese Logik gilt fuer alle Layer – nicht nur Relais. Stale lokale Caches werden immer durch den Server ersetzt, wenn online."
+      },
+      {
+        title: "Layer-Filter ueberschreibt globalen Laender-Filter",
+        body: "Wenn Sie im Ebenen-Menue einen Laender-Filter aktivieren (z.B. nur Schweiz), gilt dieser fuer SOTA, POTA, Burgen, IOTA, Leuchttuerme und WWBOTA. Bei Layern mit eigenem Laender-Filter (Relais, TOTA) ueberschreibt der Layer-Filter den globalen Filter: Sie koennen global «nur Schweiz» fuer SOTA/POTA einstellen und im Relais-Filter trotzdem Deutschland auswaehlen.",
+        steps: [
+          { icon: "layers", text: "Global: Laender-Filter im Ebenen-Menue auf Schweiz setzen" },
+          { icon: "radioTower", text: "Relais-Filter: Deutschland auswaehlen" },
+          { icon: "check", text: "Deutsche Relais werden angezeigt, SOTA/POTA nur Schweizer Gipfel" },
+          { icon: "globe", text: "Bei «Alle» im Layer-Filter gilt der globale Filter normal" }
+        ],
+        tip: "Tipp: Der Layer-spezifische Filter hat Vorrang – so koennen Sie verschiedene Layer unabhaengig filtern."
+      },
+      {
+        title: "Verlinkungen nur bei sichtbaren Relais",
+        body: "Verlinkungslinien zwischen Relais werden nur gezeichnet, wenn beide Relais-Marker tatsaechlich auf der Karte sichtbar sind. Wenn durch das Viewport-Capping (max. 1000 Marker pro Ausschnitt) ein Relais nicht als Marker dargestellt wird, werden auch seine Verlinkungslinien ausgeblendet. So entstehen keine Geister-Linien zu unsichtbaren Relais.",
+        steps: [
+          { icon: "link2", text: "Verlinkungen erscheinen nur bei sichtbaren Relais-Markern" },
+          { icon: "zoomIn", text: "Hineinzoomen: weniger Marker, aber dafuer mit Verlinkungen" },
+          { icon: "zoomOut", text: "Herauszoomen: mehr Marker und Verlinkungen erscheinen" }
+        ],
+        tip: "Tipp: Verlinkungen erscheinen nur bei permanenten, bestaetigten Crosslinks (RepeaterBook + 2 Quellen oder admin-bestaetigt)."
+      },
+      {
+        title: "Zusaetzliche Relais-Quellen weltweit",
+        body: "Neben RepeaterBook (Hauptquelle fuer 70+ Laender) werden zusaetzliche Datenquellen genutzt: USKA (uska.ch), SWISS-ARTG (swiss-artg.ch), ukrepeater.net (751 UK-Relais), FM-Funknetz.de (Talkgroups weltweit). Weitere potenzielle Quellen: iz8wnh.it (weltweite Relais-Karte mit CSV-Export), dstarusers.org (D-STAR-Relais weltweit), wia.org.au (Australien), m0lxq.com (UK-CSVs).",
+        steps: [
+          { icon: "radioTower", text: "RepeaterBook: 70+ Laender weltweit" },
+          { icon: "link2", text: "USKA: Schweizer Crosslinks und EchoLink-Nodes" },
+          { icon: "globe", text: "ukrepeater.net: 751 UK-Relais" },
+          { icon: "network", text: "FM-Funknetz.de: Talkgroups weltweit" }
+        ],
+        tip: "Tipp: Admins koennen ueber «Einzelne Datenquelle neu laden» neue Quellen hinzufuegen."
       },
       {
         title: "Relais-Details abrufen",

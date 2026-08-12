@@ -195,14 +195,29 @@ const SECTIONS = [
         example: "Leuchtturm anklicken → «Mehr Infos» öffnet wlol.arlhs.com/lighthouse/SWI1.html mit Details zum Leuchtturm."
       },
       {
-        title: "Relais-Lade-Reihenfolge (Lokal zuerst, dann Server)",
-        body: "Wenn der Relais-Layer aktiviert wird, lädt die App die Relais in zwei Schritten: 1) Zuerst werden die Relais aus dem lokalen Cache (Offline-Download) geladen — das passiert sofort und die Relais erscheinen sofort auf der Karte. 2) Wenn Sie online sind, wird anschliessend im Hintergrund der vollständige Datensatz vom Server geladen und ersetzt die lokalen Daten. So ist sichergestellt, dass die Karte immer komplett ist, wenn Sie online sind — auch wenn der lokale Cache unvollständig oder veraltet ist. Wenn der lokale Cache z.B. nur 100 Relais pro Land enthält (alte Version), werden beim Online-Gehen alle fehlenden Relais vom Server nachgeladen. Im Offline-Modus wird nur der lokale Cache verwendet (kein Server-Fetch).",
+        title: "Lade-Reihenfolge: Lokaler Cache zuerst, dann Server",
+        body: "Alle Layer (SOTA, POTA, WWFF, WWBOTA, Burgen, IOTA, Leuchttürme, Relais, APRS, TOTA) laden in zwei Schritten: 1) Zuerst werden die Daten aus dem lokalen Cache (Offline-Download) geladen — das passiert sofort und die Punkte erscheinen sofort auf der Karte. 2) Wenn Sie online sind, wird anschliessend im Hintergrund der vollständige Datensatz vom Server geladen und ersetzt die lokalen Daten. So ist sichergestellt, dass die Karte immer komplett ist, wenn Sie online sind — auch wenn der lokale Cache unvollständig oder veraltet ist. Bei langsamer oder fehlender Verbindung wird der Server-Fetch im Hintergrund fortgesetzt; schlägt er fehl, bleiben die lokalen Daten sichtbar. Im Offline-Modus wird nur der lokale Cache verwendet (kein Server-Fetch).",
         example: "Relais-Layer aktivieren → lokale Relais erscheinen sofort → online: Server lädt kompletten Datensatz im Hintergrund → Karte zeigt alle 2300+ Relais aus 7 Ländern (CH, DE, AT, FR, IT, GB, LI)."
       },
       {
+        title: "Layer-Filter überschreibt globalen Länder-Filter",
+        body: "Wenn Sie im Ebenen-Menü (rechts oben) einen Länder-Filter aktivieren (z.B. nur Schweiz), gilt dieser für SOTA, POTA, Burgen, IOTA, Leuchttürme und WWBOTA. Bei Layern mit einem eigenen Länder-Filter (Relais, TOTA) überschreibt der jeweilige Layer-Filter den globalen Filter: Sie können also global «nur Schweiz» für SOTA/POTA einstellen und im Relais-Filter trotzdem Deutschland auswählen — die deutschen Relais werden dann angezeigt, obwohl der globale Filter auf Schweiz steht. Ist im Layer-Filter «Alle» ausgewählt, gilt der globale Länder-Filter normal.",
+        example: "Global: Schweiz → Relais-Filter: Deutschland → deutsche Relais werden angezeigt, SOTA/POTA nur Schweizer Gipfel."
+      },
+      {
         title: "Relais-Filter: Alle Länder verfügbar",
-        body: "Im Relais-Filter (oben links) werden alle Länder angezeigt, für die Relais in der Datenbank vorhanden sind — mit Anzahl pro Land. Aktuell: Grossbritannien (751), Deutschland (599), Frankreich (439), Italien (220), Schweiz (214), Österreich (143), Liechtenstein (1). Die Kontinent-Filter (Europa, Nordamerika, etc.) zeigen die Summe der Relais pro Kontinent. Wählen Sie ein einzelnes Land, um nur Relais dieses Landes zu sehen. Wenn ein Land fehlt, wurden noch keine Relais für dieses Land abgefragt — Administratoren können die Daten über «Alle Daten aktualisieren» oder «Einzelne Datenquelle neu laden» → «Relais» aktualisieren.",
+        body: "Im Relais-Filter (oben links) werden alle Länder angezeigt, für die Relais in der Datenbank vorhanden sind — mit Anzahl pro Land. Aktuell: Grossbritannien (751), Deutschland (599), Frankreich (439), Italien (220), Schweiz (214), Österreich (143), Liechtenstein (1). Die Kontinent-Filter (Europa, Nordamerika, etc.) zeigen die Summe der Relais pro Kontinent. Wählen Sie ein einzelnes Land, um nur Relais dieses Landes zu sehen. Der Relais-Filter überschreibt den globalen Länder-Filter aus dem Ebenen-Menü: Sie können global «nur Schweiz» für SOTA/POTA einstellen und im Relais-Filter trotzdem Deutschland auswählen. Wenn ein Land fehlt, wurden noch keine Relais für dieses Land abgefragt — Administratoren können die Daten über «Alle Daten aktualisieren» oder «Einzelne Datenquelle neu laden» → «Relais» aktualisieren.",
         example: "Relais-Filter öffnen → «Europa» zeigt alle europäischen Relais → «Frankreich» wählen → nur 439 französische Relais werden angezeigt."
+      },
+      {
+        title: "Verlinkungen nur bei sichtbaren Relais",
+        body: "Verlinkungslinien zwischen Relais werden nur gezeichnet, wenn beide Relais-Marker tatsächlich auf der Karte sichtbar sind. Wenn durch den Viewport-Capping (max. 1000 Marker pro Ausschnitt) ein Relais nicht als Marker dargestellt wird, werden auch seine Verlinkungslinien ausgeblendet. So entstehen keine «Geister-Linien» zu unsichtbaren Relais. Verlinkungen erscheinen nur bei permanenten, bestätigten Crosslinks (RepeaterBook + 2 Quellen oder admin-bestätigt).",
+        example: "In einen Bereich mit 1500 Relais zoomen → nur 1000 Marker + deren Verlinkungen werden gezeigt → herauszoomen → mehr Marker und Verlinkungen erscheinen."
+      },
+      {
+        title: "Zusätzliche Relais-Quellen weltweit",
+        body: "Neben RepeaterBook (Hauptquelle für CH, DE, AT, FR, IT, GB, LI und 70+ weitere Länder) werden zusätzliche Datenquellen für Relais genutzt: 1) USKA HB Repeater Voice List (uska.ch) — offizielle Schweizer Liste mit Crosslinks und EchoLink-Nodes. 2) SWISS-ARTG (swiss-artg.ch) — DMR-, FM- und D-STAR-Relais. 3) ukrepeater.net — 751 UK-Relais. 4) FM-Funknetz.de — Talkgruppen weltweit. Weitere potenzielle Quellen für Länder mit wenig RepeaterBook-Abdeckung: iz8wnh.it (weltweite Relais-Karte mit CSV-Export), dstarusers.org (D-STAR-Relais weltweit), wia.org.au (Australien), m0lxq.com (UK-CSVs). Administratoren können über «Einzelne Datenquelle neu laden» neue Quellen hinzufügen.",
+        example: "Admin → «Einzelne Datenquelle neu laden» → «Relais» → RepeaterBook lädt 70+ Länder → «CH-Relais-Links» lädt USKA-Daten."
       },
       {
         title: "Schweizer Relais-Quellen & Verlinkungen",

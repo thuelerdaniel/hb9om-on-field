@@ -859,38 +859,44 @@ export default function Home() {
     });
   }, [activeLayers, serverCacheLoaded, isOffline, potaData, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
-  // Load HBFF from API if not cached
+  // Load HBFF from API — always fetch when online (local cache may be stale/truncated)
   useEffect(() => {
-    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("hbff") && !showQsoForm) || hbffData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("hbff") && !showQsoForm) || isOffline) return;
     if (skipWorldwideFetch.has("hbff")) return;
+    if (hbffServerLoadedRef.current) return;
+    hbffServerLoadedRef.current = true;
     setLoading(prev => ({ ...prev, hbff: true }));
     enqueueWorldwideFetch(async () => {
       try {
         const res = await base44.functions.invoke("fetchHBFF", { batchSize: 500, batchStart: 0 });
         if (res.data?.references?.length > 0) setHbffData(res.data.references);
-      } catch (e) { /* silent */ }
+      } catch (e) { /* silent — local cache still shows */ }
       finally { setLoading(prev => ({ ...prev, hbff: false })); }
     });
   }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady, skipWorldwideFetch]);
 
-  // Load WWBOTA from API if not cached
+  // Load WWBOTA from API — always fetch when online (local cache may be stale/truncated)
   useEffect(() => {
-    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("wwbota") && !showQsoForm) || wwbotaData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("wwbota") && !showQsoForm) || isOffline) return;
     if (skipWorldwideFetch.has("wwbota")) return;
+    if (wwbotaServerLoadedRef.current) return;
+    wwbotaServerLoadedRef.current = true;
     setLoading(prev => ({ ...prev, wwbota: true }));
     enqueueWorldwideFetch(async () => {
       try {
         const res = await base44.functions.invoke("fetchWWBOTA", {});
         if (res.data?.bunkers?.length > 0) setWwbotaData(res.data.bunkers);
-      } catch (e) { /* silent */ }
+      } catch (e) { /* silent — local cache still shows */ }
       finally { setLoading(prev => ({ ...prev, wwbota: false })); }
     });
   }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady, skipWorldwideFetch]);
 
-  // Load Castles from API if not cached
+  // Load Castles from API — always fetch when online (local cache may be stale/truncated)
   useEffect(() => {
-    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("castle") && !showQsoForm) || castleData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("castle") && !showQsoForm) || isOffline) return;
     if (skipWorldwideFetch.has("castle")) return;
+    if (castleServerLoadedRef.current) return;
+    castleServerLoadedRef.current = true;
     setLoading(prev => ({ ...prev, castle: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -900,15 +906,17 @@ export default function Home() {
           const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
           if (bnds) fetchRefsInBounds(bnds, ['castle']);
         }
-      } catch (e) { /* silent */ }
+      } catch (e) { /* silent — local cache still shows */ }
       finally { setLoading(prev => ({ ...prev, castle: false })); }
     });
   }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
-  // Load IOTA from API if not cached
+  // Load IOTA from API — always fetch when online (local cache may be stale/truncated)
   useEffect(() => {
-    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("iota") && !showQsoForm) || iotaData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("iota") && !showQsoForm) || isOffline) return;
     if (skipWorldwideFetch.has("iota")) return;
+    if (iotaServerLoadedRef.current) return;
+    iotaServerLoadedRef.current = true;
     setLoading(prev => ({ ...prev, iota: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -918,15 +926,17 @@ export default function Home() {
           const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
           if (bnds) fetchRefsInBounds(bnds, ['iota']);
         }
-      } catch (e) { /* silent */ }
+      } catch (e) { /* silent — local cache still shows */ }
       finally { setLoading(prev => ({ ...prev, iota: false })); }
     });
   }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
-  // Load Lighthouses from API if not cached
+  // Load Lighthouses from API — always fetch when online (local cache may be stale/truncated)
   useEffect(() => {
-    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("lighthouse") && !showQsoForm) || lighthouseData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("lighthouse") && !showQsoForm) || isOffline) return;
     if (skipWorldwideFetch.has("lighthouse")) return;
+    if (lighthouseServerLoadedRef.current) return;
+    lighthouseServerLoadedRef.current = true;
     setLoading(prev => ({ ...prev, lighthouse: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -936,16 +946,22 @@ export default function Home() {
           const bnds = mapRef.current ? boundsToObj(mapRef.current.getBounds()) : null;
           if (bnds) fetchRefsInBounds(bnds, ['lighthouse']);
         }
-      } catch (e) { /* silent */ }
+      } catch (e) { /* silent — local cache still shows */ }
       finally { setLoading(prev => ({ ...prev, lighthouse: false })); }
     });
   }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
-  // Load repeaters from DB when repeater layer is active (queued — 10k records is a heavy query)
-  // Local cache is loaded on mount for instant display, but when online we ALWAYS fetch
-  // from the server to get the complete dataset. The local cache may be truncated or stale
-  // (e.g., only 100 per country from an old fetch), so the server fetch replaces it entirely.
+  // Server-loaded refs for all worldwide-fetch layers. Each layer always fetches
+  // from the server when online — the local cache is loaded first for instant
+  // display, then the server fetch replaces it with the complete dataset.
+  // This prevents stale/truncated local caches from hiding data (e.g., missing
+  // countries in the repeater filter, or incomplete WWBOTA/castle data).
   const repeaterServerLoadedRef = useRef(false);
+  const hbffServerLoadedRef = useRef(false);
+  const wwbotaServerLoadedRef = useRef(false);
+  const castleServerLoadedRef = useRef(false);
+  const iotaServerLoadedRef = useRef(false);
+  const lighthouseServerLoadedRef = useRef(false);
   useEffect(() => {
     if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("repeater") && !showQsoForm) || isOffline) return;
     if (skipWorldwideFetch.has("repeater")) return;
