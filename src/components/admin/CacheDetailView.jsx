@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  X, Download, Loader2, Search, ChevronLeft, ChevronRight, Table,
+  X, Download, Loader2, Search, ChevronLeft, ChevronRight, Table, AlertCircle, Info,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 // CacheDetailView — modal showing tabular data for a specific cache layer.
-// Supports search, pagination, and CSV export.
+// Supports search, pagination, CSV export, and paginated loading beyond the
+// platform's 5000-record filter cap via ID-based cursor pagination.
 // Props: layerKey, layerLabel, onClose
 
 const PAGE_SIZE = 50;
+const LOAD_BATCH = 5000;
+const MAX_RECORDS = 50000; // Safety limit to avoid excessive loading
 
 const LAYER_CONFIG = {
-  sota: { entity: "SotaPoint", columns: [
+  sota: { entity: "SotaPoint", refType: "sota", columns: [
     { key: "code", label: "Code" },
     { key: "name", label: "Name" },
     { key: "altitude_m", label: "Höhe (m)" },
@@ -19,7 +22,7 @@ const LAYER_CONFIG = {
     { key: "lat", label: "Lat" },
     { key: "lng", label: "Lng" },
   ]},
-  pota: { entity: "PotaPoint", columns: [
+  pota: { entity: "PotaPoint", refType: "pota", columns: [
     { key: "code", label: "Code" },
     { key: "name", label: "Name" },
     { key: "parkType", label: "Typ" },
@@ -27,7 +30,7 @@ const LAYER_CONFIG = {
     { key: "lat", label: "Lat" },
     { key: "lng", label: "Lng" },
   ]},
-  hbff: { entity: "WwffPoint", columns: [
+  hbff: { entity: "WwffPoint", refType: "hbff", columns: [
     { key: "code", label: "Code" },
     { key: "name", label: "Name" },
     { key: "link", label: "Link" },
@@ -116,9 +119,44 @@ function exportCsv(data, columns, filename) {
   URL.revokeObjectURL(url);
 }
 
+// Paginated loader: loads ALL records from an entity, bypassing the 5000-record
+// platform cap via ID-based cursor pagination. Sorts by _id ascending and uses
+// $gt on the last seen _id to fetch the next batch.
+async function loadAllRecords(entityName, filter, onProgress) {
+  const allRecords = [];
+  let lastId = null;
+
+  while (allRecords.length < MAX_RECORDS) {
+    let query;
+    if (filter) {
+      query = lastId ? { ...filter, _id: { $gt: lastId } } : filter;
+    } else {
+      query = lastId ? { _id: { $gt: lastId } } : {};
+    }
+
+    let batch;
+    try {
+      batch = await base44.entities[entityName].filter(query, "_id", LOAD_BATCH);
+    } catch (e) {
+      break;
+    }
+
+    if (!batch || batch.length === 0) break;
+    allRecords.push(...batch);
+    lastId = batch[batch.length - 1].id;
+
+    if (onProgress) onProgress(allRecords.length);
+    if (batch.length < LOAD_BATCH) break;
+  }
+
+  return allRecords;
+}
+
 export default function CacheDetailView({ layerKey, layerLabel, onClose }) {
   const [allData, setAllData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [refTotalCount, setRefTotalCount] = useState(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
@@ -129,22 +167,47 @@ export default function CacheDetailView({ layerKey, layerLabel, onClose }) {
     if (!config) { setLoading(false); return; }
     (async () => {
       setLoading(true);
+      setLoadProgress(0);
       try {
         let data;
-        if (config.filter) {
-          data = await base44.entities[config.entity].filter(config.filter);
+
+        if (config.entity === "ReferenceData" && config.filter) {
+          // ReferenceData layers: data is in the references array of a single record
+          data = await base44.entities.ReferenceData.filter(config.filter);
+          if (data?.length > 0 && data[0].references) {
+            data = data[0].references;
+          } else {
+            data = [];
+          }
+        } else if (config.filter) {
+          // Entity with a filter (e.g. RepeaterLink approved) — use paginated loader
+          data = await loadAllRecords(config.entity, config.filter, (count) => {
+            setLoadProgress(count);
+          });
         } else {
-          data = await base44.entities[config.entity].list("-created_date", 10000);
+          // Entity without filter — use paginated loader to bypass 5000 cap
+          data = await loadAllRecords(config.entity, null, (count) => {
+            setLoadProgress(count);
+          });
         }
-        // For ReferenceData layers, extract references array
-        if (config.entity === "ReferenceData" && data?.length > 0 && data[0].references) {
-          data = data[0].references;
-        }
+
         setAllData(data || []);
       } catch (e) {
         setAllData([]);
       } finally {
         setLoading(false);
+      }
+
+      // Fetch ReferenceData total_count for comparison (if this layer has a refType)
+      if (config.refType) {
+        try {
+          const refData = await base44.entities.ReferenceData.filter({ type: config.refType });
+          if (refData?.length > 0) {
+            setRefTotalCount(refData[0].total_count || 0);
+          }
+        } catch (e) {
+          // ignore
+        }
       }
     })();
   }, [layerKey]);
@@ -174,6 +237,10 @@ export default function CacheDetailView({ layerKey, layerLabel, onClose }) {
 
   if (!config) return null;
 
+  // Determine if data is capped (loaded less than ReferenceData total_count)
+  const isCapped = refTotalCount != null && refTotalCount > allData.length;
+  const hasNoRecords = allData.length === 0 && !loading;
+
   return (
     <div className="fixed inset-0 z-[10005] bg-black/50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
       <div
@@ -182,13 +249,22 @@ export default function CacheDetailView({ layerKey, layerLabel, onClose }) {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-slate-700">
-          <div className="flex items-center gap-2">
-            <Table className="w-5 h-5 text-gray-600 dark:text-slate-300" />
-            <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">
+          <div className="flex items-center gap-2 min-w-0">
+            <Table className="w-5 h-5 text-gray-600 dark:text-slate-300 flex-shrink-0" />
+            <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 truncate">
               {layerLabel} – {filtered.length.toLocaleString("de-CH")} Einträge
             </h2>
+            {refTotalCount != null && refTotalCount !== allData.length && (
+              <span
+                className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-0.5 flex-shrink-0"
+                title={`ReferenceData.total_count meldet ${refTotalCount.toLocaleString("de-CH")} Einträge. Geladen: ${allData.length.toLocaleString("de-CH")}. Die Differenz entsteht, weil die Daten nur als Zählwert (total_count) gespeichert wurden, nicht als einzelne Entity-Records. Die Detail-Tabelle zeigt nur die tatsächlich gespeicherten Records.`}
+              >
+                <AlertCircle className="w-3 h-3" />
+                von {refTotalCount.toLocaleString("de-CH")}
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={handleExport}
               disabled={exporting || filtered.length === 0}
@@ -202,6 +278,44 @@ export default function CacheDetailView({ layerKey, layerLabel, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Loading progress indicator */}
+        {loading && loadProgress > 0 && (
+          <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800/50">
+            <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Lade Datensätze... {loadProgress.toLocaleString("de-CH")} geladen
+            </div>
+          </div>
+        )}
+
+        {/* Cap warning */}
+        {isCapped && !loading && (
+          <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/50">
+            <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300">
+              <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <span>
+                Geladen: {allData.length.toLocaleString("de-CH")} von {refTotalCount.toLocaleString("de-CH")} (ReferenceData.total_count).
+                Die fehlenden Einträge wurden nur als Zählwert gespeichert, nicht als einzelne Datensätze.
+                Der CSV-Export enthält nur die geladenen {allData.length.toLocaleString("de-CH")} Datensätze.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* No records message */}
+        {hasNoRecords && refTotalCount != null && refTotalCount > 0 && (
+          <div className="px-3 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800/50">
+            <div className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <span>
+                Keine einzelnen Datensätze in der Entity vorhanden. ReferenceData meldet {refTotalCount.toLocaleString("de-CH")} Einträge,
+                aber diese wurden nur als Zählwert (total_count) gespeichert. Die Detail-Tabelle ist daher leer.
+                Eine Aktualisierung der Datenquelle ist erforderlich, um einzelne Datensätze zu laden.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         <div className="p-3 border-b border-gray-200 dark:border-slate-700">
@@ -220,12 +334,17 @@ export default function CacheDetailView({ layerKey, layerLabel, onClose }) {
         {/* Table */}
         <div className="flex-1 overflow-auto">
           {loading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
               <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
+              <span className="text-xs text-gray-400 dark:text-slate-500">
+                {loadProgress > 0 ? `${loadProgress.toLocaleString("de-CH")} Datensätze geladen...` : "Lade Daten..."}
+              </span>
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-sm text-gray-400 dark:text-slate-500">
-              Keine Einträge gefunden
+              {hasNoRecords && refTotalCount != null && refTotalCount > 0
+                ? "Keine einzelnen Datensätze vorhanden – siehe Hinweis oben"
+                : "Keine Einträge gefunden"}
             </div>
           ) : (
             <table className="w-full text-xs">

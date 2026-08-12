@@ -61,24 +61,38 @@ function LayerCard({ label, icon: Icon, color, count, withCoords, total, lastUpd
           <Icon className={`w-3.5 h-3.5 ${color} flex-shrink-0`} />
           <span className="text-xs font-semibold text-gray-900 dark:text-slate-100 truncate">{label}</span>
         </div>
-        <span className="text-lg font-bold text-gray-900 dark:text-slate-100 flex-shrink-0">
+        <span
+          className="text-lg font-bold text-gray-900 dark:text-slate-100 flex-shrink-0"
+          title={count >= 5000 ? `Achtung: ${count.toLocaleString("de-CH")} Einträge geladen – möglicherweise durch Plattform-Limit begrenzt. Die tatsächliche Gesamtzahl kann höher sein (siehe ReferenceData.total_count).` : `Anzahl gespeicherter Datensätze: ${count.toLocaleString("de-CH")}`}
+        >
           {count != null ? count.toLocaleString("de-CH") : "—"}
         </span>
       </div>
       {withCoords != null && (total || count) > 0 && (
         <div className="flex items-center gap-2 mt-1 text-[10px]">
-          <span className="text-green-600 flex items-center gap-0.5">
+          <span
+            className="text-green-600 flex items-center gap-0.5"
+            title="Einträge mit geografischen Koordinaten (Breiten-/Längengrad). Nur diese werden auf der Karte angezeigt und für räumliche Abfragen verwendet."
+          >
             <MapPin className="w-2.5 h-2.5" /> {withCoords.toLocaleString("de-CH")} geo
           </span>
           {withoutCoords > 0 && (
-            <span className="text-amber-600 flex items-center gap-0.5">
+            <span
+              className="text-amber-600 flex items-center gap-0.5"
+              title="Einträge ohne Koordinaten – können nicht auf der Karte dargestellt werden. Ursachen: fehlende Koordinaten in der Quelldatei, fehlgeschlagene Geocodierung oder nur Maidenhead-Locator ohne Verfeinerung vorhanden."
+            >
               <AlertCircle className="w-2.5 h-2.5" /> {withoutCoords.toLocaleString("de-CH")} offen
             </span>
           )}
         </div>
       )}
       <div className="flex items-center justify-between mt-1">
-        <p className={`text-[10px] truncate ${isStale ? "text-amber-600 font-medium" : "text-gray-400 dark:text-slate-500"}`}>
+        <p
+          className={`text-[10px] truncate ${isStale ? "text-amber-600 font-medium" : "text-gray-400 dark:text-slate-500"}`}
+          title={lastUpdated
+            ? `Letzte Aktualisierung: ${lastUpdated.toLocaleString("de-CH", { dateStyle: "full", timeStyle: "short" })}.${isStale ? " Status: veraltet (>7 Tage). Eine erneute Aktualisierung wird empfohlen." : " Status: aktuell."}`
+            : "Diese Layer wurde noch nie aktualisiert oder das Aktualisierungsdatum ist nicht gespeichert. Bitte manuell über die Daten-Cache-Verwaltung aktualisieren."}
+        >
           {lastUpdated ? lastUpdated.toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "Nie"}
           {isStale ? " ⚠" : ""}
         </p>
