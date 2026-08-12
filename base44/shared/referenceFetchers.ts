@@ -302,40 +302,55 @@ export async function fetchLighthouseData(regionId?: string): Promise<any[]> {
   const allLighthouses: any[] = [];
   const seen = new Set<string>();
 
-  for (const region of regions) {
-    const [south, west, north, east] = region.bbox;
-    try {
-      const query = `[out:json][timeout:60];(
-        node["man_made"="lighthouse"](${south},${west},${north},${east});
-        way["man_made"="lighthouse"](${south},${west},${north},${east});
-      );out center 5000;`;
-      const resp = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'HB9OM-OnField/1.0' },
-        body: 'data=' + encodeURIComponent(query)
-      });
-      if (!resp.ok) continue;
+  // Wikidata SPARQL — primary source (Overpass API is blocked from backend environment).
+  // Fetches ALL worldwide lighthouses in one query, then filters by region bbox in code.
+  // Wikidata has ~3000+ lighthouses (Q39734) with coordinates.
+  const sparqlQuery = `SELECT ?item ?itemLabel ?coord ?countryLabel WHERE {
+    ?item wdt:P31 wd:Q39715 .
+    ?item wdt:P625 ?coord .
+    OPTIONAL { ?item wdt:P17 ?country . }
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en,fr,it,es,pt,ru,ja,zh" . }
+  } LIMIT 10000`;
+  const wdLighthouses: any[] = [];
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45000);
+    const resp = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparqlQuery)}`, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
       const data = await resp.json();
-      for (const e of (data.elements || [])) {
-        const lat = e.lat || e.center?.lat;
-        const lng = e.lon || e.center?.lon;
+      for (const b of (data.results?.bindings || [])) {
+        const coordMatch = (b.coord?.value || '').match(/Point\(([\d.-]+)\s+([\d.-]+)\)/);
+        if (!coordMatch) continue;
+        const lng = parseFloat(coordMatch[1]);
+        const lat = parseFloat(coordMatch[2]);
         if (isNaN(lat) || isNaN(lng)) continue;
-        const name = e.tags?.name || e.tags?.['seamark:name'] || `Lighthouse ${lat.toFixed(4)},${lng.toFixed(4)}`;
+        const name = b.itemLabel?.value || `Lighthouse ${lat.toFixed(4)},${lng.toFixed(4)}`;
         const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
         if (seen.has(key)) continue;
+        // Determine which region this lighthouse belongs to
+        let regionId = '';
+        for (const r of LIGHTHOUSE_REGIONS) {
+          const [s, w, n, e] = r.bbox;
+          if (lat >= s && lat <= n && lng >= w && lng <= e) { regionId = r.id; break; }
+        }
+        // When fetching a specific region, skip lighthouses outside that region
+        if (regions.length === 1 && regionId !== regions[0].id) continue;
         seen.add(key);
-        allLighthouses.push({
-          code: e.tags?.['seamark:light:reference'] || `OSM-LH-${allLighthouses.length + 1}`,
+        wdLighthouses.push({
+          code: `WD-LH-${wdLighthouses.length + 1}`,
           name, lat, lng,
-          country: e.tags?.['addr:country'] || '',
-          link: 'https://www.openstreetmap.org/',
-          region: region.id,
+          country: b.countryLabel?.value || '',
+          link: 'https://www.wikidata.org/',
+          region: regionId || 'unknown',
         });
       }
-    } catch {}
-    // Rate limit between regions (only when fetching multiple)
-    if (regions.length > 1) await new Promise(r => setTimeout(r, 1500));
-  }
+    }
+  } catch {}
+  allLighthouses.push(...wdLighthouses);
 
   // Add curated Swiss lighthouses (always included, even for single-region fetches
   // that cover Switzerland, i.e. eu_central)

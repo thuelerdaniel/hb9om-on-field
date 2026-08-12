@@ -109,26 +109,24 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   const [detailLayer, setDetailLayer] = useState(null);
 
   // Count ALL records in an entity, bypassing the 5000-record platform cap.
-  // Uses ID-based cursor pagination. Only paginates if the first batch hits the cap.
+  // Uses skip/offset pagination (list method supports skip parameter).
   // Sequential execution with small delay to avoid rate-limiting (429).
   async function countAllRecords(entityName, filter) {
     try {
-      const firstQuery = filter || {};
-      const firstBatch = await base44.entities[entityName].filter(firstQuery, "_id", 5000);
-      if (!firstBatch || firstBatch.length < 5000) {
-        return firstBatch ? firstBatch.length : 0;
+      // For filter queries (e.g. approved links), use filter method (small datasets)
+      if (filter) {
+        const results = await base44.entities[entityName].filter(filter);
+        return results ? results.length : 0;
       }
-      // Cap hit — paginate to get actual count
-      let count = firstBatch.length;
-      let lastId = firstBatch[firstBatch.length - 1].id;
-      for (let i = 0; i < 20; i++) {
-        await new Promise(r => setTimeout(r, 300)); // Small delay to avoid 429
-        const query = filter ? { ...filter, _id: { $gt: lastId } } : { _id: { $gt: lastId } };
-        const batch = await base44.entities[entityName].filter(query, "_id", 5000);
+      // For full counts, use skip-based pagination
+      let count = 0;
+      const BATCH = 5000;
+      for (let skip = 0; skip < 80000; skip += BATCH) {
+        const batch = await base44.entities[entityName].list("_id", BATCH, skip);
         if (!batch || batch.length === 0) break;
         count += batch.length;
-        lastId = batch[batch.length - 1].id;
-        if (batch.length < 5000) break;
+        if (batch.length < BATCH) break;
+        await new Promise(r => setTimeout(r, 200)); // Small delay to avoid 429
       }
       return count;
     } catch (e) {
