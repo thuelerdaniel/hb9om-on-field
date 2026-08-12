@@ -195,6 +195,16 @@ const SECTIONS = [
         example: "Leuchtturm anklicken → «Mehr Infos» öffnet wlol.arlhs.com/lighthouse/SWI1.html mit Details zum Leuchtturm."
       },
       {
+        title: "Relais-Lade-Reihenfolge (Lokal zuerst, dann Server)",
+        body: "Wenn der Relais-Layer aktiviert wird, lädt die App die Relais in zwei Schritten: 1) Zuerst werden die Relais aus dem lokalen Cache (Offline-Download) geladen — das passiert sofort und die Relais erscheinen sofort auf der Karte. 2) Wenn Sie online sind, wird anschliessend im Hintergrund der vollständige Datensatz vom Server geladen und ersetzt die lokalen Daten. So ist sichergestellt, dass die Karte immer komplett ist, wenn Sie online sind — auch wenn der lokale Cache unvollständig oder veraltet ist. Wenn der lokale Cache z.B. nur 100 Relais pro Land enthält (alte Version), werden beim Online-Gehen alle fehlenden Relais vom Server nachgeladen. Im Offline-Modus wird nur der lokale Cache verwendet (kein Server-Fetch).",
+        example: "Relais-Layer aktivieren → lokale Relais erscheinen sofort → online: Server lädt kompletten Datensatz im Hintergrund → Karte zeigt alle 2300+ Relais aus 7 Ländern (CH, DE, AT, FR, IT, GB, LI)."
+      },
+      {
+        title: "Relais-Filter: Alle Länder verfügbar",
+        body: "Im Relais-Filter (oben links) werden alle Länder angezeigt, für die Relais in der Datenbank vorhanden sind — mit Anzahl pro Land. Aktuell: Grossbritannien (751), Deutschland (599), Frankreich (439), Italien (220), Schweiz (214), Österreich (143), Liechtenstein (1). Die Kontinent-Filter (Europa, Nordamerika, etc.) zeigen die Summe der Relais pro Kontinent. Wählen Sie ein einzelnes Land, um nur Relais dieses Landes zu sehen. Wenn ein Land fehlt, wurden noch keine Relais für dieses Land abgefragt — Administratoren können die Daten über «Alle Daten aktualisieren» oder «Einzelne Datenquelle neu laden» → «Relais» aktualisieren.",
+        example: "Relais-Filter öffnen → «Europa» zeigt alle europäischen Relais → «Frankreich» wählen → nur 439 französische Relais werden angezeigt."
+      },
+      {
         title: "Schweizer Relais-Quellen & Verlinkungen",
         body: "Die Schweizer Amateurfunk-Relais werden aus drei Quellen angereichert: 1) RepeaterBook (weltweit, Basisdaten) liefert Frequenzen, Modi, Standorte und Koordinaten. 2) USKA HB Repeater Voice List (uska.ch) — die offizielle Liste der Schweizer Amateurfunk-Relais mit 308 Einträgen. Aus den Remarks werden Crosslinks extrahiert (z.B. <>Tamaro, <>Scura, >RX Chestenberg) und als Verlinkungen auf der Karte angezeigt. EchoLink-Node-Nummern (EL#), D-STAR CCS-Nummern und C4FM/Wires-X-IDs werden übernommen. 3) SWISS-ARTG (swiss-artg.ch) — Standortliste der SWISS-ARTG-Anlagen (HB9AK, HB9ZRH, HB9SG) mit DMR-, FM- und D-STAR-Relais sowie APRS-iGates und HAMNET. Die Funkwelt HB Repeater Map (funkwelt.net) dient als zusätzliche Referenz. Verlinkungen werden als animierte Linien auf der Karte angezeigt; im Relais-Popup sehen Sie die verlinkten Relais mit Frequenz, Standort und Entfernung.",
         example: "Relais anklicken → Popup zeigt «Verlinkungen (1)» → HB9W 438.4125 MHz, Brütten, 1.6 km entfernt → Linie auf der Karte."

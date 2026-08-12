@@ -942,9 +942,15 @@ export default function Home() {
   }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load repeaters from DB when repeater layer is active (queued — 10k records is a heavy query)
+  // Local cache is loaded on mount for instant display, but when online we ALWAYS fetch
+  // from the server to get the complete dataset. The local cache may be truncated or stale
+  // (e.g., only 100 per country from an old fetch), so the server fetch replaces it entirely.
+  const repeaterServerLoadedRef = useRef(false);
   useEffect(() => {
-    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("repeater") && !showQsoForm) || repeaters.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("repeater") && !showQsoForm) || isOffline) return;
     if (skipWorldwideFetch.has("repeater")) return;
+    if (repeaterServerLoadedRef.current) return;
+    repeaterServerLoadedRef.current = true;
     enqueueWorldwideFetch(async () => {
       try {
         const data = await base44.entities.Repeater.list("-created_date", 10000);

@@ -735,7 +735,7 @@ export const SECTIONS = [
       },
       {
         title: "Relais-Filter verwenden",
-        body: "Wenn das Relais-Overlay aktiv ist, erscheint oben links ein Relais-Filter-Button. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten.",
+        body: "Wenn das Relais-Overlay aktiv ist, erscheint oben links ein Relais-Filter-Button. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten. Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais: Grossbritannien (751), Deutschland (599), Frankreich (439), Italien (220), Schweiz (214), Oesterreich (143), Liechtenstein (1).",
         steps: [
           { icon: "radioTower", text: "Relais-Filter-Button (oben links) antippen" },
           { icon: "globe", text: "Land filtern (alle Laender oder einzelnes Land waehlen)" },
@@ -743,7 +743,18 @@ export const SECTIONS = [
           { icon: "search", text: "Suchfeld: Rufzeichen, Ort, Land oder Frequenz eingeben" },
           { icon: "link2", text: "Verlinkungen ein-/ausschalten" }
         ],
-        tip: "Tipp: Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais. Wahlen Sie ein Land, um nur Relais dieses Landes zu sehen."
+        tip: "Tipp: Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais. Wahlen Sie ein Land, um nur Relais dieses Landes zu sehen. Wenn ein Land fehlt, wurden noch keine Relais abgefragt – Admins koennen die Daten aktualisieren."
+      },
+      {
+        title: "Relais-Lade-Reihenfolge (Lokal zuerst, dann Server)",
+        body: "Wenn der Relais-Layer aktiviert wird, laedt die App die Relais in zwei Schritten: 1) Zuerst werden die Relais aus dem lokalen Cache (Offline-Download) geladen – das passiert sofort. 2) Wenn Sie online sind, wird anschliessend im Hintergrund der vollstaendige Datensatz vom Server geladen und ersetzt die lokalen Daten. So ist sichergestellt, dass die Karte immer komplett ist, wenn Sie online sind – auch wenn der lokale Cache unvollstaendig oder veraltet ist. Im Offline-Modus wird nur der lokale Cache verwendet.",
+        steps: [
+          { icon: "layers", text: "Relais-Layer aktivieren – lokale Relais erscheinen sofort" },
+          { icon: "cloud", text: "Online: Server laedt kompletten Datensatz im Hintergrund" },
+          { icon: "check", text: "Karte zeigt alle 2300+ Relais aus 7 Laendern" },
+          { icon: "wifiOff", text: "Offline: nur lokaler Cache wird verwendet" }
+        ],
+        tip: "Tipp: Wenn der lokale Cache nur 100 Relais pro Land enthaelt (alte Version), werden beim Online-Gehen alle fehlenden Relais vom Server nachgeladen."
       },
       {
         title: "Relais-Details abrufen",
