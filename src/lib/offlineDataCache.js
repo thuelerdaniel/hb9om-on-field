@@ -418,7 +418,7 @@ const POINT_TYPES = { sota: true, pota: true, hbff: true };
 // (e.g., POTA has 89k+ records). Without pagination, only the 5000 newest records
 // would be loaded, which may all be from one country — making country-filtered
 // downloads fail with "no data for selected countries".
-async function loadAllRefsForType(type, countryCodes = null) {
+export async function loadAllRefsForType(type, countryCodes = null) {
   // POTA: fetch directly from the POTA API via backend function.
   // The database has 89k+ PotaPoint records but the SDK caps reads at 6500 per session.
   // Going straight to the source API bypasses this limit entirely.
@@ -520,7 +520,7 @@ async function loadAllRefsForType(type, countryCodes = null) {
   if (POINT_TYPES[type]) {
     const entityMap = { sota: 'SotaPoint', pota: 'PotaPoint', hbff: 'WwffPoint' };
     const normalizeMap = {
-      sota: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng }),
+      sota: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, altitude_m: r.altitude_m, points: r.points }),
       pota: (r) => ({ code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng, parkType: r.parkType, active: r.active }),
       hbff: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link }),
     };

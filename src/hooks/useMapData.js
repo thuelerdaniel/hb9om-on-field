@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
+import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota, loadAllRefsForType } from "@/lib/offlineDataCache";
 import { loadAllRepeaters, loadAllPrivateNodes } from "@/lib/paginatedLoader";
 
 // Loads all map data: reference points (SOTA, POTA, WWFF, WWBOTA, castles, lighthouses, IOTA),
@@ -46,7 +46,30 @@ export function useMapData() {
     let active = true;
 
     const loadFromServer = async () => {
-      // Fetch reference data from ReferenceData entity (contains all refs as arrays)
+      // SOTA/POTA/WWFF: load from individual point entities (SotaPoint, PotaPoint, WwffPoint).
+      // These were migrated from ReferenceData to avoid the 16MB BSON document limit.
+      // loadAllRefsForType tries the source-API backend functions first (bypassing the
+      // SDK's 6500-record session read cap), then falls back to entity pagination.
+      try {
+        setLoadingMessage("SOTA/POTA/WWFF werden geladen…");
+        const [sotaRefs, potaRefs, hbffRefs] = await Promise.all([
+          loadAllRefsForType('sota').catch(() => []),
+          loadAllRefsForType('pota').catch(() => []),
+          loadAllRefsForType('hbff').catch(() => []),
+        ]);
+        if (!active || cancelRef.current) return;
+        setData(prev => ({
+          ...prev,
+          sota: sotaRefs.filter(r => r.lat != null && r.lng != null),
+          pota: potaRefs.filter(r => r.lat != null && r.lng != null),
+          hbff: hbffRefs.filter(r => r.lat != null && r.lng != null),
+        }));
+      } catch (e) {
+        // Keep offline cache if server fetch fails
+      }
+
+      // WWBOTA, castles, lighthouses, IOTA: still stored in ReferenceData (array-per-type).
+      if (cancelRef.current) return;
       try {
         setLoadingMessage("Referenzen werden geladen…");
         const refDataEntries = await base44.entities.ReferenceData.list();
@@ -59,14 +82,11 @@ export function useMapData() {
           }
         }
         setData(prev => ({
-          sota: refMap.sota || prev.sota,
-          pota: refMap.pota || prev.pota,
-          hbff: refMap.hbff || prev.hbff,
+          ...prev,
           wwbota: refMap.wwbota || prev.wwbota,
           castle: refMap.castle || prev.castle,
           iota: refMap.iota || prev.iota,
           lighthouse: refMap.lighthouse || prev.lighthouse,
-          tota: prev.tota,
         }));
       } catch (e) {
         // Keep offline cache if server fetch fails
