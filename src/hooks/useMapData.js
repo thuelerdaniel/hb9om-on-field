@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota, loadAllRefsForType } from "@/lib/offlineDataCache";
-import { loadAllRepeaters, loadAllPrivateNodes } from "@/lib/paginatedLoader";
+import { loadAllRepeaters, loadAllPrivateNodes, loadAllTotaPoints } from "@/lib/paginatedLoader";
 
 // Loads all map data: reference points (SOTA, POTA, WWFF, WWBOTA, castles, lighthouses, IOTA),
 // TOTA points, repeaters, private nodes (APRS + BrandMeister), and admin-managed repeater links.
@@ -92,14 +92,18 @@ export function useMapData() {
         // Keep offline cache if server fetch fails
       }
 
-      // Fetch TOTA points
+      // Fetch TOTA points via paginated loader (SDK filter caps at 5000 per call)
       if (cancelRef.current) return;
       try {
         setLoadingMessage("TOTA-Punkte werden geladen…");
-        const totaPoints = await base44.entities.TotaPoint.filter({}, undefined, 5000);
-        if (!active || cancelRef.current) return;
-        const totaFiltered = (totaPoints || []).filter(t => t.lat != null && t.lng != null);
-        setData(prev => ({ ...prev, tota: totaFiltered }));
+        await loadAllTotaPoints({
+          onBatch: (batch, total) => {
+            if (!active || cancelRef.current) return;
+            const filtered = batch.filter(t => t.lat != null && t.lng != null);
+            setData(prev => ({ ...prev, tota: [...prev.tota, ...filtered] }));
+            setLoadingMessage(`TOTA-Punkte werden geladen… (${total})`);
+          },
+        });
       } catch (e) { /* silent */ }
 
       // Fetch repeaters via paginated loader

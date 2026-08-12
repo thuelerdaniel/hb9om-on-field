@@ -1,5 +1,5 @@
 import { base44 } from "@/api/base44Client";
-import { loadAllRepeaters, loadAllPrivateNodes } from "@/lib/paginatedLoader";
+import { loadAllRepeaters, loadAllPrivateNodes, loadAllTotaPoints, loadRepeatersByCountries } from "@/lib/paginatedLoader";
 import { getCountryFromSotaCode, getCountryFromPotaRef, getCountryFromWwffCode, getCountryFromWwbotaScheme, getCountryByName, getCountryFromWcaCode, getCountryFromLatLng } from "@/lib/countries";
 
 const CACHE_KEY = "hb9om_offline_refs";
@@ -531,10 +531,11 @@ export async function loadAllRefsForType(type, countryCodes = null) {
     const MAX_PAGES = 60; // 60 * 5000 = 300k records max
     const allRefs = [];
 
-    // Skip-based pagination: list(sort, limit, skip) — the SDK's 3rd arg is skip.
-    // Cursor-based pagination doesn't work ($lt not supported by SDK filter).
+    // Skip-based pagination with id sort — deterministic and stable across pages.
+    // -created_date sort is non-deterministic when records share identical timestamps
+    // (bulk insert), causing skip/duplicate across pages.
     for (let page = 0; page < MAX_PAGES; page++) {
-      const result = await base44.entities[entityName].list('-created_date', LIMIT, page * LIMIT);
+      const result = await base44.entities[entityName].list('id', LIMIT, page * LIMIT);
       if (!Array.isArray(result) || result.length === 0) break;
       allRefs.push(...result.map(normalize));
       if (result.length < LIMIT) break;
@@ -887,19 +888,7 @@ export async function cacheTotaFromServerByCountries(countryCodes) {
   }
 }
 
-// Load all TOTA points with pagination (SDK caps at 5000 per call)
-async function loadAllTotaPoints() {
-  const LIMIT = 5000;
-  const MAX_PAGES = 10; // 10 * 5000 = 50k records max
-  const allPoints = [];
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const result = await base44.entities.TotaPoint.list('id', LIMIT, page * LIMIT);
-    if (!Array.isArray(result) || result.length === 0) break;
-    allPoints.push(...result);
-    if (result.length < LIMIT) break;
-  }
-  return allPoints;
-}
+// loadAllTotaPoints is imported from paginatedLoader.js (deterministic id-sorted pagination)
 
 // Load TOTA points for specific countries using server-side filtering.
 // Avoids loading all 10k+ points into memory when only CH is needed.
@@ -1172,8 +1161,9 @@ export async function getServerDataCounts() {
     const nodes = await loadAllPrivateNodes();
     counts.private_nodes = (nodes || []).length;
   } catch { counts.private_nodes = 0; }
+  // TOTA — use paginated loader for full count (10k+ points, single list capped at 5k)
   try {
-    const tota = await base44.entities.TotaPoint.list("-created_date", 20000);
+    const tota = await loadAllTotaPoints();
     counts.tota = (tota || []).length;
   } catch { counts.tota = 0; }
   return counts;
@@ -1490,17 +1480,16 @@ export async function cachePrivateNodesFromServerByCountries(countryCodes) {
 // Each country is stored in its own localStorage key (hb9om_refs_repeater_{country}).
 export async function cacheRepeatersFromServerByCountries(countryCodes) {
   try {
-    const repeaters = await loadAllRepeaters();
+    // Server-side country filtering: only load repeaters for selected countries
+    // instead of loading all 31k repeaters into memory then filtering.
+    // This prevents timeouts and memory issues on mobile devices.
+    const repeaters = await loadRepeatersByCountries(countryCodes);
     const arr = repeaters || [];
 
     // Clear old data FIRST to free space
     localStorage.removeItem("hb9om_refs_repeater");
     clearPerCountryKeys("repeater");
 
-    // Each country gets the full PER_COUNTRY_BUDGET_BYTES — storeWithBudget handles
-    // truncation if a country's data exceeds the budget. The previous code divided
-    // availableSpace by numCountries, giving each country only ~750KB when 6 countries
-    // were selected — too small for large datasets like WWBOTA France (7'388 refs).
     const availableSpace = await estimateAvailableSpace();
     if (availableSpace < 10240) {
       return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };

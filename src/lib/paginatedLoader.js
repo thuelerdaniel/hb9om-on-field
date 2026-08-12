@@ -107,3 +107,71 @@ export async function loadAllRepeaters({ onBatch, maxRecords = REPEATER_MAX_RECO
 
   return all;
 }
+
+// Load ALL TOTA points using deterministic id-sorted skip/offset pagination.
+// Same rationale as repeaters: id sort is deterministic, -created_date is not
+// (all records inserted in a single bulk batch with identical timestamps).
+const TOTA_BATCH_SIZE = 5000;
+const TOTA_MAX_RECORDS = 60000;
+
+export async function loadAllTotaPoints({ onBatch, maxRecords = TOTA_MAX_RECORDS } = {}) {
+  const all = [];
+  const seenIds = new Set();
+  let skip = 0;
+  let stallCount = 0;
+
+  do {
+    const batch = await base44.entities.TotaPoint.list("id", TOTA_BATCH_SIZE, skip);
+    if (!batch || batch.length === 0) break;
+
+    const newRecords = [];
+    for (const r of batch) {
+      if (r.id && !seenIds.has(r.id)) {
+        seenIds.add(r.id);
+        newRecords.push(r);
+      }
+    }
+
+    if (newRecords.length > 0) {
+      all.push(...newRecords);
+      if (onBatch) onBatch(newRecords, all.length);
+    }
+
+    if (all.length >= maxRecords) break;
+    if (batch.length < TOTA_BATCH_SIZE) break;
+    if (newRecords.length === 0) {
+      stallCount++;
+      if (stallCount > 3) break;
+    } else {
+      stallCount = 0;
+    }
+    skip += TOTA_BATCH_SIZE;
+  } while (true);
+
+  return all;
+}
+
+// Load repeaters for specific countries using server-side filtering.
+// Avoids loading all 31k repeaters into memory when only CH is needed.
+// SDK filter caps at 5000 per call — most countries have well under 5000 repeaters.
+export async function loadRepeatersByCountries(countryCodes) {
+  if (!countryCodes || countryCodes.length === 0) {
+    return loadAllRepeaters();
+  }
+  const LIMIT = 5000;
+  const allRepeaters = [];
+  const seenIds = new Set();
+
+  for (const country of countryCodes) {
+    try {
+      const repeaters = await base44.entities.Repeater.filter({ country_code: country }, 'id', LIMIT);
+      for (const r of (repeaters || [])) {
+        if (r.id && !seenIds.has(r.id)) {
+          seenIds.add(r.id);
+          allRepeaters.push(r);
+        }
+      }
+    } catch { /* continue with other countries */ }
+  }
+  return allRepeaters;
+}
