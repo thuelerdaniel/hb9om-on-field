@@ -44,7 +44,7 @@ import { getWwbotaColor } from "@/lib/wwbotaSchemes";
 import VersionChangelogPopup, { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed, resetChangelog } from "@/components/map/VersionChangelogPopup";
 import PreloadHint from "@/components/map/PreloadHint";
 import ViewportLimitHint from "@/components/map/ViewportLimitHint";
-import HeavyLoadConfirmDialog, { HEAVY_LAYERS } from "@/components/map/HeavyLoadConfirmDialog";
+import HeavyLoadConfirmDialog, { shouldShowHeavyLoadDialog, getRememberedDecision } from "@/components/map/HeavyLoadConfirmDialog";
 import { boundsToObj, boundsContained, unionBounds, mergeRefs, REF_TYPES } from "@/lib/boundsLoading";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
@@ -862,6 +862,7 @@ export default function Home() {
   // Load HBFF from API if not cached
   useEffect(() => {
     if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("hbff") && !showQsoForm) || hbffData.length > 0 || isOffline) return;
+    if (skipWorldwideFetch.has("hbff")) return;
     setLoading(prev => ({ ...prev, hbff: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -870,11 +871,12 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, hbff: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load WWBOTA from API if not cached
   useEffect(() => {
     if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("wwbota") && !showQsoForm) || wwbotaData.length > 0 || isOffline) return;
+    if (skipWorldwideFetch.has("wwbota")) return;
     setLoading(prev => ({ ...prev, wwbota: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -883,11 +885,12 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, wwbota: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load Castles from API if not cached
   useEffect(() => {
     if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("castle") && !showQsoForm) || castleData.length > 0 || isOffline) return;
+    if (skipWorldwideFetch.has("castle")) return;
     setLoading(prev => ({ ...prev, castle: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -900,11 +903,12 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, castle: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load IOTA from API if not cached
   useEffect(() => {
     if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("iota") && !showQsoForm) || iotaData.length > 0 || isOffline) return;
+    if (skipWorldwideFetch.has("iota")) return;
     setLoading(prev => ({ ...prev, iota: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -917,11 +921,12 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, iota: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load Lighthouses from API if not cached
   useEffect(() => {
     if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("lighthouse") && !showQsoForm) || lighthouseData.length > 0 || isOffline) return;
+    if (skipWorldwideFetch.has("lighthouse")) return;
     setLoading(prev => ({ ...prev, lighthouse: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -934,7 +939,7 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, lighthouse: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load repeaters from DB when repeater layer is active (queued — 10k records is a heavy query)
   useEffect(() => {
@@ -1004,12 +1009,38 @@ export default function Home() {
       });
       return;
     }
-    // Aktivierung eines schweren Layers: Bestätigungsdialog anzeigen
-    if (HEAVY_LAYERS.includes(layerId)) {
+    // Aktivierung eines Layers mit geschätzter Ladezeit >= 7s:
+    // Prüfe zuerst, ob der User eine Entscheidung gemerkt hat.
+    const remembered = getRememberedDecision(layerId);
+    if (remembered === "confirm") {
+      // Auto-Bestätigen: Layer aktivieren, weltweiter Fetch läuft normal
+      setActiveLayers(prev => {
+        const next = [...prev, layerId];
+        try { localStorage.setItem("hb9om_map_active_layers", JSON.stringify(next)); } catch {}
+        return next;
+      });
+      return;
+    }
+    if (remembered === "cancel") {
+      // Auto-Abbrechen: Layer aktivieren, aber weltweiten Fetch überspringen
+      setActiveLayers(prev => {
+        const next = [...prev, layerId];
+        try { localStorage.setItem("hb9om_map_active_layers", JSON.stringify(next)); } catch {}
+        return next;
+      });
+      setSkipWorldwideFetch(prev => {
+        const next = new Set(prev);
+        next.add(layerId);
+        return next;
+      });
+      return;
+    }
+    // Kein gemerkter Entscheid: Dialog anzeigen (nur bei >= 7s Ladezeit)
+    if (shouldShowHeavyLoadDialog(layerId)) {
       setPendingHeavyLayers([layerId]);
       return;
     }
-    // Aktivierung eines leichten Layers: sofort aktivieren
+    // Aktivierung eines leichten Layers (< 7s): sofort aktivieren
     setActiveLayers(prev => {
       const next = [...prev, layerId];
       try { localStorage.setItem("hb9om_map_active_layers", JSON.stringify(next)); } catch {}

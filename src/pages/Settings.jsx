@@ -8,6 +8,7 @@ import { DEMO_EMAIL } from "@/lib/constants";
 import OfflineManager from "@/components/settings/OfflineManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 import ThemeToggle from "@/components/settings/ThemeToggle";
+import { clearRememberedDecisions, hasRememberedDecisions } from "@/components/map/HeavyLoadConfirmDialog";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
 const AdminPanel = lazy(() => import("@/components/settings/AdminPanel"));
@@ -62,6 +63,7 @@ export default function Settings() {
   const [demoVerifying, setDemoVerifying] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [perfSuggestionReset, setPerfSuggestionReset] = useState(false);
+  const [heavyLoadReset, setHeavyLoadReset] = useState(false);
   const [gpsTrackingEnabled, setGpsTrackingEnabled] = useState(() => localStorage.getItem("hb9om_gps_tracking_enabled") === "true");
   const [gpsTrackingInterval, setGpsTrackingInterval] = useState(() => parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -655,6 +657,39 @@ export default function Settings() {
             >
               {perfSuggestionReset ? <Check className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
               {perfSuggestionReset ? "Zurückgesetzt" : "Zurücksetzen"}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="my-3 border-t border-gray-100" />
+
+          {/* Reset heavy load decisions */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-500" /> Bestätigungsdialog zurücksetzen
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {hasRememberedDecisions()
+                  ? "Gemerkte Entscheidungen aktiv – zurücksetzen, um Dialoge wieder anzuzeigen"
+                  : "Dialoge werden bei Layer-Aktivierung mit vielen Daten angezeigt"}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                clearRememberedDecisions();
+                setHeavyLoadReset(true);
+                setTimeout(() => setHeavyLoadReset(false), 2000);
+              }}
+              disabled={!hasRememberedDecisions()}
+              className={`px-3 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 flex-shrink-0 ${
+                hasRememberedDecisions()
+                  ? "text-gray-700 border-gray-300 hover:bg-gray-50"
+                  : "text-gray-300 border-gray-100 cursor-not-allowed"
+              }`}
+            >
+              {heavyLoadReset ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+              {heavyLoadReset ? "Zurückgesetzt" : "Zurücksetzen"}
             </button>
           </div>
         </section>

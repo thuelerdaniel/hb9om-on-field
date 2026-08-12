@@ -20,7 +20,7 @@ export default function PreloadHint({ activeLayers, isLoading }) {
   };
 
   return (
-    <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1001] bg-white rounded-lg shadow-xl border border-blue-200 px-3.5 py-2.5 max-w-md w-[calc(100%-1.5rem)] flex items-start gap-2.5">
+    <div className="absolute top-48 left-1/2 -translate-x-1/2 z-[1001] bg-white rounded-lg shadow-xl border border-blue-200 px-3.5 py-2.5 max-w-md w-[calc(100%-1.5rem)] flex items-start gap-2.5">
       <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
         <Zap className="w-4 h-4 text-blue-500" />
       </div>

@@ -43,8 +43,13 @@ const SECTIONS = [
       },
       {
         title: "Bestätigung bei vielen Datenpunkten",
-        body: "Wenn Sie einen Layer mit sehr vielen Datenpunkten aktivieren (z.B. SOTA mit ~180'000 Gipfeln, POTA mit ~89'000 Parks, Relais oder APRS-Nodes), erscheint ein Bestätigungsdialog bevor das Laden beginnt. Der Dialog zeigt eine Schätzung der Anzahl Punkte, der Datenmenge in MB und der voraussichtlichen Ladezeit. So können Sie entscheiden, ob Sie das Laden bestätigen und die Wartezeit in Kauf nehmen möchten, oder ob Sie abbrechen und zuerst die Karte anpassen (zoomen, verschieben) möchten. Bei Abbruch wird der Layer aktiviert, aber nur der sichtbare Kartenausschnitt geladen — das ist deutlich schneller. Wenn Sie später alle Daten laden möchten, deaktivieren Sie den Layer und reaktivieren Sie ihn, um den Dialog erneut zu sehen.",
+        body: "Wenn Sie einen Layer aktivieren, dessen geschätzte Ladezeit 7 Sekunden oder mehr beträgt (z.B. SOTA mit ~180'000 Gipfeln, POTA mit ~89'000 Parks, Burgen, Relais oder APRS-Nodes), erscheint ein Bestätigungsdialog vor dem Laden. Der Dialog zeigt eine Schätzung der Anzahl Punkte, der Datenmenge in MB und der voraussichtlichen Ladezeit. Im Ebenen-Menü wird bei jedem Layer die Anzahl Punkte und die Grösse in MB in kleiner Schrift angezeigt. So können Sie entscheiden, ob Sie das Laden bestätigen und die Wartezeit in Kauf nehmen möchten, oder ob Sie abbrechen und zuerst die Karte anpassen (zoomen, verschieben) möchten. Bei Abbruch wird der Layer aktiviert, aber nur der sichtbare Kartenausschnitt geladen — das ist deutlich schneller. Layer mit einer geschätzten Ladezeit unter 7 Sekunden (z.B. WWFF, WWBOTA, IOTA, Leuchttürme) werden ohne Dialog direkt geladen.",
         example: "SOTA aktivieren → Dialog zeigt «~180'000 Punkte, ~35 MB, ~45 Sekunden» → Abbrechen → nur sichtbare Gipfel laden → hineinzoomen für mehr Details."
+      },
+      {
+        title: "Entscheidung merken (nicht mehr anzeigen)",
+        body: "Im Bestätigungsdialog können Sie die Option «Entscheidung merken» aktivieren. Wählen Sie dabei, ob die Entscheidung nur für den aktuellen Layer oder für alle Layer gelten soll. Wenn Sie dann «Laden bestätigen» oder «Abbrechen» klicken, wird diese Entscheidung gespeichert und der Dialog erscheint beim nächsten Aktivieren des betreffenden Layers nicht mehr. Bei «Bestätigen» lädt die App künftig automatisch alle Daten weltweit; bei «Abbrechen» wird automatisch nur der sichtbare Ausschnitt geladen. Die gemerkten Entscheidungen können Sie in den Einstellungen unter «Karte & Anzeige» → «Bestätigungsdialog zurücksetzen» jederzeit zurücksetzen.",
+        example: "Häkchen «Entscheidung merken» → «Nur für diesen Layer» → «Abbrechen» → SOTA wird künftig ohne Dialog nur für den sichtbaren Ausschnitt geladen."
       },
       {
         title: "Kartenmassstab wählen",

@@ -3,6 +3,7 @@ import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin,
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
+import { LAYER_ESTIMATES, formatPointsShort } from "@/components/map/HeavyLoadConfirmDialog";
 
 const LAYER_GROUPS = [
   {
@@ -323,6 +324,13 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
                       <span className={`flex-1 text-left ${isActive ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
                         {group.label}
                       </span>
+                      {LAYER_ESTIMATES[group.id] && (
+                        <span className="text-[10px] text-gray-400 dark:text-slate-500 flex items-center gap-1.5 mr-1">
+                          <span>{formatPointsShort(LAYER_ESTIMATES[group.id].points)}</span>
+                          <span>·</span>
+                          <span>{LAYER_ESTIMATES[group.id].mb} MB</span>
+                        </span>
+                      )}
                       {isActive ? (
                         <Eye className="w-4 h-4 text-gray-400" />
                       ) : (
