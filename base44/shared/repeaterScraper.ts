@@ -4,25 +4,25 @@
 
 import { fetchAdditionalRepeaterSources } from './additionalRepeaterSources.ts';
 
-const LIST_BASE = 'https://www.repeaterbook.com/row_repeaters/Display_SS.php';
-const DETAIL_BASE = 'https://www.repeaterbook.com/row_repeaters/details.php';
+export const LIST_BASE = 'https://www.repeaterbook.com/row_repeaters/Display_SS.php';
+export const DETAIL_BASE = 'https://www.repeaterbook.com/row_repeaters/details.php';
 
 // US/Canada/Mexico use a separate URL structure (not row_repeaters)
-const NA_LIST_BASE = 'https://www.repeaterbook.com/repeaters/Display_SS.php';
-const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
+export const NA_LIST_BASE = 'https://www.repeaterbook.com/repeaters/Display_SS.php';
+export const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
 
-const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
+export const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 30000;
-const MAX_PER_COUNTRY = 500;
-const MAX_PER_COUNTRY_PRIORITY_1 = 2000; // Switzerland + neighbors — full detail
-const MAX_PER_COUNTRY_PRIORITY_2 = 500;  // Rest of Europe — broad coverage
-const MAX_PER_COUNTRY_PRIORITY_3 = 200;   // Asia, Africa, Americas, Oceania — broad coverage
-const MAX_PER_US_CA_REGION = 300;
-const LIST_CONCURRENCY = 12;
+export const MAX_DETAIL_FETCH = 500;
+export const MAX_PER_COUNTRY = 500;
+export const MAX_PER_COUNTRY_PRIORITY_1 = 50;   // Switzerland + neighbors — minimal detail for coords
+const MAX_PER_COUNTRY_PRIORITY_2 = 0;     // Rest of Europe — list only (no detail, coords from locator)
+const MAX_PER_COUNTRY_PRIORITY_3 = 0;     // Asia, Africa, Americas, Oceania — list only
+const MAX_PER_US_CA_REGION = 0;           // US/CA — list only (too many states for detail)
+const LIST_CONCURRENCY = 20;  // Moderate concurrency — avoid platform worker crash
 const DETAIL_CONCURRENCY = 120;
-const FETCH_TIMEOUT_MS = 8000;
-const DETAIL_DEADLINE_MS = 480000; // 480 seconds — allows worldwide detail fetches
+const FETCH_TIMEOUT_MS = 4000;
+const DETAIL_DEADLINE_MS = 15000; // 15 seconds for detail fetches — list pages are the priority
 
 // Fetch with timeout — prevents a single slow/stuck response from blocking the whole batch.
 // Aborts after FETCH_TIMEOUT_MS and returns null (caller treats as failed fetch).
@@ -46,7 +46,7 @@ async function fetchWithTimeout(url: string, opts?: any): Promise<Response | nul
 // Priority 1: Switzerland + neighbors (always fetch detail pages first)
 // Priority 2: Rest of Europe
 // Priority 3: Other continents
-const COUNTRIES = [
+export const COUNTRIES = [
   // Priority 1: Switzerland + neighbors
   { code: 'CH', name: 'Switzerland', priority: 1 },
   { code: 'LI', name: 'Liechtenstein', priority: 1 },
@@ -497,7 +497,7 @@ export function parseLinkedCallsigns(networkLinks: string, ownCallsign?: string)
 // with callsign, frequency, mode, location, and coordinates — no per-repeater detail
 // fetches needed, so this is much faster than RepeaterBook's per-repeater scraping.
 
-const UK_BANDS = [
+export const UK_BANDS = [
   { band: '10M', url: 'https://ukrepeater.net/listband22.html?bands=10M' },
   { band: '6M', url: 'https://ukrepeater.net/listband22.html?bands=6M' },
   { band: '4M', url: 'https://ukrepeater.net/listband22.html?bands=4M' },
@@ -588,7 +588,7 @@ export function parseUkRepeaterList(html: string): any[] {
 }
 
 // Convert Maidenhead grid locator to lat/lng (approximate — 6-char precision ~5km)
-function maidenheadToLatLng(locator: string): [number, number] | null {
+export function maidenheadToLatLng(locator: string): [number, number] | null {
   const loc = locator.toUpperCase();
   if (loc.length < 4) return null;
   const A = 'A'.charCodeAt(0);
@@ -694,18 +694,19 @@ export async function fetchRepeaterData(): Promise<any[]> {
     allRepeaters.push(...ukRepeaters);
   }
 
-  // 1c. Merge additional sources: WIA Australia (CSV) + dstarusers.org (D-STAR worldwide)
-  // These sources add coverage for countries not well covered by RepeaterBook (Australia, D-STAR worldwide)
+  // 1c. Additional sources (WIA Australia, dstarusers.org) are skipped during full worldwide
+  // list-page fetch to stay within platform timeout. They are fetched separately by
+  // IndividualSourceReload when needed. RepeaterBook already covers AU and JP.
+  // To re-enable: uncomment the block below.
+  /*
   let additionalRepeaters: any[] = [];
   try {
     const additional = await fetchAdditionalRepeaterSources();
-    // WIA Australia — dedup against RepeaterBook by callsign+freq
     if (additional.wia.length > 0) {
       const rbKeys = new Set(allRepeaters.map(r => r.callsign + '_' + r.frequency));
       const wiaNew = additional.wia.filter(r => !rbKeys.has(r.callsign + '_' + r.frequency));
       additionalRepeaters.push(...wiaNew);
     }
-    // dstarusers.org — dedup against RepeaterBook by callsign+freq
     if (additional.dstar.length > 0) {
       const rbKeys = new Set(allRepeaters.map(r => r.callsign + '_' + r.frequency));
       const dstarNew = additional.dstar.filter(r => !rbKeys.has(r.callsign + '_' + r.frequency));
@@ -717,6 +718,7 @@ export async function fetchRepeaterData(): Promise<any[]> {
   if (additionalRepeaters.length > 0) {
     allRepeaters.push(...additionalRepeaters);
   }
+  */
 
   // 2. Sort by country priority (priority 1 first), then on-air first
   allRepeaters.sort((a, b) => {
