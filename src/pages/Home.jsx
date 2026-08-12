@@ -430,7 +430,27 @@ export default function Home() {
     return null;
   });
   const [totaSearchQuery, setTotaSearchQuery] = useState("");
-  const [totaFilterCountry, setTotaFilterCountry] = useState(() => localStorage.getItem("hb9om_tota_filter_country") || "all");
+  const [totaFilterCountries, setTotaFilterCountries] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_tota_filter_countries");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+  const [aprsFilterCountries, setAprsFilterCountries] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_aprs_filter_countries");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+  const [bmFilterCountries, setBmFilterCountries] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_bm_filter_countries");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
   const [adminLinks, setAdminLinks] = useState([]);
   const [privateNodes, setPrivateNodes] = useState([]);
   const [linkSuggestTarget, setLinkSuggestTarget] = useState(null);
@@ -484,8 +504,14 @@ export default function Home() {
     localStorage.setItem("hb9om_tota_filter_types", JSON.stringify(totaFilterTypes));
   }, [totaFilterTypes]);
   useEffect(() => {
-    localStorage.setItem("hb9om_tota_filter_country", totaFilterCountry);
-  }, [totaFilterCountry]);
+    localStorage.setItem("hb9om_tota_filter_countries", JSON.stringify(totaFilterCountries));
+  }, [totaFilterCountries]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_aprs_filter_countries", JSON.stringify(aprsFilterCountries));
+  }, [aprsFilterCountries]);
+  useEffect(() => {
+    localStorage.setItem("hb9om_bm_filter_countries", JSON.stringify(bmFilterCountries));
+  }, [bmFilterCountries]);
   useEffect(() => {
     localStorage.setItem("hb9om_fox_hunting_mode", foxHuntingMode);
   }, [foxHuntingMode]);
@@ -951,19 +977,25 @@ export default function Home() {
     if (skipWorldwideFetch.has("lighthouse")) return;
     if (lighthouseServerLoadedRef.current) return;
     lighthouseServerLoadedRef.current = true;
-    setLoading(prev => ({ ...prev, lighthouse: true }));
+    // Immediately load ALL lighthouses from ReferenceData — don't wait for the
+    // background fetchLighthouses call to complete. This ensures the map shows
+    // all 9753 lighthouses instantly, matching the DataCacheOverview count.
     enqueueWorldwideFetch(async () => {
       try {
-        const res = await base44.functions.invoke("fetchLighthouses", {});
-        if (res.data?.saved) {
-          loadedBoundsRef.current.lighthouse = null;
-          // Load ALL lighthouses from ReferenceData (not viewport-bounded) —
-          // 9316 lighthouses is manageable and ensures all are displayed.
-          const lhRecords = await base44.entities.ReferenceData.filter({ type: 'lighthouse' });
-          const allLh = lhRecords && lhRecords.length > 0 ? (lhRecords[0].references || []) : [];
-          if (allLh.length > 0) setLighthouseData(allLh);
-        }
-      } catch (e) { /* silent — local cache still shows */ }
+        const lhRecords = await base44.entities.ReferenceData.filter({ type: 'lighthouse' });
+        const allLh = lhRecords && lhRecords.length > 0 ? (lhRecords[0].references || []) : [];
+        if (allLh.length > 0) setLighthouseData(allLh);
+      } catch (e) { /* silent */ }
+
+      // Then fetch fresh data in background (updates coordinates, adds new entries)
+      setLoading(prev => ({ ...prev, lighthouse: true }));
+      try {
+        await base44.functions.invoke("fetchLighthouses", {});
+        loadedBoundsRef.current.lighthouse = null;
+        const lhRecords = await base44.entities.ReferenceData.filter({ type: 'lighthouse' });
+        const allLh = lhRecords && lhRecords.length > 0 ? (lhRecords[0].references || []) : [];
+        if (allLh.length > 0) setLighthouseData(allLh);
+      } catch (e) { /* silent — existing data still shows */ }
       finally { setLoading(prev => ({ ...prev, lighthouse: false })); }
     });
   }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
@@ -1242,6 +1274,9 @@ export default function Home() {
     if (aprsFilterTypes && aprsFilterTypes.length > 0) {
       result = result.filter(n => aprsFilterTypes.includes(n.node_type));
     }
+    if (aprsFilterCountries.length > 0) {
+      result = result.filter(n => aprsFilterCountries.includes(n.country_code));
+    }
     if (aprsSearchQuery.length >= 2) {
       const q = aprsSearchQuery.toLowerCase();
       result = result.filter(n =>
@@ -1251,7 +1286,7 @@ export default function Home() {
       );
     }
     return result.length;
-  }, [aprsNodes, aprsFilterTypes, aprsSearchQuery]);
+  }, [aprsNodes, aprsFilterTypes, aprsSearchQuery, aprsFilterCountries]);
 
   // Filtered BrandMeister node count for filter panel
   const filteredBmCount = useMemo(() => {
@@ -1259,6 +1294,9 @@ export default function Home() {
     let result = brandmeisterNodes;
     if (bmFilterTypes && bmFilterTypes.length > 0) {
       result = result.filter(n => bmFilterTypes.includes(n.node_type));
+    }
+    if (bmFilterCountries.length > 0) {
+      result = result.filter(n => bmFilterCountries.includes(n.country_code));
     }
     if (bmSearchQuery.length >= 2) {
       const q = bmSearchQuery.toLowerCase();
@@ -1270,7 +1308,7 @@ export default function Home() {
       );
     }
     return result.length;
-  }, [brandmeisterNodes, bmFilterTypes, bmSearchQuery]);
+  }, [brandmeisterNodes, bmFilterTypes, bmSearchQuery, bmFilterCountries]);
 
   // Filtered TOTA count for filter panel
   const filteredTotaCount = useMemo(() => {
@@ -1279,8 +1317,13 @@ export default function Home() {
     if (totaFilterTypes && totaFilterTypes.length > 0) {
       result = result.filter(t => totaFilterTypes.includes(t.type));
     }
-    if (totaFilterCountry !== "all") {
-      result = result.filter(t => (t.country_code || (t.source === "swiss_csv" ? "CH" : "")) === totaFilterCountry);
+    if (totaFilterCountries.length > 0) {
+      result = result.filter(t => totaFilterCountries.includes(t.country_code || (t.source === "swiss_csv" ? "CH" : "")));
+    } else {
+      // Apply global continent/country filters only when per-layer filter is empty
+      result = result
+        .filter(t => isInContinents(t.lat, t.lng, activeContinents))
+        .filter(t => isInCountries(t, activeCountries));
     }
     if (totaSearchQuery.length >= 2) {
       const q = totaSearchQuery.toLowerCase();
@@ -1291,12 +1334,8 @@ export default function Home() {
         (t.usage || "").toLowerCase().includes(q)
       );
     }
-    // Apply continent/country filters
-    result = result
-      .filter(t => isInContinents(t.lat, t.lng, activeContinents))
-      .filter(t => isInCountries(t, activeCountries));
     return result.length;
-  }, [totaData, totaFilterTypes, totaSearchQuery, totaFilterCountry, activeContinents, activeCountries]);
+  }, [totaData, totaFilterTypes, totaSearchQuery, totaFilterCountries, activeContinents, activeCountries]);
 
   // Calculate filter button positions to prevent overlap
   // Order: repeater, aprs, brandmeister, tota
@@ -1329,6 +1368,37 @@ export default function Home() {
     }
     return Object.values(counts);
   }, [repeaters]);
+
+  // Country lists for APRS, BrandMeister, and TOTA filters
+  const aprsCountries = useMemo(() => {
+    const counts = {};
+    for (const n of aprsNodes) {
+      const cc = n.country_code || '?';
+      counts[cc] = counts[cc] || { code: cc, name: n.country || cc, count: 0 };
+      counts[cc].count++;
+    }
+    return Object.values(counts);
+  }, [aprsNodes]);
+
+  const bmCountries = useMemo(() => {
+    const counts = {};
+    for (const n of brandmeisterNodes) {
+      const cc = n.country_code || '?';
+      counts[cc] = counts[cc] || { code: cc, name: n.country || cc, count: 0 };
+      counts[cc].count++;
+    }
+    return Object.values(counts);
+  }, [brandmeisterNodes]);
+
+  const totaCountries = useMemo(() => {
+    const counts = {};
+    for (const t of totaData) {
+      const cc = t.country_code || (t.source === "swiss_csv" ? "CH" : "?");
+      counts[cc] = counts[cc] || { code: cc, name: t.country || cc, count: 0 };
+      counts[cc].count++;
+    }
+    return Object.values(counts);
+  }, [totaData]);
 
   // All available markers (regardless of active layers) — for QSO form nearby refs.
   // ONLY compute when QSO form is open — building 100k+ markers on every data change
@@ -1826,6 +1896,9 @@ export default function Home() {
               searchQuery={aprsSearchQuery}
               sourceFilter="aprs"
               colorScheme="aprs"
+              filterCountries={aprsFilterCountries}
+              activeContinents={activeContinents}
+              activeCountries={activeCountries}
             />
           )}
 
@@ -1838,6 +1911,9 @@ export default function Home() {
               searchQuery={bmSearchQuery}
               sourceFilter="brandmeister"
               colorScheme="brandmeister"
+              filterCountries={bmFilterCountries}
+              activeContinents={activeContinents}
+              activeCountries={activeCountries}
             />
           )}
 
@@ -1850,7 +1926,7 @@ export default function Home() {
               userPosition={currentPosition}
               activeContinents={activeContinents}
               activeCountries={activeCountries}
-              filterCountry={totaFilterCountry}
+              filterCountries={totaFilterCountries}
             />
           )}
 
@@ -1904,6 +1980,9 @@ export default function Home() {
             onSearchQueryChange={setAprsSearchQuery}
             nodeCount={aprsNodes.length}
             visibleCount={filteredAprsCount}
+            countries={aprsCountries}
+            filterCountries={aprsFilterCountries}
+            onFilterCountriesChange={setAprsFilterCountries}
             leftOffsetClass={filterOffsets.aprs || "left-3"}
           />
         )}
@@ -1916,6 +1995,9 @@ export default function Home() {
             onSearchQueryChange={setBmSearchQuery}
             nodeCount={brandmeisterNodes.length}
             visibleCount={filteredBmCount}
+            countries={bmCountries}
+            filterCountries={bmFilterCountries}
+            onFilterCountriesChange={setBmFilterCountries}
             leftOffsetClass={filterOffsets.brandmeister || "left-3"}
           />
         )}
@@ -1929,8 +2011,8 @@ export default function Home() {
             pointCount={totaData.length}
             visibleCount={filteredTotaCount}
             points={totaData}
-            filterCountry={totaFilterCountry}
-            onFilterCountryChange={setTotaFilterCountry}
+            filterCountries={totaFilterCountries}
+            onFilterCountriesChange={setTotaFilterCountries}
             leftOffsetClass={filterOffsets.tota || "left-3"}
           />
         )}

@@ -3,6 +3,8 @@ import { CircleMarker, Popup, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import { Radio, Globe, Signal, Network, MapPin, Navigation, Hash } from "lucide-react";
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
+import { isInContinents } from "@/lib/continents";
+import { isInCountries } from "@/lib/countries";
 import DraggablePopup from "@/components/map/DraggablePopup";
 
 const NODE_TYPE_LABELS = {
@@ -142,7 +144,7 @@ function PrivateNodePopup({ node, userPosition, colorScheme }) {
   );
 }
 
-function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTypes, searchQuery, sourceFilter, colorScheme }) {
+function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTypes, searchQuery, sourceFilter, colorScheme, filterCountries, activeContinents, activeCountries }) {
   const map = useMap();
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   const circleRadius = performanceMode ? (isTouch ? 7 : 5) : (isTouch ? 9 : 7);
@@ -173,8 +175,19 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
         (n.network || "").toLowerCase().includes(q)
       );
     }
+    // Per-layer country filter (multi-select) overrides global LayerControl country filter.
+    if (filterCountries && filterCountries.length > 0) {
+      result = result.filter(n => filterCountries.includes(n.country_code));
+    } else {
+      if (activeContinents && activeContinents.length > 0) {
+        result = result.filter(n => isInContinents(n.lat, n.lng, activeContinents));
+      }
+      if (activeCountries && activeCountries.length > 0) {
+        result = result.filter(n => isInCountries({ ...n, layerType: 'repeater' }, activeCountries));
+      }
+    }
     return result;
-  }, [nodes, filterTypes, searchQuery, sourceFilter]);
+  }, [nodes, filterTypes, searchQuery, sourceFilter, filterCountries, activeContinents, activeCountries]);
 
   // Viewport culling — only render nodes within the current map bounds (padded)
   const bounds = map.getBounds();
@@ -250,7 +263,10 @@ function arePropsEqual(prev, next) {
     prev.filterTypes === next.filterTypes &&
     prev.searchQuery === next.searchQuery &&
     prev.sourceFilter === next.sourceFilter &&
-    prev.colorScheme === next.colorScheme;
+    prev.colorScheme === next.colorScheme &&
+    prev.filterCountries === next.filterCountries &&
+    prev.activeContinents === next.activeContinents &&
+    prev.activeCountries === next.activeCountries;
 }
 
 const PrivateNodeLayer = memo(PrivateNodeLayerInner, arePropsEqual);

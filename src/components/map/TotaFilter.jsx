@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { RadioTower, Signal, ChevronDown, X, Search, Info, Globe } from "lucide-react";
-import { getCountriesByContinent } from "@/lib/countries";
+import { RadioTower, Signal, ChevronDown, X, Search, Info } from "lucide-react";
+import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 
 const TOTA_TYPES = [
   { id: "tower", label: "Türme / Aussichtstürme", icon: RadioTower, color: "#f97316" },
@@ -17,8 +17,8 @@ export default function TotaFilter({
   pointCount,
   visibleCount,
   points = [],
-  filterCountry,
-  onFilterCountryChange,
+  filterCountries = [],
+  onFilterCountriesChange,
   leftOffsetClass = "left-16",
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -58,6 +58,11 @@ export default function TotaFilter({
         <RadioTower className="w-5 h-5 text-orange-600" />
         <span className="text-xs font-medium text-gray-700 hidden sm:inline">TOTA</span>
         <span className="text-[10px] font-mono text-gray-400">{visibleCount}</span>
+        {filterCountries.length > 0 && (
+          <span className="px-1 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[9px] font-bold">
+            {filterCountries.length}
+          </span>
+        )}
         <ChevronDown
           className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
             isOpen ? "rotate-180" : ""
@@ -67,7 +72,7 @@ export default function TotaFilter({
 
       {isOpen && (
         <div className="absolute top-12 left-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-72 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
-          <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
             <h3 className="font-semibold text-sm text-gray-900 flex items-center gap-1.5">
               <RadioTower className="w-4 h-4 text-orange-600" /> TOTA – Towers on the Air
             </h3>
@@ -147,39 +152,13 @@ export default function TotaFilter({
             )}
           </div>
 
-          {/* Country filter */}
-          {countries.length > 1 && (
-            <div className="p-3 border-b border-gray-100">
-              <p className="text-[10px] text-blue-600 mb-1.5 font-medium">
-                ℹ Überschreibt den globalen Länder-Filter aus dem Ebenen-Menü für TOTA.
-              </p>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
-                  <Globe className="w-3 h-3" /> Land
-                </h4>
-                {filterCountry !== "all" && (
-                  <button
-                    onClick={() => onFilterCountryChange("all")}
-                    className="text-[10px] text-orange-600 hover:underline"
-                  >
-                    Alle
-                  </button>
-                )}
-              </div>
-              <select
-                value={filterCountry}
-                onChange={(e) => onFilterCountryChange(e.target.value)}
-                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
-              >
-                <option value="all">Alle Länder ({pointCount})</option>
-                {countries.map(c => (
-                  <option key={c.code} value={c.code}>
-                    {c.name} ({c.count})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Country/Continent multi-select filter */}
+          <CountryContinentFilter
+            countries={countries}
+            selectedCountries={filterCountries}
+            onCountriesChange={onFilterCountriesChange}
+            accentColor="orange"
+          />
 
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center gap-1.5 mb-1.5">

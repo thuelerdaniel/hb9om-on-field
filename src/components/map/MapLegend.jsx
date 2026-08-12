@@ -32,8 +32,6 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
     <div className="absolute bottom-20 left-3 z-[1000] max-w-[calc(100%-11rem)] bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
       {/* Compact single-line header */}
       <div className="flex items-center gap-1.5 px-2.5 py-1.5">
-        <span className="font-bold text-xs text-gray-900">{markerCount}</span>
-        <span className="text-[10px] text-gray-500">Ref.</span>
         {castleStats && activeLayers.includes("castle") && (
           <span className="px-1.5 py-0.5 text-[9px] bg-orange-50 text-orange-700 rounded-full font-medium">
             {castleStats.matched}/{castleStats.total}

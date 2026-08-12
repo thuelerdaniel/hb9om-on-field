@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Network, Search, ChevronDown, X, Hash, Radio, Zap } from "lucide-react";
+import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 
 // BrandMeister DMR node types — simpler than APRS since BrandMeister is a DMR network
 // (repeaters and hotspots), not a positioning system with diverse station types.
@@ -18,6 +19,9 @@ export default function BrandMeisterFilter({
   onSearchQueryChange,
   nodeCount,
   visibleCount,
+  countries = [],
+  filterCountries = [],
+  onFilterCountriesChange,
   leftOffsetClass = "left-16",
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -47,12 +51,17 @@ export default function BrandMeisterFilter({
         <Network className="w-5 h-5 text-teal-600" />
         <span className="text-xs font-medium text-gray-700 hidden sm:inline">BrandMeister</span>
         <span className="text-[10px] font-mono text-gray-400">{visibleCount}</span>
+        {filterCountries.length > 0 && (
+          <span className="px-1 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[9px] font-bold">
+            {filterCountries.length}
+          </span>
+        )}
         <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {isOpen && (
         <div className="absolute top-12 left-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-72 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
-          <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
             <h3 className="font-semibold text-sm text-gray-900 flex items-center gap-1.5">
               <Network className="w-4 h-4 text-teal-600" /> BrandMeister DMR
             </h3>
@@ -119,6 +128,14 @@ export default function BrandMeisterFilter({
               </p>
             )}
           </div>
+
+          {/* Country/Continent multi-select filter */}
+          <CountryContinentFilter
+            countries={countries}
+            selectedCountries={filterCountries}
+            onCountriesChange={onFilterCountriesChange}
+            accentColor="teal"
+          />
 
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center gap-1.5 mb-1.5">

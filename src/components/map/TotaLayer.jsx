@@ -37,7 +37,7 @@ export default function TotaLayer({
   userPosition,
   activeContinents = [],
   activeCountries = [],
-  filterCountry = "all",
+  filterCountries = [],
 }) {
   const map = useMap();
 
@@ -49,9 +49,6 @@ export default function TotaLayer({
     if (filterTypes && filterTypes.length > 0) {
       result = result.filter((p) => filterTypes.includes(p.type));
     }
-    if (filterCountry !== "all") {
-      result = result.filter(p => (p.country_code || (p.source === "swiss_csv" ? "CH" : "")) === filterCountry);
-    }
     if (searchQuery && searchQuery.length >= 2) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -62,16 +59,18 @@ export default function TotaLayer({
           (p.usage || "").toLowerCase().includes(q)
       );
     }
-    // Per-layer country filter overrides global LayerControl country filter.
-    // When a specific country is selected in the TotaFilter, the global
+    // Per-layer country filter (multi-select) overrides global LayerControl country filter.
+    // When specific countries are selected in the TotaFilter, the global
     // activeContinents/activeCountries from LayerControl are NOT applied.
-    if (filterCountry === "all") {
+    if (filterCountries && filterCountries.length > 0) {
+      result = result.filter(p => filterCountries.includes(p.country_code || (p.source === "swiss_csv" ? "CH" : "")));
+    } else {
       result = result
         .filter(p => isInContinents(p.lat, p.lng, activeContinents))
         .filter(p => isInCountries(p, activeCountries));
     }
     return result;
-  }, [points, filterTypes, searchQuery, activeContinents, activeCountries, filterCountry]);
+  }, [points, filterTypes, searchQuery, activeContinents, activeCountries, filterCountries]);
 
   // Viewport bounds filtering — only render markers within the current viewport
   const visiblePoints = useMemo(() => {

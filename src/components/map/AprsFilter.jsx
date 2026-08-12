@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Wifi, Search, ChevronDown, X, Info } from "lucide-react";
 import { NODE_TYPE_LABELS, NODE_COLORS } from "@/components/map/PrivateNodeLayer";
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
+import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 
 const ALL_TYPES = Object.keys(NODE_TYPE_LABELS);
 
@@ -12,6 +13,9 @@ export default function AprsFilter({
   onSearchQueryChange,
   nodeCount,
   visibleCount,
+  countries = [],
+  filterCountries = [],
+  onFilterCountriesChange,
   leftOffsetClass = "left-16",
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -41,12 +45,17 @@ export default function AprsFilter({
         <Wifi className="w-5 h-5 text-purple-600" />
         <span className="text-xs font-medium text-gray-700 hidden sm:inline">APRS</span>
         <span className="text-[10px] font-mono text-gray-400">{visibleCount}</span>
+        {filterCountries.length > 0 && (
+          <span className="px-1 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[9px] font-bold">
+            {filterCountries.length}
+          </span>
+        )}
         <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {isOpen && (
         <div className="absolute top-12 left-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-72 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
-          <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
             <h3 className="font-semibold text-sm text-gray-900 flex items-center gap-1.5">
               <Wifi className="w-4 h-4 text-purple-600" /> APRS-Filter
             </h3>
@@ -116,6 +125,14 @@ export default function AprsFilter({
               </p>
             )}
           </div>
+
+          {/* Country/Continent multi-select filter */}
+          <CountryContinentFilter
+            countries={countries}
+            selectedCountries={filterCountries}
+            onCountriesChange={onFilterCountriesChange}
+            accentColor="purple"
+          />
 
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center gap-1.5 mb-2">

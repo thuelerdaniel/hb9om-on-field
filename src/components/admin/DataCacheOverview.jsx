@@ -121,7 +121,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
       let withCoords = 0;
       const BATCH = 5000;
       for (let skip = 0; skip < 80000; skip += BATCH) {
-        const batch = await base44.entities[entityName].list("_id", BATCH, skip);
+        const batch = await base44.entities[entityName].list("id", BATCH, skip);
         if (!batch || batch.length === 0) break;
         count += batch.length;
         withCoords += batch.filter(r => r.lat != null && r.lng != null).length;
