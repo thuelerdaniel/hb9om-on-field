@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { BarChart3, Radio, MapPin, Globe, Building, Calendar, TrendingUp } from "lucide-react";
 
 const REF_TYPE_LABELS = {
-  sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+  sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
   castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm",
   swiss_protected: "Bundesinventar", generell: "Generell", custom: "Eigenes"
 };

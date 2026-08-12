@@ -212,7 +212,7 @@ function drawMockup(doc, x, y, w, type, color) {
     const layers = [
       { label: "SOTA", checked: true },
       { label: "POTA", checked: true },
-      { label: "HBFF", checked: false },
+      { label: "WWFF", checked: false },
       { label: "Burgen", checked: true },
       { label: "IOTA", checked: false }
     ];
@@ -476,7 +476,7 @@ export async function generateHelpPdf(config = {}) {
   doc.text(pdfTitle, MARGIN, 48);
   doc.setFontSize(9);
   doc.text(pdfSubtitle, MARGIN, 55);
-  doc.text("SOTA - POTA - HBFF - WWBOTA - Burgen - Leuchttürme - IOTA", MARGIN, 61);
+  doc.text("SOTA - POTA - WWFF - WWBOTA - Burgen - Leuchttürme - IOTA", MARGIN, 61);
 
   doc.setFillColor(...GOLD);
   doc.roundedRect(W - 65, 10, 47, 10, 1.5, 1.5, "F");
@@ -576,7 +576,7 @@ export async function generateHelpPdf(config = {}) {
   const quickLinks = [
     { label: "SOTA-Gipfel", url: LINKS.sota },
     { label: "POTA-Parks", url: LINKS.pota },
-    { label: "HBFF-Referenzen", url: LINKS.hbff },
+    { label: "WWFF-Referenzen", url: LINKS.hbff },
     { label: "WWBOTA-Bunker", url: LINKS.wwbota },
     { label: "Burgen und Schlösser", url: LINKS.wca },
     { label: "IOTA-Inseln", url: LINKS.iota },
@@ -1235,7 +1235,7 @@ export async function generateHelpPdf(config = {}) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  const disclaimer = "Diese App wird ohne jegliche Gewährleistung bereitgestellt. Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen. Die Daten stammen aus öffentlichen Quellen (SOTA, POTA, HBFF, WWBOTA, WCA, ARLHS, BFE, BAKOM, BAFU) und können unvollständig oder veraltet sein.";
+  const disclaimer = "Diese App wird ohne jegliche Gewährleistung bereitgestellt. Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen. Die Daten stammen aus öffentlichen Quellen (SOTA, POTA, WWFF, WWBOTA, WCA, ARLHS, BFE, BAKOM, BAFU) und können unvollständig oder veraltet sein.";
   const dLines = doc.splitTextToSize(disclaimer, CONTENT_W);
   for (const line of dLines) {
     checkPage(6);

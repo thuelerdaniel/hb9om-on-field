@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 const SOURCES = [
   { key: "sota", label: "SOTA", icon: Mountain, color: "text-red-500" },
   { key: "pota", label: "POTA", icon: TreePine, color: "text-green-500" },
-  { key: "hbff", label: "HBFF", icon: Flower, color: "text-purple-500" },
+  { key: "hbff", label: "WWFF", icon: Flower, color: "text-purple-500" },
   { key: "wwbota", label: "WWBOTA", icon: Shield, color: "text-amber-700" },
   { key: "castle", label: "Burgen/Schlösser (Welt)", icon: Landmark, color: "text-orange-500" },
   { key: "lighthouse", label: "Leuchttürme", icon: Lightbulb, color: "text-yellow-500" },

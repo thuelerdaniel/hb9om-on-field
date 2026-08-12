@@ -6,7 +6,7 @@ import { createEntry, loadLocal } from "@/lib/localLogStore";
 import { useToast } from "@/components/ui/use-toast";
 
 const REF_TYPE_LABELS = {
-  sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+  sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
   castle: "Burg", iota: "IOTA", lighthouse: "Leuchtt.", repeater: "Relais",
   swiss_protected: "Inventar", generell: "Generell", custom: "Eigen",
 };

@@ -98,7 +98,7 @@ export default async function(req: Request): Promise<Response> {
       for (const entry of refData || []) {
         refMap[entry.type] = entry;
       }
-      // SOTA, POTA, HBFF, WWBOTA, castle, lighthouse, iota — from ReferenceData
+      // SOTA, POTA, WWFF, WWBOTA, castle, lighthouse, iota — from ReferenceData
       const refTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'lighthouse', 'iota'];
       for (const t of refTypes) {
         const entry = refMap[t];

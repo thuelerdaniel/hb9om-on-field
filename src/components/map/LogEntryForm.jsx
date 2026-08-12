@@ -34,7 +34,7 @@ const SUFFIXES = [
 const REF_TYPES = [
   { value: "sota", label: "SOTA" },
   { value: "pota", label: "POTA" },
-  { value: "hbff", label: "HBFF" },
+  { value: "hbff", label: "WWFF" },
   { value: "wwbota", label: "WWBOTA" },
   { value: "castle", label: "Burg/Schloss" },
   { value: "iota", label: "IOTA" },
@@ -373,7 +373,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12", repeater: "#3b82f6"
     };
     const labelMap = {
-      sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+      sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
       castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm", repeater: "Relais"
     };
     const matches = [];

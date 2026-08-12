@@ -55,7 +55,7 @@ export default function PrivacyPolicy() {
           </p>
           <ul className="list-disc pl-5 space-y-1 mt-1">
             <li>QRZ.com-Abfragen werden direkt von Ihrem Gerät an QRZ.com gesendet.</li>
-            <li>Referenzdaten werden von öffentlichen Quellen (SOTA, POTA, HBFF, etc.) geladen.</li>
+            <li>Referenzdaten werden von öffentlichen Quellen (SOTA, POTA, WWFF, etc.) geladen.</li>
             <li>Bei Cloud-Backups (WebDAV, Google Drive, OneDrive) werden Daten an den von Ihnen gewählten Anbieter übertragen.</li>
           </ul>
         </section>

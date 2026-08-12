@@ -36,14 +36,14 @@ const REFERENCE_SOURCES = [
   },
   {
     type: 'hbff',
-    label: 'HBFF – Flora & Fauna',
-    source: 'hbff.ch',
-    url: 'https://hbff.ch/Refs/HBFFReferenceSlim.html',
+    label: 'WWFF – Flora & Fauna',
+    source: 'wwff.co',
+    url: 'https://wwff.co/wwff-data/wwff_directory.csv',
     auto_updated: true,
     check: async (resp) => {
-      const html = await resp.text();
-      if (!html.includes('HBFF-')) return { ok: false, detail: 'Referenzliste nicht in HTML gefunden' };
-      return { ok: true, detail: 'Referenzliste abrufbar' };
+      const csv = await resp.text();
+      if (!csv.includes('reference') || csv.length < 1000) return { ok: false, detail: 'WWFF CSV nicht gültig' };
+      return { ok: true, detail: 'WWFF-Verzeichnis abrufbar' };
     },
   },
   {

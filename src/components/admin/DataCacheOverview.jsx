@@ -16,13 +16,13 @@ import CacheDetailView from "@/components/admin/CacheDetailView";
 const STALE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 const REFERENCE_LAYERS = [
-  { key: "sota", label: "SOTA", icon: Mountain, color: "text-red-500" },
-  { key: "pota", label: "POTA", icon: Trees, color: "text-green-500" },
-  { key: "hbff", label: "HBFF", icon: Trees, color: "text-purple-500" },
-  { key: "wwbota", label: "WWBOTA", icon: Building, color: "text-amber-700" },
-  { key: "castle", label: "Burgen", icon: Castle, color: "text-orange-500" },
-  { key: "lighthouse", label: "Leuchttürme", icon: Anchor, color: "text-yellow-600" },
-  { key: "iota", label: "IOTA", icon: Diamond, color: "text-blue-500" },
+  { key: "sota", label: "SOTA", icon: Mountain, color: "text-red-500", tooltip: "Summits on the Air – Berggipfel ab 150 m Prominenz. Daten von sotadata.org.uk. Gesamtzahl aus ReferenceData.total_count (Backend). Koordinaten aus den Referenzdaten." },
+  { key: "pota", label: "POTA", icon: Trees, color: "text-green-500", tooltip: "Parks on the Air – Nationalparks und Schutzgebiete. Daten von pota.app. Gesamtzahl aus ReferenceData.total_count (Backend)." },
+  { key: "hbff", label: "WWFF", icon: Trees, color: "text-purple-500", tooltip: "Worldwide Flora & Fauna – Naturreservate weltweit. Daten von wwff.co. Gesamtzahl aus ReferenceData.total_count (Backend)." },
+  { key: "wwbota", label: "WWBOTA", icon: Building, color: "text-amber-700", tooltip: "Worldwide Bunkers on the Air – Militärische Bunker. Daten von wwbota.net. Gesamtzahl aus ReferenceData.total_count (Backend)." },
+  { key: "castle", label: "Burgen", icon: Castle, color: "text-orange-500", tooltip: "WCA/COTA – Burgen und Schlösser. Daten von Wikidata/OSM. Gesamtzahl aus ReferenceData.total_count (Backend)." },
+  { key: "lighthouse", label: "Leuchttürme", icon: Anchor, color: "text-yellow-600", tooltip: "WLOTA/ARLHS – Leuchttürme weltweit. Daten von arlhs.net. Gesamtzahl aus ReferenceData.total_count (Backend)." },
+  { key: "iota", label: "IOTA", icon: Diamond, color: "text-blue-500", tooltip: "Islands on the Air – Inseln weltweit. Daten von iota-world.org. Gesamtzahl aus ReferenceData.total_count (Backend)." },
 ];
 
 // Compute traffic-light status for a single layer entry.
@@ -42,13 +42,14 @@ function computeLayerStatus(count, withCoords, total, lastUpdated, isCritical) {
   return "ok";
 }
 
-function LayerCard({ label, icon: Icon, color, count, withCoords, total, lastUpdated, status, source, layerKey, onClick }) {
+function LayerCard({ label, icon: Icon, color, count, withCoords, total, lastUpdated, status, source, layerKey, onClick, tooltip }) {
   const isStale = lastUpdated && (Date.now() - lastUpdated.getTime()) > STALE_THRESHOLD_MS;
   const withoutCoords = (total || count) - (withCoords || 0);
 
   return (
     <div
       onClick={onClick}
+      title={tooltip}
       className={`rounded-lg border p-3 cursor-pointer hover:shadow-md transition-shadow ${
         status === "ok" ? "border-green-200 dark:border-green-800/50 bg-green-50/30 dark:bg-green-900/10" :
         status === "warning" ? "border-amber-200 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-900/10" :
@@ -153,7 +154,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
     if (layerKey === "aprs") return extraCounts?.privateNodes ?? 0;
     if (layerKey === "tota") return extraCounts?.tota ?? 0;
     if (layerKey === "repeaterLinks") return extraCounts?.repeaterLinks ?? 0;
-    // SOTA, POTA, HBFF, WWBOTA, castle, lighthouse, iota — use ReferenceData
+    // SOTA, POTA, WWFF, WWBOTA, castle, lighthouse, iota — use ReferenceData
     const refs = refEntry?.references || [];
     const refCount = refs.length;
     const totalCount = refEntry?.total_count || 0;
@@ -194,12 +195,12 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-gray-600 dark:text-slate-300" />
-          <span className="text-sm font-bold text-gray-900 dark:text-slate-100">Daten-Cache Übersicht</span>
+          <span className="text-sm font-bold text-gray-900 dark:text-slate-100" title="Zeigt die Anzahl gespeicherter Datensätze pro Layer. Große Layer (SOTA, POTA, WWFF) verwenden ReferenceData.total_count vom Backend. Kleinere Layer (Relais, APRS, TOTA) verwenden direkte Entity-Counts.">Daten-Cache Übersicht</span>
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
             overallStatus === "ok" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
             overallStatus === "warning" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
             "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-          }`}>
+          }`} title="Grün: Alle Layer haben Daten und sind aktuell. Gelb: Mindestens ein Layer ist veraltet (>7 Tage) oder hat fehlende Koordinaten. Rot: Kritische Layer (SOTA, POTA, Burgen) sind leer.">
             {overallLabel}
           </span>
         </div>
@@ -247,6 +248,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           label="Relais"
           icon={RadioTower}
           color="text-blue-500"
+          tooltip="Amateurfunk-Relais weltweit (FM, DMR, D-STAR, Fusion etc.). Daten von RepeaterBook.com, ukrepeater.net, WIA, dstarusers.org. Anzahl aus direktem Entity-Count (Repeater.list)."
           count={repeaterCount}
           withCoords={repData?.withCoords || 0}
           total={repeaterCount}
@@ -262,6 +264,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           label="APRS-Nodes"
           icon={Signal}
           color="text-purple-500"
+          tooltip="APRS-Stationen weltweit: Digipeater, IGates, Wetter, Hotspots. Daten von aprs.fi und BrandMeister. Anzahl aus direktem Entity-Count (PrivateNode.list)."
           count={aprsCount}
           withCoords={null}
           total={null}
@@ -277,6 +280,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           label="TOTA"
           icon={Tower}
           color="text-orange-500"
+          tooltip="Towers on the Air – Aussichtstürme und Antennen. Daten von wwtota.com und Swiss CSV. Anzahl aus direktem Entity-Count (TotaPoint.list)."
           count={extraCounts?.tota || 0}
           withCoords={null}
           total={null}
@@ -292,6 +296,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           label="Relais-Verlinkungen"
           icon={Link2}
           color="text-teal-500"
+          tooltip="Permanente Verlinkungen zwischen Relais (Crosslinks, EchoLink, BrandMeister). Daten von RepeaterBook, USKA und Admin-Erfassung. Anzahl aus RepeaterLink.filter({status:'approved'})."
           count={extraCounts?.repeaterLinks || 0}
           withCoords={null}
           total={null}
@@ -308,25 +313,25 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
         <div className="p-3 bg-blue-50/30 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800/50">
           <div className="flex items-center gap-2 mb-2">
             <RadioTower className="w-3.5 h-3.5 text-blue-600" />
-            <span className="text-xs font-semibold text-gray-900 dark:text-slate-100">Relais-Abdeckung</span>
+            <span className="text-xs font-semibold text-gray-900 dark:text-slate-100" title="Abdeckungsradius-Berechnung: Band-Schätzung (Standardwert pro Band) wird durch APRS-Daten verfeinert, wenn verfügbar. Gelände-Adjustierung berücksichtigt Standorthöhe und Hindernisse. Berechnet von der Funktion calculateRepeaterCoverage.">Relais-Abdeckung</span>
           </div>
           <div className="grid grid-cols-4 gap-2 text-center">
-            <div>
+            <div title="Relais, deren Abdeckungsradius durch echte APRS-Positionsdaten verfeinert wurde (genauer als Band-Schätzung).">
               <div className="text-sm font-bold text-green-600">{repData.aprsRefined || 0}</div>
               <div className="text-[9px] text-gray-400 dark:text-slate-500">APRS-verfeinert</div>
             </div>
-            <div>
+            <div title="Relais, deren Abdeckungsradius durch Standorthöhe und Geländefaktor (terrain_factor) adjustiert wurde.">
               <div className="text-sm font-bold text-teal-600">{repData.terrainAdjusted || 0}</div>
               <div className="text-[9px] text-gray-400 dark:text-slate-500">Gelände-adj.</div>
             </div>
-            <div>
+            <div title="Durchschnittlicher Verfeinerungsgrad aller Relais: 0% = nur Band-Schätzung, 100% = alle durch APRS/Gelände verfeinert. Grün ≥60%, Gelb ≥30%.">
               <div className={`text-sm font-bold ${
                 repData.avgRefinementPct >= 60 ? "text-green-600" :
                 repData.avgRefinementPct >= 30 ? "text-amber-600" : "text-gray-400 dark:text-slate-500"
               }`}>{repData.avgRefinementPct}%</div>
               <div className="text-[9px] text-gray-400 dark:text-slate-500">Ø Verfeinerung</div>
             </div>
-            <div>
+            <div title="Relais, die von einem Admin für die Neuberechnung markiert wurden (needs_recalc=true). Werden im nächsten Berechnungszyklus aktualisiert.">
               <div className="text-sm font-bold text-amber-600">{coverageProgress?.pendingRecalc || 0}</div>
               <div className="text-[9px] text-gray-400 dark:text-slate-500">Neuberechnung offen</div>
             </div>
@@ -351,7 +356,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
         <div className="p-3 bg-purple-50/30 dark:bg-purple-900/10 rounded-lg border border-purple-200 dark:border-purple-800/50">
           <div className="flex items-center gap-2 mb-2">
             <Signal className="w-3.5 h-3.5 text-purple-600" />
-            <span className="text-xs font-semibold text-gray-900 dark:text-slate-100">APRS-Stationen</span>
+            <span className="text-xs font-semibold text-gray-900 dark:text-slate-100" title="Aufschlüsselung der APRS-Stationen nach Typ. Daten von aprs.fi (API) und BrandMeister. Gespeichert in der PrivateNode-Entity.">APRS-Stationen</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {aprsCache.byType?.repeater_node > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Digipeater: {aprsCache.byType.repeater_node}</span>}

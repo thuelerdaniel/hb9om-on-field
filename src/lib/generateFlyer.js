@@ -90,7 +90,7 @@ export async function generateFlyer() {
 
   y += 10;
   const usps = [
-    { icon: "★", color: GOLD, title: "Alle Referenzen vereint", desc: "SOTA, POTA, HBFF, WWBOTA, Burgen, Leuchttürme, IOTA & Bundesinventare – alles in einer App. Kein anderes Tool bietet diese Vollständigkeit." },
+    { icon: "★", color: GOLD, title: "Alle Referenzen vereint", desc: "SOTA, POTA, WWFF, WWBOTA, Burgen, Leuchttürme, IOTA & Bundesinventare – alles in einer App. Kein anderes Tool bietet diese Vollständigkeit." },
     { icon: "◈", color: GREEN, title: "SwissTopo-Kartenintegration", desc: "Offizielle Schweizer Landeskarten in 4 Massstäben (1:10'000 bis 1:100'000) direkt in der App." },
     { icon: "◉", color: RED, title: "QRZ.com-Integration", desc: "Jeder Benutzer kann seine eigenen QRZ.com-Zugangsdaten hinterlegen. Admins nutzen die Club-Subscription." },
     { icon: "▼", color: NAVY, title: "Offline-Fähig", desc: "Karten herunterladen und im Feld ohne Empfang nutzen. QSOs werden lokal gespeichert und synchronisiert." },
@@ -146,7 +146,7 @@ export async function generateFlyer() {
       color: GREEN,
       items: [
         "Interaktive Karte mit allen Schweizer Amateurfunk-Referenzen",
-        "SOTA · POTA · HBFF · WWBOTA · Burgen & Schlösser · TOTA · Leuchttürme (ARLHS WLOL) · IOTA",
+        "SOTA · POTA · WWFF · WWBOTA · Burgen & Schlösser · TOTA · Leuchttürme (ARLHS WLOL) · IOTA",
         "Bundesinventare: Auengebiete, Moore & weitere Naturzonen",
         "SwissTopo-Karten: Strassenkarte, Satellit & offizielle Landeskarten",
         "GPS-Positionierung mit Radius-Suche (100 m – 10 km)",
@@ -276,7 +276,7 @@ export async function generateFlyer() {
   y += 10;
 
   const exclusives = [
-    "Einziges Tool, das SOTA, POTA, HBFF, WWBOTA, Burgen, TOTA, Leuchttürme & IOTA für die Schweiz vereint",
+    "Einziges Tool, das SOTA, POTA, WWFF, WWBOTA, Burgen, TOTA, Leuchttürme & IOTA für die Schweiz vereint",
     "Offizielle ARLHS WLOL Leuchtturm-Referenzen (SWI-001 bis SWI-006) verifiziert",
     "SwissTopo-Karten in 4 offiziellen Massstäben integriert",
     "Gefahren & Störquellen-Layer über map.geo.admin.ch (Bundesamt für Energie)",

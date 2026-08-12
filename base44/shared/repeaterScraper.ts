@@ -13,16 +13,16 @@ const NA_DETAIL_BASE = 'https://www.repeaterbook.com/repeaters/details.php';
 
 const LIST_PARAMS = 'band=%25&freq=%25&band6=%25&loc=%25&call=%25&status_id=%25&features=%25&system=%25&coverage=%25&use=%25';
 
-const MAX_DETAIL_FETCH = 8000;
+const MAX_DETAIL_FETCH = 15000;
 const MAX_PER_COUNTRY = 200;
-const MAX_PER_COUNTRY_PRIORITY_1 = 500; // Switzerland + neighbors
-const MAX_PER_COUNTRY_PRIORITY_2 = 30;  // Rest of Europe
-const MAX_PER_COUNTRY_PRIORITY_3 = 15;  // Asia, Africa, Americas, Oceania
-const MAX_PER_US_CA_REGION = 35;
+const MAX_PER_COUNTRY_PRIORITY_1 = 1000; // Switzerland + neighbors — full detail
+const MAX_PER_COUNTRY_PRIORITY_2 = 150;  // Rest of Europe — key repeaters
+const MAX_PER_COUNTRY_PRIORITY_3 = 60;   // Asia, Africa, Americas, Oceania — major repeaters
+const MAX_PER_US_CA_REGION = 80;
 const LIST_CONCURRENCY = 12;
-const DETAIL_CONCURRENCY = 80;
+const DETAIL_CONCURRENCY = 120;
 const FETCH_TIMEOUT_MS = 8000;
-const DETAIL_DEADLINE_MS = 200000; // 200 seconds — enough for worldwide detail fetches
+const DETAIL_DEADLINE_MS = 300000; // 300 seconds — allows ~3x more detail fetches worldwide
 
 // Fetch with timeout — prevents a single slow/stuck response from blocking the whole batch.
 // Aborts after FETCH_TIMEOUT_MS and returns null (caller treats as failed fetch).

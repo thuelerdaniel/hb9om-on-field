@@ -6,7 +6,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { useToast } from "@/components/ui/use-toast";
 
 const TYPE_LABELS = {
-  sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+  sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
   castle: "Burg/Schloss", lighthouse: "Leuchtturm", iota: "IOTA"
 };
 

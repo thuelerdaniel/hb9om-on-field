@@ -5,7 +5,7 @@
 export const LINKS = {
   sota: "https://www.sotadata.org.uk/summitlist.aspx",
   pota: "https://pota.app/#/park/CH",
-  hbff: "https://hbff.ch/Refs/HBFFReferenceSlim.html",
+  hbff: "https://wwff.co/",
   wwbota: "https://wwbota.net/map/",
   wca: "https://wcagroup.org/?page_id=207",
   tota: "https://wwtota.com/seznam/?lang=de",
@@ -128,7 +128,7 @@ export const SECTIONS = [
         body: "Über das Ebenen-Menü (rechts oben) können Sie Referenz-Typen ein- und ausschalten und die Hintergrundkarte wechseln. Das Menü öffnet sich immer ganz oben und liegt über allen anderen Elementen.",
         steps: [
           { icon: "layers", text: "Auf das Layer-Icon (rechts oben) tippen" },
-          { icon: "eye", text: "Gewünschte Referenz-Typen ein-/ausschalten (SOTA, POTA, HBFF, etc.)" },
+          { icon: "eye", text: "Gewünschte Referenz-Typen ein-/ausschalten (SOTA, POTA, WWFF, etc.)" },
           { icon: "mapPin", text: "Hintergrundkarte wählen (Strassenkarte, Satellit, SwissTopo)" },
           { icon: "check", text: "Menü schliessen – Änderungen sind sofort sichtbar" }
         ],
@@ -203,7 +203,7 @@ export const SECTIONS = [
         links: [
           { label: "SOTA-Gipfel-Liste", url: LINKS.sota },
           { label: "POTA-Parks", url: LINKS.pota },
-          { label: "HBFF-Referenzen", url: LINKS.hbff },
+          { label: "WWFF-Referenzen", url: LINKS.hbff },
           { label: "WWBOTA-Bunker", url: LINKS.wwbota }
         ]
       },
@@ -968,7 +968,7 @@ export const SECTIONS = [
       },
       {
         title: "Kontinent-Filter",
-        body: "Im Ebenen-Menue gibt es einen Kontinent-Filter, mit dem Sie Overlay-Ebenen nach Kontinent ein- und ausblenden koennen. Waehlen Sie «Ganze Welt» (Standard) oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.). Der Filter wirkt sich auf alle Referenz-Ebenen aus (SOTA, POTA, HBFF, etc.).",
+        body: "Im Ebenen-Menue gibt es einen Kontinent-Filter, mit dem Sie Overlay-Ebenen nach Kontinent ein- und ausblenden koennen. Waehlen Sie «Ganze Welt» (Standard) oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.). Der Filter wirkt sich auf alle Referenz-Ebenen aus (SOTA, POTA, WWFF, etc.).",
         steps: [
           { icon: "layers", text: "Ebenen-Menue oeffnen (Layer-Icon rechts oben)" },
           { icon: "globe", text: "Bereich «Kontinent-Filter» aufklappen" },

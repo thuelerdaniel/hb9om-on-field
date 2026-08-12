@@ -25,7 +25,7 @@ import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import MobileSelect from "@/components/ui/MobileSelect";
 
 const TYPE_LABELS = {
-  sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+  sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
   castle: "Burgen/Schlösser", lighthouse: "Leuchttürme", iota: "IOTA",
 };
 
@@ -461,30 +461,30 @@ export default function AdminPanel({
                 </button>
               </div>
               <div className="grid grid-cols-4 md:grid-cols-6 gap-2 mb-2">
-                <div className="text-center">
+                <div className="text-center" title="Gesamtzahl aller Relais in der Datenbank (weltweit). Quelle: RepeaterBook, ukrepeater.net, WIA, dstarusers.org.">
                   <div className="text-sm font-bold text-gray-900 dark:text-slate-100">{coverageProgress.global.totalRepeaters}</div>
                   <div className="text-[9px] text-gray-400 dark:text-slate-500">Relais gesamt</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center" title="Relais mit geografischen Koordinaten (Breiten-/Längengrad). Nur diese werden auf der Karte angezeigt. Koordinaten stammen aus RepeaterBook-Detailseiten oder APRS-Daten.">
                   <div className="text-sm font-bold text-blue-600">{coverageProgress.global.withCoords}</div>
                   <div className="text-[9px] text-gray-400 dark:text-slate-500">Mit Koord.</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center" title="Relais, deren Abdeckungsradius durch echte APRS-Positionsdaten verfeinert wurde.">
                   <div className="text-sm font-bold text-green-600">{coverageProgress.global.aprsRefined}</div>
                   <div className="text-[9px] text-gray-400 dark:text-slate-500">APRS-verf.</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center" title="Relais, deren Abdeckungsradius durch Standorthöhe (elevation_m) und Geländefaktor (terrain_factor) adjustiert wurde.">
                   <div className="text-sm font-bold text-teal-600">{coverageProgress.global.terrainAdjusted || 0}</div>
                   <div className="text-[9px] text-gray-400 dark:text-slate-500">Gelände-adj.</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center" title="Durchschnittlicher Verfeinerungsgrad: 0% = nur Band-Schätzung, 100% = alle durch APRS/Gelände verfeinert. Grün ≥60%, Gelb ≥30%.">
                   <div className={`text-sm font-bold ${
                     coverageProgress.global.avgRefinementPct >= 60 ? "text-green-600" :
                     coverageProgress.global.avgRefinementPct >= 30 ? "text-amber-600" : "text-gray-400 dark:text-slate-500"
                   }`}>{coverageProgress.global.avgRefinementPct}%</div>
                   <div className="text-[9px] text-gray-400 dark:text-slate-500">Ø Verfein.</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center" title="Relais, die von einem Admin für die Neuberechnung markiert wurden (needs_recalc=true). Werden im nächsten Berechnungszyklus aktualisiert.">
                   <div className="text-sm font-bold text-amber-600">{coverageProgress.pendingRecalc || 0}</div>
                   <div className="text-[9px] text-gray-400 dark:text-slate-500">Neuberechn.</div>
                 </div>

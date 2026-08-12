@@ -5,7 +5,7 @@ import { getWwbotaLink, getWwbotaCountryName } from "@/lib/wwbotaSchemes";
 const LAYER_META = {
   sota: { icon: Mountain, color: "#e74c3c", label: "SOTA", program: "Summits on the Air", linkBase: "https://sotl.as/summits/" },
   pota: { icon: Trees, color: "#27ae60", label: "POTA", program: "Parks on the Air", linkBase: "https://pota.app/#/park/" },
-  hbff: { icon: Trees, color: "#8e44ad", label: "HBFF", program: "Flora & Fauna Schweiz", linkBase: "" },
+  hbff: { icon: Trees, color: "#8e44ad", label: "WWFF", program: "Flora & Fauna", linkBase: "" },
   wwbota: { icon: Building, color: "#795548", label: "WWBOTA", program: "Bunkers on the Air", linkBase: "" },
   castle: { icon: Castle, color: "#e67e22", label: "WCA/COTA", program: "Burgen on the Air", linkBase: "" },
   iota: { icon: MapPin, color: "#3498db", label: "IOTA", program: "Islands on the Air", linkBase: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html?filter_search=" },

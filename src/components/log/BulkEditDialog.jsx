@@ -4,7 +4,7 @@ import MobileSelect from "@/components/ui/MobileSelect";
 import { bulkUpdate } from "@/lib/localLogStore";
 
 const REF_TYPE_LABELS = {
-  sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
+  sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
   castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm",
   repeater: "Repeater", swiss_protected: "Bundesinventar",
   generell: "Generell", custom: "Eigene",
