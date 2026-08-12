@@ -35,12 +35,17 @@ export const MODE_LABELS = {
 export const FEATURE_MODES = ["EchoLink", "AllStar", "IRLP", "WIRES-X"];
 export const FILTER_MODES = ["FM", "Fusion", "DMR", "D-STAR", "P-25", "NXDN", "M17", "EchoLink"];
 
-// Returns true if a repeater matches a given filter mode.
-// Feature modes (EchoLink etc.) are checked against the modes array, not primary_mode.
+// Returns true if a repeater supports a given filter mode.
+// ALL modes (primary and feature) are checked against the modes array — a repeater
+// that supports FM+DMR shows up when either FM or DMR is filtered, regardless of
+// which mode is its primary_mode. Falls back to primary_mode if modes array is empty.
 export function repeaterMatchesMode(repeater, mode) {
-  if (FEATURE_MODES.includes(mode)) {
-    return (repeater.modes || []).includes(mode);
+  const modes = repeater.modes || [];
+  if (modes.length > 0) {
+    return modes.includes(mode);
   }
+  // Fallback: if modes array is empty, check primary_mode for non-feature modes
+  if (FEATURE_MODES.includes(mode)) return false;
   return repeater.primary_mode === mode;
 }
 

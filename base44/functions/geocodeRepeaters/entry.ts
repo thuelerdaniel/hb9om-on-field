@@ -14,7 +14,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const RATE_LIMIT_MS = 1100; // 1.1s between requests (Nominatim allows 1/s)
 const MAX_GEOCODES_PER_CALL = 25;
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 5000;
 
 async function geocodePlace(query: string, countryCode?: string): Promise<{ lat: number; lng: number } | null> {
   try {
@@ -57,15 +57,22 @@ export default async function(req: Request): Promise<Response> {
     const maxGeocodes = Math.min(body.maxGeocodes || MAX_GEOCODES_PER_CALL, 30);
     const startTime = Date.now();
 
-    // Step 1: Fetch repeaters without coordinates (paginated)
+    // Step 1: Fetch ALL repeaters without coordinates using skip-based pagination.
+    // _id cursor pagination doesn't work on this platform — use skip/offset with id sort.
+    // 30000+ repeaters may lack coordinates; fetch all to get complete unique place list.
     const unmatched: any[] = [];
-    let lastId: string | null = null;
-    for (let i = 0; i < 10; i++) {
-      const query = lastId ? { _id: { $gt: lastId }, lat: null } : { lat: null };
-      const batch = await base44.asServiceRole.entities.Repeater.filter(query, '_id', BATCH_SIZE);
+    const seenIds = new Set<string>();
+    let skip = 0;
+    for (let i = 0; i < 20; i++) {
+      const batch = await base44.asServiceRole.entities.Repeater.filter({ lat: null }, 'id', BATCH_SIZE, skip);
       if (!batch || batch.length === 0) break;
-      unmatched.push(...batch);
-      lastId = batch[batch.length - 1].id;
+      for (const r of batch) {
+        if (r.id && !seenIds.has(r.id)) {
+          seenIds.add(r.id);
+          unmatched.push(r);
+        }
+      }
+      skip += batch.length;
       if (batch.length < BATCH_SIZE) break;
     }
 

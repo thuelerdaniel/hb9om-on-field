@@ -24,16 +24,22 @@ export default function UnmatchedRepeaters() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch repeaters with no coordinates or imprecise (from locator)
-      // Platform caps filter at 5000 — paginate to get all
+      // Fetch ALL repeaters using skip-based pagination with id sort.
+      // _id-based cursor pagination doesn't work on this platform — use skip/offset.
+      // 31000+ repeaters exist; fetch in batches of 5000 with dedup.
       const allReps = [];
-      let lastId = null;
-      for (let i = 0; i < 10; i++) {
-        const query = lastId ? { _id: { $gt: lastId } } : {};
-        const batch = await base44.entities.Repeater.filter(query, "_id", 5000);
+      const seenIds = new Set();
+      let skip = 0;
+      for (let i = 0; i < 20; i++) {
+        const batch = await base44.entities.Repeater.list("id", 5000, skip);
         if (!batch || batch.length === 0) break;
-        allReps.push(...batch);
-        lastId = batch[batch.length - 1].id;
+        for (const r of batch) {
+          if (r.id && !seenIds.has(r.id)) {
+            seenIds.add(r.id);
+            allReps.push(r);
+          }
+        }
+        skip += batch.length;
         if (batch.length < 5000) break;
       }
       const unmatched = allReps.filter(r => !r.lat || !r.lng || r.coords_from_locator);
