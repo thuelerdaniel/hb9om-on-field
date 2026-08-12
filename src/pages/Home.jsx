@@ -19,6 +19,7 @@ import PrivateNodeLayer from "@/components/map/PrivateNodeLayer";
 import PositionMarker from "@/components/map/PositionMarker";
 import GpsTracker from "@/components/map/GpsTracker";
 import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
+import WmsOverlayLayer from "@/components/map/WmsOverlayLayer";
 import SearchResults from "@/components/map/SearchResults";
 import RadioLoader from "@/components/map/RadioLoader";
 import PreloadHint from "@/components/map/PreloadHint";
@@ -675,6 +676,11 @@ export default function Home() {
 
         {/* GPS tracker */}
         <GpsTracker />
+
+        {/* WMS Overlay Layers (BLN, Hazards — Swiss geo.admin.ch) */}
+        {wmsActive && (
+          <WmsOverlayLayer activeLayers={activeLayers} />
+        )}
 
         {/* WMS Feature Info (Swiss hazards/protected areas click handler) */}
         {wmsActive && (
