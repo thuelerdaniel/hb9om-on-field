@@ -10,14 +10,20 @@ export default async function(req) {
     const base44 = createClientFromRequest(req);
     let user = null;
     try { user = await base44.auth.me(); } catch {}
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
+    let body: any = {};
+    try { body = await req.json(); } catch {}
+
+    // Scheduled runs have no user context — allow if scheduled flag is set.
+    if (body.scheduled !== true) {
+      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      if (user.role !== 'admin') {
+        return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
+      }
     }
 
-    const apiKey = (user as any)?.aprs_fi_api_key || process.env.APRS_FI_API_KEY;
+    const apiKey = process.env.APRS_FI_API_KEY;
     if (!apiKey) {
-      return Response.json({ error: 'APRS_FI_API_KEY secret not set' }, { status: 500 });
+      return Response.json({ status: 'failed', error: 'APRS_FI_API_KEY secret not set' }, { status: 500 });
     }
 
     const result = await fetchAprsData(base44, apiKey);
@@ -26,7 +32,11 @@ export default async function(req) {
       status: 'success',
       ...result,
     });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (error: any) {
+    return Response.json({ 
+      status: 'failed',
+      error: error.message || String(error),
+      stack: error.stack || '',
+    }, { status: 500 });
   }
 }

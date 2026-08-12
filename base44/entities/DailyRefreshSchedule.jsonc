@@ -1,0 +1,119 @@
+{
+  "name": "DailyRefreshSchedule",
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "sota",
+        "pota",
+        "hbff",
+        "wwbota",
+        "castle",
+        "lighthouse",
+        "iota",
+        "aprs",
+        "repeater",
+        "tota",
+        "fm_funknetz",
+        "ch_repeater_links"
+      ],
+      "description": "Datenquelle"
+    },
+    "label": {
+      "type": "string",
+      "description": "Anzeigename der Quelle"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob diese Quelle automatisch aktualisiert wird"
+    },
+    "function_name": {
+      "type": "string",
+      "description": "Name der Backend-Funktion die aufgerufen wird"
+    },
+    "function_payload": {
+      "type": "object",
+      "description": "Payload fuer den Funktionsaufruf"
+    },
+    "scheduled_time_utc": {
+      "type": "string",
+      "description": "Geplante UTC-Zeit heute (HH:MM)"
+    },
+    "next_run_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Naechste geplante Ausfuehrung (ISO datetime)"
+    },
+    "last_run_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Ausfuehrung"
+    },
+    "last_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "success",
+        "failed",
+        "skipped"
+      ],
+      "default": "pending",
+      "description": "Status der letzten Ausfuehrung"
+    },
+    "last_count": {
+      "type": "number",
+      "description": "Anzahl geladener Eintraege"
+    },
+    "last_duration_ms": {
+      "type": "number",
+      "description": "Dauer der letzten Ausfuehrung in ms"
+    },
+    "last_error": {
+      "type": "string",
+      "description": "Kurze Fehlermeldung"
+    },
+    "last_error_detail": {
+      "type": "string",
+      "description": "Detaillierte Fehlerbeschreibung fuer Admins (Stack Trace, HTTP Status, Response Body)"
+    },
+    "display_order": {
+      "type": "number",
+      "default": 0,
+      "description": "Anzeigereihenfolge in der UI"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "source",
+    "function_name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

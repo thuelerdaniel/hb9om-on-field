@@ -16,14 +16,20 @@ const POINT_ENTITY_MAP = {
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
-    }
-
+    let user = null;
+    try { user = await base44.auth.me(); } catch {}
     let body: any = {};
     try { body = await req.json(); } catch {}
+
+    // Authorization: scheduled runs (body.scheduled === true) have no user context.
+    // Manual runs require an authenticated admin.
+    if (body.scheduled !== true) {
+      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      if (user.role !== 'admin') {
+        return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
+      }
+    }
+
     const source = body.source;
     if (!source || !SOURCE_LABELS[source]) {
       return Response.json({ error: 'Invalid source. Valid sources: ' + Object.keys(SOURCE_LABELS).join(', ') }, { status: 400 });
@@ -48,7 +54,9 @@ export default async function(req: Request): Promise<Response> {
         source,
         label: SOURCE_LABELS[source],
         status: 'failed',
-        error: e.message,
+        error: e.message || String(e),
+        stack: e.stack || '',
+        http_status: e?.status || e?.statusCode || 'n/a',
         duration_ms: Date.now() - startTime,
         timestamp: new Date().toISOString(),
       });
@@ -128,17 +136,26 @@ export default async function(req: Request): Promise<Response> {
 
     // Log to SyncLog
     try {
-      await base44.entities.SyncLog.create({
+      const isScheduled = body.scheduled === true;
+      const syncLogClient = isScheduled ? base44.asServiceRole.entities.SyncLog : (user ? base44.entities.SyncLog : base44.asServiceRole.entities.SyncLog);
+      await syncLogClient.create({
         timestamp: now,
         overall_status: 'success',
         total_duration_ms: duration_ms,
         results: [result],
-        trigger: 'manual',
+        trigger: isScheduled ? 'scheduled' : 'manual',
       });
     } catch {}
 
     return Response.json(result);
   } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+    // Detailed error response for admins — not just the error number
+    return Response.json({ 
+      status: 'failed',
+      error: error.message || String(error),
+      stack: error.stack || '',
+      source: body?.source || 'unknown',
+      timestamp: new Date().toISOString(),
+    }, { status: 500 });
   }
 }
