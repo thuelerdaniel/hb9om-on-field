@@ -71,19 +71,7 @@
   animation: repeater-link-flow 1.2s linear infinite;
 }
 
-/* Red blinking header for viewport limit hint (not all data shown) */
-@keyframes viewport-limit-blink {
-  0%, 100% {
-    background-color: #ef4444;
-  }
-  50% {
-    background-color: #b91c1c;
-  }
-}
-
-.viewport-limit-blink {
-  animation: viewport-limit-blink 1s ease-in-out infinite;
-}
+/* Static red header for viewport limit hint (no blinking — keeps text readable) */
 
 .leaflet-control-attribution {
   margin-bottom: calc(54px + env(safe-area-inset-bottom)) !important;

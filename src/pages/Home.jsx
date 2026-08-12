@@ -44,6 +44,7 @@ import { getWwbotaColor } from "@/lib/wwbotaSchemes";
 import VersionChangelogPopup, { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed, resetChangelog } from "@/components/map/VersionChangelogPopup";
 import PreloadHint from "@/components/map/PreloadHint";
 import ViewportLimitHint from "@/components/map/ViewportLimitHint";
+import HeavyLoadConfirmDialog, { HEAVY_LAYERS } from "@/components/map/HeavyLoadConfirmDialog";
 import { boundsToObj, boundsContained, unionBounds, mergeRefs, REF_TYPES } from "@/lib/boundsLoading";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
@@ -236,10 +237,36 @@ export default function Home() {
   const [pendingDragChange, setPendingDragChange] = useState(null);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [viewportLimitInfo, setViewportLimitInfo] = useState({ visibleCount: 0, maxRender: 2000, totalCount: 0, isCapped: false });
+  // Hysterese für Viewport-Limit: verhindert das Flackern des roten Hinweises,
+  // wenn die Marker-Anzahl um den Schwellwert schwankt. Einmal "capped",
+  // bleibt der Hinweis für mindestens 3 Sekunden sichtbar.
+  const viewportLimitHysteresisRef = useRef(null);
+  const [pendingHeavyLayers, setPendingHeavyLayers] = useState(null);
+  // Layer, deren weltweiter Fetch vom User abgebrochen wurde — nur bounds-basierter
+  // Fetch läuft, damit der User zuerst die Karte anpassen kann.
+  const [skipWorldwideFetch, setSkipWorldwideFetch] = useState(() => new Set());
+  // Lade-Reihenfolge: Karte + Cache-Punkte zuerst, dann erst weltweite Fetches.
+  // worldwideFetchReady wird 1s nach Splash-Ende true, damit die Karte zuerst rendert.
+  const [worldwideFetchReady, setWorldwideFetchReady] = useState(false);
   const { toast } = useToast();
 
   const handleViewportLimitChange = useCallback((info) => {
-    setViewportLimitInfo(info);
+    // Hysterese: Wenn der Hinweis gerade erst sichtbar wurde (innerhalb 3s),
+    // nicht sofort wieder ausblenden, auch wenn visibleCount unter maxRender sinkt.
+    if (info.isCapped) {
+      viewportLimitHysteresisRef.current = Date.now();
+      setViewportLimitInfo(info);
+    } else {
+      const now = Date.now();
+      const wasRecentlyCapped = viewportLimitHysteresisRef.current && (now - viewportLimitHysteresisRef.current < 3000);
+      if (wasRecentlyCapped) {
+        // Behalte den "capped"-Zustand bei, aber aktualisiere die Zählwerte
+        setViewportLimitInfo(prev => ({ ...info, isCapped: true }));
+      } else {
+        viewportLimitHysteresisRef.current = null;
+        setViewportLimitInfo(info);
+      }
+    }
   }, []);
 
   const handleMarkerDrag = useCallback(async (marker, newLat, newLng) => {
@@ -778,9 +805,18 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [showSplash, serverCacheLoaded, isOffline]);
 
+  // Lade-Reihenfolge-Optimierung: Erst 1s nach Splash-Ende weltweite Fetches starten.
+  // So rendert die Karte mit Cache-Punkten zuerst, bevor schwere Hintergrund-Fetches laufen.
+  useEffect(() => {
+    if (showSplash) return;
+    const t = setTimeout(() => setWorldwideFetchReady(true), 1000);
+    return () => clearTimeout(t);
+  }, [showSplash]);
+
   // Load SOTA from API — worldwide fetch if cached data is Swiss-only
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("sota") && !showQsoForm) || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("sota") && !showQsoForm) || isOffline) return;
+    if (skipWorldwideFetch.has("sota")) return;
     if (sotaWorldwideFetched.current) return;
     // Check if cached data is already worldwide (has summits outside Switzerland bbox)
     const isWorldwide = sotaData.length > 0 && sotaData.some(s => s.lat < 45 || s.lat > 48 || s.lng < 5 || s.lng > 11);
@@ -798,11 +834,12 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, sota: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, sotaData, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
+  }, [activeLayers, serverCacheLoaded, isOffline, sotaData, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load POTA from API — worldwide fetch if cached data is Swiss-only
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("pota") && !showQsoForm) || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("pota") && !showQsoForm) || isOffline) return;
+    if (skipWorldwideFetch.has("pota")) return;
     if (potaWorldwideFetched.current) return;
     // Check if cached data is already worldwide (has parks outside Switzerland bbox)
     const isWorldwide = potaData.length > 0 && potaData.some(p => p.lat < 45 || p.lat > 48 || p.lng < 5 || p.lng > 11);
@@ -820,11 +857,11 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, pota: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, potaData, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
+  }, [activeLayers, serverCacheLoaded, isOffline, potaData, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load HBFF from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("hbff") && !showQsoForm) || hbffData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("hbff") && !showQsoForm) || hbffData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, hbff: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -833,11 +870,11 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, hbff: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady]);
 
   // Load WWBOTA from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("wwbota") && !showQsoForm) || wwbotaData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("wwbota") && !showQsoForm) || wwbotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, wwbota: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -846,11 +883,11 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, wwbota: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady]);
 
   // Load Castles from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("castle") && !showQsoForm) || castleData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("castle") && !showQsoForm) || castleData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, castle: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -863,11 +900,11 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, castle: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady]);
 
   // Load IOTA from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("iota") && !showQsoForm) || iotaData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("iota") && !showQsoForm) || iotaData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, iota: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -880,11 +917,11 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, iota: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady]);
 
   // Load Lighthouses from API if not cached
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("lighthouse") && !showQsoForm) || lighthouseData.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("lighthouse") && !showQsoForm) || lighthouseData.length > 0 || isOffline) return;
     setLoading(prev => ({ ...prev, lighthouse: true }));
     enqueueWorldwideFetch(async () => {
       try {
@@ -897,35 +934,38 @@ export default function Home() {
       } catch (e) { /* silent */ }
       finally { setLoading(prev => ({ ...prev, lighthouse: false })); }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, fetchRefsInBounds, worldwideFetchReady]);
 
   // Load repeaters from DB when repeater layer is active (queued — 10k records is a heavy query)
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("repeater") && !showQsoForm) || repeaters.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("repeater") && !showQsoForm) || repeaters.length > 0 || isOffline) return;
+    if (skipWorldwideFetch.has("repeater")) return;
     enqueueWorldwideFetch(async () => {
       try {
         const data = await base44.entities.Repeater.list("-created_date", 10000);
         if (data && data.length > 0) setRepeaters(data);
       } catch (e) { /* silent */ }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch]);
+  }, [activeLayers, serverCacheLoaded, isOffline, showQsoForm, enqueueWorldwideFetch, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load approved admin-managed repeater links when repeater layer is active (queued)
   useEffect(() => {
-    if (!serverCacheLoaded || !activeLayers.includes("repeater") || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || !activeLayers.includes("repeater") || isOffline) return;
+    if (skipWorldwideFetch.has("repeater")) return;
     enqueueWorldwideFetch(async () => {
       try {
         const data = await base44.entities.RepeaterLink.list("-created_date", 500);
         if (data) setAdminLinks(data);
       } catch (e) { /* silent */ }
     });
-  }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
+  }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch, worldwideFetchReady, skipWorldwideFetch]);
 
   // Load private nodes from DB when APRS or BrandMeister layer is active.
   // Uses cursor-based pagination — loads ALL nodes in batches of 2000 (not capped at 10k)
   // and displays markers progressively as each batch arrives.
   useEffect(() => {
-    if (!serverCacheLoaded || (!activeLayers.includes("aprs") && !activeLayers.includes("brandmeister")) || privateNodes.length > 0 || isOffline) return;
+    if (!worldwideFetchReady || !serverCacheLoaded || (!activeLayers.includes("aprs") && !activeLayers.includes("brandmeister")) || privateNodes.length > 0 || isOffline) return;
+    if (skipWorldwideFetch.has("aprs") && skipWorldwideFetch.has("brandmeister")) return;
     let cancelled = false;
     enqueueWorldwideFetch(async () => {
       try {
@@ -938,7 +978,7 @@ export default function Home() {
       } catch (e) { /* silent */ }
     });
     return () => { cancelled = true; };
-  }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch]);
+  }, [activeLayers, serverCacheLoaded, isOffline, enqueueWorldwideFetch, worldwideFetchReady, skipWorldwideFetch]);
 
   // TOTA points are loaded via getReferencesInBounds (bounds-based, like SOTA/POTA)
   // No separate TotaPoint.list() call needed — the bounds fetch effect handles it.
@@ -948,13 +988,66 @@ export default function Home() {
   }, []);
 
   const toggleLayer = useCallback((layerId) => {
+    // Deaktivierung: immer sofort erlauben, und skip-Flag zurücksetzen
+    if (activeLayers.includes(layerId)) {
+      setActiveLayers(prev => {
+        const next = prev.filter(l => l !== layerId);
+        try { localStorage.setItem("hb9om_map_active_layers", JSON.stringify(next)); } catch {}
+        return next;
+      });
+      // skip-Flag zurücksetzen, damit beim nächsten Aktivieren der Dialog wieder erscheint
+      setSkipWorldwideFetch(prev => {
+        if (!prev.has(layerId)) return prev;
+        const next = new Set(prev);
+        next.delete(layerId);
+        return next;
+      });
+      return;
+    }
+    // Aktivierung eines schweren Layers: Bestätigungsdialog anzeigen
+    if (HEAVY_LAYERS.includes(layerId)) {
+      setPendingHeavyLayers([layerId]);
+      return;
+    }
+    // Aktivierung eines leichten Layers: sofort aktivieren
     setActiveLayers(prev => {
-      const next = prev.includes(layerId) ? prev.filter(l => l !== layerId) : [...prev, layerId];
-      // Write synchronously — don't rely on the effect alone (prevents loss on fast unmount/refresh)
+      const next = [...prev, layerId];
       try { localStorage.setItem("hb9om_map_active_layers", JSON.stringify(next)); } catch {}
       return next;
     });
-  }, []);
+  }, [activeLayers]);
+
+  const handleHeavyLoadConfirm = useCallback(() => {
+    if (!pendingHeavyLayers) return;
+    // Layer aktivieren, weltweiter Fetch läuft normal
+    setActiveLayers(prev => {
+      const next = [...prev, ...pendingHeavyLayers.filter(l => !prev.includes(l))];
+      try { localStorage.setItem("hb9om_map_active_layers", JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setPendingHeavyLayers(null);
+  }, [pendingHeavyLayers]);
+
+  const handleHeavyLoadCancel = useCallback(() => {
+    if (!pendingHeavyLayers) return;
+    // Layer aktivieren, aber weltweiten Fetch überspringen — nur bounds-basierter Fetch
+    setActiveLayers(prev => {
+      const next = [...prev, ...pendingHeavyLayers.filter(l => !prev.includes(l))];
+      try { localStorage.setItem("hb9om_map_active_layers", JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setSkipWorldwideFetch(prev => {
+      const next = new Set(prev);
+      pendingHeavyLayers.forEach(l => next.add(l));
+      return next;
+    });
+    setPendingHeavyLayers(null);
+    toast({
+      title: "Nur sichtbare Daten geladen",
+      description: "Weltweiter Datenabruf übersprungen — zoomen Sie heraus oder reaktivieren Sie den Layer für alle Daten.",
+      duration: 5000,
+    });
+  }, [pendingHeavyLayers, toast]);
 
   // Build all markers by layer
   const allMarkers = useMemo(() => {
@@ -1470,6 +1563,14 @@ export default function Home() {
 
       {showChangelog && (
         <VersionChangelogPopup onClose={() => setShowChangelog(false)} />
+      )}
+
+      {pendingHeavyLayers && (
+        <HeavyLoadConfirmDialog
+          layers={pendingHeavyLayers}
+          onConfirm={handleHeavyLoadConfirm}
+          onCancel={handleHeavyLoadCancel}
+        />
       )}
 
       <PreloadHint activeLayers={activeLayers} isLoading={isLoading} />

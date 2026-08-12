@@ -135,6 +135,18 @@ export const SECTIONS = [
         mockup: "layers"
       },
       {
+        title: "Bestätigung bei vielen Datenpunkten",
+        body: "Wenn Sie einen Layer mit sehr vielen Datenpunkten aktivieren (SOTA ~180'000 Gipfel, POTA ~89'000 Parks, Relais, APRS-Nodes), erscheint ein Bestätigungsdialog vor dem Laden. Der Dialog zeigt eine Schätzung der Punkte, Datenmenge (MB) und Ladezeit. Bei Bestätigung lädt die App alle Daten weltweit. Bei Abbruch wird der Layer aktiviert, aber nur der sichtbare Kartenausschnitt geladen – deutlich schneller. Für alle Daten später: Layer deaktivieren und reaktivieren.",
+        steps: [
+          { icon: "layers", text: "Layer mit vielen Daten aktivieren (z.B. SOTA)" },
+          { icon: "alertTriangle", text: "Bestätigungsdialog erscheint mit Schätzung (Punkte, MB, Zeit)" },
+          { icon: "check", text: "Bestätigen: alle Daten laden weltweit (Wartezeit in Kauf nehmen)" },
+          { icon: "x", text: "Abbrechen: nur sichtbarer Ausschnitt lädt – Karte zuerst anpassen" },
+          { icon: "mapPin", text: "Später alle Daten: Layer deaktivieren und reaktivieren" }
+        ],
+        tip: "Tipp: Bei Abbruch werden nur die Punkte im aktuellen Kartenausschnitt geladen. Zoomen Sie heraus oder reaktivieren Sie den Layer, um mehr Daten zu laden."
+      },
+      {
         title: "Kartenmassstab wählen",
         body: "Im Ebenen-Menü unter «Kartenmassstab» können Sie einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000. Bei SwissTopo-Karte wird automatisch die entsprechende offizielle Landeskarte verwendet.",
         steps: [
@@ -604,7 +616,7 @@ export const SECTIONS = [
     items: [
       {
         title: "Ladeanzeige bei vielen Daten",
-        body: "Wenn die App viele Referenzdaten laden muss (z.B. beim ersten Start oder bei vielen aktivierten Layern), erscheint oben ein Lade-Indikator. Wenn das Laden länger als 1,5 Sekunden dauert, wird ein kleines Handfunkgerät mit aussendenden Funkwellen angezeigt. Es weist darauf hin, dass viele Daten geladen werden und etwas Geduld nötig ist. Zusätzlich werden Tipps eingeblendet: Kartenausschnitt verkleinern, weniger Layer aktivieren oder den Performance-Modus in den Einstellungen einschalten. Der Lade-Indikator erscheint auch während dem Splash-Screen, falls das Laden der Referenzdaten länger dauert.",
+        body: "Wenn die App viele Referenzdaten laden muss (z.B. beim ersten Start oder bei vielen aktivierten Layern), erscheint oben ein Lade-Indikator. Wenn das Laden länger als 1,5 Sekunden dauert, wird ein kleines Handfunkgerät mit aussendenden Funkwellen angezeigt. Es weist darauf hin, dass viele Daten geladen werden und etwas Geduld nötig ist. Die App lädt immer zuerst die Karte und die gecachten Punkte aus dem lokalen Speicher, bevor schwere Layer (Relais, APRS, weltweite SOTA/POTA-Daten) im Hintergrund geladen werden. So ist die Karte sofort nutzbar, während weitere Daten im Hintergrund nachladen.",
         steps: [
           { icon: "zap", text: "Viele Layer aktiviert + langsames Internet" },
           { icon: "clock", text: "Nach 1,5s erscheint das Handfunkgerät mit Wellen" },
@@ -612,7 +624,7 @@ export const SECTIONS = [
           { icon: "layers", text: "Tipp: Weniger Layer aktivieren" },
           { icon: "settings", text: "Tipp: Performance-Modus in den Einstellungen" }
         ],
-        tip: "Tipp: Die App lädt zuerst den lokalen Cache (sofortige Anzeige), dann wird im Hintergrund der Server-Cache geladen. Erst wenn Daten fehlen, werden die externen Quellen abgefragt."
+        tip: "Tipp: Die App lädt zuerst den lokalen Cache (sofortige Anzeige), dann wird im Hintergrund der Server-Cache geladen. Erst wenn Daten fehlen, werden die externen Quellen abgefragt. Schwere weltweite Fetches starten erst 1 Sekunde nach dem Splash-Screen, damit die Karte zuerst rendern kann."
       },
       {
         title: "Energiesparmodus (Performance)",
