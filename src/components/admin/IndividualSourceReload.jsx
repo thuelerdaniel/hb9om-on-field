@@ -56,7 +56,7 @@ const MAIN_SOURCES = [
   { key: "lighthouse", label: "Leuchttürme (Alle)", icon: Lightbulb, color: "text-yellow-500", customFunction: "fetchLighthouses", customPayload: { region: "all" } },
   { key: "iota", label: "IOTA (Welt)", icon: Globe, color: "text-blue-500" },
   { key: "tota", label: "TOTA (Welt)", icon: RadioTower, color: "text-orange-500", customFunction: "fetchTota", customPayload: { action: "fetchWorldwide" } },
-  { key: "repeater", label: "Relais (Alle)", icon: Radio, color: "text-cyan-500", customFunction: "fetchRepeaters", customPayload: { region: "all" } },
+  { key: "repeater_all", label: "Relais (Alle)", icon: Radio, color: "text-cyan-500", customFunction: "fetchRepeaters", customPayload: { region: "all" }, isAllRepeaterRegions: true },
   { key: "aprs", label: "APRS.fi", icon: Signal, color: "text-purple-500", customFunction: "fetchAprsFi" },
   { key: "ch_repeater_links", label: "CH-Relais-Links", icon: Link2, color: "text-indigo-500", customFunction: "fetchCHRepeaterLinks" },
   { key: "fm_funknetz", label: "FM-Funknetz TGs", icon: Headphones, color: "text-green-500", customFunction: "fetchFmFunknetz" },
@@ -94,6 +94,66 @@ export default function IndividualSourceReload() {
     const source = allSources.find(s => s.key === sourceKey);
     setLoadingSource(sourceKey);
     const startTime = Date.now();
+
+    // "Relais (Alle)" triggers all 6 repeater regions sequentially instead of
+    // a single region:"all" call — a single worldwide call exceeds the platform
+    // timeout (504) because it processes 120+ countries in one function invocation.
+    if (source?.isAllRepeaterRegions) {
+      const regions = REPEATER_REGION_SOURCES.map(r => ({ key: r.key, label: r.label, region: r.customPayload.region }));
+      let totalCount = 0;
+      let totalWithCoords = 0;
+      let failedRegions = 0;
+      let lastError = null;
+
+      for (const reg of regions) {
+        try {
+          const res = await base44.functions.invoke("fetchRepeaters", { region: reg.region });
+          const data = res.data;
+          if (data?.status === "success" || !data?.error) {
+            totalCount += data.total_saved || 0;
+            totalWithCoords += data.with_coordinates || 0;
+          } else {
+            failedRegions++;
+            lastError = data.error;
+          }
+        } catch (e) {
+          failedRegions++;
+          lastError = e.message || "Unbekannter Fehler";
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      const overallStatus = failedRegions === regions.length ? "failed" : failedRegions > 0 ? "partial" : "success";
+      const entry = {
+        source: sourceKey,
+        label: "Relais (Alle)",
+        status: overallStatus,
+        count: totalCount,
+        withCoords: totalWithCoords,
+        error: failedRegions > 0 ? `${failedRegions}/${regions.length} Regionen fehlgeschlagen: ${lastError}` : null,
+        duration_ms: duration,
+        timestamp: new Date().toISOString(),
+      };
+
+      setResults(prev => [entry, ...prev].slice(0, 20));
+      if (overallStatus === "success") {
+        toast({
+          title: "Relais (Alle) aktualisiert",
+          description: `${totalCount} Einträge · ${totalWithCoords} geo · ${(duration / 1000).toFixed(1)}s`,
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Relais (Alle) teilweise fehlgeschlagen",
+          description: entry.error,
+          variant: "destructive",
+          duration: 8000,
+        });
+      }
+      setLoadingSource(null);
+      return;
+    }
+
     try {
       const functionName = source?.customFunction || "refreshDataSource";
       const payload = source?.customFunction ? (source.customPayload || {}) : { source: sourceKey };
