@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Database, MapPin, AlertCircle, RefreshCw, Loader2, RadioTower, Signal, Link2, Mountain, Trees, Building, Castle, Anchor, Diamond, RadioTower as Tower } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import CacheDetailView from "@/components/admin/CacheDetailView";
 
 // Unified data cache overview for the admin panel.
 // Shows ALL map layers with their actual server-side record counts,
@@ -41,17 +42,19 @@ function computeLayerStatus(count, withCoords, total, lastUpdated, isCritical) {
   return "ok";
 }
 
-function LayerCard({ label, icon: Icon, color, count, withCoords, total, lastUpdated, status, source }) {
+function LayerCard({ label, icon: Icon, color, count, withCoords, total, lastUpdated, status, source, layerKey, onClick }) {
   const isStale = lastUpdated && (Date.now() - lastUpdated.getTime()) > STALE_THRESHOLD_MS;
   const withoutCoords = (total || count) - (withCoords || 0);
 
   return (
-    <div className={`rounded-lg border p-3 ${
-      status === "ok" ? "border-green-200 dark:border-green-800/50 bg-green-50/30 dark:bg-green-900/10" :
-      status === "warning" ? "border-amber-200 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-900/10" :
-      status === "error" ? "border-red-200 dark:border-red-800/50 bg-red-50/30 dark:bg-red-900/10" :
-      "border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-    }`}>
+    <div
+      onClick={onClick}
+      className={`rounded-lg border p-3 cursor-pointer hover:shadow-md transition-shadow ${
+        status === "ok" ? "border-green-200 dark:border-green-800/50 bg-green-50/30 dark:bg-green-900/10" :
+        status === "warning" ? "border-amber-200 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-900/10" :
+        status === "error" ? "border-red-200 dark:border-red-800/50 bg-red-50/30 dark:bg-red-900/10" :
+        "border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+      }`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <Icon className={`w-3.5 h-3.5 ${color} flex-shrink-0`} />
@@ -78,9 +81,7 @@ function LayerCard({ label, icon: Icon, color, count, withCoords, total, lastUpd
           {lastUpdated ? lastUpdated.toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "Nie"}
           {isStale ? " ⚠" : ""}
         </p>
-        {source && (
-          <p className="text-[9px] text-gray-300 dark:text-slate-600 truncate ml-1" title={source}>·</p>
-        )}
+        <p className="text-[9px] text-blue-500 dark:text-blue-400 truncate ml-1">→ Details</p>
       </div>
     </div>
   );
@@ -90,33 +91,28 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   const [extraCounts, setExtraCounts] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [detailLayer, setDetailLayer] = useState(null);
 
   const fetchExtraCounts = async () => {
     try {
-      // Fetch direct entity counts for ALL layers that have their own entity.
-      // This is more reliable than ReferenceData.total_count which can be stale.
-      // For ReferenceData-only layers (lighthouse, castle, wwbota, iota), we count
-      // the actual references array length, not total_count.
-      const [totaPoints, approvedLinks, repeaters, privateNodes, sotaPoints, potaPoints, wwffPoints] = await Promise.all([
+      // Fetch direct entity counts for layers with their own entities.
+      // NOTE: filter({}) is platform-capped at 5000 records.
+      // For SOTA/POTA/WWFF (which can have 100k+ records), we use ReferenceData.total_count
+      // as the primary source, and only use direct entity count for smaller entities.
+      const [totaPoints, approvedLinks, repeaters, privateNodes] = await Promise.all([
         base44.entities.TotaPoint.list("-created_date", 10000),
         base44.entities.RepeaterLink.filter({ status: "approved" }),
-        base44.entities.Repeater.list("-created_date", 5000),
-        base44.entities.PrivateNode.list("-created_date", 5000),
-        base44.entities.SotaPoint.list("-created_date", 1).then(r => base44.entities.SotaPoint.filter({}).then(f => f.length).catch(() => r?.length || 0)),
-        base44.entities.PotaPoint.list("-created_date", 1).then(r => base44.entities.PotaPoint.filter({}).then(f => f.length).catch(() => r?.length || 0)),
-        base44.entities.WwffPoint.list("-created_date", 1).then(r => base44.entities.WwffPoint.filter({}).then(f => f.length).catch(() => r?.length || 0)),
+        base44.entities.Repeater.list("-created_date", 10000),
+        base44.entities.PrivateNode.list("-created_date", 10000),
       ]);
       setExtraCounts({
         tota: totaPoints?.length || 0,
         repeaterLinks: approvedLinks?.length || 0,
         repeaters: repeaters?.length || 0,
         privateNodes: privateNodes?.length || 0,
-        sota: typeof sotaPoints === "number" ? sotaPoints : (sotaPoints?.length || 0),
-        pota: typeof potaPoints === "number" ? potaPoints : (potaPoints?.length || 0),
-        wwff: typeof wwffPoints === "number" ? wwffPoints : (wwffPoints?.length || 0),
       });
     } catch (e) {
-      setExtraCounts({ tota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0, sota: 0, pota: 0, wwff: 0 });
+      setExtraCounts({ tota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0 });
     } finally {
       setLoading(false);
     }
@@ -148,17 +144,22 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   const repeaterCount = extraCounts?.repeaters ?? repData?.totalRepeaters ?? 0;
   const aprsCount = extraCounts?.privateNodes ?? aprsCache?.total ?? 0;
 
-  // For layers with their own entities, use direct entity counts (more reliable than ReferenceData.total_count)
+  // For layers with their own entities, use the most reliable count source.
+  // SOTA/POTA/WWFF: filter({}) is capped at 5000, so use ReferenceData.total_count
+  // (set by backend during refresh) as primary, with references array as fallback.
+  // Repeater/PrivateNode/TOTA: use direct entity count (smaller, under 5000 cap).
   const getLayerCount = (layerKey, refEntry) => {
-    // SOTA, POTA, WWFF have their own point entities — use direct count
-    if (layerKey === "sota" && extraCounts?.sota != null) return extraCounts.sota;
-    if (layerKey === "pota" && extraCounts?.pota != null) return extraCounts.pota;
-    if (layerKey === "hbff" && extraCounts?.wwff != null) return extraCounts.wwff;
-    // For ReferenceData-only layers (lighthouse, castle, wwbota, iota):
-    // Use actual references array length as primary count — total_count can be stale
+    if (layerKey === "repeater") return extraCounts?.repeaters ?? 0;
+    if (layerKey === "aprs") return extraCounts?.privateNodes ?? 0;
+    if (layerKey === "tota") return extraCounts?.tota ?? 0;
+    if (layerKey === "repeaterLinks") return extraCounts?.repeaterLinks ?? 0;
+    // SOTA, POTA, HBFF, WWBOTA, castle, lighthouse, iota — use ReferenceData
     const refs = refEntry?.references || [];
-    if (refs.length > 0) return refs.length;
-    return refEntry?.total_count || 0;
+    const refCount = refs.length;
+    const totalCount = refEntry?.total_count || 0;
+    // Use the larger of the two — total_count is set by backend, references array
+    // may be truncated by storage limits. If total_count > 5000 (filter cap), trust it.
+    return Math.max(refCount, totalCount);
   };
 
   // Compute overall status
@@ -218,9 +219,6 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           const entry = refDataMap[layer.key];
           const refs = entry?.references || [];
           const total = getLayerCount(layer.key, entry);
-          // ReferenceData.references array may not contain lat/lng (coords are in
-          // individual point entities like SotaPoint, PotaPoint). Only show geo/offen
-          // when the references actually contain coordinate fields.
           const hasCoordFields = refs.length > 0 && refs.some(r => r.lat != null || r.lng != null);
           const withCoords = hasCoordFields ? refs.filter(r => r.lat && r.lng).length : null;
           const lastUpdated = entry?.last_updated ? new Date(entry.last_updated) : null;
@@ -238,6 +236,8 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
               lastUpdated={lastUpdated}
               status={status}
               source={entry?.source}
+              layerKey={layer.key}
+              onClick={() => setDetailLayer({ key: layer.key, label: layer.label })}
             />
           );
         })}
@@ -253,6 +253,8 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           lastUpdated={null}
           status={computeLayerStatus(repeaterCount, repData?.withCoords, repeaterCount, null, true)}
           source="RepeaterBook + WIA + dstarusers"
+          layerKey="repeater"
+          onClick={() => setDetailLayer({ key: "repeater", label: "Relais" })}
         />
 
         {/* APRS layer */}
@@ -266,6 +268,8 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           lastUpdated={null}
           status={computeLayerStatus(aprsCount, null, null, null, false)}
           source="APRS.fi + BrandMeister"
+          layerKey="aprs"
+          onClick={() => setDetailLayer({ key: "aprs", label: "APRS-Nodes" })}
         />
 
         {/* TOTA layer */}
@@ -279,6 +283,8 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           lastUpdated={null}
           status={computeLayerStatus(extraCounts?.tota, null, null, null, false)}
           source="wwtota.com + Swiss CSV"
+          layerKey="tota"
+          onClick={() => setDetailLayer({ key: "tota", label: "TOTA" })}
         />
 
         {/* Repeater Links */}
@@ -292,6 +298,8 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           lastUpdated={null}
           status={computeLayerStatus(extraCounts?.repeaterLinks, null, null, null, false)}
           source="RepeaterBook + USKA + Admin"
+          layerKey="repeaterLinks"
+          onClick={() => setDetailLayer({ key: "repeaterLinks", label: "Relais-Verlinkungen" })}
         />
       </div>
 
@@ -355,6 +363,15 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
             {aprsCache.byType?.other > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300">Sonstige: {aprsCache.byType.other}</span>}
           </div>
         </div>
+      )}
+
+      {/* Cache Detail View Modal */}
+      {detailLayer && (
+        <CacheDetailView
+          layerKey={detailLayer.key}
+          layerLabel={detailLayer.label}
+          onClose={() => setDetailLayer(null)}
+        />
       )}
     </div>
   );

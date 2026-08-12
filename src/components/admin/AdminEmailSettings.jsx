@@ -16,6 +16,15 @@ export default function AdminEmailSettings() {
   const [sendingTest, setSendingTest] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [reportConfig, setReportConfig] = useState({
+    showSources: true,
+    showUsage: true,
+    showCache: true,
+    showCountries: true,
+    showRefTypes: true,
+    showVideo: true,
+  });
+  const [configLoading, setConfigLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -27,8 +36,33 @@ export default function AdminEmailSettings() {
         setEmailOverride(me?.admin_email_override || "");
         setEmailVerified(me?.admin_email_verified === true);
       } catch {}
+      // Load report content config
+      try {
+        const existing = await base44.entities.AppSetting.filter({ key: "admin_report_config" });
+        if (existing && existing.length > 0 && existing[0].value) {
+          setReportConfig(prev => ({ ...prev, ...JSON.parse(existing[0].value) }));
+        }
+      } catch {}
+      setConfigLoading(false);
     })();
   }, []);
+
+  const handleSaveReportConfig = async () => {
+    setSaving(true);
+    try {
+      const existing = await base44.entities.AppSetting.filter({ key: "admin_report_config" });
+      if (existing && existing.length > 0) {
+        await base44.entities.AppSetting.update(existing[0].id, { value: JSON.stringify(reportConfig) });
+      } else {
+        await base44.entities.AppSetting.create({ key: "admin_report_config", value: JSON.stringify(reportConfig), enabled: true });
+      }
+      toast({ title: "Gespeichert", description: "Report-Inhalt-Konfiguration gespeichert" });
+    } catch (e) {
+      toast({ title: "Fehler", description: e.message || "Speichern fehlgeschlagen", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSaveSettings = async () => {
     setSaving(true);
@@ -184,6 +218,51 @@ export default function AdminEmailSettings() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Report content configuration */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
+        <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
+          <Shield className="w-4 h-4 text-gray-600" /> Report-Inhalt festlegen
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
+          Wählen Sie, welche Bereiche im täglichen Report angezeigt werden.
+        </p>
+        {configLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-gray-300" /></div>
+        ) : (
+          <div className="space-y-2">
+            {[
+              { key: "showSources", label: "Quellen-Status", desc: "Aktualisierungs-Status aller Datenquellen" },
+              { key: "showCache", label: "Daten-Cache Speicherung", desc: "Anzahl Einträge pro Layer (SOTA, POTA, Relais, etc.)" },
+              { key: "showUsage", label: "App-Nutzung", desc: "Benutzer, QSOs, Relais, APRS-Stats" },
+              { key: "showCountries", label: "QSOs nach Land", desc: "Top 10 Länder der QSO-Partner" },
+              { key: "showRefTypes", label: "Referenz-Typen", desc: "Häufigste Referenz-Typen in QSOs" },
+              { key: "showVideo", label: "Demo-Video", desc: "Link zum Demo-Video" },
+            ].map(item => (
+              <div key={item.key} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-900 rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <label className="text-xs font-semibold text-gray-900 dark:text-slate-100">{item.label}</label>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500">{item.desc}</p>
+                </div>
+                <button
+                  onClick={() => setReportConfig(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
+                  className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${reportConfig[item.key] ? "bg-green-500" : "bg-gray-300"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${reportConfig[item.key] ? "translate-x-5" : ""}`} />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={handleSaveReportConfig}
+              disabled={saving}
+              className="w-full mt-2 px-3 py-2 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-1.5"
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              Report-Inhalt speichern
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Save settings */}

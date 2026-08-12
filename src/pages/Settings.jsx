@@ -151,9 +151,12 @@ export default function Settings() {
       } catch (e) {
         setIsAdmin(false);
       }
-      // Determine QRZ credential source
+      // Determine QRZ credential source:
+      // - Demo account: uses club/admin-entered credentials (no personal inputs)
+      // - Admins: can enter personal credentials, with fallback to club entries → code secrets
+      // - Regular users: must enter their own personal credentials
       const isDemo = me?.email === DEMO_EMAIL;
-      const clubCreds = admin || isDemo;
+      const clubCreds = isDemo; // Only demo uses club creds exclusively
       setUsesClubCredentials(clubCreds);
       if (clubCreds) {
         setQrzConfigured(true);
@@ -166,7 +169,7 @@ export default function Settings() {
         setQrzPassword(p);
         setQrzConfigured(!!u && !!p);
       }
-      // Load APRS.fi API key
+      // Load APRS.fi API key (personal — admins can override club key)
       const aprsKey = me?.aprs_fi_api_key || "";
       setAprsApiKey(aprsKey);
       setAprsKeyConfigured(!!aprsKey);
@@ -200,7 +203,7 @@ export default function Settings() {
     localStorage.setItem("hb9om_my_callsign", myCallsign.toUpperCase().trim());
     localStorage.setItem("hb9om_qrz_enabled", String(qrzEnabled));
     localStorage.setItem("hb9om_setup_complete", "true");
-    // Save personal QRZ credentials for non-admin/demo users
+    // Save personal QRZ credentials for non-demo users (admins + regular users)
     if (!usesClubCredentials) {
       try {
         await base44.auth.updateMe({
@@ -418,6 +421,38 @@ export default function Settings() {
                     QRZ.com XML-Subscription des Clubs ist hinterlegt und einsatzbereit
                   </p>
                 </div>
+              ) : isAdmin ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-blue-600 flex items-start gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <span>Optional: Persönliche QRZ.com-Zugangsdaten erfassen. Ohne Angabe werden die Club-Daten (Club-Rufzeichen-Verwaltung) oder die im Code hinterlegten Secrets verwendet.</span>
+                  </p>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase">QRZ-Benutzername (persönlich)</label>
+                    <input
+                      type="text"
+                      value={qrzUsername}
+                      onChange={e => { setQrzUsername(e.target.value); }}
+                      placeholder="Persönlicher QRZ.com-Benutzername (optional)"
+                      autoComplete="off"
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase">QRZ-Passwort (persönlich)</label>
+                    <input
+                      type="password"
+                      value={qrzPassword}
+                      onChange={e => { setQrzPassword(e.target.value); }}
+                      placeholder="Persönliches QRZ.com-Passwort (optional)"
+                      autoComplete="new-password"
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">
+                    Fallback-Reihenfolge: Persönliche Angaben → Club-Konfiguration → Code-Secrets. Bei leerem Feld werden die Club-Daten verwendet.
+                  </p>
+                </div>
               ) : (
                 <div className="mt-3 space-y-2">
                   <div>
@@ -487,6 +522,20 @@ export default function Settings() {
                   <AlertCircle className="w-3.5 h-3.5" />
                   Globaler API-Key des Clubs ist hinterlegt und einsatzbereit
                 </p>
+              ) : isAdmin ? (
+                <div className="mt-2">
+                  <input
+                    type="password"
+                    value={aprsApiKey}
+                    onChange={e => setAprsApiKey(e.target.value)}
+                    placeholder="Persönlicher APRS.fi API-Key (optional — Fallback: Club/Secrets)"
+                    autoComplete="off"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                    Optional: Persönlicher API-Key überschreibt Club-Key und Code-Secrets. Bei leerem Feld wird der Club-API-Key verwendet.
+                  </p>
+                </div>
               ) : (
                 <div className="mt-2">
                   <input
