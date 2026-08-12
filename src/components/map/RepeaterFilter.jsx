@@ -87,7 +87,7 @@ export default function RepeaterFilter({
   const hasActiveAdvanced = !isAllSelected || showCoverage || showOnlyLinked || (radiusKm > 0);
 
   return (
-    <div className={`absolute top-3 ${leftOffsetClass} z-[1005]`}>
+    <div className={`absolute top-16 ${leftOffsetClass} z-[1005]`}>
       {/* Toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}

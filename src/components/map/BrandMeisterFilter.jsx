@@ -40,7 +40,7 @@ export default function BrandMeisterFilter({
   };
 
   return (
-    <div className={`absolute top-3 ${leftOffsetClass} z-[1005]`}>
+    <div className={`absolute top-16 ${leftOffsetClass} z-[1005]`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`bg-white shadow-lg rounded-lg p-2.5 transition-colors border flex items-center gap-1.5 ${

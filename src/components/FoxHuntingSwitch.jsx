@@ -7,7 +7,7 @@ export default function FoxHuntingSwitch({ mode, onModeChange }) {
   const isFox = mode === "fox";
 
   return (
-    <div className="absolute top-[3.75rem] left-1/2 -translate-x-1/2 z-[1005]">
+    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[1005]">
       <div className="bg-white shadow-lg rounded-full border border-gray-200 flex items-center p-0.5">
         <button
           onClick={() => onModeChange("fox")}

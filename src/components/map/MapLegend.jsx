@@ -20,7 +20,7 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
     return (
       <button
         onClick={() => setHidden(false)}
-        className="absolute bottom-20 left-3 z-[1000] w-8 h-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
+        className="absolute bottom-16 left-3 z-[1000] w-8 h-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
         title="Legende einblenden"
       >
         <Layers className="w-3.5 h-3.5 text-gray-600" />
@@ -29,7 +29,7 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   }
 
   return (
-    <div className="absolute bottom-20 left-3 z-[1000] max-w-[calc(100%-11rem)] bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+    <div className="absolute bottom-16 left-3 z-[1000] max-w-[calc(100%-11rem)] bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
       {/* Compact single-line header */}
       <div className="flex items-center gap-1.5 px-2.5 py-1.5">
         {castleStats && activeLayers.includes("castle") && (

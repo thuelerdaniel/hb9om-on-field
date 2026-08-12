@@ -20,7 +20,7 @@ export default function MapControls({
   const showScale = baseLayer === "swisstopo";
 
   return (
-    <div className="absolute right-3 top-20 z-[1000] flex flex-col gap-2">
+    <div className="absolute right-3 top-28 z-[1000] flex flex-col gap-2">
       {/* Zoom controls */}
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col items-center overflow-hidden">
         <button
