@@ -30,7 +30,7 @@ export default async function(req: any): Promise<Response> {
     }
 
     if (action === 'setWebUrl') {
-      const webUrl = req.body?.web_url || '';
+      const webUrl = body?.web_url || '';
       const updated = await base44.asServiceRole.entities.Repeater.update(repeaterId, { web_url: webUrl });
       return Response.json({ success: true, repeater: updated });
     }

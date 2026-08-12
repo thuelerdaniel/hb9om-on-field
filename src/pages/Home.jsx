@@ -458,6 +458,11 @@ export default function Home() {
     localStorage.setItem("hb9om_repeater_filter_modes", JSON.stringify(repeaterFilterModes));
   }, [repeaterFilterModes]);
   useEffect(() => {
+    try {
+      localStorage.setItem("hb9om_repeater_filter_countries", JSON.stringify(repeaterFilterCountries));
+    } catch {}
+  }, [repeaterFilterCountries]);
+  useEffect(() => {
     localStorage.setItem("hb9om_repeater_show_links", String(repeaterShowLinks));
   }, [repeaterShowLinks]);
   useEffect(() => {
