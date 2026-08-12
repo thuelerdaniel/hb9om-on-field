@@ -60,7 +60,7 @@ const LINE_DASH_ARRAYS = {
   dotted: "3 6",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountry, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
+function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
   const map = useMap();
 
   // Build a map of linkKey → Set of sources ('repeaterbook', 'uska', 'admin').
@@ -104,24 +104,20 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     let result = repeaters;
     // Exclude repeaters without coordinates — they can't be placed on the map
     result = result.filter(r => r.lat != null && r.lng != null);
-    // Per-layer country filter overrides global LayerControl country filter.
-    // When a specific country/continent is selected in the RepeaterFilter,
-    // the global activeContinents/activeCountries from LayerControl are NOT
-    // applied — so the user can show "Schweiz" globally for SOTA/POTA but
-    // still see German repeaters by selecting Germany in the RepeaterFilter.
-    if (filterCountry === "all") {
+    // Per-layer country filter (multi-select) overrides global LayerControl country filter.
+    // When specific countries are selected in the RepeaterFilter, the global
+    // activeContinents/activeCountries from LayerControl are NOT applied — so the
+    // user can show "Schweiz" globally for SOTA/POTA but still see German + Austrian
+    // repeaters by selecting both in the RepeaterFilter.
+    if (!filterCountries || filterCountries.length === 0) {
       if (activeContinents && activeContinents.length > 0) {
         result = result.filter(r => r.lat != null && r.lng != null && isInContinents(r.lat, r.lng, activeContinents));
       }
       if (activeCountries && activeCountries.length > 0) {
         result = result.filter(r => isInCountries({ ...r, layerType: 'repeater' }, activeCountries));
       }
-    } else if (filterCountry.startsWith("continent:")) {
-      const contId = filterCountry.split(":")[1];
-      const contCountries = getCountriesByContinent(contId).map(c => c.iso2);
-      result = result.filter(r => contCountries.includes(r.country_code));
     } else {
-      result = result.filter(r => r.country_code === filterCountry);
+      result = result.filter(r => filterCountries.includes(r.country_code));
     }
     // No modes selected = NO repeaters shown (user must actively choose at least one mode)
     if (!filterModes || filterModes.length === 0) {
@@ -195,7 +191,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       result = result.filter(r => linkedIds.has(r.id));
     }
     return result;
-  }, [repeaters, filterModes, searchQuery, filterCountry, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks, isLinkDisplayable]);
+  }, [repeaters, filterModes, searchQuery, filterCountries, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks, isLinkDisplayable]);
 
   // Build callsign→repeaters map from ALL repeaters (not just filtered) so link lines
   // connect to targets even when the target is filtered out by mode/country/etc.
@@ -582,7 +578,7 @@ function arePropsEqual(prev, next) {
     prev.showCoverage === next.showCoverage &&
     prev.showOnlyLinked === next.showOnlyLinked &&
     prev.performanceMode === next.performanceMode &&
-    prev.filterCountry === next.filterCountry &&
+    prev.filterCountries === next.filterCountries &&
     prev.userPosition === next.userPosition &&
     prev.radiusKm === next.radiusKm &&
     prev.adminLinks === next.adminLinks &&

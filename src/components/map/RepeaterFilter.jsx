@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLink } from "lucide-react";
+import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLink, Check } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
@@ -15,8 +15,8 @@ export default function RepeaterFilter({
   onShowCoverageChange,
   showOnlyLinked,
   onShowOnlyLinkedChange,
-  filterCountry,
-  onFilterCountryChange,
+  filterCountries,
+  onFilterCountriesChange,
   countries,
   repeaterCount,
   visibleCount,
@@ -38,9 +38,50 @@ export default function RepeaterFilter({
   const allOn = filterModes.length === FILTER_MODES.length;
   const noneOn = filterModes.length === 0;
 
+  // filterCountries is an array of ISO2 codes. Empty = all (no filter).
+  const selectedCountries = Array.isArray(filterCountries) ? filterCountries : [];
+  const isAllSelected = selectedCountries.length === 0;
+
+  const toggleCountry = (code) => {
+    if (selectedCountries.includes(code)) {
+      onFilterCountriesChange(selectedCountries.filter(c => c !== code));
+    } else {
+      onFilterCountriesChange([...selectedCountries, code]);
+    }
+  };
+
+  const toggleContinent = (continentId) => {
+    const contCountries = getCountriesByContinent(continentId);
+    const contCodes = contCountries.map(c => c.iso2);
+    const allContinentSelected = contCodes.every(c => selectedCountries.includes(c));
+    if (allContinentSelected) {
+      // Remove all countries of this continent
+      onFilterCountriesChange(selectedCountries.filter(c => !contCodes.includes(c)));
+    } else {
+      // Add all countries of this continent
+      const newSet = new Set([...selectedCountries, ...contCodes]);
+      onFilterCountriesChange([...newSet]);
+    }
+  };
+
+  const selectAll = () => onFilterCountriesChange([]);
+  const clearAll = () => onFilterCountriesChange([]);
+
   const sortedCountries = useMemo(() => {
     return [...(countries || [])].sort((a, b) => a.name.localeCompare(b.name));
   }, [countries]);
+
+  // Group countries by continent for display
+  const countriesByContinent = useMemo(() => {
+    const groups = {};
+    for (const rc of sortedCountries) {
+      const country = COUNTRIES.find(c => c.iso2 === rc.code);
+      const cont = country?.continent || 'other';
+      if (!groups[cont]) groups[cont] = [];
+      groups[cont].push(rc);
+    }
+    return groups;
+  }, [sortedCountries]);
 
   return (
     <div className={`absolute top-3 ${leftOffsetClass} z-[1005]`}>
@@ -55,6 +96,11 @@ export default function RepeaterFilter({
         <Radio className="w-5 h-5 text-blue-600" />
         <span className="text-xs font-medium text-gray-700 hidden sm:inline">Relais</span>
         <span className="text-[10px] font-mono text-gray-400">{visibleCount}</span>
+        {!isAllSelected && (
+          <span className="px-1 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold">
+            {selectedCountries.length}
+          </span>
+        )}
         <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
@@ -92,75 +138,117 @@ export default function RepeaterFilter({
             </div>
           </div>
 
-          {/* Continent + Country filter */}
+          {/* Country multi-select filter */}
           {sortedCountries.length > 1 && (
             <div className="p-3 border-b border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
-                  <Globe className="w-3 h-3" /> Region / Land
+                  <Globe className="w-3 h-3" /> Länder (Mehrfachauswahl)
                 </h4>
-                {filterCountry !== "all" && (
+                <div className="flex gap-2">
                   <button
-                    onClick={() => onFilterCountryChange("all")}
-                    className="text-[10px] text-blue-600 hover:underline"
+                    onClick={selectAll}
+                    className={`text-[10px] ${isAllSelected ? "text-gray-400" : "text-blue-600 hover:underline"}`}
                   >
                     Alle
                   </button>
-                )}
+                  {!isAllSelected && (
+                    <button
+                      onClick={clearAll}
+                      className="text-[10px] text-red-500 hover:underline"
+                    >
+                      Leeren
+                    </button>
+                  )}
+                </div>
               </div>
-              {/* Continent quick-filter buttons */}
+              <p className="text-[10px] text-blue-600 mb-1.5 font-medium">
+                ℹ Überschreibt den globalen Länder-Filter. Mehrere Länder wählbar.
+              </p>
+              {/* Continent quick-toggle buttons */}
               <div className="grid grid-cols-3 gap-1 mb-2">
-                <button
-                  onClick={() => onFilterCountryChange("all")}
-                  className={`px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
-                    filterCountry === "all" ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  Ganze Welt
-                </button>
                 {CONTINENTS.map(c => {
                   const contCountries = getCountriesByContinent(c.id);
                   const repCount = sortedCountries.filter(rc => contCountries.some(cc => cc.iso2 === rc.code)).reduce((sum, rc) => sum + rc.count, 0);
-                  const filterVal = `continent:${c.id}`;
+                  if (repCount === 0) return null;
+                  const contCodes = contCountries.map(cc => cc.iso2);
+                  const allContinentSelected = contCodes.every(code => selectedCountries.includes(code));
+                  const someContinentSelected = contCodes.some(code => selectedCountries.includes(code));
                   return (
                     <button
                       key={c.id}
-                      onClick={() => onFilterCountryChange(filterVal)}
-                      className={`px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
-                        filterCountry === filterVal ? "bg-blue-600 text-white" : repCount === 0 ? "bg-gray-50 text-gray-300" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      onClick={() => toggleContinent(c.id)}
+                      className={`px-1.5 py-1 rounded text-[10px] font-medium transition-colors flex items-center justify-center gap-0.5 ${
+                        allContinentSelected ? "bg-blue-600 text-white" : someContinentSelected ? "bg-blue-100 text-blue-700" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                       }`}
                     >
+                      {allContinentSelected && <Check className="w-2.5 h-2.5" />}
                       {c.name}
                     </button>
                   );
                 })}
               </div>
-              {/* Country list — filtered by selected continent if applicable */}
-              <p className="text-[10px] text-blue-600 mb-1 font-medium">
-                ℹ Überschreibt den globalen Länder-Filter aus dem Ebenen-Menü für Relais.
-              </p>
-              <div className="max-h-32 overflow-y-auto space-y-0.5">
-                {(() => {
-                  let displayCountries = sortedCountries;
-                  let continentFilter = null;
-                  if (filterCountry && filterCountry.startsWith("continent:")) {
-                    continentFilter = filterCountry.split(":")[1];
-                    const contCountries = getCountriesByContinent(continentFilter);
-                    displayCountries = sortedCountries.filter(rc => contCountries.some(cc => cc.iso2 === rc.code));
-                  }
-                  return displayCountries.map(c => (
-                    <button
-                      key={c.code}
-                      onClick={() => onFilterCountryChange(c.code)}
-                      className={`w-full flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
-                        filterCountry === c.code ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span className="truncate">{c.name}</span>
-                      <span className="text-[10px] text-gray-400 flex-shrink-0 ml-1">{c.count}</span>
-                    </button>
-                  ));
-                })()}
+              {/* Country list with checkboxes — grouped by continent */}
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {CONTINENTS.map(cont => {
+                  const contCountries = countriesByContinent[cont.id];
+                  if (!contCountries || contCountries.length === 0) return null;
+                  return (
+                    <div key={cont.id}>
+                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wide px-1 py-0.5 sticky top-0 bg-white">
+                        {cont.name}
+                      </div>
+                      {contCountries.map(c => {
+                        const isSelected = selectedCountries.includes(c.code);
+                        return (
+                          <button
+                            key={c.code}
+                            onClick={() => toggleCountry(c.code)}
+                            className={`w-full flex items-center gap-2 px-2 py-1 rounded text-xs transition-colors ${
+                              isSelected ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
+                            }`}
+                          >
+                            <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                              isSelected ? "bg-blue-600 border-blue-600" : "border-gray-300"
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
+                            </span>
+                            <span className="truncate flex-1 text-left">{c.name}</span>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">{c.count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+                {/* Countries not in any continent (e.g. unknown) */}
+                {countriesByContinent.other && countriesByContinent.other.length > 0 && (
+                  <div>
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wide px-1 py-0.5 sticky top-0 bg-white">
+                      Andere
+                    </div>
+                    {countriesByContinent.other.map(c => {
+                      const isSelected = selectedCountries.includes(c.code);
+                      return (
+                        <button
+                          key={c.code}
+                          onClick={() => toggleCountry(c.code)}
+                          className={`w-full flex items-center gap-2 px-2 py-1 rounded text-xs transition-colors ${
+                            isSelected ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                            isSelected ? "bg-blue-600 border-blue-600" : "border-gray-300"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </span>
+                          <span className="truncate flex-1 text-left">{c.name}</span>
+                          <span className="text-[10px] text-gray-400 flex-shrink-0">{c.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -259,7 +347,7 @@ export default function RepeaterFilter({
               </span>
             </button>
             <p className="text-[10px] text-gray-400 mt-1 ml-2">
-              Geschätzte Reichweite pro Relais (basierend auf Band: 2m ~35 km, 70cm ~25 km). Wird im Hintergrund verfeinert. Für exakte RadioMobile-Abdeckung siehe{" "}
+              Geschätzte Reichweite pro Relais. Für exakte RadioMobile-Abdeckung siehe{" "}
               <a href="https://www.iz8wnh.it/rpts/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-0.5">
                 iz8wnh.it <ExternalLink className="w-2.5 h-2.5" />
               </a>.
@@ -281,7 +369,7 @@ export default function RepeaterFilter({
               </span>
             </button>
             <p className="text-[10px] text-gray-400 mt-1 ml-2">
-              Permanente Verlinkungen: echte Crosslinks aus RepeaterBook + admin-bestätigte Verlinkungen. Temporäre Verlinkungen werden nicht angezeigt.
+              Permanente Verlinkungen: echte Crosslinks aus RepeaterBook + admin-bestätigte Verlinkungen.
             </p>
           </div>
 
@@ -300,7 +388,7 @@ export default function RepeaterFilter({
               </span>
             </button>
             <p className="text-[10px] text-gray-400 mt-1 ml-2">
-              Blendet alle unverlinkten Relais aus. Zeigt nur Relais mit echten Crosslinks (RepeaterBook) oder admin-bestätigten Verlinkungen – analog zum EchoLink-Filter.
+              Blendet alle unverlinkten Relais aus.
             </p>
           </div>
 
@@ -308,8 +396,13 @@ export default function RepeaterFilter({
           <div className="p-3">
             <div className="flex items-center justify-between text-[11px] text-gray-500">
               <span>{visibleCount} von {repeaterCount} Relais sichtbar</span>
-              {noneOn && <span className="text-red-600 font-medium">Keine Modulation gewählt – keine Relais</span>}
+              {noneOn && <span className="text-red-600 font-medium">Keine Modulation gewählt</span>}
             </div>
+            {!isAllSelected && (
+              <div className="text-[10px] text-blue-600 mt-1">
+                {selectedCountries.length} Länder ausgewählt
+              </div>
+            )}
           </div>
         </div>
       )}

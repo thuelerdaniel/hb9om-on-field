@@ -1,5 +1,8 @@
 // Shared repeater scraping logic — imported by fetchRepeaters and refreshAllData.
-// Source: RepeaterBook.com (worldwide — 68+ countries)
+// Sources: RepeaterBook.com (worldwide — 68+ countries), ukrepeater.net (UK),
+//          WIA Australia (CSV), dstarusers.org (D-STAR worldwide)
+
+import { fetchAdditionalRepeaterSources } from './additionalRepeaterSources.ts';
 
 const LIST_BASE = 'https://www.repeaterbook.com/row_repeaters/Display_SS.php';
 const DETAIL_BASE = 'https://www.repeaterbook.com/row_repeaters/details.php';
@@ -678,6 +681,30 @@ export async function fetchRepeaterData(): Promise<any[]> {
       }
     }
     allRepeaters.push(...ukRepeaters);
+  }
+
+  // 1c. Merge additional sources: WIA Australia (CSV) + dstarusers.org (D-STAR worldwide)
+  // These sources add coverage for countries not well covered by RepeaterBook (Australia, D-STAR worldwide)
+  let additionalRepeaters: any[] = [];
+  try {
+    const additional = await fetchAdditionalRepeaterSources();
+    // WIA Australia — dedup against RepeaterBook by callsign+freq
+    if (additional.wia.length > 0) {
+      const rbKeys = new Set(allRepeaters.map(r => r.callsign + '_' + r.frequency));
+      const wiaNew = additional.wia.filter(r => !rbKeys.has(r.callsign + '_' + r.frequency));
+      additionalRepeaters.push(...wiaNew);
+    }
+    // dstarusers.org — dedup against RepeaterBook by callsign+freq
+    if (additional.dstar.length > 0) {
+      const rbKeys = new Set(allRepeaters.map(r => r.callsign + '_' + r.frequency));
+      const dstarNew = additional.dstar.filter(r => !rbKeys.has(r.callsign + '_' + r.frequency));
+      additionalRepeaters.push(...dstarNew);
+    }
+  } catch {
+    // Additional sources are optional — don't fail the whole import
+  }
+  if (additionalRepeaters.length > 0) {
+    allRepeaters.push(...additionalRepeaters);
   }
 
   // 2. Sort by country priority (priority 1 first), then on-air first

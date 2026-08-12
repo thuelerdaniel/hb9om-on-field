@@ -391,7 +391,16 @@ export default function Home() {
   const [repeaterShowLinks, setRepeaterShowLinks] = useState(() => localStorage.getItem("hb9om_repeater_show_links") !== "false");
   const [repeaterShowCoverage, setRepeaterShowCoverage] = useState(() => localStorage.getItem("hb9om_repeater_show_coverage") === "true");
   const [repeaterShowOnlyLinked, setRepeaterShowOnlyLinked] = useState(() => localStorage.getItem("hb9om_repeater_show_only_linked") === "true");
-  const [repeaterFilterCountry, setRepeaterFilterCountry] = useState("all");
+  const [repeaterFilterCountries, setRepeaterFilterCountries] = useState(() => {
+    try {
+      const saved = localStorage.getItem("hb9om_repeater_filter_countries");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [repeaterRadiusKm, setRepeaterRadiusKm] = useState(() => {
     const saved = localStorage.getItem("hb9om_repeater_radius_km");
     return saved ? parseInt(saved) : 0;
@@ -1175,14 +1184,8 @@ export default function Home() {
   // Filtered repeater count for filter panel
   const filteredRepeaterCount = useMemo(() => {
     let result = repeaters;
-    if (repeaterFilterCountry !== "all") {
-      if (repeaterFilterCountry.startsWith("continent:")) {
-        const contId = repeaterFilterCountry.split(":")[1];
-        const contCountries = getCountriesByContinent(contId).map(c => c.iso2);
-        result = result.filter(r => contCountries.includes(r.country_code));
-      } else {
-        result = result.filter(r => r.country_code === repeaterFilterCountry);
-      }
+    if (repeaterFilterCountries && repeaterFilterCountries.length > 0) {
+      result = result.filter(r => repeaterFilterCountries.includes(r.country_code));
     }
     // No modes selected = NO repeaters shown (user must actively choose at least one mode)
     if (repeaterFilterModes.length === 0) {
@@ -1204,7 +1207,7 @@ export default function Home() {
       );
     }
     return result.length;
-  }, [repeaters, repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountry]);
+  }, [repeaters, repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries]);
 
   // Split private nodes by source — APRS (aprs.fi) vs BrandMeister (DMR network)
   // These are fundamentally different systems: APRS is a positioning system,
@@ -1787,7 +1790,7 @@ export default function Home() {
               showCoverage={repeaterShowCoverage}
               showOnlyLinked={repeaterShowOnlyLinked}
               performanceMode={performanceMode}
-              filterCountry={repeaterFilterCountry}
+              filterCountries={repeaterFilterCountries}
               userPosition={currentPosition}
               radiusKm={repeaterRadiusKm}
               adminLinks={adminLinks}
@@ -1867,8 +1870,8 @@ export default function Home() {
             onShowCoverageChange={setRepeaterShowCoverage}
             showOnlyLinked={repeaterShowOnlyLinked}
             onShowOnlyLinkedChange={setRepeaterShowOnlyLinked}
-            filterCountry={repeaterFilterCountry}
-            onFilterCountryChange={setRepeaterFilterCountry}
+            filterCountries={repeaterFilterCountries}
+            onFilterCountriesChange={setRepeaterFilterCountries}
             countries={repeaterCountries}
             repeaterCount={repeaters.length}
             visibleCount={filteredRepeaterCount}
