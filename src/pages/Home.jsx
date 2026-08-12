@@ -45,7 +45,7 @@ import VersionChangelogPopup, { hasSeenCurrentChangelog, isChangelogPermanentlyD
 import PreloadHint from "@/components/map/PreloadHint";
 import ViewportLimitHint from "@/components/map/ViewportLimitHint";
 import HeavyLoadConfirmDialog, { shouldShowHeavyLoadDialog, getRememberedDecision } from "@/components/map/HeavyLoadConfirmDialog";
-import { boundsToObj, boundsContained, unionBounds, mergeRefs, REF_TYPES } from "@/lib/boundsLoading";
+import { boundsToObj, boundsContained, unionBounds, mergeRefs, padBounds, REF_TYPES } from "@/lib/boundsLoading";
 
 // Swiss HBFF sample data (key references with coordinates from hbff.ch)
 const HBFF_DATA = [
@@ -309,8 +309,12 @@ export default function Home() {
   // Bounds-based reference loading: only fetch references visible on the map
   const fetchRefsInBounds = useCallback(async (bnds, typesToFetch) => {
     if (!bnds || isOffline || typesToFetch.length === 0) return;
+    // Pad bounds by 30% to create a prefetch buffer — small zoom/pan operations
+    // stay within the buffer and don't trigger a re-fetch. The padded bounds are
+    // stored as "loaded" so the containment check covers the buffer area too.
+    const paddedBnds = padBounds(bnds, 0.3);
     try {
-      const res = await base44.functions.invoke("getReferencesInBounds", { bounds: bnds, types: typesToFetch });
+      const res = await base44.functions.invoke("getReferencesInBounds", { bounds: paddedBnds, types: typesToFetch });
       if (res.data?.references) {
         const refs = res.data.references;
         // Only update in-memory state — do NOT overwrite the offline cache.
@@ -326,7 +330,7 @@ export default function Home() {
         if (refs.lighthouse) setLighthouseData(prev => mergeRefs(prev, refs.lighthouse));
         if (refs.tota) setTotaData(prev => mergeRefs(prev, refs.tota));
         typesToFetch.forEach(t => {
-          loadedBoundsRef.current[t] = unionBounds(loadedBoundsRef.current[t], bnds);
+          loadedBoundsRef.current[t] = unionBounds(loadedBoundsRef.current[t], paddedBnds);
         });
       }
     } catch (e) { /* silent — local cache or fallback data still shows */ }
@@ -787,7 +791,7 @@ export default function Home() {
       fetchRefsInBounds(bnds, typesToFetch)
         .catch(() => {})
         .finally(() => { setServerCacheLoaded(true); setServerCacheLoading(false); });
-    }, 300);
+    }, 500);
     return () => clearTimeout(t);
   }, [mapReady, mapBounds, activeLayers, isOffline, cacheLoaded, serverCacheLoaded, fetchRefsInBounds, showQsoForm]);
 

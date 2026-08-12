@@ -358,6 +358,16 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
     const band = getBand(frequency);
     const offsetMag = band === '2m' ? 0.6 : band === '70cm' ? 7.6 : band === '6m' ? 1.0 : band === '10m' ? 0.5 : 0;
 
+    // Extract Maidenhead grid locator from the list page cells.
+    // RepeaterBook list pages include a Grid column — extracting it here means
+    // ALL repeaters get approximate coordinates (via locator→coords conversion
+    // in buildRecord), not just the 50 per Priority-1 country that get detail pages.
+    let locator: string | null = null;
+    for (const cell of cells) {
+      const gridMatch = cell.match(/\b([A-R]{2}\d{2}[A-X]{2})\b/);
+      if (gridMatch) { locator = gridMatch[1].toUpperCase(); break; }
+    }
+
     // Build detail URL based on region type
     const detailUrl = regionType === 'north_america'
       ? `${NA_DETAIL_BASE}?state_id=${stateId}&country_code=${countryCode}&ID=${sourceId}`
@@ -381,6 +391,7 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
       status: parseStatus(row),
       lat: null as number | null,
       lng: null as number | null,
+      locator,
       web_url: null as string | null,
       echolink_node: null as string | null,
       fm_funknetz: false,

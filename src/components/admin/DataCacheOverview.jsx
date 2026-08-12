@@ -141,11 +141,15 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
       // refresh) as primary source. Only fall back to pagination if no stored count
       // exists (before the first refresh). This prevents the count from jumping
       // between paginated runs — the stored count is the authoritative total.
+      // Always count withCoords from the DB — the metadata value (meta.withCoords) is
+      // an approximation from regional updates that drifts over time. total_count from
+      // ReferenceData is the authoritative total (stable, set by backend during refresh).
       const repRefEntry = (cacheStatus || []).find(e => e.type === "repeater");
       let repeaterStats;
       if (repRefEntry?.total_count) {
-        const meta = repRefEntry.references?.[0] || {};
-        repeaterStats = { total: repRefEntry.total_count, withCoords: meta.withCoords || 0 };
+        // Use stable total_count from metadata, but count withCoords from the DB
+        const dbStats = await countAllRecords("Repeater", null);
+        repeaterStats = { total: repRefEntry.total_count, withCoords: dbStats?.withCoords || 0 };
       } else {
         repeaterStats = await countAllRecords("Repeater", null);
       }
@@ -188,13 +192,15 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
 
   // Build repeater data from coverageProgress (for coverage stats only, NOT for count)
   const repData = coverageProgress?.global || null;
-  // Repeater count: primary source is ReferenceData.total_count (stable, set by backend
-  // during refresh). Fallback to extraCounts (paginated count) only if no stored count.
-  // This prevents the count from jumping between runs — the stored value is authoritative.
+  // Repeater count: total_count from ReferenceData is the authoritative total (set by backend).
+  // withCoords: the metadata value is an APPROXIMATION from regional updates
+  // (Math.round(oldWithCoords * remainingRatio) + withCoords) that drifts over time.
+  // Use the actual DB count (extraCounts.repeatersWithCoords) as primary source —
+  // it's computed by iterating all Repeater records and counting lat/lng != null.
   const repeaterRefEntry = refDataMap["repeater"];
   const repeaterMeta = repeaterRefEntry?.references?.[0] || {};
   const repeaterCount = repeaterRefEntry?.total_count ?? extraCounts?.repeaters ?? null;
-  const repeatersWithCoords = repeaterMeta.withCoords ?? extraCounts?.repeatersWithCoords ?? null;
+  const repeatersWithCoords = extraCounts?.repeatersWithCoords ?? repeaterMeta.withCoords ?? null;
   const aprsCount = extraCounts?.privateNodes ?? aprsCache?.total ?? 0;
 
   // For layers with their own entities, use the most reliable count source.

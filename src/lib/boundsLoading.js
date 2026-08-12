@@ -40,6 +40,22 @@ export function unionBounds(a, b) {
 }
 
 /**
+ * Pad bounds outward by a factor (e.g., 0.3 = 30% larger on each side).
+ * Used as a prefetch buffer so small zoom/pan operations don't trigger a re-fetch.
+ */
+export function padBounds(bnds, factor = 0.3) {
+  if (!bnds) return null;
+  const latPad = (bnds.north - bnds.south) * factor;
+  const lngPad = (bnds.east - bnds.west) * factor;
+  return {
+    north: bnds.north + latPad,
+    south: bnds.south - latPad,
+    east: bnds.east + lngPad,
+    west: bnds.west - lngPad,
+  };
+}
+
+/**
  * Merge two arrays of references, deduplicating by code/reference field.
  */
 export function mergeRefs(existing, incoming) {
