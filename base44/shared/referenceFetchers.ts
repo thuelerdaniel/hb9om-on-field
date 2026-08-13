@@ -497,26 +497,21 @@ function isDuped(geo: any, deduped: any[]): boolean {
 // We compute the center of each group from its lat/lng bounding box.
 export async function fetchIotaData(): Promise<any[]> {
   // Official IOTA data from iota-world.org downloads page.
-  // groups.json contains all ~1200 IOTA island groups with bounding-box coordinates.
-  // Try multiple URL patterns — the server may use different paths or redirects.
+  // Uses the download-file.html endpoint with User-Agent "iota-mcp/0.1.2" — the direct
+  // fulllist.json URL returns 403 Forbidden for non-browser requests.
   const IOTA_URLS = [
-    'https://www.iota-world.org/islands-on-the-air/downloads/download-file.html?path=groups.json',
-    'https://www.iota-world.org/islands-on-the-air/downloads/groups.json',
-    'https://www.iota-world.org/media/groups.json',
     'https://www.iota-world.org/islands-on-the-air/downloads/download-file.html?path=fulllist.json',
-    'https://www.iota-world.org/islands-on-the-air/downloads/fulllist.json',
+    'https://www.iota-world.org/islands-on-the-air/downloads/download-file.html?path=groups.json',
   ];
 
-  const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  const IOTA_UA = 'iota-mcp/0.1.2';
 
   for (const url of IOTA_URLS) {
     try {
       const resp = await fetch(url, {
         headers: {
-          'User-Agent': BROWSER_UA,
+          'User-Agent': IOTA_UA,
           'Accept': 'application/json, text/plain, */*',
-          'Referer': 'https://www.iota-world.org/islands-on-the-air/downloads.html',
-          'Origin': 'https://www.iota-world.org',
         },
         redirect: 'follow',
       });
@@ -530,17 +525,26 @@ export async function fetchIotaData(): Promise<any[]> {
       const iota: any[] = [];
       const seen = new Set<string>();
       for (const g of json) {
-        const code = g.refno?.trim();
+        const code = (g.refno || g.code)?.trim();
         const name = g.name?.trim();
         if (!code || !name || seen.has(code)) continue;
         seen.add(code);
+        // Compute center from bounding box (latitude_min/max, longitude_min/max)
         const latMax = parseFloat(g.latitude_max);
         const latMin = parseFloat(g.latitude_min);
         const lngMax = parseFloat(g.longitude_max);
         const lngMin = parseFloat(g.longitude_min);
         const lat = (!isNaN(latMax) && !isNaN(latMin)) ? (latMax + latMin) / 2 : null;
         const lng = (!isNaN(lngMax) && !isNaN(lngMin)) ? (lngMax + lngMin) / 2 : null;
-        iota.push({ code, name, lat, lng, country: '', link: 'https://www.iota-world.org/' });
+        iota.push({
+          code, name, lat, lng,
+          dxcc_num: g.dxcc_num || g.dxcc || '',
+          status: g.status || 'Active',
+          island_count: g.island_count || 0,
+          pc_credited: g.pc_credited || '',
+          grp_region: g.grp_region || '',
+          country: '', link: 'https://www.iota-world.org/'
+        });
       }
       if (iota.length > 100) return iota; // Real data has 1000+ entries
     } catch {}

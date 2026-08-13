@@ -13,7 +13,7 @@ const typeCache: Record<string, { refs: any[]; time: number }> = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Types stored as individual point entities (not in ReferenceData.references)
-const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint'; normalize: (r: any) => any }> = {
+const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint'; normalize: (r: any) => any }> = {
   sota: {
     entity: 'SotaPoint',
     normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng })
@@ -33,6 +33,15 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
       lat: r.lat, lng: r.lng, country: r.country, country_code: r.country_code,
       source: r.source, usage: r.usage, locator: r.locator,
       height_m: r.height_m, spot_height_m: r.spot_height_m,
+    })
+  },
+  iota: {
+    entity: 'IotaPoint',
+    normalize: (r) => ({
+      code: r.code, name: r.name, lat: r.lat, lng: r.lng,
+      dxcc_num: r.dxcc_num, status: r.status, island_count: r.island_count,
+      pc_credited: r.pc_credited, grp_region: r.grp_region,
+      link: 'https://www.iota-world.org/'
     })
   },
 };

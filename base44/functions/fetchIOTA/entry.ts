@@ -3,6 +3,8 @@ import { fetchIotaData } from '../../shared/referenceFetchers.ts';
 
 // IOTA (Islands on the Air) — worldwide island groups from iota-world.org.
 // Fetches the full IOTA list (~1200 island groups) with coordinates.
+// Stores as individual IotaPoint records (not in ReferenceData) to avoid
+// MongoDB's 16MB BSON document limit and enable viewport-based loading.
 
 Deno.serve(async (req) => {
   try {
@@ -16,9 +18,8 @@ Deno.serve(async (req) => {
     // Try external IOTA data source
     try {
       references = await fetchIotaData();
-      source = references.length > 300 ? 'iota-world.org groups.json (offiziell)' : 'iota-world.org (fallback embedded)';
+      source = references.length > 300 ? 'iota-world.org fulllist.json (offiziell)' : 'iota-world.org (fallback embedded)';
     } catch (e) {
-      // Fallback: empty — frontend local data will be used
       references = [];
       source = 'fallback (local data)';
     }
@@ -26,29 +27,67 @@ Deno.serve(async (req) => {
     // Filter out entries without coordinates (can't be displayed on map)
     const withCoords = references.filter(r => r.lat != null && r.lng != null);
 
-    // Upsert into ReferenceData
+    // Upsert into IotaPoint entity (individual records, not ReferenceData array)
+    const entity = base44.asServiceRole.entities.IotaPoint;
+
+    // 1. Delete all existing records (full refresh)
+    try {
+      await entity.deleteMany({});
+    } catch (e) {
+      // Non-fatal — bulkCreate will still work
+    }
+
+    // 2. Bulk create in batches of 500
+    const BATCH_SIZE = 500;
+    let created = 0;
+    for (let i = 0; i < withCoords.length; i += BATCH_SIZE) {
+      const batch = withCoords.slice(i, i + BATCH_SIZE);
+      try {
+        await entity.bulkCreate(batch.map(g => ({
+          code: g.code,
+          name: g.name,
+          lat: g.lat,
+          lng: g.lng,
+          dxcc_num: g.dxcc_num || '',
+          status: g.status || 'Active',
+          island_count: g.island_count || 0,
+          pc_credited: g.pc_credited || '',
+          grp_region: g.grp_region || '',
+        })));
+        created += batch.length;
+      } catch (e) {
+        // Continue with next batch — partial data is better than no data
+      }
+    }
+
+    // 3. Update ReferenceData metadata record (count only, references: [])
     const now = new Date().toISOString();
-    const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'iota' });
-    if (existing.length > 0) {
-      await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
-        references: withCoords,
-        total_count: withCoords.length,
-        source,
-        last_updated: now
-      });
-    } else {
-      await base44.asServiceRole.entities.ReferenceData.create({
-        type: 'iota',
-        references: withCoords,
-        total_count: withCoords.length,
-        source,
-        last_updated: now
-      });
+    try {
+      const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'iota' });
+      if (existing.length > 0) {
+        await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
+          references: [],
+          total_count: withCoords.length,
+          source,
+          last_updated: now
+        });
+      } else {
+        await base44.asServiceRole.entities.ReferenceData.create({
+          type: 'iota',
+          references: [],
+          total_count: withCoords.length,
+          source,
+          last_updated: now
+        });
+      }
+    } catch (e) {
+      // Metadata update failure is non-fatal — points are already saved
     }
 
     return Response.json({
       saved: true,
-      count: withCoords.length,
+      count: created,
+      total: withCoords.length,
       source,
     });
   } catch (error) {
