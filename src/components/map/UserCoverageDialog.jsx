@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { X, MapPin, Car, Home, Smartphone, Radio, Loader2, Satellite, Crosshair } from "lucide-react";
+import { X, MapPin, Car, Home, Radio, Loader2, Satellite, Crosshair } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 const DEVICE_TYPES = [
   { value: "mobil", label: "Mobil", icon: Car, defaultPower: 50, defaultHeight: 1.7 },
   { value: "fix", label: "Fix", icon: Home, defaultPower: 100, defaultHeight: 10 },
-  { value: "portabel", label: "Portabel", icon: Smartphone, defaultPower: 5, defaultHeight: 1.5 },
+  { value: "portabel", label: "Portabel", icon: Radio, defaultPower: 5, defaultHeight: 1.5 },
 ];
 
 const BANDS = [

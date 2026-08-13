@@ -159,6 +159,10 @@ function buildSearchCandidates(data, repeaters) {
 // Component to handle map events (zoom, move) and expose map ref
 function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale, onMapClick }) {
   const map = useMap();
+  // Ref ensures the click handler always calls the latest onMapClick,
+  // even though useMapEvents only registers once.
+  const onMapClickRef = useRef(null);
+  onMapClickRef.current = onMapClick;
 
   useEffect(() => {
     if (onMapReady) onMapReady(map);
@@ -166,7 +170,7 @@ function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale, onMapClic
 
   useMapEvents({
     zoomend: () => {},
-    click: (e) => { if (onMapClick) onMapClick(e.latlng); },
+    click: (e) => { if (onMapClickRef.current) onMapClickRef.current(e.latlng); },
   });
 
   return null;
@@ -799,8 +803,9 @@ export default function Home() {
           clickMode={dragMode}
           performanceMode={performanceMode}
         />
-        {/* User Coverage Polygon (MODUS B) — orange polygon on map */}
-        {userCoverage && (
+        {/* User Coverage (MODUS B) — orange polygon + position marker on map.
+            Marker shows as soon as a position is set; polygon after calculation. */}
+        {(userCoveragePosition || userCoverage) && (
           <UserCoverageLayer
             coverage={userCoverage}
             position={userCoveragePosition}
