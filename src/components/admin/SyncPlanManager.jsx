@@ -8,6 +8,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import SyncLogViewer from "@/components/admin/SyncLogViewer";
+import SourceConfigCard from "@/components/admin/SourceConfigCard";
 
 // ─── Source metadata: icon + color + sync type per source key ───
 const SOURCE_META = {
@@ -80,14 +81,12 @@ const DAY_LABELS = {
 
 export default function SyncPlanManager() {
   const [schedules, setSchedules] = useState([]);
+  const [sourceConfig, setSourceConfig] = useState({});
   const [config, setConfig] = useState(null);
   const [globalAutoSync, setGlobalAutoSync] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [togglingSource, setTogglingSource] = useState(null);
-  const [triggeringSource, setTriggeringSource] = useState(null);
   const [triggeringBatch, setTriggeringBatch] = useState(null);
-  const [expandedErrors, setExpandedErrors] = useState(new Set());
   const [showScheduleEditor, setShowScheduleEditor] = useState(false);
   const [confirmBatch, setConfirmBatch] = useState(null);
   const { toast } = useToast();
@@ -97,6 +96,7 @@ export default function SyncPlanManager() {
       const res = await base44.functions.invoke("manageSyncSchedule", { action: "getSettings" });
       const data = res.data || res;
       setSchedules(data.sources || []);
+      setSourceConfig(data.source_config || {});
       setConfig(data.config || null);
       setGlobalAutoSync(data.global_auto_sync !== false);
     } catch {
@@ -127,45 +127,6 @@ export default function SyncPlanManager() {
     }
   };
 
-  const handleToggleSource = async (source, currentEnabled) => {
-    setTogglingSource(source);
-    try {
-      await base44.functions.invoke("manageSyncSchedule", { action: "toggleSource", source, enabled: !currentEnabled });
-      setSchedules(prev => prev.map(s => s.source === source ? { ...s, weekly_enabled: !currentEnabled } : s));
-    } catch (e) {
-      toast({ title: "Fehler", description: e.message, variant: "destructive" });
-    } finally {
-      setTogglingSource(null);
-    }
-  };
-
-  const handleToggleIncremental = async (source, currentVal) => {
-    setTogglingSource(source);
-    try {
-      await base44.functions.invoke("manageSyncSchedule", { action: "toggleIncremental", source, enabled: !currentVal });
-      setSchedules(prev => prev.map(s => s.source === source ? { ...s, incremental_enabled: !currentVal } : s));
-    } catch (e) {
-      toast({ title: "Fehler", description: e.message, variant: "destructive" });
-    } finally {
-      setTogglingSource(null);
-    }
-  };
-
-  const handleTriggerSource = async (source, label) => {
-    setTriggeringSource(source);
-    try {
-      const res = await base44.functions.invoke("manageSyncSchedule", { action: "triggerSource", source });
-      const data = res.data || res;
-      const count = data?.count ?? data?.total_saved ?? data?.result?.count ?? 0;
-      toast({ title: `${label} gestartet`, description: `${count} Einträge verarbeitet`, duration: 5000 });
-      setTimeout(fetchData, 2000);
-    } catch (e) {
-      toast({ title: "Fehler", description: e.message, variant: "destructive" });
-    } finally {
-      setTriggeringSource(null);
-    }
-  };
-
   const handleTriggerBatch = async (mode) => {
     setTriggeringBatch(mode);
     setConfirmBatch(null);
@@ -192,15 +153,6 @@ export default function SyncPlanManager() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const toggleErrorExpand = (id) => {
-    setExpandedErrors(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   };
 
   // ─── Computed stats ───
@@ -389,11 +341,11 @@ export default function SyncPlanManager() {
         </p>
       </div>
 
-      {/* ─── Source detail table ─── */}
+      {/* ─── Source detail table with per-source config ─── */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
         <div className="px-3 py-2 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2">
           <Layers className="w-4 h-4 text-gray-600 dark:text-slate-300" />
-          <h4 className="text-xs font-bold text-gray-900 dark:text-slate-100">Quellen-Detail ({totalCount})</h4>
+          <h4 className="text-xs font-bold text-gray-900 dark:text-slate-100">Quellen-Konfiguration ({totalCount})</h4>
         </div>
 
         {loading ? (
@@ -406,108 +358,18 @@ export default function SyncPlanManager() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-slate-700">
-            {schedules.map(s => {
-              const meta = getMeta(s.source);
-              const Icon = meta.icon;
-              const isRunning = s.last_status === "running";
-              const isFailed = s.last_status === "failed";
-              const isToggling = togglingSource === s.source;
-              const isTriggering = triggeringSource === s.source;
-              const errorExpanded = expandedErrors.has(s.id);
-
-              return (
-                <div
-                  key={s.id}
-                  className={`px-3 py-2.5 ${
-                    isRunning ? "bg-blue-50/30 dark:bg-blue-900/10" :
-                    isFailed ? "bg-red-50/30 dark:bg-red-900/10" :
-                    !s.weekly_enabled ? "opacity-60" : ""
-                  }`}
-                >
-                  {/* Row 1: name + status + actions */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <Icon className={`w-3.5 h-3.5 ${meta.color} flex-shrink-0`} />
-                      <span className="text-xs font-semibold text-gray-900 dark:text-slate-100 truncate">{s.label}</span>
-                      <span className="text-[9px] text-gray-400 dark:text-slate-500 hidden sm:inline">{SYNC_TYPE_LABELS[meta.syncType]}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <StatusBadge status={s.last_status} />
-                      <button
-                        onClick={() => handleToggleSource(s.source, s.weekly_enabled)}
-                        disabled={isToggling}
-                        className={`relative w-8 h-4 rounded-full transition-colors ${s.weekly_enabled ? "bg-green-500" : "bg-gray-300 dark:bg-slate-600"} ${isToggling ? "opacity-40" : ""}`}
-                        title={s.weekly_enabled ? "Auto-Sync aktiv — klicken zum Deaktivieren" : "Auto-Sync inaktiv — klicken zum Aktivieren"}
-                      >
-                        <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${s.weekly_enabled ? "translate-x-4" : ""}`} />
-                      </button>
-                      <button
-                        onClick={() => handleTriggerSource(s.source, s.label)}
-                        disabled={isTriggering || isRunning}
-                        className="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded disabled:opacity-40"
-                        title="Jetzt synchronisieren"
-                      >
-                        {isTriggering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Row 2: details */}
-                  <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-400 dark:text-slate-500 flex-wrap">
-                    <span className="text-gray-500 dark:text-slate-400">{meta.schedule}</span>
-                    {s.last_count != null && s.last_count > 0 && (
-                      <span>{s.last_count.toLocaleString("de-CH")} Einträge</span>
-                    )}
-                    {s.last_duration_ms > 0 && (
-                      <span>{formatDuration(s.last_duration_ms)}</span>
-                    )}
-                    {s.last_run_time && (
-                      <span>Letzte: {formatTime(s.last_run_time)}</span>
-                    )}
-                    {s.next_run_utc && s.weekly_enabled && (
-                      <span className="text-blue-500">Nächste: {formatTime(s.next_run_utc)}</span>
-                    )}
-                  </div>
-
-                  {/* Row 3: incremental toggle */}
-                  {meta.syncType !== "daily" && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <label className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-slate-400 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={!!s.incremental_enabled}
-                          onChange={() => handleToggleIncremental(s.source, s.incremental_enabled)}
-                          disabled={isToggling}
-                          className="w-3 h-3 accent-blue-600"
-                        />
-                        Inkrementell
-                      </label>
-                      <span className="text-[9px] text-gray-400 dark:text-slate-500">
-                        {s.incremental_enabled ? "nur Deltas" : "Voll-Sync"}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Row 4: error details */}
-                  {isFailed && s.last_error && (
-                    <div className="mt-1">
-                      <button
-                        onClick={() => toggleErrorExpand(s.id)}
-                        className="flex items-center gap-1 text-[10px] text-red-600 hover:underline"
-                      >
-                        {errorExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                        Fehlerdetails
-                      </button>
-                      {errorExpanded && (
-                        <div className="mt-1 p-2 bg-red-50 dark:bg-red-900/20 rounded text-[10px] text-red-700 dark:text-red-400 font-mono whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
-                          {s.last_error_detail || s.last_error}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {schedules.map(s => (
+              <SourceConfigCard
+                key={s.id}
+                source={s.source}
+                schedule={s}
+                config={sourceConfig[s.source] || {}}
+                onConfigChange={(src, newCfg) => {
+                  setSourceConfig(prev => ({ ...prev, [src]: newCfg }));
+                  setTimeout(fetchData, 3000);
+                }}
+              />
+            ))}
           </div>
         )}
       </div>

@@ -25,6 +25,58 @@ const DEFAULT_CONFIG = {
   aprs_stream_time: '06:30',
 };
 
+// ─── Per-source default configs ───
+// APRS: daily, full sync, no auto-switch (stream data always full)
+// Repeater: weekly, incremental (already loaded), auto on
+// All others: weekly, full sync initially, auto-switch to incremental after first full load
+function getDefaultSourceConfig(source: string): any {
+  const base = {
+    schedule_mode: 'weekly',
+    incremental: false,
+    repeat_enabled: false,
+    repeat_interval_minutes: 0,
+    first_full_load_done: false,
+    auto_incremental_after_full: true,
+    admin_override: false,
+    enabled: true,
+    last_run: null,
+    last_result: null,
+    last_records: 0,
+    last_duration_seconds: 0,
+    last_error: null,
+    next_run: null,
+  };
+
+  if (source === 'aprs' || source === 'aprs_fi') {
+    return { ...base, schedule_mode: 'daily', auto_incremental_after_full: false };
+  }
+  if (source.startsWith('repeater')) {
+    return { ...base, incremental: true, first_full_load_done: true };
+  }
+  return base;
+}
+
+async function getSourceConfig(base44: any): Promise<Record<string, any>> {
+  const row = await getSetting(base44, 'source_config');
+  if (row?.value) {
+    try { return JSON.parse(row.value); } catch {}
+  }
+  return {};
+}
+
+async function saveSourceConfig(base44: any, config: Record<string, any>): Promise<void> {
+  await saveSetting(base44, 'source_config', JSON.stringify(config));
+}
+
+// Merge stored source_config with defaults for all known sources
+function mergeWithDefaults(stored: Record<string, any>, sources: string[]): Record<string, any> {
+  const merged: Record<string, any> = {};
+  for (const src of sources) {
+    merged[src] = { ...getDefaultSourceConfig(src), ...(stored[src] || {}) };
+  }
+  return merged;
+}
+
 async function getSetting(base44: any, key: string): Promise<any | null> {
   try {
     const rows = await base44.asServiceRole.entities.AppSetting.filter({ key });
@@ -56,7 +108,7 @@ export default async function (req: Request): Promise<Response> {
 
     const action = body.action || 'getSettings';
 
-    // ─── getSettings: return schedule config + all source states ───
+    // ─── getSettings: return schedule config + all source states + per-source config ───
     if (action === 'getSettings') {
       const configRow = await getSetting(base44, 'sync_schedule_config');
       let config = DEFAULT_CONFIG;
@@ -68,13 +120,59 @@ export default async function (req: Request): Promise<Response> {
       const globalAutoSync = autoUpdateRow ? autoUpdateRow.enabled !== false : true;
 
       const schedules = await base44.asServiceRole.entities.DailyRefreshSchedule.list('display_order', 100);
+      const sourceNames = (schedules || []).map((s: any) => s.source);
+      const storedSourceConfig = await getSourceConfig(base44);
+      const sourceConfig = mergeWithDefaults(storedSourceConfig, sourceNames);
 
       return Response.json({
         status: 'success',
         config,
         global_auto_sync: globalAutoSync,
         sources: schedules || [],
+        source_config: sourceConfig,
       });
+    }
+
+    // ─── updateSourceConfig: update a single source's config ───
+    // Sets admin_override=true if schedule_mode or incremental is changed by admin
+    if (action === 'updateSourceConfig') {
+      const { source, config: newConfig } = body;
+      if (!source) return Response.json({ error: 'source required' }, { status: 400 });
+
+      const stored = await getSourceConfig(base44);
+      const current = { ...getDefaultSourceConfig(source), ...(stored[source] || {}) };
+
+      // Detect if admin changed schedule_mode or incremental
+      const modeChanged = newConfig.schedule_mode !== undefined && newConfig.schedule_mode !== current.schedule_mode;
+      const incrChanged = newConfig.incremental !== undefined && newConfig.incremental !== current.incremental;
+      const adminTouched = modeChanged || incrChanged;
+
+      const updated = {
+        ...current,
+        ...newConfig,
+        // Set admin_override if admin changed mode/incremental (unless explicitly setting it)
+        admin_override: newConfig.admin_override !== undefined ? newConfig.admin_override : (adminTouched ? true : current.admin_override),
+      };
+
+      stored[source] = updated;
+      await saveSourceConfig(base44, stored);
+
+      return Response.json({ status: 'success', source, config: updated });
+    }
+
+    // ─── toggleAutoMode: re-enable auto mode (set admin_override=false) ───
+    if (action === 'toggleAutoMode') {
+      const { source, enabled } = body;
+      if (!source) return Response.json({ error: 'source required' }, { status: 400 });
+
+      const stored = await getSourceConfig(base44);
+      const current = { ...getDefaultSourceConfig(source), ...(stored[source] || {}) };
+      // enabled=true means auto mode ON → admin_override=false
+      current.admin_override = !enabled;
+      stored[source] = current;
+      await saveSourceConfig(base44, stored);
+
+      return Response.json({ status: 'success', source, admin_override: current.admin_override });
     }
 
     // ─── saveSettings: save schedule day/time config ───

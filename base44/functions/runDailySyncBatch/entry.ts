@@ -110,8 +110,9 @@ async function markReportSent(base44: any): Promise<void> {
 }
 
 // Run a source with timeout
-async function runSourceWithTimeout(base44: any, src: any, timeout: number): Promise<{ ok: boolean; data: any; timedOut: boolean }> {
-  const payload = { ...(src.function_payload || {}), scheduled: true, incremental: !!src.incremental_enabled };
+async function runSourceWithTimeout(base44: any, src: any, timeout: number, incrementalOverride?: boolean): Promise<{ ok: boolean; data: any; timedOut: boolean }> {
+  const incremental = incrementalOverride !== undefined ? incrementalOverride : !!src.incremental_enabled;
+  const payload = { ...(src.function_payload || {}), scheduled: true, incremental };
   try {
     const data = await Promise.race([
       base44.functions.invoke(src.function_name, payload).then((res: any) => res?.data || res),
@@ -169,13 +170,42 @@ export default async function (req: Request): Promise<Response> {
 
     // Get all schedules and filter by weekly_enabled + day
     const allSchedules = await base44.asServiceRole.entities.DailyRefreshSchedule.list('display_order', 100);
-    const enabledSources = (allSchedules || []).filter((s: any) =>
-      s.weekly_enabled &&
-      Array.isArray(s.weekly_days) &&
-      s.weekly_days.includes(effectiveDay) &&
-      s.function_name !== 'fetchAprsFi' &&
-      s.function_name !== 'fetchAprsStations'
-    );
+
+    // Read per-source config from AppSettings
+    let sourceConfig: Record<string, any> = {};
+    try {
+      const configRow = await base44.asServiceRole.entities.AppSetting.filter({ key: 'source_config' });
+      if (configRow.length > 0 && configRow[0].value) {
+        sourceConfig = JSON.parse(configRow[0].value);
+      }
+    } catch {}
+
+    // Get default config for a source
+    const getDefaultCfg = (src: string): any => {
+      const base = { schedule_mode: 'weekly', incremental: false, auto_incremental_after_full: true, admin_override: false, first_full_load_done: false, enabled: true };
+      if (src === 'aprs') return { ...base, schedule_mode: 'daily', auto_incremental_after_full: false };
+      if (src.startsWith('repeater')) return { ...base, incremental: true, first_full_load_done: true };
+      return base;
+    };
+    const getCfg = (src: string) => ({ ...getDefaultCfg(src), ...(sourceConfig[src] || {}) });
+
+    const enabledSources = (allSchedules || []).filter((s: any) => {
+      const cfg = getCfg(s.source);
+      // Check if source is enabled in source_config (fall back to weekly_enabled)
+      const isEnabled = cfg.enabled !== false && s.weekly_enabled;
+      if (!isEnabled) return false;
+      // Check if schedule_mode matches the current day
+      if (cfg.schedule_mode === 'daily') return true; // daily runs every day
+      if (cfg.schedule_mode === 'weekly') {
+        return Array.isArray(s.weekly_days) && s.weekly_days.includes(effectiveDay);
+      }
+      if (cfg.schedule_mode === 'monthly') {
+        // Monthly: run on first day of month OR the configured day
+        const dayOfMonth = new Date().getUTCDate();
+        return dayOfMonth === 1 || effectiveDay === 'Monday'; // simplified
+      }
+      return Array.isArray(s.weekly_days) && s.weekly_days.includes(effectiveDay);
+    });
 
     if (enabledSources.length === 0) {
       return Response.json({ status: 'idle', message: `Keine aktivierten Quellen für ${effectiveDay}` });
@@ -258,8 +288,11 @@ export default async function (req: Request): Promise<Response> {
       ? LIGHTHOUSE_TIMEOUT_MS
       : SOURCE_TIMEOUT_MS;
 
+    // Get per-source config for this source
+    const cfg = getCfg(nextSource.source);
+
     // ─── First attempt ───
-    let result = await runSourceWithTimeout(base44, nextSource, timeout);
+    let result = await runSourceWithTimeout(base44, nextSource, timeout, cfg.incremental);
     let retried = false;
 
     // ─── Retry on failure (1x after 30s) — but NOT for SOTA partial chunks ───
@@ -267,7 +300,7 @@ export default async function (req: Request): Promise<Response> {
     const firstFailed = !isSotaPartial && (result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed'));
     if (firstFailed) {
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-      result = await runSourceWithTimeout(base44, nextSource, timeout);
+      result = await runSourceWithTimeout(base44, nextSource, timeout, cfg.incremental);
       retried = true;
     }
 
@@ -371,6 +404,61 @@ export default async function (req: Request): Promise<Response> {
         }],
         trigger: body.scheduled ? 'scheduled' : 'manual',
       });
+    } catch {}
+
+    // ─── Update per-source config in AppSettings ───
+    try {
+      const configRow2 = await base44.asServiceRole.entities.AppSetting.filter({ key: 'source_config' });
+      let sc: Record<string, any> = {};
+      if (configRow2.length > 0 && configRow2[0].value) {
+        try { sc = JSON.parse(configRow2[0].value); } catch {}
+      }
+      const defCfg = getDefaultCfg(nextSource.source);
+      const curCfg = { ...defCfg, ...(sc[nextSource.source] || {}) };
+
+      const wasFullSync = !curCfg.incremental;
+      const syncSuccess = status === 'success';
+
+      // Update last run info
+      curCfg.last_run = new Date().toISOString();
+      curCfg.last_result = status === 'timeout' ? 'timeout' : status;
+      curCfg.last_records = count;
+      curCfg.last_duration_seconds = Math.round(duration / 1000);
+      curCfg.last_error = status === 'success' ? null : (errorMsg || '').substring(0, 500);
+
+      // Auto-logic: after successful full sync, switch to incremental + weekly
+      if (syncSuccess && wasFullSync && curCfg.auto_incremental_after_full && !curCfg.admin_override) {
+        curCfg.first_full_load_done = true;
+        curCfg.incremental = true;
+        curCfg.schedule_mode = 'weekly';
+        curCfg.repeat_enabled = false;
+        curCfg.repeat_interval_minutes = 0;
+      } else if (syncSuccess && wasFullSync) {
+        curCfg.first_full_load_done = true;
+      }
+
+      // Calculate next_run
+      const next = new Date();
+      if (curCfg.schedule_mode === 'daily') {
+        next.setUTCDate(next.getUTCDate() + 1);
+        next.setUTCHours(1, 0, 0, 0);
+      } else if (curCfg.schedule_mode === 'weekly') {
+        next.setUTCDate(next.getUTCDate() + 7);
+        next.setUTCHours(1, 0, 0, 0);
+      } else if (curCfg.schedule_mode === 'monthly') {
+        next.setUTCMonth(next.getUTCMonth() + 1);
+        next.setUTCDate(1);
+        next.setUTCHours(1, 0, 0, 0);
+      }
+      curCfg.next_run = next.toISOString();
+
+      sc[nextSource.source] = curCfg;
+      const valueToSave = JSON.stringify(sc);
+      if (configRow2.length > 0) {
+        await base44.asServiceRole.entities.AppSetting.update(configRow2[0].id, { value: valueToSave });
+      } else {
+        await base44.asServiceRole.entities.AppSetting.create({ key: 'source_config', value: valueToSave });
+      }
     } catch {}
 
     // ─── Heavy source pause AFTER ───
