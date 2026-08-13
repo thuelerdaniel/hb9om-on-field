@@ -798,6 +798,14 @@ export default function Home() {
           clickMode={dragMode}
           performanceMode={performanceMode}
         />
+        {/* User Coverage Polygon (MODUS B) — orange polygon on map */}
+        {userCoverage && (
+          <UserCoverageLayer
+            coverage={userCoverage}
+            position={userCoveragePosition}
+            deviceType={userCoverageDevice}
+          />
+        )}
       </MapContainer>
       </MapErrorBoundary>
 
@@ -1074,15 +1082,6 @@ export default function Home() {
         <Plus className="w-6 h-6" />
         <span className="font-semibold text-sm whitespace-nowrap">Log QSO</span>
       </button>
-
-      {/* User Coverage Polygon (MODUS B) — orange polygon on map */}
-      {userCoverage && (
-        <UserCoverageLayer
-          coverage={userCoverage}
-          position={userCoveragePosition}
-          deviceType={userCoverageDevice}
-        />
-      )}
 
       {/* User Coverage Dialog (MODUS B) */}
       {showUserCoverageDialog && (
