@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
 
     // Upsert into IotaPoint entity (individual records, not ReferenceData array)
     const entity = base44.asServiceRole.entities.IotaPoint;
+    let created = 0;
 
     if (isRealData) {
       // 1. Delete all existing records (full refresh)
@@ -45,7 +46,6 @@ Deno.serve(async (req) => {
 
       // 2. Bulk create in batches of 500
       const BATCH_SIZE = 500;
-      let created = 0;
       for (let i = 0; i < withCoords.length; i += BATCH_SIZE) {
         const batch = withCoords.slice(i, i + BATCH_SIZE);
         try {
@@ -65,9 +65,6 @@ Deno.serve(async (req) => {
           // Continue with next batch — partial data is better than no data
         }
       }
-    } else {
-      // Fallback: external fetch failed — keep existing records, just update metadata
-      created = 0;
     }
 
     // IotaPoint is now the single source of truth — no ReferenceData metadata needed.
