@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, Move } from "lucide-react";
+import { Plus, Move, Radio } from "lucide-react";
 import { MapContainer, useMap, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
@@ -38,6 +38,8 @@ import LogEntryForm from "@/components/map/LogEntryForm";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import RepeaterCorrectionDialog from "@/components/map/RepeaterCorrectionDialog";
+import UserCoverageDialog from "@/components/map/UserCoverageDialog";
+import UserCoverageLayer from "@/components/map/UserCoverageLayer";
 
 // Filters
 import RepeaterFilter from "@/components/map/RepeaterFilter";
@@ -155,7 +157,7 @@ function buildSearchCandidates(data, repeaters) {
 }
 
 // Component to handle map events (zoom, move) and expose map ref
-function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale }) {
+function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale, onMapClick }) {
   const map = useMap();
 
   useEffect(() => {
@@ -163,10 +165,8 @@ function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale }) {
   }, [map, onMapReady]);
 
   useMapEvents({
-    zoomend: () => {
-      // If scale is locked, maintain the corresponding zoom level
-      // (handled by parent via lockedScale state)
-    },
+    zoomend: () => {},
+    click: (e) => { if (onMapClick) onMapClick(e.latlng); },
   });
 
   return null;
@@ -211,6 +211,13 @@ export default function Home() {
   const [editLogEntry, setEditLogEntry] = useState(null);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
+
+  // User coverage (MODUS B)
+  const [showUserCoverageDialog, setShowUserCoverageDialog] = useState(false);
+  const [userCoverage, setUserCoverage] = useState(null);
+  const [userCoveragePosition, setUserCoveragePosition] = useState(null);
+  const [userCoverageDevice, setUserCoverageDevice] = useState("mobil");
+  const [mapClickForCoverage, setMapClickForCoverage] = useState(false);
 
   // Donation popup trigger — increments on layer menu open/close to trigger check
   const [donationTriggerKey, setDonationTriggerKey] = useState(0);
@@ -696,6 +703,10 @@ export default function Home() {
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           lockedScale={lockedScale}
+          onMapClick={mapClickForCoverage ? (latlng) => {
+            setUserCoveragePosition([latlng.lat, latlng.lng]);
+            setMapClickForCoverage(false);
+          } : null}
         />
         <ViewportDataLoader
           activeLayers={activeLayers}
@@ -956,6 +967,16 @@ export default function Home() {
         markerCount={allMarkers.length}
       />
 
+      {/* User coverage button — "Meine Abdeckung berechnen" */}
+      <button
+        onClick={() => setShowUserCoverageDialog(true)}
+        className="fixed left-4 z-[1000] w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 175px)" }}
+        title="Meine Abdeckung berechnen"
+      >
+        <Radio className="w-5 h-5 text-orange-500" />
+      </button>
+
       {/* Fox/Hunting switch */}
       <FoxHuntingSwitch mode={foxMode} onModeChange={setFoxMode} />
 
@@ -1053,6 +1074,30 @@ export default function Home() {
         <Plus className="w-6 h-6" />
         <span className="font-semibold text-sm whitespace-nowrap">Log QSO</span>
       </button>
+
+      {/* User Coverage Polygon (MODUS B) — orange polygon on map */}
+      {userCoverage && (
+        <UserCoverageLayer
+          coverage={userCoverage}
+          position={userCoveragePosition}
+          deviceType={userCoverageDevice}
+        />
+      )}
+
+      {/* User Coverage Dialog (MODUS B) */}
+      {showUserCoverageDialog && (
+        <UserCoverageDialog
+          onClose={() => { setShowUserCoverageDialog(false); setMapClickForCoverage(false); }}
+          onCoverageResult={(result) => {
+            setUserCoverage(result);
+            setUserCoveragePosition(result._position || null);
+            setUserCoverageDevice(result._device || "mobil");
+          }}
+          mapCenter={mapRef.current?.getCenter()?.lat ? [mapRef.current.getCenter().lat, mapRef.current.getCenter().lng] : null}
+          externalPosition={userCoveragePosition}
+          onMapClickMode={() => setMapClickForCoverage(true)}
+        />
+      )}
 
       {/* Donation Popup — appears on view changes */}
       <DonationPopup triggerKey={donationTriggerKey} />

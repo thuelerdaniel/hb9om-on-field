@@ -233,6 +233,21 @@ const SECTIONS = [
         title: "FM-Funknetz.de – Talkgroups (TGs) weltweit",
         body: "FM-Funknetz.de ist ein SvxLink-basiertes Relais- und Hotspot-Netzwerk, das ursprünglich aus Deutschland stammt, aber weltweit genutzt wird. Das Live-Dashboard (dashboard.fm-funknetz.de) zeigt aktive Stationen und ihre Talkgroups (TGs) in Echtzeit. Die App ruft das Dashboard ab und gleicht die aktiven TGs mit den Relais in der Datenbank ab — weltweit. Im Relais-Popup sehen Sie dann die aktiven TGs mit Nummer, Name und letzter Aktivitätszeit. Zusätzlich gibt es Links zum Live-Dashboard und zur vollständigen TG-Übersicht (fm-funknetz.de/unsere-talkgroups-sprechgruppen/). Die TGs umfassen regionale Sprechgruppen (z.B. 262xx für Deutschland, 2280 für Schweiz, 232x für Österreich, 235 für UK) und weltweite TGs (z.B. TG 91 Worldwide, TG 92 Europa). Administratoren können die TG-Daten über «Einzelne Datenquelle neu laden» → «FM-Funknetz TGs» aktualisieren.",
         example: "Relais anklicken → Popup zeigt «FM-Funknetz TGs (2)» → TG 2620 Berlin Brandenburg, TG 262 Deutschland → Link zum Live-Dashboard."
+      },
+      {
+        title: "Relais-Abdeckung (Terrain-LOS mit SRTM)",
+        body: "Die Relais-Abdeckung wird mit echten Geländedaten berechnet: SRTM 30m Höhenprofile via OpenTopoData API, Line-of-Sight (Sichtlinie) mit Erdkrümmung, Fresnel-Zone und Link-Budget pro Radial. Pro Relais werden 36 Radiale (alle 10°) berechnet — das Ergebnis ist ein asymmetrisches Polygon, das Berge und Täler berücksichtigt. Die Abdeckung wird als halbtransparentes Polygon auf der Karte angezeigt (nicht als einfacher Kreis). Aktivieren Sie die Abdeckung über den «Abdeckung anzeigen»-Toggle im Relais-Filter oder klicken Sie auf ein einzelnes Relais und dann auf den Abdeckung-Button im Popup. Schweizer Relais werden mit voller Terrain-Berechnung behandelt, weltweite Relais erhalten eine Band-Schätzung. Die Berechnung läuft wöchentlich automatisch (Montag nach Sync) oder manuell über den Admin-Bereich.",
+        example: "Relais-Filter → «Abdeckung anzeigen» einschalten → asymmetrische Polygone erscheinen auf der Karte → enger in Berg-Richtung, weiter in Tal-Richtung."
+      },
+      {
+        title: "Eigene Abdeckung berechnen (MODUS B)",
+        body: "Mit dem orange-farbenen Radio-Button links auf der Karte können Sie Ihre eigene Sendereichweite berechnen. Geben Sie Ihre Position (GPS, QTH-Locator oder Kartenklick), Geräteart (Mobil/Fix/Portabel), Sendeleistung, Band/Frequenz und Modus ein. Die App berechnet 36 Radiale mit SRTM-Höhen, LOS und Link-Budget — das Ergebnis ist ein oranges Polygon auf der Karte, das Ihre effektive Reichweite unter Berücksichtigung von Gelände zeigt. Die Parameter (ausser Position) werden gespeichert. Die Position wird aus Datenschutzgründen nicht gespeichert. Verschiedene Gerätearten ergeben verschiedene Polygone: Mobil 50W 2m → grösseres Polygon, Portabel 5W 70cm → kleineres Polygon.",
+        example: "Radio-Button klicken → GPS → «Mobil» → 50 W → 2m → FM → «Abdeckung berechnen» → oranges Polygon zeigt Reichweite mit Geländeeinfluss."
+      },
+      {
+        title: "Frequenz-spezifische Abdeckung",
+        body: "Die Abdeckungsberechnung verwendet die exakte Frequenz (nicht nur das Band): Freiraumdämpfung (FSPL) steigt mit der Frequenz, Fresnel-Zone wird bei höheren Frequenzen kleiner, Beugung an Hindernissen nimmt mit der Frequenz ab. Beispiel: 145.325 MHz (2m) bei 30 km → FSPL 105.2 dB; 438.500 MHz (70cm) bei 30 km → FSPL 114.8 dB (9.6 dB mehr Dämpfung = ca. 3x weniger Reichweite). Die Parameter pro Band umfassen: max_range_flat/terrain, antenna_gain, ground_loss, vegetation_loss, building_loss, diffraction_factor, atmospheric_loss und k_factor.",
+        example: "2m-Relais zeigt weiteres Polygon als 70cm-Relais am selben Standort → 23cm-Relais deutlich enger → Berg-Richtung bei allen enger als Tal-Richtung."
       }
     ]
   },

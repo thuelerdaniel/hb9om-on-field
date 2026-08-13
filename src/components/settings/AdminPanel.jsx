@@ -447,7 +447,7 @@ export default function AdminPanel({
             <Signal className="w-4 h-4 text-green-600" /> Relais-Abdeckung berechnen
           </h3>
           <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
-            Band-Schätzung + APRS-Verfeinerung. Läuft täglich automatisch.
+            Terrain-LOS mit SRTM 30m Höhendaten, Fresnel-Zone & Link-Budget. Erstellt asymmetrische Abdeckungspolygone. Weltweite Relais: Band-Schätzung. CH-Relais: volle Terrain-Berechnung.
           </p>
 
           {/* Global progress indicator */}
@@ -476,9 +476,9 @@ export default function AdminPanel({
                   <div className="text-sm font-bold text-green-600">{coverageProgress.global.aprsRefined}</div>
                   <div className="text-[9px] text-gray-400 dark:text-slate-500">APRS-verf.</div>
                 </div>
-                <div className="text-center" title="Relais, deren Abdeckungsradius durch Standorthöhe (elevation_m) und Geländefaktor (terrain_factor) adjustiert wurde.">
+                <div className="text-center" title="Relais mit asymmetrischem Abdeckungspolygon (terrain_los): berechnet mit SRTM 30m Höhenprofil, LOS-Sichtlinie, Fresnel-Zone und Link-Budget pro Radial.">
                   <div className="text-sm font-bold text-teal-600">{coverageProgress.global.terrainAdjusted || 0}</div>
-                  <div className="text-[9px] text-gray-400 dark:text-slate-500">Gelände-adj.</div>
+                  <div className="text-[9px] text-gray-400 dark:text-slate-500">Terrain-LOS</div>
                 </div>
                 <div className="text-center" title="Durchschnittlicher Verfeinerungsgrad: 0% = nur Band-Schätzung, 100% = alle durch APRS/Gelände verfeinert. Grün ≥60%, Gelb ≥30%.">
                   <div className={`text-sm font-bold ${

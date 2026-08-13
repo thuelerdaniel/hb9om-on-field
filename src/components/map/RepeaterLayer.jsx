@@ -1,5 +1,5 @@
 import React, { memo, useMemo, useRef, useEffect, useCallback } from "react";
-import { CircleMarker, Polyline, Popup, useMap, Marker, Circle } from "react-leaflet";
+import { CircleMarker, Polyline, Popup, useMap, Marker, Circle, Polygon } from "react-leaflet";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
 import DraggablePopup from "@/components/map/DraggablePopup";
@@ -486,17 +486,36 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
 
   return (
     <>
-      {/* Coverage circles (approximate, based on band) — global toggle OR per-repeater */}
+      {/* Coverage — terrain polygon (LOS) OR circle fallback (band estimate) */}
       {(showCoverage || (individualCoverage && individualCoverage.size > 0)) && cappedRepeaters.map((r, idx) => {
         const showThis = showCoverage || (individualCoverage && individualCoverage.has(r.id));
         if (!showThis) return null;
-        const radiusKm = r.coverage_radius_km || COVERAGE_RADIUS_KM[r.band] || COVERAGE_RADIUS_KM["Other"];
         const color = getModeColor(r.primary_mode);
-        // Opacity scales with refinement: 0% = 0.05, 100% = 0.25
         const refinementPct = r.coverage_refinement_pct || 0;
         const fillOpacity = r.status === "off-air"
           ? 0.02
           : 0.05 + (refinementPct / 100) * 0.20;
+
+        // Terrain-LOS polygon: render asymmetric GeoJSON polygon
+        if (r.coverage_polygon?.coordinates?.[0] && r.coverage_source === "terrain_los") {
+          const polyPositions = r.coverage_polygon.coordinates[0].map(([lng, lat]) => [lat, lng]);
+          return (
+            <Polygon
+              key={`cov-${r.id || idx}`}
+              positions={polyPositions}
+              pathOptions={{
+                color: color,
+                weight: 1.5,
+                opacity: 0.5,
+                fillColor: color,
+                fillOpacity: fillOpacity,
+              }}
+            />
+          );
+        }
+
+        // Fallback: circle from coverage_radius_km or band estimate
+        const radiusKm = r.coverage_radius_km || COVERAGE_RADIUS_KM[r.band] || COVERAGE_RADIUS_KM["Other"];
         return (
           <Circle
             key={`cov-${r.id || idx}`}
