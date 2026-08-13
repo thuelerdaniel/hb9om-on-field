@@ -255,6 +255,29 @@ export const ADMIN_SECTIONS = [
           { icon: "mapPin", text: "Referenzen ohne Koordinaten pro Typ einsehen" }
         ],
         tip: "Tipp: Fehlen Koordinaten (meist bei Burgen), fügt «Daten aktualisieren» diese ergänzt. Bleibende Lücken lassen sich unter «Nicht georeferenzierte Burgen» manuell erfassen."
+      },
+      {
+        title: "JSON Repeater Import (RepeaterBook-Export)",
+        body: "Im Admin-Bereich unter «Relais & Verlinkungen» -> «JSON Repeater Import» können Sie RepeaterBook-Exporte (.json) direkt in die Datenbank importieren – ergänzend zur automatischen Synchronisation. Ziehen Sie eine JSON-Datei in die Upload-Zone oder klicken Sie zum Auswählen (max. 10 MB). Nach dem Parsen erscheint eine Vorschau mit Anzahl erkannter Datensätze. Beim Import werden neue Relais angelegt und bestehende aktualisiert (inkrementell): Koordinaten, Modi und Band werden überschrieben, leere Felder (Tone, Standort, EchoLink) werden nur ergänzt. Duplikate werden anhand Rufzeichen + Frequenz erkannt – beim erneuten Import derselben Datei entstehen keine Dubletten. Jeder Datensatz wird mit dem Quellen-Tag «json-import» markiert und ist vor automatischen Sync-Überschreibungen geschützt.",
+        steps: [
+          { icon: "settings", text: "Admin-Panel -> «Relais & Verlinkungen» -> «JSON Repeater Import»" },
+          { icon: "upload", text: "RepeaterBook-Export .json in Upload-Zone ziehen oder klicken" },
+          { icon: "eye", text: "Vorschau mit Anzahl Datensätze prüfen" },
+          { icon: "save", text: "«Import starten» – neue Relais werden angelegt, bestehende aktualisiert" },
+          { icon: "check", text: "Ergebnis-Report: +neu, ↺aktualisiert, ↺übersprungen, Fehler" }
+        ],
+        tip: "Tipp: Duplikate werden anhand Rufzeichen + Frequenz erkannt (nicht anhand des Dateinamens). Beim erneuten Import derselben Datei werden bestehende Records aktualisiert statt neu angelegt."
+      },
+      {
+        title: "Sync-Schutz für JSON-Importe",
+        body: "Relais die über den JSON-Import angelegt wurden (source_id = «json-import») werden von automatischen Synchronisationen (fetchRepeaters, fetchHearhamRepeaters) nicht überschrieben oder gelöscht. Das verhindert, dass manuell importierte oder korrigierte Daten bei der nächsten Aktualisierung verloren gehen. Im Sync-Response wird die Anzahl geschützter Records als «json_protected» zurückgemeldet. Über «JSON-Schutz aufheben» im Import-Bereich kann der Schutz entfernt werden – die Records werden dann bei der nächsten Synchronisation wie alle anderen behandelt.",
+        steps: [
+          { icon: "settings", text: "Admin-Panel -> «JSON Repeater Import»" },
+          { icon: "shield", text: "«JSON-Schutz aufheben» antippen" },
+          { icon: "check", text: "Dialog bestätigen – source_id wird geleert" },
+          { icon: "refreshCw", text: "Bei nächstem Sync: Records werden wieder synchronisiert" }
+        ],
+        warning: "ACHTUNG: Nach dem Aufheben des Schutzes sind die betroffenen Records dem automatischen Sync ausgesetzt – sie können überschrieben oder gelöscht werden."
       }
     ]
   },
