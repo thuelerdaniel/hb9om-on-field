@@ -26,20 +26,41 @@ const DETAIL_DEADLINE_MS = 40000; // 40 seconds for detail fetches — more coor
 
 // Fetch with timeout — prevents a single slow/stuck response from blocking the whole batch.
 // Aborts after FETCH_TIMEOUT_MS and returns null (caller treats as failed fetch).
+// Includes exponential backoff retry for rate-limited responses (HTTP 429).
+// Backoff: 30s, 60s, 120s — max 3 attempts per URL.
+const BACKOFF_DELAYS_MS = [30000, 60000, 120000];
+
 async function fetchWithTimeout(url: string, opts?: any): Promise<Response | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const resp = await fetch(url, {
-      ...opts,
-      signal: controller.signal,
-    });
-    return resp;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
+  for (let attempt = 0; attempt <= BACKOFF_DELAYS_MS.length; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const resp = await fetch(url, {
+        ...opts,
+        signal: controller.signal,
+      });
+      // Rate-limited by RepeaterBook — wait and retry with exponential backoff
+      if (resp.status === 429 || resp.status === 503) {
+        clearTimeout(timer);
+        if (attempt < BACKOFF_DELAYS_MS.length) {
+          await new Promise(r => setTimeout(r, BACKOFF_DELAYS_MS[attempt]));
+          continue;
+        }
+        return resp; // Give up after max retries — return the rate-limit response
+      }
+      return resp;
+    } catch {
+      clearTimeout(timer);
+      if (attempt < BACKOFF_DELAYS_MS.length) {
+        await new Promise(r => setTimeout(r, BACKOFF_DELAYS_MS[attempt]));
+        continue;
+      }
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  return null;
 }
 
 // Country list from RepeaterBook row_repeaters index.
