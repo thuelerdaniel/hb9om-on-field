@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { X, MapPin, Car, Home, Radio, Loader2, Satellite, Crosshair } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { X, MapPin, Car, Home, Radio, Loader2, Satellite, Crosshair, Sun, Sunrise, Moon } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 const DEVICE_TYPES = [
@@ -8,17 +8,53 @@ const DEVICE_TYPES = [
   { value: "portabel", label: "Portabel", icon: Radio, defaultPower: 5, defaultHeight: 1.5 },
 ];
 
-const BANDS = [
-  { value: "2m", label: "2m (144-148 MHz)", freq: 145.0 },
-  { value: "70cm", label: "70cm (430-450 MHz)", freq: 435.0 },
-  { value: "6m", label: "6m (50-54 MHz)", freq: 50.5 },
-  { value: "10m", label: "10m (28-29.7 MHz)", freq: 28.5 },
-  { value: "23cm", label: "23cm (1240-1300 MHz)", freq: 1270.0 },
-  { value: "1.25m", label: "1.25m (216-225 MHz)", freq: 220.0 },
-  { value: "33cm", label: "33cm (902-928 MHz)", freq: 915.0 },
+const KW_BANDS = [
+  { value: "160m", label: "160m (1.8 MHz)", freq: 1.85 },
+  { value: "80m", label: "80m (3.5 MHz)", freq: 3.65 },
+  { value: "60m", label: "60m (5.0 MHz)", freq: 5.3 },
+  { value: "40m", label: "40m (7.0 MHz)", freq: 7.1 },
+  { value: "30m", label: "30m (10.1 MHz)", freq: 10.1 },
+  { value: "20m", label: "20m (14.0 MHz)", freq: 14.1 },
+  { value: "17m", label: "17m (18.1 MHz)", freq: 18.1 },
+  { value: "15m", label: "15m (21.0 MHz)", freq: 21.2 },
+  { value: "12m", label: "12m (24.9 MHz)", freq: 24.9 },
+  { value: "10m", label: "10m (28 MHz)", freq: 28.5 },
 ];
 
-const MODES = ["FM", "DMR", "D-STAR", "Fusion", "SSB", "CW"];
+const VHF_BANDS = [
+  { value: "6m", label: "6m (50 MHz)", freq: 50.5 },
+  { value: "2m", label: "2m (144-148 MHz)", freq: 145.0 },
+  { value: "1.25m", label: "1.25m (216-225 MHz)", freq: 220.0 },
+  { value: "70cm", label: "70cm (430-450 MHz)", freq: 435.0 },
+  { value: "33cm", label: "33cm (902-928 MHz)", freq: 915.0 },
+  { value: "23cm", label: "23cm (1240-1300 MHz)", freq: 1270.0 },
+];
+
+const ALL_BANDS = [...KW_BANDS, ...VHF_BANDS];
+
+const MODES = ["FM", "DMR", "D-STAR", "Fusion", "SSB", "CW", "AM", "FT8"];
+
+const HF_MODES = ["SSB", "CW", "AM", "FT8"];
+
+function isHFBand(band) {
+  return KW_BANDS.some(b => b.value === band);
+}
+
+// Compute solar elevation (simplified)
+function getSolarElevation(lat, lng) {
+  const now = new Date();
+  const rad = Math.PI / 180;
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const declination = 23.45 * Math.sin(2 * Math.PI * (284 + dayOfYear) / 365) * rad;
+  const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60;
+  const localHours = utcHours + lng / 15;
+  const hourAngle = (localHours - 12) * 15 * rad;
+  const latRad = lat * rad;
+  const elev = Math.asin(Math.sin(latRad) * Math.sin(declination) + Math.cos(latRad) * Math.cos(declination) * Math.cos(hourAngle));
+  return elev * 180 / Math.PI;
+}
+
+
 
 export default function UserCoverageDialog({ onClose, onCoverageResult, mapCenter, onMapClickMode, externalPosition }) {
   const [deviceType, setDeviceType] = useState(() => localStorage.getItem("hb9om_cov_device") || "mobil");
@@ -32,7 +68,7 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
   const [frequency, setFrequency] = useState(() => {
     const saved = localStorage.getItem("hb9om_cov_freq");
     if (saved) return parseFloat(saved);
-    const b = BANDS.find(b => b.value === (localStorage.getItem("hb9om_cov_band") || "2m"));
+    const b = ALL_BANDS.find(b => b.value === (localStorage.getItem("hb9om_cov_band") || "2m"));
     return b?.freq || 145.0;
   });
   const [mode, setMode] = useState(() => localStorage.getItem("hb9om_cov_mode") || "FM");
@@ -42,25 +78,70 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     const dev = DEVICE_TYPES.find(d => d.value === (localStorage.getItem("hb9om_cov_device") || "mobil"));
     return dev?.defaultHeight || 1.7;
   });
+  const [nvisMode, setNvisMode] = useState(() => localStorage.getItem("hb9om_cov_nvis") === "true");
+  const [solarActivity, setSolarActivity] = useState(() => {
+    const saved = localStorage.getItem("hb9om_cov_solar");
+    return saved ? parseFloat(saved) : 1.0;
+  });
   const [position, setPosition] = useState(null);
   const [qthLocator, setQthLocator] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const isHF = isHFBand(band);
+  const nvisAvailable = isHF && frequency >= 3 && frequency <= 10;
+  const availableModes = isHF ? HF_MODES : MODES;
+
   useEffect(() => {
     if (mapCenter && !position) setPosition(mapCenter);
   }, [mapCenter]);
 
-  // Sync external position (from map click) into dialog
   useEffect(() => {
     if (externalPosition) setPosition(externalPosition);
   }, [externalPosition]);
 
+  // Adjust defaults when switching to/from KW bands
+  const handleBandChange = (newBand) => {
+    setBand(newBand);
+    const b = ALL_BANDS.find(b => b.value === newBand);
+    if (b) setFrequency(b.freq);
+    const newIsHF = isHFBand(newBand);
+    // Adjust power for KW
+    if (newIsHF) {
+      if (deviceType === "portabel" && powerWatts > 10) setPowerWatts(10);
+      else if ((deviceType === "mobil" || deviceType === "fix") && powerWatts < 50) setPowerWatts(100);
+      if (mode === "FM") setMode("SSB");
+    } else {
+      if (deviceType === "portabel" && powerWatts > 50) setPowerWatts(5);
+      else if (deviceType === "mobil" && powerWatts > 100) setPowerWatts(50);
+      if (mode === "SSB") setMode("FM");
+    }
+  };
+
   const handleDeviceChange = (val) => {
     setDeviceType(val);
     const dev = DEVICE_TYPES.find(d => d.value === val);
-    if (dev) { setPowerWatts(dev.defaultPower); setAntennaHeight(dev.defaultHeight); }
+    if (dev) {
+      // Adjust power based on band type
+      if (isHF) {
+        setPowerWatts(dev.value === "portabel" ? 10 : 100);
+      } else {
+        setPowerWatts(dev.defaultPower);
+      }
+      setAntennaHeight(dev.defaultHeight);
+    }
     localStorage.setItem("hb9om_cov_device", val);
+  };
+
+  const handleNvisToggle = (val) => {
+    setNvisMode(val);
+    if (val) {
+      setAntennaHeight(2); // NVIS: low antenna
+    } else {
+      const dev = DEVICE_TYPES.find(d => d.value === deviceType);
+      if (dev) setAntennaHeight(dev.defaultHeight);
+    }
+    localStorage.setItem("hb9om_cov_nvis", String(val));
   };
 
   const handleGps = () => {
@@ -90,6 +171,31 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     setError(null);
   };
 
+  // Compute MUF/LUF estimate for display
+  const ionoInfo = useMemo(() => {
+    if (!isHF || !position) return null;
+    const lat = position[0], lng = position[1];
+    const now = new Date();
+    const rad = Math.PI / 180;
+    const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+    const declination = 23.45 * Math.sin(2 * Math.PI * (284 + dayOfYear) / 365) * rad;
+    const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60;
+    const localHours = utcHours + lng / 15;
+    const hourAngle = (localHours - 12) * 15 * rad;
+    const latRad = lat * rad;
+    const elev = Math.asin(Math.sin(latRad) * Math.sin(declination) + Math.cos(latRad) * Math.cos(declination) * Math.cos(hourAngle));
+    const elevDeg = elev * 180 / Math.PI;
+    const sunFactor = Math.max(0, Math.sin(elev * Math.PI / 180));
+    const foF2 = (1.5 + 4.5 * sunFactor) * solarActivity;
+    const muf = foF2 * 3.5;
+    const luf = sunFactor > 0.1 ? 5 * solarActivity : 2 * solarActivity;
+    let timeOfDay = "Tag";
+    if (elevDeg < -6) timeOfDay = "Nacht";
+    else if (elevDeg < 6) timeOfDay = "Dämmerung";
+    const bandClosed = frequency > muf || frequency < luf;
+    return { muf: muf.toFixed(1), luf: luf.toFixed(1), foF2: foF2.toFixed(1), timeOfDay, bandClosed, elevDeg: elevDeg.toFixed(1) };
+  }, [isHF, position, solarActivity, frequency]);
+
   const handleCalculate = async () => {
     if (!position) { setError("Bitte Position setzen (GPS, QTH-Locator oder Karte)"); return; }
     setLoading(true);
@@ -99,6 +205,7 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
         lat: position[0], lng: position[1],
         device_type: deviceType, power_watts: powerWatts,
         frequency_mhz: frequency, mode, antenna_height_m: antennaHeight, radials: 36,
+        nvis_mode: nvisMode, solar_activity: solarActivity,
       });
       const data = res?.data || res;
       if (data?.error) throw new Error(data.error);
@@ -108,6 +215,7 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
       localStorage.setItem("hb9om_cov_freq", String(frequency));
       localStorage.setItem("hb9om_cov_mode", mode);
       localStorage.setItem("hb9om_cov_height", String(antennaHeight));
+      localStorage.setItem("hb9om_cov_solar", String(solarActivity));
       onClose();
     } catch (e) {
       setError(e.message || "Fehler bei der Berechnung");
@@ -119,15 +227,17 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-5 py-3 flex items-center justify-between rounded-t-2xl">
+        <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-5 py-3 flex items-center justify-between rounded-t-2xl z-10">
           <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Radio className="w-4 h-4 text-orange-500" /> Meine Abdeckung berechnen
+            {isHF && <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded font-mono">KW</span>}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
         <div className="p-5 space-y-4">
+          {/* Position */}
           <div>
             <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">Position</label>
             <div className="flex gap-2">
@@ -146,6 +256,30 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
             </div>
             {position && <p className="text-[10px] text-gray-500 mt-1">{position[0].toFixed(5)}, {position[1].toFixed(5)}</p>}
           </div>
+
+          {/* KW: Tageszeit & MUF Anzeige */}
+          {isHF && ionoInfo && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                  <Sun className="w-3.5 h-3.5" /> {ionoInfo.timeOfDay}
+                </span>
+                <span className="text-blue-600 dark:text-blue-400 font-mono"> Sonnenhöhe: {ionoInfo.elevDeg}°</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-blue-600 dark:text-blue-400">
+                <span>MUF: <strong>{ionoInfo.muf} MHz</strong></span>
+                <span>LUF: <strong>{ionoInfo.luf} MHz</strong></span>
+                <span>foF2: <strong>{ionoInfo.foF2} MHz</strong></span>
+              </div>
+              {ionoInfo.bandClosed && (
+                <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium pt-1 border-t border-blue-200 dark:border-blue-800">
+                  ⚠ Band wahrscheinlich geschlossen ({frequency > parseFloat(ionoInfo.muf) ? "f > MUF" : "f < LUF"})
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Geräteart */}
           <div>
             <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">Geräteart</label>
             <div className="grid grid-cols-3 gap-2">
@@ -160,6 +294,8 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
               })}
             </div>
           </div>
+
+          {/* Sendeleistung */}
           <div>
             <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">
               Sendeleistung: <span className="text-orange-600 font-bold">{powerWatts} W</span>
@@ -167,12 +303,19 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
             <input type="range" min="1" max="1000" step="1" value={powerWatts} onChange={e => setPowerWatts(parseFloat(e.target.value))} className="w-full accent-orange-500" />
             <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1 W</span><span>100 W</span><span>1000 W</span></div>
           </div>
+
+          {/* Band — grouped KW / VHF */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">Band</label>
-              <select value={band} onChange={e => { setBand(e.target.value); const b = BANDS.find(b => b.value === e.target.value); if (b) setFrequency(b.freq); }}
+              <select value={band} onChange={e => handleBandChange(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
-                {BANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                <optgroup label="Kurzwelle (HF)">
+                  {KW_BANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                </optgroup>
+                <optgroup label="VHF / UHF">
+                  {VHF_BANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                </optgroup>
               </select>
             </div>
             <div>
@@ -181,12 +324,14 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
                 className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-lg" />
             </div>
           </div>
+
+          {/* Modus & Antennenhöhe */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">Modus</label>
               <select value={mode} onChange={e => setMode(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
-                {MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                {availableModes.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div>
@@ -195,13 +340,48 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
                 className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-lg" />
             </div>
           </div>
+
+          {/* NVIS Toggle — only for KW 3-10 MHz */}
+          {nvisAvailable && (
+            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">NVIS-Modus</span>
+                  <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-0.5">Antenne niedrig (2m), 0-500 km ohne Skip-Zone</p>
+                </div>
+                <button onClick={() => handleNvisToggle(!nvisMode)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${nvisMode ? "bg-purple-500" : "bg-gray-300 dark:bg-slate-600"}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${nvisMode ? "left-5" : "left-0.5"}`} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Solar Activity — only for KW */}
+          {isHF && (
+            <div>
+              <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">
+                Sonnenaktivität: <span className="text-orange-600 font-bold">
+                  {solarActivity < 0.85 ? "Niedrig (Solar Min)" : solarActivity > 1.15 ? "Hoch (Solar Max)" : "Mittel"}
+                </span>
+              </label>
+              <input type="range" min="0.7" max="1.3" step="0.05" value={solarActivity} onChange={e => setSolarActivity(parseFloat(e.target.value))} className="w-full accent-orange-500" />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>Min (0.7)</span><span>Mittel (1.0)</span><span>Max (1.3)</span></div>
+            </div>
+          )}
+
           {error && <div className="p-2.5 bg-red-50 dark:bg-red-900/20 rounded-lg text-xs text-red-700 dark:text-red-300">{error}</div>}
+
           <button onClick={handleCalculate} disabled={loading || !position}
             className="w-full px-4 py-3 text-sm font-bold text-white bg-orange-500 rounded-xl hover:bg-orange-600 disabled:opacity-40 flex items-center justify-center gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Satellite className="w-4 h-4" />}
             {loading ? "Berechnet (SRTM-Daten)..." : "Abdeckung berechnen"}
           </button>
-          <p className="text-[10px] text-gray-400 text-center">Berechnung mit SRTM 30m Höhendaten, LOS & Link-Budget. Dauer ca. 5-15 Sekunden.</p>
+          <p className="text-[10px] text-gray-400 text-center">
+            {isHF
+              ? "KW-Modell: Bodenwelle + Raumwelle (MUF/LUF) + NVIS. Dauer ca. 5-15 Sek."
+              : "ITM+: LOS + Beugung + Troposcatter + Reflexion. Dauer ca. 5-15 Sek."}
+          </p>
         </div>
       </div>
     </div>
