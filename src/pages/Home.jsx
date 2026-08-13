@@ -46,6 +46,7 @@ import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
 import BottomNavigation from "@/components/BottomNavigation";
 import FirstTimeSetup from "@/components/FirstTimeSetup";
 import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
+import MapMenuDrawer from "@/components/map/MapMenuDrawer";
 
 // Tile layer configs
 const TILE_CONFIGS = {
@@ -152,6 +153,7 @@ export default function Home() {
   const [showLogForm, setShowLogForm] = useState(false);
   const [editLogEntry, setEditLogEntry] = useState(null);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
+  const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
 
   // Setup complete — triggers ViewportDataLoader reload when FirstTimeSetup closes
   const [setupComplete, setSetupComplete] = useState(() => localStorage.getItem("hb9om_setup_complete") === "true");
@@ -683,8 +685,16 @@ export default function Home() {
       <MapHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onToggleSidebar={() => {}}
-        sidebarOpen={false}
+        onToggleSidebar={() => setMenuDrawerOpen(true)}
+        sidebarOpen={menuDrawerOpen}
+      />
+
+      {/* Map Menu Drawer */}
+      <MapMenuDrawer
+        open={menuDrawerOpen}
+        onClose={() => setMenuDrawerOpen(false)}
+        isLoading={loading}
+        loadingMessage={loadingMessage}
       />
 
       {/* Search Results */}
