@@ -4,7 +4,7 @@ import { Search, Menu, X, HelpCircle } from "lucide-react";
 
 export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen }) {
   return (
-    <header className="absolute top-0 left-0 right-0 z-[1001] bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-slate-700 shadow-sm" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+    <header className="absolute top-0 left-0 right-0 z-[1001] bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-slate-700 shadow-sm" style={{ paddingTop: "max(0px, env(safe-area-inset-top, 0px))" }}>
       <div className="flex items-center gap-3 px-4 py-2.5">
         <button onClick={onToggleSidebar} className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700">
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
