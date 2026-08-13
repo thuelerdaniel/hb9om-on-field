@@ -20,6 +20,7 @@ import AdminFeatureRequests from '@/pages/AdminFeatureRequests';
 import UserManagement from '@/pages/UserManagement';
 import OAuthConsent from '@/pages/OAuthConsent';
 import PageNotFound from '@/lib/PageNotFound';
+import TestReport from '@/pages/TestReport';
 
 function AuthenticatedApp() {
   const { isLoadingAuth } = useAuth();
@@ -50,6 +51,7 @@ function AuthenticatedApp() {
         <Route path="/admin/feature-requests" element={<AdminFeatureRequests />} />
         <Route path="/admin/users" element={<UserManagement />} />
       </Route>
+      <Route path="/test-report" element={<TestReport />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
