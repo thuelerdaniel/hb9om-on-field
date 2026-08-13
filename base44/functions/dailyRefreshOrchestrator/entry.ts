@@ -21,7 +21,7 @@ const SOURCES = [
     function_payload: { region: r.id, scheduled: true },
     order: 60 + i,
   })),
-  { source: 'iota', label: 'IOTA', function_name: 'refreshDataSource', function_payload: { source: 'iota', scheduled: true }, order: 7 },
+  { source: 'iota', label: 'IOTA', function_name: 'fetchIOTA', function_payload: { scheduled: true }, order: 7 },
   { source: 'aprs', label: 'APRS.fi', function_name: 'fetchAprsFi', function_payload: { scheduled: true }, order: 8 },
   // Repeater: individual regions (sequential scraping to avoid platform timeouts)
   // Each region can be triggered separately, like lighthouse regions.
