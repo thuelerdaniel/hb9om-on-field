@@ -102,11 +102,18 @@ export default async function(req: Request): Promise<Response> {
     // max_per_type overrides the default cap — used by offline cache downloads to get all points
     const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;
 
-    // Load each type in parallel — point types use database-level bounds filtering
+    // Load each type in parallel with a per-type timeout (3s) — prevents one slow type
+    // (e.g. 181k SotaPoint bounds query) from blocking the entire response
     const results = await Promise.all(
       allTypes.map(async (type) => {
         try {
-          const refs = await loadType(base44, type, bounds);
+          const typeTimeout = new Promise<any[]>((_, reject) =>
+            setTimeout(() => reject(new Error('type_timeout')), 3000)
+          );
+          const refs = await Promise.race([
+            loadType(base44, type, bounds),
+            typeTimeout,
+          ]);
           if (!refs || refs.length === 0) return { type, filtered: [] };
 
           const filtered: any[] = [];

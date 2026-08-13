@@ -7,7 +7,8 @@ import { base44 } from "@/api/base44Client";
 // Calls getReferencesInBounds backend function on debounced pan/zoom.
 // Accumulates visited areas so panning back doesn't re-fetch.
 const DEBOUNCE_MS = 350;
-const MAX_PER_TYPE = 5000;
+const MAX_PER_TYPE = 3000;
+const REQUEST_TIMEOUT_MS = 10000;
 const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"];
 
 export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline }) {
@@ -27,7 +28,8 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
 
     try {
       const padded = bounds.pad(0.3);
-      const response = await base44.functions.invoke("getReferencesInBounds", {
+      // Race the function call against a timeout — prevents hanging if the backend is slow
+      const responsePromise = base44.functions.invoke("getReferencesInBounds", {
         bounds: {
           north: padded.getNorth(),
           south: padded.getSouth(),
@@ -37,6 +39,10 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
         types,
         max_per_type: MAX_PER_TYPE,
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), REQUEST_TIMEOUT_MS)
+      );
+      const response = await Promise.race([responsePromise, timeoutPromise]);
 
       if (!myAbort.aborted && onDataLoaded) {
         onDataLoaded(response?.references || {}, isFirstLoadRef.current);

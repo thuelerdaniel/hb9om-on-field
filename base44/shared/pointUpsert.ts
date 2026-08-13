@@ -145,7 +145,7 @@ export async function loadPointsInBounds(
   };
 
   const LIMIT = 5000;
-  const MAX_PAGES = 20; // 20 * 5000 = 100k records max per bounds query
+  const MAX_PAGES = 1; // Viewport-based loading: 1 page (5000 records) is enough for visible area
   const allPoints: any[] = [];
 
   try {
