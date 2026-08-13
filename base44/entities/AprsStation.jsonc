@@ -18,14 +18,27 @@
       "type": "string",
       "description": "APRS-Symbol-Code (z.B. /#, /y, /_, /r, /[)"
     },
+    "symbol_description": {
+      "type": "string",
+      "description": "Beschreibung des APRS-Symbols (z.B. Digipeater, WX Station)"
+    },
     "station_type": {
       "type": "string",
-      "description": "Stations-Typ (digipeater, wx_station, rx_igate, suntracker, repeater, other)"
+      "description": "Stations-Typ (digipeater, wx_station, rx_igate, suntracker, repeater, home, node, other)"
     },
     "comment": {
       "type": "string",
       "description": "APRS-Comment der Station",
       "maxLength": 1000
+    },
+    "last_heard": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzter Empfangszeitpunkt (last_heard von aprs.fi)"
+    },
+    "source_callsign": {
+      "type": "string",
+      "description": "Quell-Rufzeichen (srccall falls abweichend vom Station-Callsign)"
     },
     "is_swiss": {
       "type": "boolean",

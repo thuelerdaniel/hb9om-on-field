@@ -14,23 +14,51 @@ const DISCOVERY_BATCH = 600; // 600 per run × 1 daily = 17,925 seed in ~30 days
 const API_BATCH_SIZE = 20;  // aprs.fi API hard limit: 20 names per request
 const BATCH_DELAY_MS = 200;
 
-// Fixed station symbols — no mobile objects (cars, bikes, walkers, boats, aircraft)
+// Fixed station symbols — whitelist of definitively non-mobile symbols.
+// Primary table (/) and alternate table (\). Only these are saved to AprsStation.
 const FIXED_SYMBOLS = new Set([
-  '/#', '/I', '/r', '/_', '/\\', '/[', '/R', '/p', '/j', '/o', '/n', '/t', '/s',
-  '\\#', '\\I', '\\r', '\\_', '\\n', '\\j', '\\o', '\\a', '\\s', '\\[', '\\S', '\\p',
+  // Primary table
+  '/#', '/I', '/r', '/_', '/\\', '/[', '/R', '/p', '/j', '/o', '/n', '/t', '/s', '/b', '/v', '/y',
+  // Alternate table
+  '\\#', '\\I', '\\r', '\\_', '\\n', '\\j', '\\o', '\\a', '\\s', '\\[', '\\S', '\\p', '\\v', '\\L', '\\H', '\\D', '\\M', '\\Z',
 ]);
+
+// Symbol → human-readable description
+const SYMBOL_DESCRIPTIONS: Record<string, string> = {
+  '/#': 'Digipeater', '/I': 'I-Gate', '/r': 'Repeater (Voice)', '/_': 'Wetterstation',
+  '/\\': 'Hausstation', '/[': 'RX IGate', '/R': 'RX IGate', '/p': 'APRS Node',
+  '/j': 'Repeater (D-Star)', '/o': 'Repeater (EchoLink)', '/n': 'Repeater (Digital)',
+  '/t': 'Repeater (Tactical)', '/s': 'Repeater (D-Star)', '/b': 'Blitzer', '/v': 'WX Lightning', '/y': 'Suntracker',
+  '\\#': 'Digipeater', '\\I': 'I-Gate', '\\r': 'Repeater', '\\_': 'Wetterstation',
+  '\\n': 'Node', '\\j': 'Repeater', '\\o': 'Repeater', '\\a': 'Repeater', '\\s': 'DStar Repeater',
+  '\\[': 'RX IGate', '\\S': 'Satellite Gateway', '\\p': 'Packet Node', '\\v': 'Digipeater',
+  '\\L': 'Lighthouse', '\\H': 'Hospital', '\\D': 'DxCluster', '\\M': 'Milestone', '\\Z': 'SSTV',
+};
 
 function classifyStation(symbol: string, comment: string): string {
   const c = (comment || '').toLowerCase();
   if (symbol === '/_' || symbol === '\\_') return 'wx_station';
-  if (symbol === '/#' || symbol === '\\#' || symbol === '/\\') return 'digipeater';
+  if (symbol === '/#' || symbol === '\\#' || symbol === '/\\' || symbol === '\\v') return 'digipeater';
   if (symbol === '/I' || symbol === '\\I') return 'igate';
-  if (symbol === '/r' || symbol === '\\r' || symbol === '/R') return 'repeater';
-  if (symbol === '/[' || symbol === '\\[') return 'rx_igate';
-  if (c.includes('igate')) return 'rx_igate';
+  if (symbol === '/r' || symbol === '\\r' || symbol === '/R' || symbol === '/o' || symbol === '\\o' ||
+      symbol === '/j' || symbol === '\\j' || symbol === '/n' || symbol === '/t' || symbol === '/s' || symbol === '\\s' ||
+      symbol === '/p' || symbol === '\\p' || symbol === '\\a') return 'repeater';
+  if (symbol === '/[' || symbol === '\\[' || symbol === '/R') return 'rx_igate';
+  if (symbol === '/y') return 'suntracker';
+  if (symbol === '/\\') return 'home';
+  if (c.includes('igate')) return 'igate';
   if (c.includes('digi')) return 'digipeater';
   if (c.includes('wx') || c.includes('weather')) return 'wx_station';
   return 'other';
+}
+
+// Haversine distance in km between two coordinates
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 async function queryAprsFiBatch(callsigns: string[], apiKey: string): Promise<any[]> {
@@ -108,6 +136,8 @@ export default async function (req: Request): Promise<Response> {
       const entries = await queryAprsFiBatch(batch, apiKey);
       for (const entry of entries) {
         if (!entry.lat || !entry.lng) continue;
+        // Skip null-island positions (invalid GPS)
+        if (parseFloat(entry.lat) === 0 && parseFloat(entry.lng) === 0) continue;
         const symbol = entry.symbol || '';
         if (!FIXED_SYMBOLS.has(symbol)) continue;
         freshData.set(entry.name.toUpperCase(), {
@@ -115,9 +145,12 @@ export default async function (req: Request): Promise<Response> {
           lat: parseFloat(entry.lat),
           lng: parseFloat(entry.lng),
           symbol,
+          symbol_description: SYMBOL_DESCRIPTIONS[symbol] || 'Unbekannt',
           station_type: classifyStation(symbol, entry.comment),
           comment: (entry.comment || '').substring(0, 1000),
-          is_swiss: entry.name.toUpperCase().startsWith('HB9'),
+          last_heard: entry.lasttime ? new Date(entry.lasttime * 1000).toISOString() : (entry.time ? new Date(entry.time * 1000).toISOString() : new Date().toISOString()),
+          source_callsign: entry.srccall && entry.srccall !== entry.name ? entry.srccall : '',
+          is_swiss: entry.name.toUpperCase().startsWith('HB9') || entry.name.toUpperCase().startsWith('HB9'),
         });
       }
       if (i + API_BATCH_SIZE < callsignsToQuery.length) {
@@ -126,11 +159,22 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // 6. Upsert: update existing records, create new ones
+    // Position stability check: if an existing station moved >1km, skip update (possibly mobile)
     const toUpdate: any[] = [];
     const toCreate: any[] = [];
+    let skippedMobile = 0;
     for (const [cs, data] of freshData) {
       if (existingMap.has(cs)) {
-        toUpdate.push({ id: existingMap.get(cs).id, ...data });
+        const existing = existingMap.get(cs);
+        if (existing.lat != null && existing.lng != null) {
+          const distKm = haversineKm(existing.lat, existing.lng, data.lat, data.lng);
+          if (distKm > 1) {
+            // Position changed significantly — possibly mobile, skip update
+            skippedMobile++;
+            continue;
+          }
+        }
+        toUpdate.push({ id: existing.id, ...data });
       } else {
         toCreate.push(data);
       }
@@ -189,6 +233,7 @@ export default async function (req: Request): Promise<Response> {
       count: totalCount,
       updated,
       created,
+      skipped_mobile: skippedMobile,
       total_queried: callsignsToQuery.length,
       fresh_data_found: freshData.size,
       seed_list_size: seedList.length,

@@ -11,6 +11,7 @@ import MapTileLayer from "@/components/map/MapTileLayer";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl from "@/components/map/LayerControl";
 import MapControls from "@/components/map/MapControls";
+import MapPositionControls from "@/components/map/MapPositionControls";
 import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
 import ViewportDataLoader from "@/components/map/ViewportDataLoader";
@@ -426,6 +427,44 @@ export default function Home() {
     setFixedPosition(pos);
   }, []);
 
+  // Center map on current position (saved or GPS)
+  const handleCenterOnPosition = useCallback(() => {
+    const pos = fixedPosition || userPosition;
+    if (pos) {
+      mapRef.current?.flyTo(pos, 13, { duration: 1 });
+    } else {
+      // No position known — center on Switzerland
+      mapRef.current?.flyTo([46.8, 8.2], 8, { duration: 1 });
+    }
+  }, [fixedPosition, userPosition]);
+
+  // Get current GPS position and center map
+  const handleGetGps = useCallback((onDone) => {
+    if (!navigator.geolocation) {
+      onDone?.();
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const newPos = [pos.coords.latitude, pos.coords.longitude];
+        setUserPosition(newPos);
+        mapRef.current?.flyTo(newPos, 14, { duration: 1 });
+        onDone?.();
+      },
+      () => { onDone?.(); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  }, []);
+
+  // Toggle offline mode
+  const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
+  const toggleOffline = useCallback(() => {
+    const newVal = !forceOffline;
+    setForceOffline(newVal);
+    localStorage.setItem("hb9om_force_offline", String(newVal));
+    window.dispatchEvent(new Event("offline-mode-changed"));
+  }, [forceOffline]);
+
   // Build repeater country list for filter
   const repeaterCountries = useMemo(() => {
     const counts = {};
@@ -532,7 +571,7 @@ export default function Home() {
 
   // Tile config
   const tileConfig = TILE_CONFIGS[baseLayer] || TILE_CONFIGS.osm;
-  const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || localStorage.getItem("hb9om_force_offline") === "true");
+  const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || forceOffline);
 
   // Calculate filter button left offsets based on active layers
   const filterButtons = useMemo(() => {
@@ -728,6 +767,14 @@ export default function Home() {
         onScaleUp={handleScaleUp}
         onScaleDown={handleScaleDown}
         baseLayer={baseLayer}
+      />
+
+      {/* Position Controls (offline, GPS, center position) */}
+      <MapPositionControls
+        onCenterPosition={handleCenterOnPosition}
+        onGetGps={handleGetGps}
+        isOffline={isOffline}
+        onToggleOffline={toggleOffline}
       />
 
       {/* Filter buttons — positioned based on active layers */}
