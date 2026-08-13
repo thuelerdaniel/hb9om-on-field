@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, X, Layers } from "lucide-react";
+import { ChevronDown, X, Layers, Info } from "lucide-react";
 import { LAYER_GROUPS } from "./LayerControl";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { MODE_COLORS, FILTER_MODES, MODE_LABELS } from "@/lib/repeaterModes";
@@ -16,14 +16,13 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
     .map(id => LAYER_GROUPS.find(g => g.id === id))
     .filter(Boolean);
 
-  if (activeItems.length === 0) return null;
-
+  // Collapsed icon (when hidden via X)
   if (hidden) {
     return (
       <button
         onClick={() => setHidden(false)}
         className="absolute bottom-16 left-3 z-[1000] w-8 h-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
-      style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}
+        style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}
         title="Legende einblenden"
       >
         <Layers className="w-3.5 h-3.5 text-gray-600" />
@@ -32,9 +31,13 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
   }
 
   return (
-    <div ref={containerRef} className="absolute bottom-16 left-3 z-[1000] max-w-[calc(100%-11rem)] bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
-      {/* Compact single-line header */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1.5">
+    <div
+      ref={containerRef}
+      className="absolute bottom-16 left-3 z-[1000] max-w-[calc(100%-11rem)] sm:max-w-xs bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden"
+      style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}
+    >
+      {/* Header — active state highlighted when expanded */}
+      <div className={`flex items-center gap-1.5 px-2.5 py-1.5 transition-colors ${expanded ? "bg-blue-50 border-b border-blue-100" : ""}`}>
         {castleStats && activeLayers.includes("castle") && (
           <span className="px-1.5 py-0.5 text-[9px] bg-orange-50 text-orange-700 rounded-full font-medium">
             {castleStats.matched}/{castleStats.total}
@@ -42,9 +45,9 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
         )}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-0.5 px-1.5 py-0.5 hover:bg-gray-100 rounded text-gray-500 transition-colors"
+          className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded transition-colors ${expanded ? "text-blue-700" : "text-gray-500 hover:bg-gray-100"}`}
         >
-          <span className="text-[10px] uppercase tracking-wide">Legende</span>
+          <span className="text-[10px] uppercase tracking-wide font-semibold">Legende</span>
           <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
         </button>
         <button
@@ -56,54 +59,71 @@ export default function MapLegend({ activeLayers, markerCount, castleStats }) {
         </button>
       </div>
 
-      {/* Expanded content — compact horizontal */}
+      {/* Expanded content — scrollable, with descriptions */}
       {expanded && (
-        <div className="px-2.5 pb-2 pt-1 border-t border-gray-100">
-          <div className="flex items-center gap-2 flex-wrap">
-            {activeItems.map(lg => (
-              <span key={lg.id} className="flex items-center gap-1 text-[10px]">
-                {lg.id === "repeater" || lg.id === "aprs" || lg.id === "brandmeister" ? (
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-white shadow-sm" style={{ backgroundColor: lg.color }} />
-                ) : (
-                  <span className="w-3.5 h-3.5 flex-shrink-0 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: getMarkerSvg(lg.id, lg.color) }} />
-                )}
-                <span className="text-gray-600">{lg.label.split("–")[0].trim()}</span>
-              </span>
-            ))}
-          </div>
-
-          {activeLayers.includes("repeater") && (
-            <div className="flex items-center gap-1.5 flex-wrap mt-1.5 pt-1.5 border-t border-gray-50">
-              {FILTER_MODES.map(mode => (
-                <span key={mode} className="flex items-center gap-0.5 text-[9px]">
-                  <span className="w-2 h-2 rounded-full border border-white shadow-sm" style={{ backgroundColor: MODE_COLORS[mode] }} />
-                  <span className="text-gray-500">{MODE_LABELS[mode]}</span>
-                </span>
-              ))}
+        <div className="px-2.5 pb-2 pt-1.5 max-h-[40vh] overflow-y-auto">
+          {activeItems.length === 0 ? (
+            <div className="flex items-center gap-1.5 py-2 text-[10px] text-gray-400">
+              <Info className="w-3 h-3" />
+              <span>Keine Layer aktiviert</span>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Active layer list with icon + name + description */}
+              <div className="space-y-1.5">
+                {activeItems.map(lg => (
+                  <div key={lg.id} className="flex items-start gap-1.5">
+                    {lg.id === "repeater" || lg.id === "aprs" || lg.id === "brandmeister" ? (
+                      <span className="w-2.5 h-2.5 mt-0.5 rounded-full flex-shrink-0 border border-white shadow-sm" style={{ backgroundColor: lg.color }} />
+                    ) : (
+                      <span className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: getMarkerSvg(lg.id, lg.color) }} />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-medium text-gray-700 leading-tight">{lg.label.split("–")[0].trim()}</p>
+                      {lg.description && (
+                        <p className="text-[9px] text-gray-400 leading-tight mt-0.5">{lg.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-          {activeLayers.includes("wwbota") && (
-            <div className="mt-1.5 pt-1.5 border-t border-gray-50">
-              <button
-                onClick={() => setWwbotaExpanded(!wwbotaExpanded)}
-                className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-700"
-              >
-                <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: "#795548" }} />
-                <span>WWBOTA nach Land</span>
-                <ChevronDown className={`w-2.5 h-2.5 transition-transform ${wwbotaExpanded ? "rotate-180" : ""}`} />
-              </button>
-              {wwbotaExpanded && (
-                <div className="flex items-center gap-1 flex-wrap mt-1">
-                  {WWBOTA_LEGEND_SCHEMES.map(s => (
-                    <span key={s.scheme} className="flex items-center gap-0.5 text-[9px]">
-                      <span className="w-2 h-2 rounded-full border border-white shadow-sm" style={{ backgroundColor: s.color }} />
-                      <span className="text-gray-500">{s.country}</span>
+              {/* Repeater mode colors */}
+              {activeLayers.includes("repeater") && (
+                <div className="flex items-center gap-1.5 flex-wrap mt-2 pt-1.5 border-t border-gray-100">
+                  {FILTER_MODES.map(mode => (
+                    <span key={mode} className="flex items-center gap-0.5 text-[9px]">
+                      <span className="w-2 h-2 rounded-full border border-white shadow-sm" style={{ backgroundColor: MODE_COLORS[mode] }} />
+                      <span className="text-gray-500">{MODE_LABELS[mode]}</span>
                     </span>
                   ))}
                 </div>
               )}
-            </div>
+
+              {/* WWBOTA per-country schemes */}
+              {activeLayers.includes("wwbota") && (
+                <div className="mt-2 pt-1.5 border-t border-gray-100">
+                  <button
+                    onClick={() => setWwbotaExpanded(!wwbotaExpanded)}
+                    className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-700"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: "#795548" }} />
+                    <span>WWBOTA nach Land</span>
+                    <ChevronDown className={`w-2.5 h-2.5 transition-transform ${wwbotaExpanded ? "rotate-180" : ""}`} />
+                  </button>
+                  {wwbotaExpanded && (
+                    <div className="flex items-center gap-1 flex-wrap mt-1">
+                      {WWBOTA_LEGEND_SCHEMES.map(s => (
+                        <span key={s.scheme} className="flex items-center gap-0.5 text-[9px]">
+                          <span className="w-2 h-2 rounded-full border border-white shadow-sm" style={{ backgroundColor: s.color }} />
+                          <span className="text-gray-500">{s.country}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

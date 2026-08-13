@@ -113,10 +113,13 @@ const MAP_SCALES = [
   { id: "100000", label: "1:100'000" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry, externalIsOpen, onOpenChange }) {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [showCountries, setShowCountries] = useState(false);
   const { containerRef } = useDraggablePosition("drag-layer-control");
+  // Support external open control (e.g. from ViewportLimitHint action button)
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  const setIsOpen = onOpenChange || setInternalIsOpen;
 
   // Countries to display: filtered by selected continents, or all if no continent selected
   const visibleCountries = activeContinents && activeContinents.length > 0

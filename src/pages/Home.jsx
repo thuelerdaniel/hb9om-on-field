@@ -228,6 +228,9 @@ export default function Home() {
   // Heavy load confirmation
   const [pendingLayers, setPendingLayers] = useState(null);
 
+  // Layer menu open state — lifted for external control (ViewportLimitHint action button)
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+
   // Performance suggestion
   const [showPerfSuggestion, setShowPerfSuggestion] = useState(false);
   const perfSuggestionShownRef = useRef(false);
@@ -822,6 +825,8 @@ export default function Home() {
         onToggleContinent={handleToggleContinent}
         activeCountries={activeCountries}
         onToggleCountry={handleToggleCountry}
+        externalIsOpen={layerMenuOpen}
+        onOpenChange={setLayerMenuOpen}
       />
 
       {/* Map Controls (zoom, scale) */}
@@ -953,7 +958,7 @@ export default function Home() {
       <FoxHuntingSwitch mode={foxMode} onModeChange={setFoxMode} />
 
       {/* Loading indicator */}
-      <RadioLoader isLoading={loading} onCancel={cancelLoading} />
+      <RadioLoader isLoading={loading} onCancel={cancelLoading} message={loadingMessage} />
 
       {/* Preload hint */}
       <PreloadHint activeLayers={activeLayers} isLoading={loading} />
@@ -963,6 +968,7 @@ export default function Home() {
         visibleCount={viewportLimit.visibleCount}
         maxRender={viewportLimit.maxRender}
         totalCount={viewportLimit.totalCount}
+        onOpenLayers={() => setLayerMenuOpen(true)}
       />
 
       {/* Performance suggestion */}

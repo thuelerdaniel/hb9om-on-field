@@ -30,7 +30,7 @@ function RadioWaves() {
   );
 }
 
-export default function RadioLoader({ isLoading, onCancel }) {
+export default function RadioLoader({ isLoading, onCancel, message }) {
   const [showTips, setShowTips] = useState(false);
   const [visible, setVisible] = useState(false);
   const minVisibleUntil = useRef(0);
@@ -64,12 +64,15 @@ export default function RadioLoader({ isLoading, onCancel }) {
 
   if (!visible) return null;
 
+  // Use provided message or fallback
+  const loadingText = message || "Daten werden geladen…";
+
   return (
     <>
-      {/* Compact loader with radio symbol — always visible while loading */}
-      <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white dark:bg-slate-800 rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
+      {/* Compact loader with radio symbol + current source — always visible while loading */}
+      <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[10002] bg-white dark:bg-slate-800 rounded-full shadow-lg px-4 py-2 flex items-center gap-2 max-w-[90vw]">
         <RadioWaves />
-        <span className="text-sm text-gray-600 dark:text-slate-300">Daten werden geladen…</span>
+        <span className="text-sm text-gray-600 dark:text-slate-300 truncate">{loadingText}</span>
         {onCancel && (
           <button
             onClick={onCancel}
@@ -90,6 +93,10 @@ export default function RadioLoader({ isLoading, onCancel }) {
           </div>
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 text-center mb-1">
             Viele Daten werden geladen…
+          </p>
+          {/* Current source indicator */}
+          <p className="text-xs text-blue-600 dark:text-blue-400 text-center mb-2 font-medium">
+            {loadingText}
           </p>
           <p className="text-xs text-gray-500 dark:text-slate-400 text-center mb-3 leading-relaxed">
             Etwas Geduld bitte — die Referenzdaten werden von externen Quellen geladen.

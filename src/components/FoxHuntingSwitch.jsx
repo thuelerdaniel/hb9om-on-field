@@ -26,8 +26,8 @@ export default function FoxHuntingSwitch({ mode, onModeChange }) {
             setShowHint(true);
             setTimeout(() => setShowHint(false), 5000);
           }}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 cursor-not-allowed opacity-60"
-          title="Hunting-Modus: Fuchsjagd-DF-Tools — kommt bald"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 cursor-not-allowed opacity-50"
+          title="Hunting-Modus: Fuchsjagd-DF-Tools — kommt in einem späteren Update"
           aria-disabled="true"
         >
           <Crosshair className="w-3.5 h-3.5" />
@@ -37,7 +37,7 @@ export default function FoxHuntingSwitch({ mode, onModeChange }) {
       </div>
       {showHint && (
         <div className="absolute top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
-          🎯 Hunting-Modul kommt bald — Fuchsjagd-DF-Tools in Entwicklung
+          🎯 Hunting-Modul kommt in einem späteren Update — Fuchsjagd-DF-Tools in Entwicklung
         </div>
       )}
     </div>
