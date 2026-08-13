@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { detectRepeaterCountry, validateCoords } from '../../shared/repeaterCountryDetection.ts';
+import { loadProtectionSet, filterProtected } from '../../shared/syncProtection.ts';
 
 // Hearham.com repeater API — alternative source for regions with poor RepeaterBook
 // coverage (Canada, Asia, Africa). Free, no API key required.
@@ -137,7 +138,10 @@ export default async function (req: Request): Promise<Response> {
     // US vs CA per-repeater, we must delete by bounding box to catch both US and CA.
     // Also delete legacy null-coord repeaters tagged with this region's country_code.
     const oldHearham = await base44.asServiceRole.entities.Repeater.filter({ source: 'Hearham' });
+    let jsonProtected = 0;
     const toDelete = (oldHearham || []).filter((r: any) => {
+      // Protect JSON-imported repeaters from sync deletion
+      if (r.source_id === "json-import") { jsonProtected++; return false; }
       // Delete repeaters with coords in the region's bounding box
       if (r.lat != null && r.lng != null) {
         return r.lat >= bounds.south && r.lat <= bounds.north &&
@@ -152,16 +156,23 @@ export default async function (req: Request): Promise<Response> {
       await Promise.all(batch.map((r: any) => base44.asServiceRole.entities.Repeater.delete(r.id)));
     }
 
+    // Load JSON-import protection set and filter out protected records
+    let protectionSet = new Set<string>();
+    try { protectionSet = await loadProtectionSet(base44); } catch {}
+    const { toCreate, protectedCount } = filterProtected(deduped, protectionSet);
+    jsonProtected += protectedCount;
+
     // Bulk create new repeaters
-    for (let i = 0; i < deduped.length; i += 100) {
-      const batch = deduped.slice(i, i + 100);
+    for (let i = 0; i < toCreate.length; i += 100) {
+      const batch = toCreate.slice(i, i + 100);
       await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
     }
 
     return Response.json({
       status: 'success',
       label: `Relais ${region === 'canada' ? 'Kanada' : region === 'asia' ? 'Asien' : 'Afrika'} (Hearham)`,
-      count: deduped.length,
+      count: toCreate.length,
+      json_protected: jsonProtected,
       source: 'Hearham API',
       region,
       timestamp: new Date().toISOString(),

@@ -6,6 +6,7 @@ import {
   LIST_BASE, NA_LIST_BASE, LIST_PARAMS,
   REPEATER_REGIONS, getCountriesForRegion, getCountryCodesForRegion,
 } from '../../shared/repeaterScraper.ts';
+import { loadProtectionSet, filterProtected } from '../../shared/syncProtection.ts';
 
 const FETCH_TIMEOUT_MS = 5000;
 const BATCH_SIZE = 10;        // Countries per batch — keeps memory low
@@ -102,6 +103,7 @@ export default async function(req) {
     let totalSaved = 0;
     let withCoords = 0;
     let deletedCount = 0;
+    let jsonProtected = 0;
 
     // --- Step 1: Delete existing repeaters for this region ---
     currentStep = 'delete_existing';
@@ -111,8 +113,12 @@ export default async function(req) {
         for (let attempt = 0; attempt < 50; attempt++) {
           const existing = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
           if (!existing || existing.length === 0) break;
-          await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existing.map(r => r.id) } });
-          deletedCount += existing.length;
+          const toDeleteIds = existing.filter(r => r.source_id !== "json-import").map(r => r.id);
+          jsonProtected += existing.length - toDeleteIds.length;
+          if (toDeleteIds.length > 0) {
+            await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: toDeleteIds } });
+          }
+          deletedCount += toDeleteIds.length;
         }
       } catch (delErr: any) {
         return Response.json({
@@ -131,8 +137,12 @@ export default async function(req) {
             "id", 5000, attempt * 5000
           );
           if (!existing || existing.length === 0) break;
-          await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: existing.map(r => r.id) } });
-          deletedCount += existing.length;
+          const toDeleteIds = existing.filter(r => r.source_id !== "json-import").map(r => r.id);
+          jsonProtected += existing.length - toDeleteIds.length;
+          if (toDeleteIds.length > 0) {
+            await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: toDeleteIds } });
+          }
+          deletedCount += toDeleteIds.length;
           if (existing.length < 5000) break;
         }
       } catch (delErr: any) {
@@ -144,6 +154,10 @@ export default async function(req) {
         }, { status: 500 });
       }
     }
+
+    // --- Load JSON-import protection set ---
+    let protectionSet = new Set<string>();
+    try { protectionSet = await loadProtectionSet(base44); } catch {}
 
     // --- Step 2: Fetch UK repeaters (only for 'all' or 'uk' region) ---
     if (region === 'all' || region === 'uk') {
@@ -171,8 +185,10 @@ export default async function(req) {
         });
         // Save UK repeaters
         const ukRecords = ukRepeaters.map(buildRecord);
-        for (let i = 0; i < ukRecords.length; i += 500) {
-          const batch = ukRecords.slice(i, i + 500);
+        const { toCreate: ukToCreate, protectedCount: ukProt } = filterProtected(ukRecords, protectionSet);
+        jsonProtected += ukProt;
+        for (let i = 0; i < ukToCreate.length; i += 500) {
+          const batch = ukToCreate.slice(i, i + 500);
           await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
           totalSaved += batch.length;
         }
@@ -268,8 +284,10 @@ export default async function(req) {
 
         // Build records and save
         const records = batchRepeaters.map(buildRecord);
-        for (let j = 0; j < records.length; j += 500) {
-          const batch = records.slice(j, j + 500);
+        const { toCreate: rbToCreate, protectedCount: rbProt } = filterProtected(records, protectionSet);
+        jsonProtected += rbProt;
+        for (let j = 0; j < rbToCreate.length; j += 500) {
+          const batch = rbToCreate.slice(j, j + 500);
           await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
           totalSaved += batch.length;
         }
@@ -333,6 +351,7 @@ export default async function(req) {
       deleted: deletedCount,
       countries: Object.keys(countryBreakdown).length,
       country_breakdown: countryBreakdown,
+      json_protected: jsonProtected,
       duration_ms: Date.now() - startTime,
     });
   } catch (error: any) {

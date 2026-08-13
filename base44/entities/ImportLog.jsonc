@@ -1,0 +1,107 @@
+{
+  "name": "ImportLog",
+  "type": "object",
+  "properties": {
+    "import_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Datum und Uhrzeit des Imports"
+    },
+    "filename": {
+      "type": "string",
+      "description": "Name der importierten Datei"
+    },
+    "mode": {
+      "type": "string",
+      "description": "Import-Modus (z.B. json-import)"
+    },
+    "source_tag": {
+      "type": "string",
+      "description": "Quellen-Tag (z.B. RepeaterBook Export)"
+    },
+    "total": {
+      "type": "number",
+      "description": "Gesamtzahl der Records im File"
+    },
+    "imported_new": {
+      "type": "number",
+      "description": "Neu angelegte Records"
+    },
+    "updated": {
+      "type": "number",
+      "description": "Aktualisierte bestehende Records"
+    },
+    "skipped_duplicates": {
+      "type": "number",
+      "description": "Als Dublette uebersprungene Records"
+    },
+    "errors": {
+      "type": "number",
+      "description": "Fehlerhafte Records"
+    },
+    "with_coords": {
+      "type": "number",
+      "description": "Records mit gueltigen Koordinaten"
+    },
+    "without_coords": {
+      "type": "number",
+      "description": "Records ohne Koordinaten"
+    },
+    "by_country": {
+      "type": "object",
+      "description": "Verteilung nach Laendercode"
+    },
+    "by_mode": {
+      "type": "object",
+      "description": "Verteilung nach Modulationsart"
+    },
+    "duration_ms": {
+      "type": "number",
+      "description": "Import-Dauer in Millisekunden"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "partial",
+        "failed"
+      ],
+      "default": "success",
+      "description": "Import-Status"
+    },
+    "error_details": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Fehler-Details pro Record"
+    }
+  },
+  "required": [
+    "import_date",
+    "filename",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

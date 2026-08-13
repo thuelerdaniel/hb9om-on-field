@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCircle,
   AlertCircle, Bell, UserPlus, AlertTriangle, Users, User, KeyRound, Lightbulb,
-  RadioTower, Signal, Wrench, Shield, ChevronDown, Mail, Network,
+  RadioTower, Signal, Wrench, Shield, ChevronDown, Mail, Network, FileJson,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
@@ -24,6 +24,7 @@ import DataCacheOverview from "@/components/admin/DataCacheOverview";
 import SyncPlanManager from "@/components/admin/SyncPlanManager";
 import ApiKeyManager from "@/components/admin/ApiKeyManager";
 import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
+import JsonRepeaterImport from "@/components/admin/JsonRepeaterImport";
 import MobileSelect from "@/components/ui/MobileSelect";
 
 const TYPE_LABELS = {
@@ -560,6 +561,14 @@ export default function AdminPanel({
 
         {/* Repeater Correction Reports */}
         <RepeaterCorrectionManager />
+
+        {/* JSON Repeater Import */}
+        <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5 mb-2">
+            <FileJson className="w-4 h-4 text-blue-600" /> JSON Repeater Import
+          </h3>
+          <JsonRepeaterImport />
+        </section>
       </AdminCollapsibleSection>
 
       {/* ====== GROUP 4: Datenpflege ====== */}
