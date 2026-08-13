@@ -5,6 +5,7 @@ import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { LAYER_ESTIMATES, formatPointsShort } from "@/components/map/HeavyLoadConfirmDialog";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
+import { useAppFeatures, layerIdToFeatureKey } from "@/lib/appFeatures";
 
 const LAYER_GROUPS = [
   {
@@ -117,6 +118,14 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [showCountries, setShowCountries] = useState(false);
   const { containerRef } = useDraggablePosition("drag-layer-control");
+  const { features } = useAppFeatures();
+
+  // Filter layer groups by user's enabled layers
+  const visibleLayerGroups = LAYER_GROUPS.filter(group => {
+    const featureKey = layerIdToFeatureKey(group.id);
+    if (!featureKey) return true; // Layers without a feature key are always visible
+    return features.layers[featureKey] !== false;
+  });
   // Support external open control (e.g. from ViewportLimitHint action button)
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const setIsOpen = onOpenChange || setInternalIsOpen;
@@ -307,7 +316,10 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
           <div className="p-4">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide mb-3">Overlay-Ebenen</h3>
             <div className="space-y-1">
-              {LAYER_GROUPS.map(group => {
+              {visibleLayerGroups.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4">Keine Layer aktiviert — in Einstellungen aktivieren</p>
+              )}
+              {visibleLayerGroups.map(group => {
                 const isActive = activeLayers.includes(group.id);
                 const Icon = group.icon;
                 return (

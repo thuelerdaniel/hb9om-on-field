@@ -90,6 +90,10 @@
       "type": "boolean",
       "default": false,
       "description": "Ob bereits eine Dankes-E-Mail gesendet wurde (Duplikat-Schutz \u2014 einmal true, wird nie wieder gesendet)"
+    },
+    "app_features": {
+      "type": "object",
+      "description": "Personalisierbare Feature- und Layer-Auswahl (layers, bands, tools, offline, advanced)"
     }
   },
   "required": [

@@ -9,6 +9,8 @@ import OfflineManager from "@/components/settings/OfflineManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 import ThemeToggle from "@/components/settings/ThemeToggle";
 import ClubCallsignManager from "@/components/settings/ClubCallsignManager";
+import AppFeaturesSection from "@/components/settings/AppFeaturesSection";
+import { useAppFeatures, syncFeaturesFromUser } from "@/lib/appFeatures";
 import { clearRememberedDecisions, hasRememberedDecisions } from "@/components/map/HeavyLoadConfirmDialog";
 import DonationPopup from "@/components/DonationPopup";
 
@@ -70,6 +72,7 @@ export default function Settings() {
   const [gpsTrackingInterval, setGpsTrackingInterval] = useState(() => parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   // Offline management is now handled by <OfflineManager /> component
+  const { features: appFeatures } = useAppFeatures();
 
   useEffect(() => {
     loadData();
@@ -174,6 +177,8 @@ export default function Settings() {
       const aprsKey = me?.aprs_fi_api_key || "";
       setAprsApiKey(aprsKey);
       setAprsKeyConfigured(!!aprsKey);
+      // Sync feature flags from User entity (User entity wins)
+      syncFeaturesFromUser();
     } catch (e) { }
   };
 
@@ -790,6 +795,9 @@ export default function Settings() {
           )}
         </section>
 
+        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">App-Funktionen</h2></div>
+        <AppFeaturesSection isAdmin={isAdmin} />
+
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Offline & Sicherung</h2></div>
         {/* Unified Offline Manager — replaces separate offline + preload sections */}
         <OfflineManager />
@@ -797,8 +805,11 @@ export default function Settings() {
         {/* Data Backup */}
         <BackupSection />
 
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Anträge & Feedback</h2></div>
+        {(appFeatures.tools.change_requests !== false || appFeatures.tools.feature_requests !== false) && (
+          <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Anträge & Feedback</h2></div>
+        )}
         {/* Change Requests - available for all users */}
+        {appFeatures.tools.change_requests !== false && (
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -823,8 +834,10 @@ export default function Settings() {
             </Link>
           </div>
         </section>
+        )}
 
         {/* Feature Requests - available for all users */}
+        {appFeatures.tools.feature_requests !== false && (
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -844,6 +857,7 @@ export default function Settings() {
             </Link>
           </div>
         </section>
+        )}
 
         {isAdmin && (
           <div className="rounded-xl border-2 border-slate-700 overflow-hidden">

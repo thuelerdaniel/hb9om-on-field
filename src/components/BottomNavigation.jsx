@@ -2,15 +2,11 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { MapPin, BookOpen, Settings as SettingsIcon, LogOut } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-
-const NAV_ITEMS = [
-  { path: "/", label: "Karte", icon: MapPin },
-  { path: "/log", label: "Logbuch", icon: BookOpen },
-  { path: "/settings", label: "Einstell.", icon: SettingsIcon },
-];
+import { useAppFeatures } from "@/lib/appFeatures";
 
 export default function BottomNavigation() {
   const location = useLocation();
+  const { features } = useAppFeatures();
 
   const handleLogout = async () => {
     try {
@@ -20,12 +16,22 @@ export default function BottomNavigation() {
     }
   };
 
+  // Build nav items based on feature flags
+  // Karte (always), Logbuch (if enabled), Einstellungen (always), Abmelden (always)
+  const navItems = [
+    { path: "/", label: "Karte", icon: MapPin, always: true },
+  ];
+  if (features.tools.logbook !== false) {
+    navItems.push({ path: "/log", label: "Logbuch", icon: BookOpen });
+  }
+  navItems.push({ path: "/settings", label: "Einstell.", icon: SettingsIcon });
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-[1000] bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center justify-around gap-1"
       style={{ paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))" }}
     >
-      {NAV_ITEMS.map(item => {
+      {navItems.map(item => {
         const active = location.pathname === item.path;
         const Icon = item.icon;
         return (

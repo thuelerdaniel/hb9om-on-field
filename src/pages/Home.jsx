@@ -52,6 +52,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import FirstTimeSetup from "@/components/FirstTimeSetup";
 import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import MapMenuDrawer from "@/components/map/MapMenuDrawer";
+import { useAppFeatures, syncFeaturesFromUser } from "@/lib/appFeatures";
 
 // Tile layer configs
 const TILE_CONFIGS = {
@@ -181,6 +182,9 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Feature flags
+  const { features } = useAppFeatures();
+
   // Map state — activeLayers must be declared BEFORE useMapData (which needs it)
   const [activeLayers, setActiveLayers] = useState(() => {
     const saved = localStorage.getItem("hb9om_active_layers");
@@ -293,6 +297,8 @@ export default function Home() {
         const me = await base44.auth.me();
         setCurrentUser(me);
         setIsAdmin(me?.role === "admin");
+        // Sync feature flags from User entity (User entity wins)
+        syncFeaturesFromUser();
       } catch {}
     })();
   }, []);
@@ -821,6 +827,7 @@ export default function Home() {
         onSearchChange={setSearchQuery}
         onToggleSidebar={() => setMenuDrawerOpen(true)}
         sidebarOpen={menuDrawerOpen}
+        showSearch={features.tools.search !== false}
       />
 
       {/* Map Menu Drawer */}
@@ -831,12 +838,14 @@ export default function Home() {
         loadingMessage={loadingMessage}
       />
 
-      {/* Search Results */}
-      <SearchResults
-        results={searchResults}
-        onSelect={handleSearchSelect}
-        onClose={() => { setSearchQuery(""); setSearchResults([]); }}
-      />
+      {/* Search Results — only if search is enabled */}
+      {features.tools.search !== false && (
+        <SearchResults
+          results={searchResults}
+          onSelect={handleSearchSelect}
+          onClose={() => { setSearchQuery(""); setSearchResults([]); }}
+        />
+      )}
 
       {/* Layer Control */}
       <LayerControl
@@ -875,22 +884,24 @@ export default function Home() {
         onOpenOfflineDownload={() => setShowOfflineDialog(true)}
       />
 
-      {/* Drag-Mode Toggle (Marker verschieben für Positionskorrektur) */}
-      <button
-        onClick={() => setDragMode(!dragMode)}
-        className={`fixed left-4 z-[1000] w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border transition-colors ${
-          dragMode
-            ? "bg-blue-500 border-blue-600 text-white"
-            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
-        }`}
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 230px)" }}
-        title={dragMode ? "Marker-Verschiebung aktiv — tippen zum Deaktivieren" : "Marker verschieben (Positionskorrektur)"}
-      >
-        <Move className="w-5 h-5" />
-      </button>
+      {/* Drag-Mode Toggle (Marker verschieben für Positionskorrektur) — only if filter tool enabled */}
+      {features.tools.filter !== false && (
+        <button
+          onClick={() => setDragMode(!dragMode)}
+          className={`fixed left-4 z-[1000] w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border transition-colors ${
+            dragMode
+              ? "bg-blue-500 border-blue-600 text-white"
+              : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+          }`}
+          style={{ bottom: "calc(env(safe-area-inset-bottom) + 230px)" }}
+          title={dragMode ? "Marker-Verschiebung aktiv — tippen zum Deaktivieren" : "Marker verschieben (Positionskorrektur)"}
+        >
+          <Move className="w-5 h-5" />
+        </button>
+      )}
 
-      {/* Filter buttons — positioned based on active layers */}
-      {filterButtons.map(btn => {
+      {/* Filter buttons — positioned based on active layers (only if filter tool enabled) */}
+      {features.tools.filter !== false && filterButtons.map(btn => {
         if (btn.type === "repeater") {
           return (
             <RepeaterFilter
@@ -975,24 +986,30 @@ export default function Home() {
         return null;
       })}
 
-      {/* Legend */}
-      <MapLegend
-        activeLayers={activeLayers}
-        markerCount={allMarkers.length}
-      />
+      {/* Legend — only if enabled */}
+      {features.tools.legende !== false && (
+        <MapLegend
+          activeLayers={activeLayers}
+          markerCount={allMarkers.length}
+        />
+      )}
 
-      {/* User coverage button — "Meine Abdeckung berechnen" */}
-      <button
-        onClick={() => setShowUserCoverageDialog(true)}
-        className="fixed left-4 z-[1000] w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 175px)" }}
-        title="Meine Abdeckung berechnen"
-      >
-        <Radio className="w-5 h-5 text-orange-500" />
-      </button>
+      {/* User coverage button — "Meine Abdeckung berechnen" (only if own_coverage enabled) */}
+      {features.tools.own_coverage !== false && (
+        <button
+          onClick={() => setShowUserCoverageDialog(true)}
+          className="fixed left-4 z-[1000] w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          style={{ bottom: "calc(env(safe-area-inset-bottom) + 175px)" }}
+          title="Meine Abdeckung berechnen"
+        >
+          <Radio className="w-5 h-5 text-orange-500" />
+        </button>
+      )}
 
-      {/* Fox/Hunting switch */}
-      <FoxHuntingSwitch mode={foxMode} onModeChange={setFoxMode} />
+      {/* Fox/Hunting switch — only if fox_hunt enabled */}
+      {features.tools.fox_hunt !== false && (
+        <FoxHuntingSwitch mode={foxMode} onModeChange={setFoxMode} />
+      )}
 
       {/* Loading indicator */}
       <RadioLoader isLoading={loading} onCancel={cancelLoading} message={loadingMessage} />
@@ -1078,16 +1095,18 @@ export default function Home() {
         />
       )}
 
-      {/* Neues QSO Button — Floating Action Button */}
-      <button
-        onClick={() => setShowLogForm(true)}
-        className="fixed right-4 z-[1000] h-14 px-5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 76px)" }}
-        title="Neues QSO-Log erfassen"
-      >
-        <Plus className="w-6 h-6" />
-        <span className="font-semibold text-sm whitespace-nowrap">Log QSO</span>
-      </button>
+      {/* Neues QSO Button — Floating Action Button (only if qso_add enabled) */}
+      {features.tools.qso_add !== false && (
+        <button
+          onClick={() => setShowLogForm(true)}
+          className="fixed right-4 z-[1000] h-14 px-5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
+          style={{ bottom: "calc(env(safe-area-inset-bottom) + 76px)" }}
+          title="Neues QSO-Log erfassen"
+        >
+          <Plus className="w-6 h-6" />
+          <span className="font-semibold text-sm whitespace-nowrap">Log QSO</span>
+        </button>
+      )}
 
       {/* Map click hint for coverage position — shown when mapClickForCoverage is active */}
       {mapClickForCoverage && (
