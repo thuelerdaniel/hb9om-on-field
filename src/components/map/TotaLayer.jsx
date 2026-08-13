@@ -129,9 +129,18 @@ export default function TotaLayer({
     zoomend: handleMapChange,
   });
 
-  // Fetch on mount and when showChTota changes
+  // Fetch on mount (deferred so map renders first) and when showChTota changes
   useEffect(() => {
-    fetchPoints();
+    // Defer initial fetch — let map tiles render first, non-blocking
+    const idleCallback = typeof window !== "undefined" && window.requestIdleCallback
+      ? window.requestIdleCallback(() => fetchPoints(), { timeout: 1500 })
+      : null;
+    if (!idleCallback) {
+      setTimeout(() => fetchPoints(), 200);
+    }
+    return () => {
+      if (idleCallback && window.cancelIdleCallback) window.cancelIdleCallback(idleCallback);
+    };
   }, [fetchPoints, showChTota]);
 
   // Cleanup

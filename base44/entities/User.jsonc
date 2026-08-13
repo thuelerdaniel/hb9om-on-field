@@ -51,7 +51,30 @@
     "donation_hidden": {
       "type": "boolean",
       "default": false,
-      "description": "Ob das Spenden-Popup f\u00fcr diesen User dauerhaft ausgeblendet ist"
+      "description": "Ob das Spenden-Popup f\u00fcr diesen User dauerhaft ausgeblendet ist (Admin setzt)"
+    },
+    "donation_confirmed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ob ein Admin best\u00e4tigt hat dass der User gespendet hat \u2014 wenn true wird donation_hidden automatisch auch true"
+    },
+    "donation_email": {
+      "type": "string",
+      "description": "E-Mail die der User im Spenden-Popup angegeben hat"
+    },
+    "donation_shown_today": {
+      "type": "number",
+      "default": 0,
+      "description": "Z\u00e4hler wie oft das Popup heute schon angezeigt wurde (Tages-Reset)"
+    },
+    "donation_last_show_date": {
+      "type": "string",
+      "description": "Datum des letzten Anzeige-Tages (f\u00fcr Tages-Reset, YYYY-MM-DD)"
+    },
+    "donation_total_shown": {
+      "type": "number",
+      "default": 0,
+      "description": "Gesamtz\u00e4hler aller Popup-Anzeigen"
     },
     "last_donation_prompt": {
       "type": "string",
@@ -61,7 +84,7 @@
     "donation_count": {
       "type": "number",
       "default": 0,
-      "description": "Anzahl wie oft das Spenden-Popup angezeigt wurde"
+      "description": "Anzahl wie oft das Spenden-Popup angezeigt wurde (legacy \u2014 durch donation_total_shown ersetzt)"
     }
   },
   "required": [

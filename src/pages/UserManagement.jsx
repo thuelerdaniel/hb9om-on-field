@@ -95,15 +95,36 @@ export default function UserManagement() {
     }
   };
 
-  const handleToggleDonation = async (user) => {
+  const handleToggleDonationHidden = async (user) => {
     try {
+      const newVal = !user.donation_hidden;
       await base44.functions.invoke("adminManageUsers", {
         action: "updateField",
         userId: user.id,
         field: "donation_hidden",
-        value: !user.donation_hidden,
+        value: newVal,
       });
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, donation_hidden: !u.donation_hidden } : u));
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, donation_hidden: newVal } : u));
+    } catch (e) {
+      setActionError(e?.response?.data?.detail || e.message || "unbekannt");
+    }
+  };
+
+  const handleToggleDonationConfirmed = async (user) => {
+    try {
+      const newVal = !user.donation_confirmed;
+      // Backend auto-sets donation_hidden=true when confirmed=true
+      await base44.functions.invoke("adminManageUsers", {
+        action: "updateField",
+        userId: user.id,
+        field: "donation_confirmed",
+        value: newVal,
+      });
+      setUsers(prev => prev.map(u => u.id === user.id ? {
+        ...u,
+        donation_confirmed: newVal,
+        donation_hidden: newVal ? true : u.donation_hidden,
+      } : u));
     } catch (e) {
       setActionError(e?.response?.data?.detail || e.message || "unbekannt");
     }
@@ -274,18 +295,36 @@ export default function UserManagement() {
                       }
                     </button>
 
-                    <button
-                      onClick={() => handleToggleDonation(user)}
-                      className={`px-2.5 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 ${
-                        user.donation_hidden
-                          ? "text-amber-700 border-amber-200 hover:bg-amber-50"
-                          : "text-gray-700 border-gray-200 hover:bg-gray-50"
-                      }`}
-                      title={user.donation_hidden ? "Spenden-Popup ist ausgeblendet — klicken zum Einblenden" : "Spenden-Popup wird angezeigt — klicken zum Ausblenden"}
-                    >
-                      <Coffee className="w-3.5 h-3.5" />
-                      {user.donation_hidden ? "Spenden aus" : "Spenden an"}
-                    </button>
+                    <div className="flex flex-col gap-1.5 px-2.5 py-1.5">
+                      <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer" title="Wenn gesetzt: Popup dauerhaft deaktiviert — Spende bestätigt">
+                        <input
+                          type="checkbox"
+                          checked={!!user.donation_confirmed}
+                          onChange={() => handleToggleDonationConfirmed(user)}
+                          className="w-3.5 h-3.5 accent-green-600"
+                        />
+                        <Coffee className="w-3.5 h-3.5 text-green-600" />
+                        <span className={user.donation_confirmed ? "text-green-700" : "text-gray-600"}>
+                          {user.donation_confirmed ? "Spende bestätigt" : "Spende bestätigen"}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer" title="Popup manuell ausblenden (keine Spende)">
+                        <input
+                          type="checkbox"
+                          checked={!!user.donation_hidden && !user.donation_confirmed}
+                          onChange={() => handleToggleDonationHidden(user)}
+                          disabled={!!user.donation_confirmed}
+                          className="w-3.5 h-3.5 accent-amber-600"
+                        />
+                        <span className={user.donation_confirmed ? "text-gray-400" : "text-gray-600"}>
+                          {user.donation_confirmed
+                            ? "Popup deaktiviert — Spende bestätigt"
+                            : user.donation_hidden
+                              ? "Popup manuell deaktiviert (keine Spende)"
+                              : "Popup manuell ausblenden"}
+                        </span>
+                      </label>
+                    </div>
 
                     <div className="flex-1" />
 

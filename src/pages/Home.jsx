@@ -158,6 +158,9 @@ export default function Home() {
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
 
+  // Donation popup trigger — increments on layer menu open/close to trigger check
+  const [donationTriggerKey, setDonationTriggerKey] = useState(0);
+
   // Setup complete — triggers ViewportDataLoader reload when FirstTimeSetup closes
   const [setupComplete, setSetupComplete] = useState(() => localStorage.getItem("hb9om_setup_complete") === "true");
 
@@ -225,6 +228,11 @@ export default function Home() {
       } catch {}
     })();
   }, []);
+
+  // Trigger donation popup when layer menu opens or closes
+  useEffect(() => {
+    setDonationTriggerKey(k => k + 1);
+  }, [menuDrawerOpen]);
 
   // Save active layers to localStorage
   useEffect(() => {
@@ -980,7 +988,7 @@ export default function Home() {
       </button>
 
       {/* Donation Popup — appears on view changes */}
-      <DonationPopup />
+      <DonationPopup triggerKey={donationTriggerKey} />
 
       {/* Bottom Navigation */}
       <BottomNavigation />

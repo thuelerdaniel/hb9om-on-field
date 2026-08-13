@@ -106,11 +106,16 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Missing userId or field' }, { status: 400 });
       }
       // Whitelist of fields that admins can update on other users
-      const allowedFields = ['donation_hidden', 'admin_email_enabled', 'admin_email_override', 'admin_email_verified'];
+      const allowedFields = ['donation_hidden', 'donation_confirmed', 'admin_email_enabled', 'admin_email_override', 'admin_email_verified'];
       if (!allowedFields.includes(field)) {
         return Response.json({ error: 'Field not allowed' }, { status: 400 });
       }
-      await base44.asServiceRole.entities.User.update(userId, { [field]: value });
+      // If donation_confirmed is set to true, automatically also set donation_hidden
+      if (field === 'donation_confirmed' && value === true) {
+        await base44.asServiceRole.entities.User.update(userId, { donation_confirmed: true, donation_hidden: true });
+      } else {
+        await base44.asServiceRole.entities.User.update(userId, { [field]: value });
+      }
       return Response.json({ success: true });
     }
 
