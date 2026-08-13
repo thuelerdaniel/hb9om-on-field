@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, Move, Radio } from "lucide-react";
+import { Plus, Move, Radio, MapPin } from "lucide-react";
 import { MapContainer, useMap, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
@@ -790,6 +790,7 @@ export default function Home() {
           radius={positionRadius}
           onRadiusChange={setPositionRadius}
           onPositionChange={handlePositionChange}
+          draggable={dragMode}
         />
         <GpsTracker />
         <WmsOverlayLayer activeLayers={activeLayers} />
@@ -1083,8 +1084,16 @@ export default function Home() {
         <span className="font-semibold text-sm whitespace-nowrap">Log QSO</span>
       </button>
 
-      {/* User Coverage Dialog (MODUS B) */}
-      {showUserCoverageDialog && (
+      {/* Map click hint for coverage position — shown when mapClickForCoverage is active */}
+      {mapClickForCoverage && (
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[2000] bg-orange-500 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-2 pointer-events-none">
+          <MapPin className="w-5 h-5 animate-bounce" />
+          <span className="text-sm font-semibold">Auf Karte klicken um Position zu setzen</span>
+        </div>
+      )}
+
+      {/* User Coverage Dialog (MODUS B) — hidden when mapClickForCoverage is active */}
+      {showUserCoverageDialog && !mapClickForCoverage && (
         <UserCoverageDialog
           onClose={() => { setShowUserCoverageDialog(false); setMapClickForCoverage(false); }}
           onCoverageResult={(result) => {

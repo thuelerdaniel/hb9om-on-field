@@ -248,6 +248,21 @@ const SECTIONS = [
         title: "Frequenz-spezifische Abdeckung",
         body: "Die Abdeckungsberechnung verwendet die exakte Frequenz (nicht nur das Band): Freiraumdämpfung (FSPL) steigt mit der Frequenz, Fresnel-Zone wird bei höheren Frequenzen kleiner, Beugung an Hindernissen nimmt mit der Frequenz ab. Beispiel: 145.325 MHz (2m) bei 30 km → FSPL 105.2 dB; 438.500 MHz (70cm) bei 30 km → FSPL 114.8 dB (9.6 dB mehr Dämpfung = ca. 3x weniger Reichweite). Die Parameter pro Band umfassen: max_range_flat/terrain, antenna_gain, ground_loss, vegetation_loss, building_loss, diffraction_factor, atmospheric_loss und k_factor.",
         example: "2m-Relais zeigt weiteres Polygon als 70cm-Relais am selben Standort → 23cm-Relais deutlich enger → Berg-Richtung bei allen enger als Tal-Richtung."
+      },
+      {
+        title: "Position auf Karte setzen (Abdeckungs-Dialog)",
+        body: "Im Abdeckungs-Dialog klicken Sie auf «Karte», um den Kartenklick-Modus zu aktivieren. Der Dialog wird ausgeblendet und ein orangefarbener Hinweis erscheint in der Mitte. Klicken Sie auf die gewünschte Stelle der Karte — die Position wird übernommen und der Dialog erscheint wieder mit der ausgewählten Position. Alternativ können Sie GPS verwenden oder einen QTH-Locator eingeben.",
+        example: "Abdeckung-Dialog → «Karte» klicken → Dialog verschwindet → auf Karte tippen → Dialog kehrt zurück mit Position."
+      },
+      {
+        title: "Position per Verschiebe-Modus korrigieren",
+        body: "Aktivieren Sie den Verschiebe-Modus (Move-Icon links auf der Karte), um den Positions-Marker dragbar zu machen. Ziehen Sie die Pin-Nadel an die gewünschte Position — die Koordinaten werden sofort aktualisiert. Der Verschiebe-Modus funktioniert auch für Referenz-Marker: Ziehen Sie einen Referenz-Marker, um eine Positions-Korrektur einzureichen (wird vom Admin geprüft). Deaktivieren Sie den Modus nach der Korrektur wieder.",
+        example: "Move-Button aktivieren → Pin-Nadel auf neue Position ziehen → Koordinaten aktualisiert → Move-Button deaktivieren."
+      },
+      {
+        title: "Relais-Abdeckung im Popup",
+        body: "Im Relais-Popup sehen Sie den Abdeckungs-Status: Prozentzahl und Fortschrittsbalken zeigen den Verfeinerungsgrad (0% = Band-Schätzung, 100% = Terrain-LOS). Wenn noch keine Abdeckung berechnet wurde, steht «Noch nicht berechnet». Administratoren sehen einen Button «Abdeckung berechnen» oder «Neu berechnen», um die Abdeckung für dieses spezifische Relais sofort zu berechnen. Die Berechnung verwendet SRTM 30m Höhendaten und dauert ca. 5-15 Sekunden.",
+        example: "Relais anklicken → «Mehr Informationen» → Abdeckungs-Status zeigt «Noch nicht berechnet» → Admin: «Abdeckung berechnen» klicken → Polygon erscheint."
       }
     ]
   },

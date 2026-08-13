@@ -100,8 +100,9 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
         device_type: deviceType, power_watts: powerWatts,
         frequency_mhz: frequency, mode, antenna_height_m: antennaHeight, radials: 36,
       });
-      if (res.data?.error) throw new Error(res.data.error);
-      onCoverageResult({ ...res.data, _position: position, _device: deviceType });
+      const data = res?.data || res;
+      if (data?.error) throw new Error(data.error);
+      onCoverageResult({ ...data, _position: position, _device: deviceType });
       localStorage.setItem("hb9om_cov_power", String(powerWatts));
       localStorage.setItem("hb9om_cov_band", band);
       localStorage.setItem("hb9om_cov_freq", String(frequency));

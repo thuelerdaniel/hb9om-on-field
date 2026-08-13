@@ -71,7 +71,7 @@ function getPositionIcon(fixed) {
   return positionIconCache[fixed];
 }
 
-export default function PositionMarker({ position, fixed, radius = 5000, onRadiusChange, onPositionChange }) {
+export default function PositionMarker({ position, fixed, radius = 5000, onRadiusChange, onPositionChange, draggable = false }) {
   const interactiveRef = useRef(null);
   const [latInput, setLatInput] = useState("");
   const [lngInput, setLngInput] = useState("");
@@ -139,7 +139,19 @@ export default function PositionMarker({ position, fixed, radius = 5000, onRadiu
           dashArray: "6 4",
         }}
       />
-      <Marker position={[lat, lng]} icon={getPositionIcon(fixed)} zIndexOffset={1000}>
+      <Marker
+        position={[lat, lng]}
+        icon={getPositionIcon(fixed)}
+        zIndexOffset={1000}
+        draggable={draggable}
+        eventHandlers={draggable ? {
+          dragend: (e) => {
+            const m = e.target;
+            const p = m.getLatLng();
+            onPositionChange?.([p.lat, p.lng]);
+          },
+        } : undefined}
+      >
         <Tooltip direction="top" offset={[0, -8]} opacity={0.95}>
           {fixed ? "📍 Fixierte Position" : "📍 Meine Position (GPS)"}
         </Tooltip>

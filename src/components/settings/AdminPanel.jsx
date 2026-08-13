@@ -25,6 +25,7 @@ import SyncPlanManager from "@/components/admin/SyncPlanManager";
 import ApiKeyManager from "@/components/admin/ApiKeyManager";
 import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import JsonRepeaterImport from "@/components/admin/JsonRepeaterImport";
+import CoverageScheduleManager from "@/components/admin/CoverageScheduleManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 
 const TYPE_LABELS = {
@@ -75,8 +76,8 @@ export default function AdminPanel({
   const fetchCoverageProgress = async () => {
     setProgressLoading(true);
     try {
-      const res = await base44.functions.invoke("calculateRepeaterCoverage", { country_code: "all", force: false });
-      setCoverageProgress(res.data);
+      const res = await base44.functions.invoke("calculateRepeaterCoverage", { stats_only: true });
+      setCoverageProgress(res?.data || res);
     } catch {
       // silent fail — progress is informational
     } finally {
@@ -554,6 +555,9 @@ export default function AdminPanel({
               {coverageResult.scope === "worldwide" ? "Weltweit" : coverageResult.scope}: {coverageResult.total} Relais · {coverageResult.bandEstimated} Band-Schätzungen · {coverageResult.aprsRefined} APRS-verfeinert · {coverageResult.updated} aktualisiert
             </div>
           )}
+
+          {/* Coverage Cron-Job Schedule Manager */}
+          <CoverageScheduleManager />
         </section>
 
         {/* Repeater Link Management */}

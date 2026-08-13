@@ -55,7 +55,7 @@ export default async function(req: any): Promise<Response> {
       await base44.asServiceRole.entities.Repeater.update(repeaterId, { needs_recalc: true });
       // Trigger coverage calculation for this specific repeater
       const result = await base44.asServiceRole.functions.invoke('calculateRepeaterCoverage', {
-        repeater_ids: [repeaterId],
+        repeater_id: repeaterId,
         force: true,
       });
       return Response.json({ success: true, result: result?.data || result });

@@ -453,8 +453,11 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
   // rendering (preferCanvas) handles 10k+ markers without noticeable lag.
   // Previously MAX=1000 caused repeaters to silently disappear when multiple countries
   // were selected and the viewport contained more than 1000 repeaters.
-  const MAX = 10000;
+  // Auto-switch to CircleMarker (canvas-rendered) when there are too many repeaters.
+  // divIcon Marker rendering freezes the browser above ~500 markers.
+  const MAX = 3000;
   const cappedRepeaters = visibleRepeaters.length > MAX ? visibleRepeaters.slice(0, MAX) : visibleRepeaters;
+  const useCircleMode = performanceMode || cappedRepeaters.length > 500;
 
   // Only show link lines where BOTH endpoints are actually rendered as markers.
   // cappedRepeaters may be a subset of filteredRepeaters (MAX limit), so lines
@@ -558,7 +561,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
             isAdmin={isAdmin}
           />
         );
-        if (performanceMode) {
+        if (useCircleMode) {
           return (
             <CircleMarker
               key={`rep-${r.id || idx}`}

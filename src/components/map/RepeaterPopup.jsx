@@ -99,7 +99,8 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
     hasCoords ||
     repeater.coverage_radius_km != null ||
     repeater.needs_recalc ||
-    (repeater.elevation_m != null || repeater.terrain_factor != null);
+    (repeater.elevation_m != null || repeater.terrain_factor != null) ||
+    isAdmin;
 
   return (
     <div className="text-xs min-w-[200px] max-w-[260px]">
@@ -435,25 +436,27 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
             </a>
           )}
 
-          {/* Coverage calculation status — only show when coverage data exists or recalc is pending */}
-          {(repeater.coverage_radius_km != null || repeater.needs_recalc) && (
-            <div className="mt-2 pt-2 border-t border-gray-100">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-gray-400 uppercase">Abdeckungs-Status</span>
-                {repeater.needs_recalc ? (
-                  <span className="text-[10px] font-bold text-amber-600 flex items-center gap-0.5">
-                    <RefreshCw className="w-2.5 h-2.5" /> Neuberechnung offen
-                  </span>
-                ) : repeater.coverage_radius_km != null ? (
-                  <span className={`text-[11px] font-bold ${
-                    (repeater.coverage_refinement_pct || 0) >= 60 ? 'text-green-600' :
-                    (repeater.coverage_refinement_pct || 0) >= 30 ? 'text-amber-600' : 'text-gray-400'
-                  }`}>
-                    {repeater.coverage_refinement_pct || 0}%
-                  </span>
-                ) : null}
-              </div>
-              {repeater.coverage_radius_km != null && (
+          {/* Coverage calculation status — always show when expanded */}
+          <div className="mt-2 pt-2 border-t border-gray-100">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-gray-400 uppercase">Abdeckungs-Status</span>
+              {repeater.needs_recalc ? (
+                <span className="text-[10px] font-bold text-amber-600 flex items-center gap-0.5">
+                  <RefreshCw className="w-2.5 h-2.5" /> Neuberechnung offen
+                </span>
+              ) : repeater.coverage_radius_km != null ? (
+                <span className={`text-[11px] font-bold ${
+                  (repeater.coverage_refinement_pct || 0) >= 60 ? 'text-green-600' :
+                  (repeater.coverage_refinement_pct || 0) >= 30 ? 'text-amber-600' : 'text-gray-400'
+                }`}>
+                  {repeater.coverage_refinement_pct || 0}%
+                </span>
+              ) : (
+                <span className="text-[10px] font-medium text-gray-400 italic">Noch nicht berechnet</span>
+              )}
+            </div>
+            {repeater.coverage_radius_km != null ? (
+              <>
                 <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1">
                   <div
                     className={`h-full rounded-full transition-all ${
@@ -463,10 +466,10 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
                     style={{ width: `${repeater.coverage_refinement_pct || 0}%` }}
                   />
                 </div>
-              )}
-              {repeater.coverage_radius_km != null && (
                 <div className="text-[9px] text-gray-400 mt-0.5">
-                  {repeater.coverage_source === "aprs_refined"
+                  {repeater.coverage_source === "terrain_los"
+                    ? "Terrain-LOS (SRTM 30m)"
+                    : repeater.coverage_source === "aprs_refined"
                     ? "APRS-verfeinert (Stationsdichte)"
                     : repeater.coverage_source === "terrain_adjusted"
                     ? "Gelände-adjustiert (Höhe & Terrain)"
@@ -475,34 +478,38 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
                     : "Band-Schätzung (noch nicht verfeinert)"}
                   {repeater.coverage_updated && ` · ${new Date(repeater.coverage_updated).toLocaleDateString('de-CH')}`}
                 </div>
-              )}
-              {(repeater.elevation_m != null || repeater.terrain_factor != null) && (
-                <div className="flex items-center gap-2 mt-1 text-[9px] text-gray-400">
-                  {repeater.elevation_m != null && (
-                    <span className="flex items-center gap-0.5">
-                      <Mountain className="w-2.5 h-2.5" /> {Math.round(repeater.elevation_m)} m ü.M.
-                    </span>
-                  )}
-                  {repeater.terrain_factor != null && repeater.terrain_factor !== 1 && (
-                    <span className="flex items-center gap-0.5">
-                      <Activity className="w-2.5 h-2.5" /> Faktor {repeater.terrain_factor.toFixed(2)}
-                    </span>
-                  )}
-                </div>
-              )}
-              {/* Admin-only: trigger coverage calculation for this repeater */}
-              {isAdmin && hasCoords && (
-                <button
-                  onClick={handleTriggerCoverage}
-                  disabled={calcLoading}
-                  className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-50 disabled:opacity-50"
-                >
-                  {calcLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                  {calcLoading ? "Berechnung läuft..." : "Abdeckung berechnen (Admin)"}
-                </button>
-              )}
-            </div>
-          )}
+              </>
+            ) : (
+              <div className="text-[9px] text-gray-400 italic mb-1">
+                Noch keine Abdeckung berechnet — Admin kann Berechnung auslösen.
+              </div>
+            )}
+            {(repeater.elevation_m != null || repeater.terrain_factor != null) && (
+              <div className="flex items-center gap-2 mt-1 text-[9px] text-gray-400">
+                {repeater.elevation_m != null && (
+                  <span className="flex items-center gap-0.5">
+                    <Mountain className="w-2.5 h-2.5" /> {Math.round(repeater.elevation_m)} m ü.M.
+                  </span>
+                )}
+                {repeater.terrain_factor != null && repeater.terrain_factor !== 1 && (
+                  <span className="flex items-center gap-0.5">
+                    <Activity className="w-2.5 h-2.5" /> Faktor {repeater.terrain_factor.toFixed(2)}
+                  </span>
+                )}
+              </div>
+            )}
+            {/* Admin-only: trigger coverage calculation for this repeater */}
+            {isAdmin && hasCoords && (
+              <button
+                onClick={handleTriggerCoverage}
+                disabled={calcLoading}
+                className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-50 disabled:opacity-50"
+              >
+                {calcLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                {calcLoading ? "Berechnung läuft..." : repeater.coverage_radius_km != null ? "Neu berechnen (Admin)" : "Abdeckung berechnen (Admin)"}
+              </button>
+            )}
+          </div>
 
           {/* Source link to RepeaterBook + report incorrect data */}
           <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">

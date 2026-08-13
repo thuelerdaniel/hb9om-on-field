@@ -7,6 +7,21 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.85",
+    title: "Terrain-Abdeckung, Meine Abdeckung & Relais-Performance",
+    changes: [
+      "Terrain-LOS Abdeckung: SRTM 30m Höhendaten, Fresnel-Zone & Link-Budget für Relais-Abdeckung",
+      "Meine Abdeckung berechnen: GPS, QTH-Locator oder Kartenklick → asymmetrisches Polygon mit 36 Radialen",
+      "Position auf Karte setzen: Kartenklick-Modus im Abdeckungs-Dialog (Dialog wird ausgeblendet)",
+      "Positionskorrektur: Position-Marker im Verschiebe-Modus dragbar",
+      "Relais-Performance: Automatischer Wechsel auf CircleMarker bei >500 Stationen — keine weissen Screens mehr",
+      "Admin: Weltweite Abdeckungs-Stats mit %-Angabe und Fortschrittsbalken",
+      "Admin: Einzelne Relais-Abdeckung direkt im Popup berechnen oder neu berechnen",
+      "Admin: Cron-Job-View für Abdeckungs-Berechnung mit inkrementeller Konfiguration",
+      "Popup: 'Noch nicht berechnet' Hinweis wenn keine Abdeckung vorhanden",
+    ],
+  },
+  {
     version: "0.82",
     title: "TOTA weltweit, IOTA erweitert & Multi-Filter",
     changes: [

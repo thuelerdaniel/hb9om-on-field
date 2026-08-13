@@ -23,6 +23,51 @@ export default async function(req: any): Promise<Response> {
     const numRadials = body?.radials || 36;
     const maxRangeOverride = body?.max_range_km || null;
     const countryCode = body?.country_code;
+    const statsOnly = body?.stats_only === true;
+
+    // --- Stats-only mode: return global coverage statistics without calculating ---
+    if (statsOnly) {
+      const allRepeaters = await base44.asServiceRole.entities.Repeater.filter({}, '-created_date', 500);
+      let totalRepeaters = allRepeaters.length;
+      let withCoords = 0, aprsRefined = 0, terrainAdjusted = 0, calculated = 0, pendingRecalc = 0;
+      let refinementSum = 0;
+      const countriesSet = new Set();
+
+      for (const r of allRepeaters) {
+        if (r.lat != null && r.lng != null) withCoords++;
+        if (r.coverage_source === 'aprs_refined') aprsRefined++;
+        if (r.coverage_source === 'terrain_los' || r.coverage_source === 'terrain_adjusted') terrainAdjusted++;
+        if (r.coverage_updated != null) calculated++;
+        if (r.needs_recalc === true) pendingRecalc++;
+        if (r.coverage_refinement_pct != null) refinementSum += r.coverage_refinement_pct;
+        if (r.country_code) countriesSet.add(r.country_code);
+      }
+
+      // If we hit the 500 limit, approximate total from ReferenceData
+      if (totalRepeaters === 500) {
+        try {
+          const refData = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'repeater' });
+          for (const rec of refData) {
+            if (rec.total_count && rec.total_count > totalRepeaters) totalRepeaters = rec.total_count;
+          }
+        } catch {}
+      }
+
+      const avgRefinementPct = withCoords > 0 ? Math.round((refinementSum / withCoords) * 10) / 10 : 0;
+
+      return Response.json({
+        global: {
+          totalRepeaters,
+          withCoords,
+          aprsRefined,
+          terrainAdjusted,
+          calculated,
+          pendingRecalc,
+          avgRefinementPct,
+          countriesCovered: countriesSet.size,
+        },
+      });
+    }
 
     // --- Single repeater mode ---
     if (repeaterId) {

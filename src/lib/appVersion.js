@@ -8,21 +8,24 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.8.3";
+export const APP_VERSION = "0.85";
 
 // Build number — timestamp-based, unique per build.
-// Format: YYYYMMDDHHMM (e.g. 202608130939)
+// Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608130939";
+export const APP_BUILD = "202608132237";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
-  "IOTA: 1.178 Gruppen (vorher 28) — eigene Entity, täglicher Sync",
-  "Alternative Datenquellen: Repeater (Hearham), Lighthouse (Wikidata+Fallback)",
-  "Sync-Frequenz optimiert: 1x täglich 03:00–07:00 UTC",
-  "Fehler-Handling verbessert — keine weissen Bildschirme mehr",
-  "Build-Nummer & Changelog im Menü sichtbar",
+  "Terrain-Abdeckung: SRTM 30m Höhendaten, LOS & Link-Budget für Relais und eigene Position",
+  "Meine Abdeckung: GPS/QTH/Karte → asymmetrisches Polygon mit 36 Radialen",
+  "Relais-Abdeckung: Weltweite Stats mit %-Angabe und Fortschrittsbalken",
+  "Admin: Einzelne Relais-Abdeckung direkt im Popup berechnen",
+  "Admin: Cron-Job-View für Abdeckungs-Berechnung mit inkrementeller Konfiguration",
+  "Performance: Relais-Layer automatisch auf CircleMarker bei >500 Stationen",
+  "Popup: 'Noch nicht berechnet' Hinweis wenn keine Abdeckung vorhanden",
+  "Positionskorrektur: Position-Marker auf Karte dragbar im Verschiebe-Modus",
 ];
 
 // Data sources reference — used by Help page and menu.
