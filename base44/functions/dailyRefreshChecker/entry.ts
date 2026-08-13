@@ -54,13 +54,17 @@ export default async function(req: Request): Promise<Response> {
     const now = Date.now();
     const allSchedules = await base44.asServiceRole.entities.DailyRefreshSchedule.list("display_order", 100);
     
-    // Find sources that are due: enabled, next_run_utc <= now, and last_run not today
+    // Find sources that are due: enabled, next_run_utc <= now, and not yet run today.
+    // Each source runs AT MOST ONCE per day — no re-runs for failed sources.
+    // This prevents a slow/failing source (e.g. SOTA ~270s) from blocking the queue
+    // by re-running every 5 minutes. Retries are handled inside each fetch function
+    // via exponential backoff, not at the scheduler level.
     const dueSources = (allSchedules || []).filter(s => {
       if (!s.enabled) return false;
       const nextRun = s.next_run_utc ? new Date(s.next_run_utc).getTime() : 0;
       if (nextRun === 0 || nextRun > now) return false;
-      // Don't re-run if already ran today
-      if (s.last_run_time && isToday(s.last_run_time) && s.last_status === 'success') return false;
+      // Don't re-run if already ran today (regardless of success/failure)
+      if (s.last_run_time && isToday(s.last_run_time)) return false;
       if (s.last_status === 'running') return false;
       return true;
     });

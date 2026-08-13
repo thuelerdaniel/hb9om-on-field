@@ -70,34 +70,21 @@ Deno.serve(async (req) => {
       created = 0;
     }
 
-    // 3. Update ReferenceData metadata record (count only, references: [])
-    const now = new Date().toISOString();
-    try {
-      const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'iota' });
-      if (existing.length > 0) {
-        await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
-          references: [],
-          total_count: withCoords.length,
-          source,
-          last_updated: now
-        });
-      } else {
-        await base44.asServiceRole.entities.ReferenceData.create({
-          type: 'iota',
-          references: [],
-          total_count: withCoords.length,
-          source,
-          last_updated: now
-        });
-      }
-    } catch (e) {
-      // Metadata update failure is non-fatal — points are already saved
+    // IotaPoint is now the single source of truth — no ReferenceData metadata needed.
+    // Return the count of records currently in the database (not just newly created).
+    let totalCount = created;
+    if (!isRealData) {
+      // Fallback: report existing record count so the checker logs the real number
+      try {
+        const existing = await entity.list('id', 5000);
+        totalCount = existing.length;
+      } catch {}
     }
 
     return Response.json({
       saved: true,
-      count: created,
-      total: withCoords.length,
+      count: totalCount,
+      total: totalCount,
       source,
     });
   } catch (error) {
