@@ -47,6 +47,21 @@
       "type": "boolean",
       "default": false,
       "description": "Ob die separate E-Mail-Adresse verifiziert wurde"
+    },
+    "donation_hidden": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ob das Spenden-Popup f\u00fcr diesen User dauerhaft ausgeblendet ist"
+    },
+    "last_donation_prompt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzter Zeitpunkt der Spenden-Popup-Anzeige"
+    },
+    "donation_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Anzahl wie oft das Spenden-Popup angezeigt wurde"
     }
   },
   "required": [

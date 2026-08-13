@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Users, Loader2, Mail, KeyRound, Search, Shield, CheckCircle2, AlertCircle, Trash2, UserCog, Clock, ShieldCheck, ShieldOff } from "lucide-react";
+import { ArrowLeft, Users, Loader2, Mail, KeyRound, Search, Shield, CheckCircle2, AlertCircle, Trash2, UserCog, Clock, ShieldCheck, ShieldOff, Coffee } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { DEMO_EMAIL } from "@/lib/constants";
 
@@ -92,6 +92,20 @@ export default function UserManagement() {
       setActionError(e?.response?.data?.detail || e.message || "unbekannt");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleToggleDonation = async (user) => {
+    try {
+      await base44.functions.invoke("adminManageUsers", {
+        action: "updateField",
+        userId: user.id,
+        field: "donation_hidden",
+        value: !user.donation_hidden,
+      });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, donation_hidden: !u.donation_hidden } : u));
+    } catch (e) {
+      setActionError(e?.response?.data?.detail || e.message || "unbekannt");
     }
   };
 
@@ -258,6 +272,19 @@ export default function UserManagement() {
                         ? <><ShieldOff className="w-3.5 h-3.5" /> Zu User</>
                         : <><ShieldCheck className="w-3.5 h-3.5" /> Zu Admin</>
                       }
+                    </button>
+
+                    <button
+                      onClick={() => handleToggleDonation(user)}
+                      className={`px-2.5 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 ${
+                        user.donation_hidden
+                          ? "text-amber-700 border-amber-200 hover:bg-amber-50"
+                          : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                      }`}
+                      title={user.donation_hidden ? "Spenden-Popup ist ausgeblendet — klicken zum Einblenden" : "Spenden-Popup wird angezeigt — klicken zum Ausblenden"}
+                    >
+                      <Coffee className="w-3.5 h-3.5" />
+                      {user.donation_hidden ? "Spenden aus" : "Spenden an"}
                     </button>
 
                     <div className="flex-1" />

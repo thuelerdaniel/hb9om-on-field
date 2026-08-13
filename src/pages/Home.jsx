@@ -33,6 +33,7 @@ import OfflineAreaDialog from "@/components/map/OfflineAreaDialog";
 import PerformanceSuggestionPopup from "@/components/map/PerformanceSuggestionPopup";
 import SplashScreen from "@/components/map/SplashScreen";
 import VersionChangelogPopup from "@/components/map/VersionChangelogPopup";
+import DonationPopup from "@/components/DonationPopup";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
@@ -198,6 +199,8 @@ export default function Home() {
   const [totaFilterTypes, setTotaFilterTypes] = useState(null);
   const [totaSearchQuery, setTotaSearchQuery] = useState("");
   const [totaFilterCountries, setTotaFilterCountries] = useState([]);
+  const [showChTota, setShowChTota] = useState(() => localStorage.getItem("hb9om_show_ch_tota") === "true");
+  const [totaViewportCount, setTotaViewportCount] = useState({ visible: 0, total: 0 });
 
   // APRS filters
   const [aprsFilterTypes, setAprsFilterTypes] = useState(null);
@@ -532,14 +535,7 @@ export default function Home() {
   }, [repeaters, repeaterFilterCountries, repeaterFilterModes]);
 
   // Visible TOTA count
-  const visibleTotaCount = useMemo(() => {
-    let count = data.tota || [];
-    if (totaFilterTypes && totaFilterTypes.length === 0) return 0;
-    if (totaFilterTypes && totaFilterTypes.length > 0) {
-      count = count.filter(p => totaFilterTypes.includes(p.type));
-    }
-    return count.length;
-  }, [data.tota, totaFilterTypes]);
+  const visibleTotaCount = totaViewportCount.visible;
 
   // Visible APRS count
   const visibleAprsCount = useMemo(() => {
@@ -667,7 +663,6 @@ export default function Home() {
         )}
         {activeLayers.includes("tota") && (
           <TotaLayer
-            points={data.tota || []}
             filterTypes={totaFilterTypes}
             searchQuery={totaSearchQuery}
             performanceMode={performanceMode}
@@ -675,6 +670,8 @@ export default function Home() {
             activeContinents={activeContinents}
             activeCountries={activeCountries}
             filterCountries={totaFilterCountries}
+            showChTota={showChTota}
+            onCountsChange={(visible, total) => setTotaViewportCount({ visible, total })}
           />
         )}
         {activeLayers.includes("aprs") && (
@@ -829,11 +826,15 @@ export default function Home() {
               onFilterTypesChange={setTotaFilterTypes}
               searchQuery={totaSearchQuery}
               onSearchQueryChange={setTotaSearchQuery}
-              pointCount={data.tota?.length || 0}
-              visibleCount={visibleTotaCount}
-              points={data.tota || []}
+              pointCount={totaViewportCount.total}
+              visibleCount={totaViewportCount.visible}
               filterCountries={totaFilterCountries}
               onFilterCountriesChange={setTotaFilterCountries}
+              showChTota={showChTota}
+              onShowChTotaChange={(val) => {
+                setShowChTota(val);
+                localStorage.setItem("hb9om_show_ch_tota", String(val));
+              }}
               leftOffsetClass={btn.offset}
             />
           );
@@ -977,6 +978,9 @@ export default function Home() {
         <Plus className="w-6 h-6" />
         <span className="font-semibold text-sm whitespace-nowrap">Log QSO</span>
       </button>
+
+      {/* Donation Popup — appears on view changes */}
+      <DonationPopup />
 
       {/* Bottom Navigation */}
       <BottomNavigation />

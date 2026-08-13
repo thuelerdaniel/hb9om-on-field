@@ -10,6 +10,7 @@ import MobileSelect from "@/components/ui/MobileSelect";
 import ThemeToggle from "@/components/settings/ThemeToggle";
 import ClubCallsignManager from "@/components/settings/ClubCallsignManager";
 import { clearRememberedDecisions, hasRememberedDecisions } from "@/components/map/HeavyLoadConfirmDialog";
+import DonationPopup from "@/components/DonationPopup";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
 const AdminPanel = lazy(() => import("@/components/settings/AdminPanel"));
@@ -963,6 +964,7 @@ export default function Settings() {
         </div>
       )}
 
+      <DonationPopup />
       <BottomNavigation />
     </div>
   );

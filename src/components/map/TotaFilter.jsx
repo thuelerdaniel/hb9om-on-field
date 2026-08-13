@@ -20,6 +20,8 @@ export default function TotaFilter({
   points = [],
   filterCountries = [],
   onFilterCountriesChange,
+  showChTota = false,
+  onShowChTotaChange,
   leftOffsetClass = "left-16",
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -152,6 +154,32 @@ export default function TotaFilter({
                 ⚠ Mindestens ein Typ muss aktiv sein.
               </p>
             )}
+          </div>
+
+          {/* Schweiz ein-/ausblenden Toggle */}
+          <div className="p-3 border-b border-gray-100">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                  Schweiz (CH)
+                </span>
+              </div>
+              <button
+                onClick={() => onShowChTotaChange?.(!showChTota)}
+                className={`relative w-9 h-5 rounded-full transition-colors ${
+                  showChTota ? "bg-orange-500" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                    showChTota ? "translate-x-4" : ""
+                  }`}
+                />
+              </button>
+            </label>
+            <p className="text-[10px] text-gray-400 mt-1">
+              {showChTota ? "Schweizer Antennen/Türme werden angezeigt" : "Schweizer Antennen/Türme sind ausgeblendet (Standard)"}
+            </p>
           </div>
 
           {/* Country/Continent multi-select filter */}

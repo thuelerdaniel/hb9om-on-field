@@ -81,19 +81,8 @@ export function useMapData() {
     }, LOADING_TIMEOUT_MS);
 
     const loadFromServer = async () => {
-      // Fetch TOTA points via paginated loader
-      if (cancelRef.current) return;
-      try {
-        setLoadingMessage("TOTA-Punkte werden geladen…");
-        await loadAllTotaPoints({
-          onBatch: (batch, total) => {
-            if (!active || cancelRef.current) return;
-            const filtered = batch.filter(t => t.lat != null && t.lng != null);
-            setData(prev => ({ ...prev, tota: [...prev.tota, ...filtered] }));
-            setLoadingMessage(`TOTA-Punkte werden geladen… (${total})`);
-          },
-        });
-      } catch (e) { /* silent */ }
+      // TOTA is now loaded viewport-based by TotaLayer itself — not here.
+      // This avoids loading all 5k+ TOTA points into memory on startup.
 
       // Fetch repeaters via paginated loader
       if (cancelRef.current) return;

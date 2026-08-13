@@ -55,16 +55,20 @@ export default async function(req: Request): Promise<Response> {
     }
 
     const maxGeocodes = Math.min(body.maxGeocodes || MAX_GEOCODES_PER_CALL, 30);
+    const countryCodeFilter = body.country_code || null;
     const startTime = Date.now();
 
     // Step 1: Fetch ALL repeaters without coordinates using skip-based pagination.
     // _id cursor pagination doesn't work on this platform — use skip/offset with id sort.
     // 30000+ repeaters may lack coordinates; fetch all to get complete unique place list.
+    // Optional country_code filter: when set, only geocode repeaters from that country
+    // (e.g., "DE" to prioritize German repeaters).
     const unmatched: any[] = [];
     const seenIds = new Set<string>();
     let skip = 0;
+    const filterQuery: any = countryCodeFilter ? { lat: null, country_code: countryCodeFilter } : { lat: null };
     for (let i = 0; i < 20; i++) {
-      const batch = await base44.asServiceRole.entities.Repeater.filter({ lat: null }, 'id', BATCH_SIZE, skip);
+      const batch = await base44.asServiceRole.entities.Repeater.filter(filterQuery, 'id', BATCH_SIZE, skip);
       if (!batch || batch.length === 0) break;
       for (const r of batch) {
         if (r.id && !seenIds.has(r.id)) {

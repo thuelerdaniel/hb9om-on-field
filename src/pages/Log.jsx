@@ -8,6 +8,7 @@ import BulkEditDialog from "@/components/log/BulkEditDialog";
 import PullToRefresh from "@/components/log/PullToRefresh";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
+import DonationPopup from "@/components/DonationPopup";
 import LogStats from "@/components/log/LogStats";
 import { loadLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync, syncPending, getPendingCount } from "@/lib/localLogStore";
 
@@ -528,6 +529,7 @@ export default function Log() {
         </div>
       )}
 
+      <DonationPopup />
       <BottomNavigation />
     </div>
   );
