@@ -1,0 +1,86 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useMap, useMapEvents } from "react-leaflet";
+import { base44 } from "@/api/base44Client";
+
+// Viewport-based loading: only fetch reference points within the visible map area.
+// Replaces the old "load all 270k+ points into memory" approach.
+// Calls getReferencesInBounds backend function on debounced pan/zoom.
+// Accumulates visited areas so panning back doesn't re-fetch.
+const DEBOUNCE_MS = 350;
+const MAX_PER_TYPE = 5000;
+const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"];
+
+export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline }) {
+  const map = useMap();
+  const debounceRef = useRef(null);
+  const abortRef = useRef(null);
+  const fetchedBoundsRef = useRef(null); // Track the largest bounds we've fetched
+  const isFirstLoadRef = useRef(true);
+
+  const loadBounds = useCallback(async (bounds, types) => {
+    if (types.length === 0 || isOffline) return;
+
+    // Abort previous in-flight request
+    if (abortRef.current) abortRef.current.aborted = true;
+    const myAbort = { aborted: false };
+    abortRef.current = myAbort;
+
+    try {
+      const padded = bounds.pad(0.3);
+      const response = await base44.functions.invoke("getReferencesInBounds", {
+        bounds: {
+          north: padded.getNorth(),
+          south: padded.getSouth(),
+          east: padded.getEast(),
+          west: padded.getWest(),
+        },
+        types,
+        max_per_type: MAX_PER_TYPE,
+      });
+
+      if (!myAbort.aborted && onDataLoaded) {
+        onDataLoaded(response?.references || {}, isFirstLoadRef.current);
+        isFirstLoadRef.current = false;
+        // Track the bounds we've fetched so we can skip re-fetching within this area
+        fetchedBoundsRef.current = padded;
+      }
+    } catch (e) {
+      // Silent — offline cache or previous data still shows
+    }
+  }, [onDataLoaded, isOffline]);
+
+  const handleMapChange = useCallback(() => {
+    if (isOffline) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const bounds = map.getBounds();
+      const types = REF_TYPES.filter(t => activeLayers.includes(t));
+      if (types.length === 0) return;
+
+      // Skip re-fetch if current bounds are fully contained in previously fetched bounds
+      if (fetchedBoundsRef.current && fetchedBoundsRef.current.contains(bounds)) {
+        return;
+      }
+
+      loadBounds(bounds, types);
+    }, DEBOUNCE_MS);
+  }, [map, activeLayers, loadBounds, isOffline]);
+
+  useMapEvents({
+    moveend: handleMapChange,
+    zoomend: handleMapChange,
+  });
+
+  // Load on mount and when active layers change
+  useEffect(() => {
+    handleMapChange();
+  }, [handleMapChange]);
+
+  // Cleanup
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (abortRef.current) abortRef.current.aborted = true;
+  }, []);
+
+  return null;
+}

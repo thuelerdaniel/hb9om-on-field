@@ -1,11 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota, loadAllRefsForType } from "@/lib/offlineDataCache";
+import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
 import { loadAllRepeaters, loadAllPrivateNodes, loadAllTotaPoints } from "@/lib/paginatedLoader";
 
-// Loads all map data: reference points (SOTA, POTA, WWFF, WWBOTA, castles, lighthouses, IOTA),
-// TOTA points, repeaters, private nodes (APRS + BrandMeister), and admin-managed repeater links.
-// Tries offline cache first for instant display, then fetches from server.
+// Loads map data with viewport-based loading for reference types.
+// Reference types (SOTA, POTA, WWFF, WWBOTA, Castles, Lighthouses, IOTA) are loaded
+// viewport-based via ViewportDataLoader component — NOT here.
+// This hook loads: offline cache (instant), repeaters, private nodes, TOTA, admin links.
+//
+// Timeout guard: loading stops after 30s regardless of completion status,
+// preventing the builder from hanging in "thinking..." state.
+
+const LOADING_TIMEOUT_MS = 30000;
+
 export function useMapData() {
   const [data, setData] = useState({
     sota: [], pota: [], hbff: [], wwbota: [], castle: [], iota: [], lighthouse: [], tota: [],
@@ -16,6 +23,7 @@ export function useMapData() {
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState("Daten werden geladen…");
   const cancelRef = useRef(false);
+  const timeoutRef = useRef(null);
 
   // Load offline cache synchronously on mount — instant display if available
   useEffect(() => {
@@ -40,59 +48,40 @@ export function useMapData() {
     if (cachedTota.length > 0) setData(prev => ({ ...prev, tota: cachedTota }));
   }, []);
 
-  // Fetch from server — runs after offline cache is loaded
+  // Merge viewport-loaded reference data (called by ViewportDataLoader)
+  const onViewportData = useCallback((references, isFirstLoad) => {
+    setData(prev => {
+      const next = { ...prev };
+      for (const [type, refs] of Object.entries(references)) {
+        if (Array.isArray(refs)) {
+          // On first load, replace offline cache with server data
+          // On subsequent loads (pan/zoom), also replace — viewport data is authoritative
+          next[type] = refs.filter(r => r.lat != null && r.lng != null);
+        }
+      }
+      return next;
+    });
+    // Stop loading indicator after first viewport data arrives
+    if (isFirstLoad) {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch from server — only repeaters, private nodes, TOTA, admin links
+  // Reference types (SOTA, POTA, WWFF, etc.) are loaded viewport-based by ViewportDataLoader
   useEffect(() => {
     cancelRef.current = false;
     let active = true;
 
+    // Timeout guard — stop loading after 30s regardless of completion
+    timeoutRef.current = setTimeout(() => {
+      if (active && !cancelRef.current) {
+        setLoading(false);
+      }
+    }, LOADING_TIMEOUT_MS);
+
     const loadFromServer = async () => {
-      // SOTA/POTA/WWFF: load from individual point entities (SotaPoint, PotaPoint, WwffPoint).
-      // These were migrated from ReferenceData to avoid the 16MB BSON document limit.
-      // loadAllRefsForType tries the source-API backend functions first (bypassing the
-      // SDK's 6500-record session read cap), then falls back to entity pagination.
-      try {
-        setLoadingMessage("SOTA/POTA/WWFF werden geladen…");
-        const [sotaRefs, potaRefs, hbffRefs] = await Promise.all([
-          loadAllRefsForType('sota').catch(() => []),
-          loadAllRefsForType('pota').catch(() => []),
-          loadAllRefsForType('hbff').catch(() => []),
-        ]);
-        if (!active || cancelRef.current) return;
-        setData(prev => ({
-          ...prev,
-          sota: sotaRefs.filter(r => r.lat != null && r.lng != null),
-          pota: potaRefs.filter(r => r.lat != null && r.lng != null),
-          hbff: hbffRefs.filter(r => r.lat != null && r.lng != null),
-        }));
-      } catch (e) {
-        // Keep offline cache if server fetch fails
-      }
-
-      // WWBOTA, castles, lighthouses, IOTA: still stored in ReferenceData (array-per-type).
-      if (cancelRef.current) return;
-      try {
-        setLoadingMessage("Referenzen werden geladen…");
-        const refDataEntries = await base44.entities.ReferenceData.list();
-        if (!active || cancelRef.current) return;
-
-        const refMap = {};
-        for (const entry of refDataEntries || []) {
-          if (entry.type && Array.isArray(entry.references)) {
-            refMap[entry.type] = entry.references.filter(r => r.lat != null && r.lng != null);
-          }
-        }
-        setData(prev => ({
-          ...prev,
-          wwbota: refMap.wwbota || prev.wwbota,
-          castle: refMap.castle || prev.castle,
-          iota: refMap.iota || prev.iota,
-          lighthouse: refMap.lighthouse || prev.lighthouse,
-        }));
-      } catch (e) {
-        // Keep offline cache if server fetch fails
-      }
-
-      // Fetch TOTA points via paginated loader (SDK filter caps at 5000 per call)
+      // Fetch TOTA points via paginated loader
       if (cancelRef.current) return;
       try {
         setLoadingMessage("TOTA-Punkte werden geladen…");
@@ -140,7 +129,9 @@ export function useMapData() {
         setAdminLinks(links || []);
       } catch (e) { /* silent */ }
 
+      // Note: loading is set to false by onViewportData (first viewport data) or timeout
       if (active && !cancelRef.current) {
+        // If viewport data hasn't arrived yet, stop loading after background data is done
         setLoading(false);
       }
     };
@@ -150,6 +141,7 @@ export function useMapData() {
     return () => {
       active = false;
       cancelRef.current = true;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
@@ -158,5 +150,5 @@ export function useMapData() {
     setLoading(false);
   }, []);
 
-  return { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading };
+  return { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData };
 }

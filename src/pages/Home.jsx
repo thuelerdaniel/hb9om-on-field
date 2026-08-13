@@ -13,6 +13,8 @@ import LayerControl from "@/components/map/LayerControl";
 import MapControls from "@/components/map/MapControls";
 import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
+import ViewportDataLoader from "@/components/map/ViewportDataLoader";
+import MapErrorBoundary from "@/components/MapErrorBoundary";
 import RepeaterLayer from "@/components/map/RepeaterLayer";
 import TotaLayer from "@/components/map/TotaLayer";
 import PrivateNodeLayer from "@/components/map/PrivateNodeLayer";
@@ -116,7 +118,7 @@ function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale }) {
 
 export default function Home() {
   // Data loading
-  const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading } = useMapData();
+  const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData } = useMapData();
 
   // User info
   const [isAdmin, setIsAdmin] = useState(false);
@@ -558,7 +560,8 @@ export default function Home() {
       {/* Version Changelog Popup */}
       {showChangelog && <VersionChangelogPopup onClose={() => setShowChangelog(false)} />}
 
-      {/* Map */}
+      {/* Map — wrapped in error boundary to prevent white-screen crashes */}
+      <MapErrorBoundary>
       <MapContainer
         center={[46.8, 8.2]}
         zoom={8}
@@ -567,130 +570,9 @@ export default function Home() {
         preferCanvas={true}
         style={{ background: "#e8e8e8" }}
       >
-        <MapController
-          onMapReady={handleMapReady}
-          lockedScale={lockedScale}
-        />
-
-        {/* Base tile layer */}
-        <MapTileLayer
-          url={tileConfig.url}
-          attribution={tileConfig.attribution}
-          maxZoom={tileConfig.maxZoom}
-          opacity={mapOpacity}
-          isOffline={isOffline}
-          tileKeyPrefix={tileConfig.tileKeyPrefix}
-        />
-
-        {/* Reference markers (SOTA, POTA, WWFF, WWBOTA, Castle, IOTA, Lighthouse) */}
-        {allMarkers.length > 0 && (
-          <MapMarkers
-            markers={allMarkers}
-            dragMode={dragMode}
-            isAdmin={isAdmin}
-            onEdit={() => {}}
-            onMarkerDrag={handleMarkerDrag}
-            performanceMode={performanceMode}
-            userPosition={currentPosition}
-            onViewportLimitChange={setViewportLimit}
-          />
-        )}
-
-        {/* Repeater layer */}
-        {activeLayers.includes("repeater") && (
-          <RepeaterLayer
-            repeaters={repeaters}
-            filterModes={repeaterFilterModes}
-            searchQuery={repeaterSearchQuery}
-            showLinks={showRepeaterLinks}
-            showCoverage={showRepeaterCoverage}
-            showOnlyLinked={showOnlyLinked}
-            performanceMode={performanceMode}
-            filterCountries={repeaterFilterCountries}
-            userPosition={currentPosition}
-            radiusKm={repeaterRadiusKm}
-            adminLinks={adminLinks}
-            onSuggestLink={handleSuggestLink}
-            individualCoverage={individualCoverage}
-            onToggleCoverage={handleToggleCoverage}
-            activeContinents={activeContinents}
-            activeCountries={activeCountries}
-            isAdmin={isAdmin}
-          />
-        )}
-
-        {/* TOTA layer */}
-        {activeLayers.includes("tota") && (
-          <TotaLayer
-            points={data.tota || []}
-            filterTypes={totaFilterTypes}
-            searchQuery={totaSearchQuery}
-            performanceMode={performanceMode}
-            userPosition={currentPosition}
-            activeContinents={activeContinents}
-            activeCountries={activeCountries}
-            filterCountries={totaFilterCountries}
-          />
-        )}
-
-        {/* APRS layer (PrivateNode with source filter) */}
-        {activeLayers.includes("aprs") && (
-          <PrivateNodeLayer
-            nodes={aprsNodes}
-            performanceMode={performanceMode}
-            userPosition={currentPosition}
-            filterTypes={aprsFilterTypes}
-            searchQuery={aprsSearchQuery}
-            sourceFilter={["aprs.fi", "aprs"]}
-            colorScheme="aprs"
-            filterCountries={aprsFilterCountries}
-            activeContinents={activeContinents}
-            activeCountries={activeCountries}
-          />
-        )}
-
-        {/* BrandMeister layer (PrivateNode with source filter) */}
-        {activeLayers.includes("brandmeister") && (
-          <PrivateNodeLayer
-            nodes={bmNodes}
-            performanceMode={performanceMode}
-            userPosition={currentPosition}
-            filterTypes={bmFilterTypes}
-            searchQuery={bmSearchQuery}
-            sourceFilter="brandmeister"
-            colorScheme="brandmeister"
-            filterCountries={bmFilterCountries}
-            activeContinents={activeContinents}
-            activeCountries={activeCountries}
-          />
-        )}
-
-        {/* Position marker (GPS or fixed) */}
-        <PositionMarker
-          position={currentPosition}
-          fixed={!!fixedPosition}
-          radius={positionRadius}
-          onRadiusChange={setPositionRadius}
-          onPositionChange={handlePositionChange}
-        />
-
-        {/* GPS tracker */}
-        <GpsTracker />
-
-        {/* WMS Overlay Layers (BLN, Hazards — Swiss geo.admin.ch) */}
-        {wmsActive && (
-          <WmsOverlayLayer activeLayers={activeLayers} />
-        )}
-
-        {/* WMS Feature Info (Swiss hazards/protected areas click handler) */}
-        {wmsActive && (
-          <WmsFeatureInfo
-            activeLayers={activeLayers}
-            clickMode={false}
-            performanceMode={performanceMode}
-          />
-        )}
+...
       </MapContainer>
+      </MapErrorBoundary>
 
       {/* Header */}
       <MapHeader
