@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Plus } from "lucide-react";
 import { MapContainer, useMap, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
@@ -950,6 +951,16 @@ export default function Home() {
           onClose={() => setRepeaterCorrection(null)}
         />
       )}
+
+      {/* Neues QSO Button — Floating Action Button */}
+      <button
+        onClick={() => setShowLogForm(true)}
+        className="fixed right-4 bottom-20 z-[1000] w-14 h-14 rounded-full bg-gray-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 76px)" }}
+        title="Neues QSO-Log erfassen"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
 
       {/* Bottom Navigation */}
       <BottomNavigation />
