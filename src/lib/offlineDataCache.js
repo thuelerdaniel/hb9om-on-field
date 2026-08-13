@@ -494,6 +494,31 @@ export async function loadAllRefsForType(type, countryCodes = null) {
     }
   }
 
+  // IOTA: load from IotaPoint entity (individual records, not ReferenceData).
+  // 1,178 island groups — fits in a single SDK list call.
+  if (type === 'iota') {
+    const LIMIT = 5000;
+    const allRefs = [];
+    for (let page = 0; page < 5; page++) {
+      const result = await base44.entities.IotaPoint.list('id', LIMIT, page * LIMIT);
+      if (!Array.isArray(result) || result.length === 0) break;
+      allRefs.push(...result.map(r => ({
+        code: r.code,
+        name: r.name,
+        lat: r.lat,
+        lng: r.lng,
+        dxcc_num: r.dxcc_num,
+        status: r.status,
+        island_count: r.island_count,
+        pc_credited: r.pc_credited,
+        grp_region: r.grp_region,
+        link: 'https://www.iota-world.org/'
+      })));
+      if (result.length < LIMIT) break;
+    }
+    return allRefs;
+  }
+
   // Private nodes (APRS) — loaded from PrivateNode entity, not ReferenceData.
   // PrivateNode records have no country_code field, so country filtering uses
   // getCountryFromLatLng to derive the country from coordinates.
