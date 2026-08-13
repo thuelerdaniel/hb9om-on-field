@@ -541,17 +541,8 @@ export async function loadAllRefsForType(type, countryCodes = null) {
       if (result.length < LIMIT) break;
     }
 
-    // Fallback: if point entity is empty, load from ReferenceData (pre-migration data)
-    if (allRefs.length === 0) {
-      const entries = await base44.entities.ReferenceData.filter({ type });
-      const refs = [];
-      (entries || []).forEach(entry => {
-        if (entry?.references && Array.isArray(entry.references)) {
-          refs.push(...entry.references);
-        }
-      });
-      return refs;
-    }
+    // Point entities (SotaPoint, PotaPoint, WwffPoint) are now the source of truth.
+    // ReferenceData fallback removed — entities are populated by sync functions.
     return allRefs;
   }
   // Load from ReferenceData entity

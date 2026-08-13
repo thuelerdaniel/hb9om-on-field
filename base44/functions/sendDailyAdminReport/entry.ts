@@ -56,6 +56,25 @@ export default async function(req: Request): Promise<Response> {
 
     // --- 1. Collect source results ---
     const allSchedules = await base44.asServiceRole.entities.DailyRefreshSchedule.list("display_order", 100);
+
+    // Don't send the report until ALL enabled sources have completed today
+    // (success, failed, or skipped — but NOT pending or running).
+    // This prevents mid-sync reports. The checker triggers this function after
+    // the last source completes; the 07:00 UTC automation is a backup.
+    const incompleteSources = (allSchedules || []).filter(s => {
+      if (!s.enabled) return false;
+      if (s.last_status === 'pending' || s.last_status === 'running') return true;
+      if (!s.last_run_time || !isToday(s.last_run_time)) return true;
+      return false;
+    });
+    if (incompleteSources.length > 0 && body.scheduled === true) {
+      return Response.json({
+        status: 'waiting',
+        message: `${incompleteSources.length} Quelle(n) noch ausstehend — Report verschoben`,
+        incomplete: incompleteSources.length,
+      });
+    }
+
     const todaySources = (allSchedules || []).filter(s => s.last_run_time && isToday(s.last_run_time));
     const pendingSources = (allSchedules || []).filter(s => !s.last_run_time || !isToday(s.last_run_time));
 

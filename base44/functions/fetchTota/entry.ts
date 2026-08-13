@@ -312,6 +312,7 @@ export default async function (req) {
 
     return Response.json({
       success: errors.length === 0,
+      count: antennasImported + towersImported + worldwideImported,
       antennas_imported: antennasImported,
       towers_imported: towersImported,
       worldwide_imported: worldwideImported,

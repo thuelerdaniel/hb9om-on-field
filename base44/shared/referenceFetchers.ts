@@ -311,49 +311,53 @@ export async function fetchLighthouseData(regionId?: string): Promise<any[]> {
     OPTIONAL { ?item wdt:P17 ?country . }
     SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en,fr,it,es,pt,ru,ja,zh" . }
   } LIMIT 20000`;
+  // Retry Wikidata SPARQL with exponential backoff (3 attempts: 5s, 10s, 20s).
+  // Wikidata frequently returns 500/429 under load — retry prevents regional fetch failures.
   const wdLighthouses: any[] = [];
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 45000);
-    const resp = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparqlQuery)}`, {
-      headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' },
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-    if (resp.ok) {
-      const data = await resp.json();
-      for (const b of (data.results?.bindings || [])) {
-        const coordMatch = (b.coord?.value || '').match(/Point\(([\d.-]+)\s+([\d.-]+)\)/);
-        const lat = coordMatch ? parseFloat(coordMatch[2]) : null;
-        const lng = coordMatch ? parseFloat(coordMatch[1]) : null;
-        const name = b.itemLabel?.value || `Lighthouse`;
-        // Determine which region this lighthouse belongs to (skip if no coords for region filtering)
-        let regionId = '';
-        if (lat != null && lng != null) {
-          for (const r of LIGHTHOUSE_REGIONS) {
-            const [s, w, n, e] = r.bbox;
-            if (lat >= s && lat <= n && lng >= w && lng <= e) { regionId = r.id; break; }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 45000);
+      const resp = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparqlQuery)}`, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' },
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (resp.ok) {
+        const data = await resp.json();
+        for (const b of (data.results?.bindings || [])) {
+          const coordMatch = (b.coord?.value || '').match(/Point\(([\d.-]+)\s+([\d.-]+)\)/);
+          const lat = coordMatch ? parseFloat(coordMatch[2]) : null;
+          const lng = coordMatch ? parseFloat(coordMatch[1]) : null;
+          const name = b.itemLabel?.value || `Lighthouse`;
+          let regionId = '';
+          if (lat != null && lng != null) {
+            for (const r of LIGHTHOUSE_REGIONS) {
+              const [s, w, n, e] = r.bbox;
+              if (lat >= s && lat <= n && lng >= w && lng <= e) { regionId = r.id; break; }
+            }
           }
+          if (regions.length === 1 && lat != null && lng != null && regionId !== regions[0].id) continue;
+          const itemKey = b.item?.value || '';
+          if (itemKey && seen.has(itemKey)) continue;
+          if (itemKey) seen.add(itemKey);
+          wdLighthouses.push({
+            code: `WD-LH-${wdLighthouses.length + 1}`,
+            name, lat, lng,
+            country: b.countryLabel?.value || '',
+            link: itemKey ? `https://www.wikidata.org/wiki/${itemKey.split('/').pop()}` : 'https://www.wikidata.org/',
+            region: regionId || 'unknown',
+            needs_georef: lat == null || lng == null,
+          });
         }
-        // When fetching a specific region, skip lighthouses outside that region
-        if (regions.length === 1 && lat != null && lng != null && regionId !== regions[0].id) continue;
-        // Deduplicate by Wikidata item URI (not by coords — lighthouses without coords would all collide)
-        const itemKey = b.item?.value || '';
-        if (itemKey && seen.has(itemKey)) continue;
-        if (itemKey) seen.add(itemKey);
-        wdLighthouses.push({
-          code: `WD-LH-${wdLighthouses.length + 1}`,
-          name,
-          lat,
-          lng,
-          country: b.countryLabel?.value || '',
-          link: itemKey ? `https://www.wikidata.org/wiki/${itemKey.split('/').pop()}` : 'https://www.wikidata.org/',
-          region: regionId || 'unknown',
-          needs_georef: lat == null || lng == null,
-        });
+        break; // Success — no more retries needed
       }
+      // 429 or 5xx — wait and retry
+      if (attempt < 2) await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
+    } catch {
+      if (attempt < 2) await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
     }
-  } catch {}
+  }
   allLighthouses.push(...wdLighthouses);
 
   // Add curated Swiss lighthouses (always included, even for single-region fetches

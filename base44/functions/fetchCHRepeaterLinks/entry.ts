@@ -145,8 +145,12 @@ export default async function(req) {
       return Response.json({ error: 'No repeaters found in USKA HTML table' }, { status: 502 });
     }
 
-    // 3. Get all existing repeaters
-    const allRepeaters = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
+    // 3. Get all existing repeaters — filter for CH/LI since USKA only lists Swiss repeaters.
+    // Using filter({ country_code: 'CH' }) avoids loading 30k+ worldwide repeaters and
+    // ensures Swiss repeaters (which may have older created_date) are included.
+    const allRepeaters = await base44.asServiceRole.entities.Repeater.filter({ country_code: 'CH' });
+    const liRepeaters = await base44.asServiceRole.entities.Repeater.filter({ country_code: 'LI' }).catch(() => []);
+    const swissRepeaters = [...(allRepeaters || []), ...(liRepeaters || [])];
 
     // 4. Match and update
     let updatedCount = 0;
@@ -154,7 +158,7 @@ export default async function(req) {
     const unmatched = [];
 
     for (const uska of uskaRepeaters) {
-      const matches = allRepeaters.filter(r =>
+      const matches = swissRepeaters.filter(r =>
         r.callsign === uska.callsign &&
         Math.abs(r.frequency - uska.tx) < 0.001
       );
@@ -183,8 +187,10 @@ export default async function(req) {
         }
 
         if (Object.keys(update).length > 0) {
-          await base44.asServiceRole.entities.Repeater.update(rep.id, update);
-          updatedCount++;
+          try {
+            await base44.asServiceRole.entities.Repeater.update(rep.id, update);
+            updatedCount++;
+          } catch { /* repeater may have been deleted/re-created by a parallel sync */ }
         }
 
         // Extract cross-links from remarks
@@ -192,13 +198,13 @@ export default async function(req) {
         for (const target of linkTargets) {
           // Try callsign match first (e.g. <>HB9T, <>HB9BA)
           const targetUpper = target.toUpperCase();
-          let targetReps = allRepeaters.filter(r =>
+          let targetReps = swissRepeaters.filter(r =>
             r.callsign === targetUpper &&
             !(r.callsign === rep.callsign && Math.abs(r.frequency - rep.frequency) < 0.001)
           );
           // If no callsign match, try location name (e.g. <>Tamaro, <>Bachtel)
           if (targetReps.length === 0) {
-            targetReps = allRepeaters.filter(r =>
+            targetReps = swissRepeaters.filter(r =>
               r.location_name &&
               r.location_name.toLowerCase().includes(target) &&
               r.callsign !== rep.callsign

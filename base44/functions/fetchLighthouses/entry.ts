@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
         const seen = new Set<string>();
         const deduped = [];
         for (const l of [...otherRegions, ...newLighthouses]) {
+          if (l.lat == null || l.lng == null) { deduped.push(l); continue; }
           const key = `${l.lat.toFixed(3)},${l.lng.toFixed(3)}`;
           if (seen.has(key)) continue;
           seen.add(key);

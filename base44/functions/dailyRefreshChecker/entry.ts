@@ -152,12 +152,32 @@ export default async function(req: Request): Promise<Response> {
       results.push({ source: src.source, status: 'failed', count: 0, duration_ms: duration, error: errorMsg });
     }
 
+    // After processing a source, check if ALL enabled sources have completed today.
+    // If yes, trigger the daily admin report (so it sends immediately after the last
+    // source completes, not at a fixed time). The report function has its own "waiting"
+    // guard to prevent duplicate sends.
+    let reportTriggered = false;
+    try {
+      const allAfter = await base44.asServiceRole.entities.DailyRefreshSchedule.list("display_order", 100);
+      const stillIncomplete = (allAfter || []).filter(s => {
+        if (!s.enabled) return false;
+        if (s.last_status === 'pending' || s.last_status === 'running') return true;
+        if (!s.last_run_time || !isToday(s.last_run_time)) return true;
+        return false;
+      });
+      if (stillIncomplete.length === 0) {
+        await base44.functions.invoke('sendDailyAdminReport', { scheduled: true });
+        reportTriggered = true;
+      }
+    } catch {}
+
     return Response.json({
       status: 'processed',
       checked_at: new Date().toISOString(),
       triggered: results.length,
       results,
       remaining_due: dueSources.length - 1,
+      report_triggered: reportTriggered,
     });
   } catch (error) {
     return Response.json({ 
