@@ -32,6 +32,10 @@ const SOURCES = [
     function_payload: { region: r.id, scheduled: true },
     order: 90 + i,
   })),
+  // Hearham API repeaters — alternative source for regions with poor RepeaterBook coverage
+  { source: 'repeater_canada_hearham', label: 'Relais Kanada (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'canada', scheduled: true }, order: 96 },
+  { source: 'repeater_asia_hearham', label: 'Relais Asien (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'asia', scheduled: true }, order: 97 },
+  { source: 'repeater_africa_hearham', label: 'Relais Afrika (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'africa', scheduled: true }, order: 98 },
   { source: 'tota', label: 'TOTA weltweit', function_name: 'fetchTota', function_payload: { action: 'fetchWorldwide', scheduled: true }, order: 10 },
   { source: 'fm_funknetz', label: 'FM-Funknetz TGs', function_name: 'fetchFmFunknetz', function_payload: { scheduled: true }, order: 11 },
   { source: 'ch_repeater_links', label: 'CH-Relais-Links', function_name: 'fetchCHRepeaterLinks', function_payload: { scheduled: true }, order: 12 },

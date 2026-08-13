@@ -11,12 +11,21 @@ const MAX_PER_TYPE = 3000;
 const REQUEST_TIMEOUT_MS = 10000;
 const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"];
 
-export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline }) {
+export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline, reloadTrigger }) {
   const map = useMap();
   const debounceRef = useRef(null);
   const abortRef = useRef(null);
   const fetchedBoundsRef = useRef(null); // Track the largest bounds we've fetched
   const isFirstLoadRef = useRef(true);
+
+  // Reload when reloadTrigger changes (e.g. when FirstTimeSetup modal closes)
+  useEffect(() => {
+    if (reloadTrigger) {
+      isFirstLoadRef.current = true;
+      fetchedBoundsRef.current = null;
+      handleMapChange();
+    }
+  }, [reloadTrigger]);
 
   const loadBounds = useCallback(async (bounds, types) => {
     if (types.length === 0 || isOffline) return;

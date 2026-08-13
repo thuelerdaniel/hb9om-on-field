@@ -3,7 +3,7 @@ import { Radio, Check, AlertCircle, AlertTriangle, KeyRound, Search } from "luci
 import { base44 } from "@/api/base44Client";
 import { DEMO_EMAIL } from "@/lib/constants";
 
-export default function FirstTimeSetup() {
+export default function FirstTimeSetup({ onDone }) {
   const [show, setShow] = useState(false);
   const [myCallsign, setMyCallsign] = useState("");
   const [qrzEnabled, setQrzEnabled] = useState(true);
@@ -89,6 +89,7 @@ export default function FirstTimeSetup() {
       setSaving(false);
       setShow(false);
       setShowWarning(false);
+      if (onDone) onDone();
     }, 500);
   };
 

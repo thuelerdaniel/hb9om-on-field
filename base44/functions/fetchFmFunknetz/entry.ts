@@ -165,8 +165,19 @@ export default async function(req) {
       });
     }
 
-    // 3. Get all existing repeaters
-    const allRepeaters = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
+    // 3. Get all existing repeaters — paginated to load ALL 31k+ records
+    //    A single list() call caps at 5000, which would miss most repeaters.
+    const allRepeaters: any[] = [];
+    {
+      const LIMIT = 5000;
+      const MAX_PAGES = 20; // 20 × 5000 = 100k max
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const batch = await base44.asServiceRole.entities.Repeater.list("id", LIMIT, page * LIMIT);
+        if (!batch || batch.length === 0) break;
+        allRepeaters.push(...batch);
+        if (batch.length < LIMIT) break;
+      }
+    }
 
     // 4. Match and update — match by callsign AND frequency (within 25 kHz tolerance)
     // to avoid matching all repeaters sharing a callsign but on different bands/sites.

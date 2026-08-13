@@ -153,6 +153,9 @@ export default function Home() {
   const [editLogEntry, setEditLogEntry] = useState(null);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
 
+  // Setup complete — triggers ViewportDataLoader reload when FirstTimeSetup closes
+  const [setupComplete, setSetupComplete] = useState(() => localStorage.getItem("hb9om_setup_complete") === "true");
+
   // Splash & changelog
   const [showSplash, setShowSplash] = useState(() => {
     const dismissed = sessionStorage.getItem("hb9om_splash_dismissed") === "true";
@@ -555,7 +558,7 @@ export default function Home() {
       {showSplash && <SplashScreen onDismiss={() => setShowSplash(false)} />}
 
       {/* First Time Setup */}
-      <FirstTimeSetup />
+      <FirstTimeSetup onDone={() => setSetupComplete(true)} />
 
       {/* Version Changelog Popup */}
       {showChangelog && <VersionChangelogPopup onClose={() => setShowChangelog(false)} />}
@@ -570,7 +573,109 @@ export default function Home() {
         preferCanvas={true}
         style={{ background: "#e8e8e8" }}
       >
-...
+        <MapTileLayer
+          url={tileConfig.url}
+          attribution={tileConfig.attribution}
+          maxZoom={tileConfig.maxZoom}
+          opacity={mapOpacity}
+          isOffline={isOffline}
+          tileKeyPrefix={tileConfig.tileKeyPrefix}
+        />
+        <MapController
+          onMapReady={handleMapReady}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          lockedScale={lockedScale}
+        />
+        <ViewportDataLoader
+          activeLayers={activeLayers}
+          onDataLoaded={onViewportData}
+          isOffline={isOffline}
+          reloadTrigger={setupComplete}
+        />
+        <MapMarkers
+          markers={allMarkers}
+          dragMode={dragMode}
+          isAdmin={isAdmin}
+          onMarkerDrag={handleMarkerDrag}
+          performanceMode={performanceMode}
+          userPosition={currentPosition}
+          onViewportLimitChange={setViewportLimit}
+        />
+        {activeLayers.includes("repeater") && (
+          <RepeaterLayer
+            repeaters={repeaters}
+            filterModes={repeaterFilterModes}
+            searchQuery={repeaterSearchQuery}
+            showLinks={showRepeaterLinks}
+            showCoverage={showRepeaterCoverage}
+            showOnlyLinked={showOnlyLinked}
+            performanceMode={performanceMode}
+            filterCountries={repeaterFilterCountries}
+            userPosition={currentPosition}
+            radiusKm={repeaterRadiusKm}
+            adminLinks={adminLinks}
+            onSuggestLink={handleSuggestLink}
+            individualCoverage={individualCoverage}
+            onToggleCoverage={handleToggleCoverage}
+            activeContinents={activeContinents}
+            activeCountries={activeCountries}
+            isAdmin={isAdmin}
+          />
+        )}
+        {activeLayers.includes("tota") && (
+          <TotaLayer
+            points={data.tota || []}
+            filterTypes={totaFilterTypes}
+            searchQuery={totaSearchQuery}
+            performanceMode={performanceMode}
+            userPosition={currentPosition}
+            activeContinents={activeContinents}
+            activeCountries={activeCountries}
+            filterCountries={totaFilterCountries}
+          />
+        )}
+        {activeLayers.includes("aprs") && (
+          <PrivateNodeLayer
+            nodes={aprsNodes}
+            performanceMode={performanceMode}
+            userPosition={currentPosition}
+            filterTypes={aprsFilterTypes}
+            searchQuery={aprsSearchQuery}
+            colorScheme="aprs"
+            filterCountries={aprsFilterCountries}
+            activeContinents={activeContinents}
+            activeCountries={activeCountries}
+          />
+        )}
+        {activeLayers.includes("brandmeister") && (
+          <PrivateNodeLayer
+            nodes={bmNodes}
+            performanceMode={performanceMode}
+            userPosition={currentPosition}
+            filterTypes={bmFilterTypes}
+            searchQuery={bmSearchQuery}
+            sourceFilter="brandmeister"
+            colorScheme="brandmeister"
+            filterCountries={bmFilterCountries}
+            activeContinents={activeContinents}
+            activeCountries={activeCountries}
+          />
+        )}
+        <PositionMarker
+          position={currentPosition}
+          fixed={!!fixedPosition}
+          radius={positionRadius}
+          onRadiusChange={setPositionRadius}
+          onPositionChange={handlePositionChange}
+        />
+        <GpsTracker />
+        <WmsOverlayLayer activeLayers={activeLayers} />
+        <WmsFeatureInfo
+          activeLayers={activeLayers}
+          clickMode={dragMode}
+          performanceMode={performanceMode}
+        />
       </MapContainer>
       </MapErrorBoundary>
 

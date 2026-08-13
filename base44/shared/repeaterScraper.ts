@@ -875,11 +875,9 @@ export const REPEATER_REGIONS = [
   { id: 'eu_priority2', label: 'Relais Europa (Übrige)' },
   { id: 'uk', label: 'Relais UK (ukrepeater.net)' },
   { id: 'na_us', label: 'Relais USA' },
-  { id: 'na_ca', label: 'Relais Kanada' },
-  // World split into 4 sub-regions to avoid 524 Cloudflare timeout (50+ countries was too much)
-  { id: 'world_asia', label: 'Relais Asien' },
+  // Canada, Asia, Africa removed — RepeaterBook has no/poor coverage.
+  // These regions are now served by Hearham API (fetchHearhamRepeaters).
   { id: 'world_sa', label: 'Relais Süd-/Mittelamerika' },
-  { id: 'world_africa', label: 'Relais Afrika' },
   { id: 'world_oceania', label: 'Relais Ozeanien' },
 ];
 
