@@ -173,21 +173,23 @@ function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale }) {
 }
 
 export default function Home() {
-  // Data loading
-  const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData } = useMapData();
-
   // User info
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Map state
+  // Map state — activeLayers must be declared BEFORE useMapData (which needs it)
   const [activeLayers, setActiveLayers] = useState(() => {
     const saved = localStorage.getItem("hb9om_active_layers");
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
-    return ["sota", "pota", "hbff"];
+    // Default: all layers OFF — no automatic loading on map open.
+    // User must explicitly enable layers; state persists in localStorage.
+    return [];
   });
+
+  // Data loading — gated by activeLayers (only loads data for enabled layers)
+  const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData } = useMapData(activeLayers);
   const [baseLayer, setBaseLayer] = useState(() => localStorage.getItem("hb9om_base_layer") || "osm");
   const [lockedScale, setLockedScale] = useState(null);
   const [mapOpacity, setMapOpacity] = useState(1);

@@ -13,17 +13,20 @@ import { loadAllRepeaters, loadAllPrivateNodes, loadAllTotaPoints } from "@/lib/
 
 const LOADING_TIMEOUT_MS = 30000;
 
-export function useMapData() {
+export function useMapData(activeLayers) {
   const [data, setData] = useState({
     sota: [], pota: [], hbff: [], wwbota: [], castle: [], iota: [], lighthouse: [], tota: [],
   });
   const [repeaters, setRepeaters] = useState([]);
   const [privateNodes, setPrivateNodes] = useState([]);
   const [adminLinks, setAdminLinks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Only show loading indicator if layers are active (no autoload when all layers off)
+  const [loading, setLoading] = useState(() => activeLayers && activeLayers.length > 0);
   const [loadingMessage, setLoadingMessage] = useState("Daten werden geladen…");
   const cancelRef = useRef(false);
   const timeoutRef = useRef(null);
+  // Track which datasets have been loaded from server to avoid duplicate fetches
+  const loadedRef = useRef({ repeaters: false, privateNodes: false, adminLinks: false });
 
   // Load offline cache synchronously on mount — instant display if available
   useEffect(() => {
@@ -67,75 +70,91 @@ export function useMapData() {
     }
   }, []);
 
-  // Fetch from server — only repeaters, private nodes, TOTA, admin links
-  // Reference types (SOTA, POTA, WWFF, etc.) are loaded viewport-based by ViewportDataLoader
+  // Server loading — gated by activeLayers. Only loads data for layers the user has enabled.
+  // Data loads once and stays in state; toggling a layer off hides markers but keeps data
+  // so toggling back on is instant. Reference types (SOTA, POTA, etc.) are loaded
+  // viewport-based by ViewportDataLoader, which also checks activeLayers.
   useEffect(() => {
-    cancelRef.current = false;
     let active = true;
+    cancelRef.current = false;
 
-    // Timeout guard — stop loading after 30s regardless of completion
-    timeoutRef.current = setTimeout(() => {
-      if (active && !cancelRef.current) {
-        setLoading(false);
-      }
-    }, LOADING_TIMEOUT_MS);
+    const needRepeaters = activeLayers.includes("repeater");
+    const needPrivateNodes = activeLayers.includes("aprs") || activeLayers.includes("brandmeister");
 
-    const loadFromServer = async () => {
-      // TOTA is now loaded viewport-based by TotaLayer itself — not here.
-      // This avoids loading all 5k+ TOTA points into memory on startup.
+    // No data layers active — ensure loading indicator is off
+    if (!needRepeaters && !needPrivateNodes) {
+      setLoading(false);
+      return;
+    }
 
-      // Fetch repeaters via paginated loader
-      if (cancelRef.current) return;
-      try {
-        setLoadingMessage("Relais werden geladen…");
-        await loadAllRepeaters({
-          onBatch: (batch, total) => {
-            if (!active || cancelRef.current) return;
-            // Filter out repeaters without valid coordinates — they can't be rendered
-            // on the map and waste memory/bandwidth (47k+ US repeaters without coords).
-            const withCoords = batch.filter(r => r.lat != null && r.lng != null);
-            setRepeaters(prev => [...prev, ...withCoords]);
-            setLoadingMessage(`Relais werden geladen… (${total})`);
-          },
-        });
-      } catch (e) { /* silent */ }
+    const tasks = [];
 
-      // Fetch private nodes (APRS + BrandMeister) via paginated loader
-      if (cancelRef.current) return;
-      try {
-        setLoadingMessage("APRS-Nodes werden geladen…");
-        await loadAllPrivateNodes({
-          onBatch: (batch, total) => {
-            if (!active || cancelRef.current) return;
-            setPrivateNodes(prev => [...prev, ...batch]);
-            setLoadingMessage(`APRS-Nodes werden geladen… (${total})`);
-          },
-        });
-      } catch (e) { /* silent */ }
+    // Fetch repeaters via paginated loader — only when repeater layer is active
+    if (needRepeaters && !loadedRef.current.repeaters) {
+      loadedRef.current.repeaters = true;
+      setLoading(true);
+      setLoadingMessage("Relais werden geladen…");
+      tasks.push((async () => {
+        try {
+          await loadAllRepeaters({
+            onBatch: (batch, total) => {
+              if (cancelRef.current) return;
+              // Filter out repeaters without valid coordinates — they can't be rendered
+              // on the map and waste memory/bandwidth (47k+ US repeaters without coords).
+              const withCoords = batch.filter(r => r.lat != null && r.lng != null);
+              setRepeaters(prev => [...prev, ...withCoords]);
+              setLoadingMessage(`Relais werden geladen… (${total})`);
+            },
+          });
+        } catch (e) { /* silent */ }
+      })());
+    }
 
-      // Fetch admin-managed repeater links (approved, permanent only)
-      if (cancelRef.current) return;
-      try {
-        const links = await base44.entities.RepeaterLink.filter({ status: "approved", link_type: "permanent" });
-        if (!active || cancelRef.current) return;
-        setAdminLinks(links || []);
-      } catch (e) { /* silent */ }
+    // Fetch private nodes (APRS + BrandMeister) — only when APRS or BrandMeister layer is active
+    if (needPrivateNodes && !loadedRef.current.privateNodes) {
+      loadedRef.current.privateNodes = true;
+      setLoading(true);
+      setLoadingMessage("APRS-Nodes werden geladen…");
+      tasks.push((async () => {
+        try {
+          await loadAllPrivateNodes({
+            onBatch: (batch, total) => {
+              if (cancelRef.current) return;
+              setPrivateNodes(prev => [...prev, ...batch]);
+              setLoadingMessage(`APRS-Nodes werden geladen… (${total})`);
+            },
+          });
+        } catch (e) { /* silent */ }
+      })());
+    }
 
-      // Note: loading is set to false by onViewportData (first viewport data) or timeout
-      if (active && !cancelRef.current) {
-        // If viewport data hasn't arrived yet, stop loading after background data is done
-        setLoading(false);
-      }
-    };
+    // Fetch admin-managed repeater links — only needed when repeater layer is active
+    if (needRepeaters && !loadedRef.current.adminLinks) {
+      loadedRef.current.adminLinks = true;
+      tasks.push((async () => {
+        try {
+          const links = await base44.entities.RepeaterLink.filter({ status: "approved", link_type: "permanent" });
+          if (!cancelRef.current) setAdminLinks(links || []);
+        } catch (e) { /* silent */ }
+      })());
+    }
 
-    loadFromServer();
+    if (tasks.length > 0) {
+      // Timeout guard — stop loading after 30s regardless of completion
+      timeoutRef.current = setTimeout(() => {
+        if (active && !cancelRef.current) setLoading(false);
+      }, LOADING_TIMEOUT_MS);
+
+      Promise.all(tasks).then(() => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (active && !cancelRef.current) setLoading(false);
+      });
+    }
 
     return () => {
       active = false;
-      cancelRef.current = true;
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [activeLayers]);
 
   const cancelLoading = useCallback(() => {
     cancelRef.current = true;
