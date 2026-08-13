@@ -746,8 +746,8 @@ export default function Help() {
           </div>
           <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-1">Spende mir einen Kaffee ☕</h3>
           <p className="text-xs text-gray-600 dark:text-slate-300 mb-3 leading-relaxed">
-            Wenn Ihnen diese App gefällt und Sie die Entwicklung unterstützen möchten,
-            freue ich mich über eine kleine Spende.
+            Die Entwicklung und der Betrieb der App verursachen Kosten und verbraucht viel Freizeit.
+            Jede Spende hilft, das Projekt am Leben zu erhalten.
           </p>
           <a
             href="https://paypal.me/Thueler"

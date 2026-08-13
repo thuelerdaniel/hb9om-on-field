@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ArrowLeft, Users, Loader2, Mail, KeyRound, Search, Shield, CheckCircle2, AlertCircle, Trash2, UserCog, Clock, ShieldCheck, ShieldOff, Coffee } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import { useToast } from "@/components/ui/use-toast";
 import { DEMO_EMAIL } from "@/lib/constants";
 
 export default function UserManagement() {
@@ -22,6 +23,7 @@ export default function UserManagement() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const { toast } = useToast();
 
   useEffect(() => {
     checkAdminAndLoad();
@@ -113,8 +115,8 @@ export default function UserManagement() {
   const handleToggleDonationConfirmed = async (user) => {
     try {
       const newVal = !user.donation_confirmed;
-      // Backend auto-sets donation_hidden=true when confirmed=true
-      await base44.functions.invoke("adminManageUsers", {
+      // Backend auto-sets donation_hidden=true when confirmed=true and sends thank-you email
+      const res = await base44.functions.invoke("adminManageUsers", {
         action: "updateField",
         userId: user.id,
         field: "donation_confirmed",
@@ -125,6 +127,34 @@ export default function UserManagement() {
         donation_confirmed: newVal,
         donation_hidden: newVal ? true : u.donation_hidden,
       } : u));
+
+      // Show email result feedback
+      if (newVal && res?.data?.emailResult) {
+        const er = res.data.emailResult;
+        if (er.sent) {
+          toast({
+            title: "Dankes-E-Mail gesendet",
+            description: `Bestätigung an ${er.email} verschickt.`,
+            duration: 4000,
+          });
+        } else if (er.message?.includes("keine gültige E-Mail")) {
+          toast({
+            title: "Keine E-Mail hinterlegt",
+            description: "User hat keine gültige E-Mail hinterlegt. Spende trotzdem bestätigt.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        } else if (er.message?.includes("bereits bestätigt")) {
+          // Silent — duplicate protection, no toast needed
+        } else {
+          toast({
+            title: "E-Mail-Versand fehlgeschlagen",
+            description: er.message || "Dankes-E-Mail konnte nicht gesendet werden. Spende trotzdem bestätigt.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      }
     } catch (e) {
       setActionError(e?.response?.data?.detail || e.message || "unbekannt");
     }

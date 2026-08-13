@@ -85,6 +85,11 @@
       "type": "number",
       "default": 0,
       "description": "Anzahl wie oft das Spenden-Popup angezeigt wurde (legacy \u2014 durch donation_total_shown ersetzt)"
+    },
+    "donation_thanks_email_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ob bereits eine Dankes-E-Mail gesendet wurde (Duplikat-Schutz \u2014 einmal true, wird nie wieder gesendet)"
     }
   },
   "required": [

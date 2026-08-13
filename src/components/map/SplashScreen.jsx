@@ -107,6 +107,11 @@ export default function SplashScreen({ onDismiss }) {
           Spende doch was ☕
         </a>
 
+        <p className="text-[10px] text-slate-500 mt-2 max-w-xs mx-auto leading-relaxed text-center">
+          Die Entwicklung und der Betrieb der App verursachen Kosten und verbraucht viel Freizeit.
+          Jede Spende hilft, das Projekt am Leben zu erhalten.
+        </p>
+
         <p className="text-[10px] text-slate-500 mt-4 max-w-xs mx-auto leading-relaxed text-center">
           Haftungsausschluss: Diese App wird ohne jegliche Gewährleistung bereitgestellt.
           Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen.

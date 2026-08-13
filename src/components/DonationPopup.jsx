@@ -127,7 +127,7 @@ export default function DonationPopup({ triggerKey = 0 }) {
 
           <p className="text-sm text-gray-600 mb-4 leading-relaxed">
             HB9OM On Field ist ein kostenloses Projekt für Funkamateure.
-            Die Entwicklung und der Betrieb der App verursachen Kosten und viel Freizeit.
+            Die Entwicklung und der Betrieb der App verursachen Kosten und verbraucht viel Freizeit.
             Jede Spende hilft, das Projekt am Leben zu erhalten.
           </p>
 

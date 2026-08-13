@@ -111,12 +111,39 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Field not allowed' }, { status: 400 });
       }
       // If donation_confirmed is set to true, automatically also set donation_hidden
+      // and send thank-you email (only on false → true transition, not on re-set)
       if (field === 'donation_confirmed' && value === true) {
+        // Load current user data for duplicate protection
+        const currentUserData = await base44.asServiceRole.entities.User.get(userId);
+        const wasAlreadyConfirmed = currentUserData?.donation_confirmed === true;
+
+        // Set both fields regardless
         await base44.asServiceRole.entities.User.update(userId, { donation_confirmed: true, donation_hidden: true });
+
+        // Only send email on false → true transition AND if never sent before (duplicate protection)
+        const thanksAlreadySent = currentUserData?.donation_thanks_email_sent === true;
+        if (!wasAlreadyConfirmed && !thanksAlreadySent) {
+          let emailResult = { sent: false, message: '' };
+          try {
+            const res = await base44.functions.invoke('sendDonationThanksEmail', { user_id: userId });
+            if (res?.data?.success) {
+              emailResult = { sent: true, email: res.data.email };
+              // Mark thanks email as sent — permanent flag, never send again
+              await base44.asServiceRole.entities.User.update(userId, { donation_thanks_email_sent: true });
+            } else {
+              emailResult = { sent: false, message: res?.data?.message || 'Dankes-E-Mail konnte nicht gesendet werden' };
+            }
+          } catch (e) {
+            emailResult = { sent: false, message: 'Dankes-E-Mail an User konnte nicht gesendet werden', detail: e.message };
+          }
+          return Response.json({ success: true, emailResult });
+        }
+        // Already confirmed or email already sent — no email sent (duplicate protection)
+        return Response.json({ success: true, emailResult: { sent: false, message: 'Spende bereits bestätigt — keine E-Mail gesendet' } });
       } else {
         await base44.asServiceRole.entities.User.update(userId, { [field]: value });
+        return Response.json({ success: true });
       }
-      return Response.json({ success: true });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
