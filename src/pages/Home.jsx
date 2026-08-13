@@ -787,7 +787,7 @@ export default function Home() {
             ? "bg-blue-500 border-blue-600 text-white"
             : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
         }`}
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 140px)" }}
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 230px)" }}
         title={dragMode ? "Marker-Verschiebung aktiv — tippen zum Deaktivieren" : "Marker verschieben (Positionskorrektur)"}
       >
         <Move className="w-5 h-5" />
