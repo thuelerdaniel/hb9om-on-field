@@ -61,9 +61,42 @@ function parseCsvLine(line, delimiter = ';') {
   return result;
 }
 
+// Validate that a URL is safe to fetch server-side (SSRF protection).
+// Only HTTPS allowed; blocks private/loopback/link-local/metadata IP ranges.
+function validateExternalUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('Invalid URL');
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error('Only HTTPS URLs are allowed');
+  }
+  const host = parsed.hostname.toLowerCase();
+  // Block loopback / localhost
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') {
+    throw new Error('Local addresses are not allowed');
+  }
+  // Block link-local / metadata endpoint
+  if (host === '169.254.169.254' || host.startsWith('169.254.')) {
+    throw new Error('Link-local addresses are not allowed');
+  }
+  // Block private IPv4 ranges (10.x, 172.16-31.x, 192.168.x)
+  const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [a, b] = [parseInt(ipv4Match[1]), parseInt(ipv4Match[2])];
+    if (a === 10) throw new Error('Private IP range not allowed');
+    if (a === 172 && b >= 16 && b <= 31) throw new Error('Private IP range not allowed');
+    if (a === 192 && b === 168) throw new Error('Private IP range not allowed');
+  }
+  return parsed.href;
+}
+
 // Fetch and parse Swiss CSV file from URL
 async function fetchSwissCsv(url, type) {
-  const resp = await fetch(url, {
+  const safeUrl = validateExternalUrl(url);
+  const resp = await fetch(safeUrl, {
     headers: { 'User-Agent': 'HB9OM-OnField/1.0' },
   });
   if (!resp.ok) throw new Error('CSV fetch failed: ' + resp.status);
