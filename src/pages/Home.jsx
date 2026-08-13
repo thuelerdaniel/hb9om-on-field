@@ -970,11 +970,12 @@ export default function Home() {
       {/* Neues QSO Button — Floating Action Button */}
       <button
         onClick={() => setShowLogForm(true)}
-        className="fixed right-4 bottom-20 z-[1000] w-14 h-14 rounded-full bg-gray-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+        className="fixed right-4 z-[1000] h-14 px-5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 76px)" }}
         title="Neues QSO-Log erfassen"
       >
         <Plus className="w-6 h-6" />
+        <span className="font-semibold text-sm whitespace-nowrap">Log QSO</span>
       </button>
 
       {/* Bottom Navigation */}
