@@ -34,6 +34,14 @@ function buildRecord(r: any) {
       r.coords_from_locator = true;
     }
   }
+  // Validate coordinates — null out invalid ones (0,0 = Null Island, NaN, out of range)
+  if (r.lat != null && r.lng != null) {
+    if (isNaN(r.lat) || isNaN(r.lng) || (r.lat === 0 && r.lng === 0) ||
+        r.lat < -90 || r.lat > 90 || r.lng < -180 || r.lng > 180) {
+      r.lat = null;
+      r.lng = null;
+    }
+  }
   return {
     callsign: r.callsign,
     frequency: r.frequency,

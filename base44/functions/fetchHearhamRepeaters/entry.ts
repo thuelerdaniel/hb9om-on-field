@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { detectRepeaterCountry, validateCoords } from '../../shared/repeaterCountryDetection.ts';
 
 // Hearham.com repeater API — alternative source for regions with poor RepeaterBook
 // coverage (Canada, Asia, Africa). Free, no API key required.
@@ -89,21 +90,32 @@ export default async function (req: Request): Promise<Response> {
       const offsetMHz = isNaN(offsetHz) ? 0 : offsetHz / 1000000;
       if (freqMHz < 0.1 || freqMHz > 2000) continue; // skip invalid frequencies
 
+      // Validate coordinates — skip repeaters with invalid/null coords
+      const validCoords = validateCoords(lat, lng);
+      if (!validCoords) continue;
+
       const { primary, modes } = normalizeMode(r.mode);
       const status = r.operational === 1 || r.operational === '1' ? 'on-air' : 'off-air';
 
+      const callsign = (r.callsign || '').toUpperCase().trim();
+      const locationName = r.city || r.description || '';
+      // Detect country per-repeater instead of blindly assigning region's country.
+      // This correctly tags US repeaters (K/N/W callsigns, US states) as 'US'
+      // even though they fall within the broad "canada" bounding box.
+      const { country, cc } = detectRepeaterCountry(callsign, validCoords.lat, validCoords.lng, locationName);
+
       regionRepeaters.push({
-        callsign: (r.callsign || '').toUpperCase().trim(),
+        callsign,
         frequency: freqMHz,
         offset_mhz: offsetMHz,
         tone: r.encode || '',
         modes,
         primary_mode: primary,
-        location_name: r.city || r.description || '',
-        country: bounds.country || r.city || '',
-        country_code: bounds.cc,
-        lat,
-        lng,
+        location_name: locationName,
+        country: country || locationName || '',
+        country_code: cc,
+        lat: validCoords.lat,
+        lng: validCoords.lng,
         band: bandFromFreq(freqMHz),
         status,
         source: 'Hearham',
@@ -120,24 +132,24 @@ export default async function (req: Request): Promise<Response> {
       return true;
     });
 
-    // Delete old Hearham repeaters for this region
-    // For Canada (country_code = CA), delete by country_code
-    // For Asia/Africa (no single country_code), delete by source + bounding box
-    if (bounds.cc) {
-      await base44.asServiceRole.entities.Repeater.deleteMany({ source: 'Hearham', country_code: bounds.cc });
-    } else {
-      // Delete all Hearham-sourced repeaters in the region's bounding box
-      // We can't do a bbox deleteMany directly, so we fetch and delete by IDs
-      const oldHearham = await base44.asServiceRole.entities.Repeater.filter({ source: 'Hearham' });
-      const toDelete = (oldHearham || []).filter((r: any) =>
-        r.lat != null && r.lng != null &&
-        r.lat >= bounds.south && r.lat <= bounds.north &&
-        r.lng >= bounds.west && r.lng <= bounds.east
-      );
-      for (let i = 0; i < toDelete.length; i += 100) {
-        const batch = toDelete.slice(i, i + 100);
-        await Promise.all(batch.map((r: any) => base44.asServiceRole.entities.Repeater.delete(r.id)));
+    // Delete old Hearham repeaters for this region by bounding box.
+    // Previously, 'canada' deleted by country_code='CA', but now that we detect
+    // US vs CA per-repeater, we must delete by bounding box to catch both US and CA.
+    // Also delete legacy null-coord repeaters tagged with this region's country_code.
+    const oldHearham = await base44.asServiceRole.entities.Repeater.filter({ source: 'Hearham' });
+    const toDelete = (oldHearham || []).filter((r: any) => {
+      // Delete repeaters with coords in the region's bounding box
+      if (r.lat != null && r.lng != null) {
+        return r.lat >= bounds.south && r.lat <= bounds.north &&
+               r.lng >= bounds.west && r.lng <= bounds.east;
       }
+      // Also delete legacy null-coord repeaters tagged with this region's country_code
+      if (bounds.cc && r.country_code === bounds.cc) return true;
+      return false;
+    });
+    for (let i = 0; i < toDelete.length; i += 100) {
+      const batch = toDelete.slice(i, i + 100);
+      await Promise.all(batch.map((r: any) => base44.asServiceRole.entities.Repeater.delete(r.id)));
     }
 
     // Bulk create new repeaters

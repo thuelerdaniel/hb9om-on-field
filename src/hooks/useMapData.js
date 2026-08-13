@@ -91,7 +91,10 @@ export function useMapData() {
         await loadAllRepeaters({
           onBatch: (batch, total) => {
             if (!active || cancelRef.current) return;
-            setRepeaters(prev => [...prev, ...batch]);
+            // Filter out repeaters without valid coordinates — they can't be rendered
+            // on the map and waste memory/bandwidth (47k+ US repeaters without coords).
+            const withCoords = batch.filter(r => r.lat != null && r.lng != null);
+            setRepeaters(prev => [...prev, ...withCoords]);
             setLoadingMessage(`Relais werden geladen… (${total})`);
           },
         });

@@ -385,8 +385,27 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
     // in buildRecord), not just the 50 per Priority-1 country that get detail pages.
     let locator: string | null = null;
     for (const cell of cells) {
+      // Try 6-char locator first (more precise, ±5km)
       const gridMatch = cell.match(/\b([A-R]{2}\d{2}[A-X]{2})\b/);
       if (gridMatch) { locator = gridMatch[1].toUpperCase(); break; }
+      // Fallback: 4-char locator (less precise, ±100km, but better than no coords)
+      const grid4Match = cell.match(/\b([A-R]{2}\d{2})\b/);
+      if (grid4Match) { locator = grid4Match[1].toUpperCase(); break; }
+    }
+
+    // Try to extract lat/lng directly from Google Maps links in the row HTML.
+    // RepeaterBook list pages may include a Map link with embedded coordinates.
+    let listLat: number | null = null;
+    let listLng: number | null = null;
+    const gmMatch = row.match(/google\.com\/maps\/[^"]*query=([\d.-]+)(?:%2C|,)([\d.-]+)/);
+    if (gmMatch) {
+      const parsedLat = parseFloat(gmMatch[1]);
+      const parsedLng = parseFloat(gmMatch[2]);
+      if (!isNaN(parsedLat) && !isNaN(parsedLng) &&
+          parsedLat >= -90 && parsedLat <= 90 && parsedLng >= -180 && parsedLng <= 180) {
+        listLat = parsedLat;
+        listLng = parsedLng;
+      }
     }
 
     // Build detail URL based on region type
@@ -410,8 +429,8 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
       country_code: countryCode,
       band,
       status: parseStatus(row),
-      lat: null as number | null,
-      lng: null as number | null,
+      lat: listLat,
+      lng: listLng,
       locator,
       web_url: null as string | null,
       echolink_node: null as string | null,
