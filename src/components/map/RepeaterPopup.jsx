@@ -35,8 +35,10 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
   const [showCorrection, setShowCorrection] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  // Build RepeaterBook source link from source_id and country_code
-  const repeaterBookUrl = repeater.source_id
+  // JSON-imported repeaters have no external source link — show "JSON" badge instead
+  const isJsonImport = repeater.source_id === "json-import";
+  // Build RepeaterBook source link from source_id and country_code (skip for json-import)
+  const repeaterBookUrl = !isJsonImport && repeater.source_id
     ? (repeater.country_code === 'US' || repeater.country_code === 'CA'
       ? `https://www.repeaterbook.com/repeaters/details.php?country_code=${repeater.country_code}&ID=${repeater.source_id}`
       : `https://www.repeaterbook.com/row_repeaters/details.php?state_id=${repeater.country_code || ''}&ID=${repeater.source_id}`)
@@ -93,6 +95,7 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
     (linkedRepeaters && linkedRepeaters.length > 0) ||
     !!repeater.web_url ||
     !!repeaterBookUrl ||
+    isJsonImport ||
     hasCoords ||
     repeater.coverage_radius_km != null ||
     repeater.needs_recalc ||
@@ -503,6 +506,12 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
 
           {/* Source link to RepeaterBook + report incorrect data */}
           <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+            {isJsonImport && (
+              <div className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
+                <BookOpen className="w-3 h-3" />
+                Quelle: JSON-Import
+              </div>
+            )}
             {repeaterBookUrl && (
               <a
                 href={repeaterBookUrl}
