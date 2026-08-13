@@ -1,41 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { todayUTC, isToday, extractCount, extractStatus } from '../../shared/syncHelpers.ts';
 
 // This function runs every 5 minutes via automation.
 // It checks the DailyRefreshSchedule entity for sources whose next_run_utc
 // has passed and haven't been executed yet today. It triggers ONE due source
 // per run (to avoid blocking other sources) and records the result.
-
-function todayUTC(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function isToday(isoStr: string): boolean {
-  if (!isoStr) return false;
-  return isoStr.startsWith(todayUTC());
-}
-
-// Extract count from various field names returned by different fetcher functions.
-// Each fetcher uses different field names: count, total_count, total_saved, etc.
-function extractCount(data: any): number {
-  if (!data) return 0;
-  // Try common field names used by different fetcher functions
-  const v = data.count ?? data.total_count ?? data.total_saved ??
-    data.imported ?? data.matchedRepeaters ?? data.nodesSaved ?? data.bmDevicesSaved;
-  if (v != null) return v;
-  // TOTA returns separate antenna/tower/worldwide counts
-  if (data.antennas_imported != null || data.towers_imported != null || data.worldwide_imported != null) {
-    return (data.antennas_imported || 0) + (data.towers_imported || 0) + (data.worldwide_imported || 0);
-  }
-  return 0;
-}
-
-// Extract status from various response formats
-function extractStatus(data: any): 'success' | 'failed' {
-  if (!data) return 'failed';
-  if (data.status === 'failed' || data.error) return 'failed';
-  if (data.success === false) return 'failed';
-  return 'success';
-}
 
 export default async function(req: Request): Promise<Response> {
   try {
