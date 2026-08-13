@@ -35,6 +35,10 @@
         "repeater_na_us",
         "repeater_na_ca",
         "repeater_world",
+        "repeater_world_asia",
+        "repeater_world_sa",
+        "repeater_world_africa",
+        "repeater_world_oceania",
         "tota",
         "fm_funknetz",
         "ch_repeater_links"

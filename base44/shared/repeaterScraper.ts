@@ -876,8 +876,18 @@ export const REPEATER_REGIONS = [
   { id: 'uk', label: 'Relais UK (ukrepeater.net)' },
   { id: 'na_us', label: 'Relais USA' },
   { id: 'na_ca', label: 'Relais Kanada' },
-  { id: 'world', label: 'Relais Weltweit (Asien/Afrika/Amerika/Ozeanien)' },
+  // World split into 4 sub-regions to avoid 524 Cloudflare timeout (50+ countries was too much)
+  { id: 'world_asia', label: 'Relais Asien' },
+  { id: 'world_sa', label: 'Relais Süd-/Mittelamerika' },
+  { id: 'world_africa', label: 'Relais Afrika' },
+  { id: 'world_oceania', label: 'Relais Ozeanien' },
 ];
+
+// Continent groups for world sub-regions (by country code)
+const WORLD_ASIA_CODES = new Set(['TR','IL','AE','KW','OM','AZ','CN','IN','ID','JP','MY','NP','PH','SG','KR','LK','TH']);
+const WORLD_SA_CODES = new Set(['AR','BR','CL','CO','EC','PY','PE','UY','VE','BO','GY','SR','BZ','CR','SV','GT','NI','PA','MX','CU','BS','BB','LC','AG','DM','BQ','CW','DO','GD','HT','HN','JM','KN','VC','TT','KY']);
+const WORLD_AFRICA_CODES = new Set(['KE','MA','ZA','NG','GH','EG','ET','NA','BW','ZW','ZM','MU','RE','MG','SN','CM','UG','TZ','LS','SZ']);
+const WORLD_OCEANIA_CODES = new Set(['AU','NZ','PG','FJ']);
 
 export function getCountriesForRegion(region: string): any[] {
   if (!region || region === 'all') return COUNTRIES;
@@ -887,6 +897,10 @@ export function getCountriesForRegion(region: string): any[] {
     case 'uk': return COUNTRIES.filter(c => c.code === 'GB');
     case 'na_us': return COUNTRIES.filter(c => c.region_type === 'north_america' && c.country_code === 'US');
     case 'na_ca': return COUNTRIES.filter(c => c.region_type === 'north_america' && c.country_code === 'CA');
+    case 'world_asia': return COUNTRIES.filter(c => c.priority === 3 && !c.region_type && WORLD_ASIA_CODES.has(c.code));
+    case 'world_sa': return COUNTRIES.filter(c => c.priority === 3 && !c.region_type && WORLD_SA_CODES.has(c.code));
+    case 'world_africa': return COUNTRIES.filter(c => c.priority === 3 && !c.region_type && WORLD_AFRICA_CODES.has(c.code));
+    case 'world_oceania': return COUNTRIES.filter(c => c.priority === 3 && !c.region_type && WORLD_OCEANIA_CODES.has(c.code));
     case 'world': return COUNTRIES.filter(c => c.priority === 3 && !c.region_type);
     default: return COUNTRIES;
   }

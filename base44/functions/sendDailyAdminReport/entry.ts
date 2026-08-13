@@ -1,9 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 
-// This function runs at 06:30 UTC daily (after all sources should have completed).
+// This function runs at 07:00 UTC daily (after all sources have completed, 00:00-06:00 UTC).
 // It collects all source results, gathers app usage statistics, and sends
-// a rich HTML email to admins. Before sending, it verifies email delivery
-// by sending a test to one admin first. Users are never contacted.
+// a rich HTML email to admins. No test/verification email is sent.
 
 function todayUTC(): string {
   return new Date().toISOString().split('T')[0];
@@ -60,10 +59,11 @@ export default async function(req: Request): Promise<Response> {
     const todaySources = (allSchedules || []).filter(s => s.last_run_time && isToday(s.last_run_time));
     const pendingSources = (allSchedules || []).filter(s => !s.last_run_time || !isToday(s.last_run_time));
 
-    const successCount = todaySources.filter(s => s.last_status === 'success').length;
+    const successCount = todaySources.filter(s => s.last_status === 'success' && s.last_count > 0).length;
+    const warningCount = todaySources.filter(s => s.last_status === 'success' && (s.last_count == null || s.last_count === 0)).length;
     const failedCount = todaySources.filter(s => s.last_status === 'failed').length;
     const totalCount = todaySources.length;
-    const overallStatus = failedCount === 0 ? 'success' : failedCount < totalCount ? 'partial' : 'failed';
+    const overallStatus = failedCount > 0 ? (failedCount < totalCount ? 'partial' : 'failed') : (warningCount > 0 ? 'partial' : 'success');
 
     // --- 2. Gather usage statistics ---
     let stats: any = {
@@ -83,7 +83,10 @@ export default async function(req: Request): Promise<Response> {
       const logs = await base44.asServiceRole.entities.Log.list("-created_date", 5000);
       stats.totalQsos = logs.length;
       for (const log of logs) {
-        const country = log.operator_country || 'Unbekannt';
+        // Case-insensitive country merging — normalize to title case to avoid
+        // duplicates like "Federal Republic Of Germany" vs "FEDERAL REPUBLIC OF GERMANY"
+        const rawCountry = log.operator_country || 'Unbekannt';
+        const country = rawCountry.charAt(0).toUpperCase() + rawCountry.slice(1).toLowerCase();
         stats.qsosByCountry[country] = (stats.qsosByCountry[country] || 0) + 1;
         const refType = log.my_reference_type || 'custom';
         stats.refTypes[refType] = (stats.refTypes[refType] || 0) + 1;
@@ -148,20 +151,29 @@ export default async function(req: Request): Promise<Response> {
     // --- 3. Build HTML email ---
     const today = new Date().toLocaleDateString('de-CH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Source results table
+    // Source results table — sources with 0 entries get a warning badge,
+    // sources that never ran today get "übersprungen" (skipped) instead of "pending".
     const sourceRows = (allSchedules || []).map(s => {
-      const status = s.last_status || 'pending';
+      const rawStatus = s.last_status || 'pending';
       const ran = s.last_run_time && isToday(s.last_run_time);
+      // Determine display status: 0-entry success → 'skipped' warning; not-run → 'skipped'
+      let displayStatus = rawStatus;
+      let warningNote = '';
+      if (!ran) {
+        displayStatus = 'skipped';
+      } else if (rawStatus === 'success' && (s.last_count == null || s.last_count === 0)) {
+        displayStatus = 'skipped';
+        warningNote = '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">⚠ 0 Einträge — Quelle möglicherweise nicht erreichbar</div>';
+      }
       const duration = s.last_duration_ms ? `${(s.last_duration_ms / 1000).toFixed(1)}s` : '—';
       const count = s.last_count != null ? s.last_count : '—';
       const error = s.last_error ? `<div style="font-size:11px;color:#dc2626;margin-top:2px;">${s.last_error}</div>` : '';
       return `
         <tr style="border-bottom:1px solid #eee;">
-          <td style="padding:6px 8px;font-size:13px;font-weight:600;color:#333;">${s.label || s.source}</td>
-          <td style="padding:6px 8px;">${statusBadge(ran ? status : 'pending')}</td>
+          <td style="padding:6px 8px;font-size:13px;font-weight:600;color:#333;">${s.label || s.source}${error}${warningNote}</td>
+          <td style="padding:6px 8px;">${statusBadge(displayStatus)}</td>
           <td style="padding:6px 8px;font-size:13px;color:#666;text-align:right;">${count}</td>
           <td style="padding:6px 8px;font-size:13px;color:#666;text-align:right;">${duration}</td>
-          <td style="padding:6px 8px;font-size:12px;color:#666;">${error}</td>
         </tr>`;
     }).join('');
 
@@ -239,7 +251,8 @@ export default async function(req: Request): Promise<Response> {
         <span style="font-size:14px;font-weight:600;color:#333;">${successCount}/${totalCount} Quellen erfolgreich</span>
       </div>
       ${failedCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;font-size:12px;color:#dc2626;">⚠️ ${failedCount} Quelle(n) fehlgeschlagen — siehe Details unten.</div>` : ''}
-      ${pendingSources.length > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border-radius:6px;font-size:12px;color:#f59e0b;">⏳ ${pendingSources.length} Quelle(n) noch nicht ausgeführt.</div>` : ''}
+      ${warningCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border-radius:6px;font-size:12px;color:#f59e0b;">⚠️ ${warningCount} Quelle(n) mit 0 Einträgen — Quelle möglicherweise nicht erreichbar.</div>` : ''}
+      ${pendingSources.length > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#f3f4f6;border-radius:6px;font-size:12px;color:#6b7280;">⏭️ ${pendingSources.length} Quelle(n) übersprungen / nicht ausgeführt.</div>` : ''}
     </div>
 
     ${reportConfig.showSources ? `
@@ -257,14 +270,22 @@ export default async function(req: Request): Promise<Response> {
           </tr>
         </thead>
         <tbody>${(allSchedules || []).map(s => {
-          const status = s.last_status || 'pending';
+          const rawStatus = s.last_status || 'pending';
           const ran = s.last_run_time && isToday(s.last_run_time);
+          let displayStatus = rawStatus;
+          let warningNote = '';
+          if (!ran) {
+            displayStatus = 'skipped';
+          } else if (rawStatus === 'success' && (s.last_count == null || s.last_count === 0)) {
+            displayStatus = 'skipped';
+            warningNote = '<div style="font-size:10px;color:#f59e0b;margin-top:2px;">⚠ 0 Einträge</div>';
+          }
           const duration = s.last_duration_ms ? `${(s.last_duration_ms / 1000).toFixed(1)}s` : '—';
           const count = s.last_count != null ? s.last_count : '—';
           const error = s.last_error ? `<div style="font-size:10px;color:#dc2626;margin-top:2px;">${s.last_error}</div>` : '';
           return `<tr style="border-bottom:1px solid #eee;">
-            <td style="padding:5px 6px;font-size:12px;font-weight:600;color:#333;">${s.label || s.source}${error}</td>
-            <td style="padding:5px 6px;">${statusBadge(ran ? status : 'pending')}</td>
+            <td style="padding:5px 6px;font-size:12px;font-weight:600;color:#333;">${s.label || s.source}${error}${warningNote}</td>
+            <td style="padding:5px 6px;">${statusBadge(displayStatus)}</td>
             <td style="padding:5px 6px;font-size:12px;color:#666;text-align:right;">${count}</td>
             <td style="padding:5px 6px;font-size:12px;color:#666;text-align:right;">${duration}</td>
           </tr>`;
@@ -342,7 +363,7 @@ export default async function(req: Request): Promise<Response> {
     <!-- Footer -->
     <div style="padding:12px 16px;background:#f8f8f8;">
       <p style="margin:0;font-size:10px;color:#999;text-align:center;">
-        Dieser Report wird täglich um 06:30 UTC automatisch generiert.<br/>
+        Dieser Report wird täglich um 07:00 UTC automatisch generiert.<br/>
         HB9OM On Field · Amateurfunk Referenz-Map
       </p>
     </div>
@@ -371,31 +392,8 @@ export default async function(req: Request): Promise<Response> {
       email: (admin.admin_email_override && admin.admin_email_verified) ? admin.admin_email_override : admin.email,
     }));
 
-    // --- 5. Verify email by sending a test to the first recipient ---
-    let emailVerified = false;
-    let verifyError = '';
-    try {
-      await base44.asServiceRole.integrations.Core.SendEmail({
-        to: recipients[0].email,
-        subject: `[TEST] HB9OM Daily Report – Email-Verifikation`,
-        body: `Dies ist eine automatische Test-E-Mail zur Verifikation des E-Mail-Versands.\n\nWenn Sie diese erhalten, funktioniert der E-Mail-Versand korrekt.\n\nDer vollständige Report folgt separat.`,
-      });
-      emailVerified = true;
-    } catch (e: any) {
-      verifyError = e?.message || String(e);
-    }
-
-    if (!emailVerified) {
-      // Log the failure but don't spam — record in schedule entity
-      return Response.json({
-        status: 'email_failed',
-        message: 'E-Mail-Verifikation fehlgeschlagen — kein Report versendet',
-        error: verifyError,
-        admin_count: recipients.length,
-      });
-    }
-
-    // --- 6. Send the full HTML report to all recipients ---
+    // --- 5. Send the full HTML report to all recipients ---
+    // (Test email verification removed — no longer sending a verification test email)
     const sendResults = [];
     for (const recipient of recipients) {
       try {

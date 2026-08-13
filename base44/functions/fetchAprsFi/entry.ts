@@ -30,6 +30,7 @@ export default async function(req) {
 
     return Response.json({
       status: 'success',
+      count: (result.brandmeister_devices_saved || 0) + (result.private_nodes_saved || 0),
       ...result,
     });
   } catch (error: any) {

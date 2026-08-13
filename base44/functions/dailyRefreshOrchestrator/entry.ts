@@ -37,15 +37,27 @@ const SOURCES = [
   { source: 'ch_repeater_links', label: 'CH-Relais-Links', function_name: 'fetchCHRepeaterLinks', function_payload: { scheduled: true }, order: 12 },
 ];
 
-// Pick a random time within 00:00-06:00 UTC (360 minutes window).
-// Sources are spread across the window with a random offset so no two sources
-// run at the exact same time and the order changes each day.
-function randomTimeInWindow(): string {
-  const totalMinutes = 6 * 60; // 360 minutes (00:00 - 05:59)
-  const minute = Math.floor(Math.random() * totalMinutes);
-  const hour = Math.floor(minute / 60);
-  const min = minute % 60;
-  return `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+// Assign fixed sequential times to sources, 10 minutes apart, starting at 00:00 UTC.
+// SOTA is forced to 03:00 UTC (as requested — it takes ~276s and should not block others).
+// All other sources get times in order: 00:00, 00:10, 00:20, ..., skipping the 03:00 slot.
+const SLOT_INTERVAL_MIN = 10;
+
+function fixedTimeForIndex(index: number, isSota: boolean): string {
+  if (isSota) return '03:00';
+  // Assign slots before 03:00 first (00:00-02:50), then after 03:00 (03:10-05:50)
+  const slotsBeforeSota = 18; // 00:00-02:50 (18 × 10min = 180min = 3h)
+  if (index < slotsBeforeSota) {
+    const totalMin = index * SLOT_INTERVAL_MIN;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  // After SOTA: start at 03:10
+  const afterIndex = index - slotsBeforeSota;
+  const totalMin = 3 * 60 + 10 + afterIndex * SLOT_INTERVAL_MIN; // 03:10 + offset
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 // Convert HH:MM UTC to today's ISO datetime
@@ -85,11 +97,17 @@ export default async function(req: Request): Promise<Response> {
       } catch {}
     }
 
-    // Reset all sources to "pending" and assign new random times for today
+    // Reset all sources to "pending" and assign fixed sequential times for today.
+    // Sources are sorted by display_order, then assigned 10-min slots.
+    // SOTA is forced to 03:00 UTC.
+    const sortedSources = [...SOURCES].sort((a, b) => a.order - b.order);
+    let slotIndex = 0;
     const schedule = [];
-    for (const src of SOURCES) {
-      const scheduledTime = randomTimeInWindow();
+    for (const src of sortedSources) {
+      const isSota = src.source === 'sota';
+      const scheduledTime = fixedTimeForIndex(slotIndex, isSota);
       const nextRunIso = timeToIsoUTC(scheduledTime);
+      if (!isSota) slotIndex++;
 
       // Find existing record for this source
       const existing = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: src.source });
