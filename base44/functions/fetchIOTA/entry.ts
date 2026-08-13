@@ -27,37 +27,47 @@ Deno.serve(async (req) => {
     // Filter out entries without coordinates (can't be displayed on map)
     const withCoords = references.filter(r => r.lat != null && r.lng != null);
 
+    // Safety guard: only replace existing records if the new fetch returned real data
+    // (more than 500 entries = official source). If the fetch fell back to embedded data
+    // (228 entries), keep the existing 1,178 records to avoid data loss.
+    const isRealData = withCoords.length > 500;
+
     // Upsert into IotaPoint entity (individual records, not ReferenceData array)
     const entity = base44.asServiceRole.entities.IotaPoint;
 
-    // 1. Delete all existing records (full refresh)
-    try {
-      await entity.deleteMany({});
-    } catch (e) {
-      // Non-fatal — bulkCreate will still work
-    }
-
-    // 2. Bulk create in batches of 500
-    const BATCH_SIZE = 500;
-    let created = 0;
-    for (let i = 0; i < withCoords.length; i += BATCH_SIZE) {
-      const batch = withCoords.slice(i, i + BATCH_SIZE);
+    if (isRealData) {
+      // 1. Delete all existing records (full refresh)
       try {
-        await entity.bulkCreate(batch.map(g => ({
-          code: g.code,
-          name: g.name,
-          lat: g.lat,
-          lng: g.lng,
-          dxcc_num: g.dxcc_num || '',
-          status: g.status || 'Active',
-          island_count: g.island_count || 0,
-          pc_credited: g.pc_credited || '',
-          grp_region: g.grp_region || '',
-        })));
-        created += batch.length;
+        await entity.deleteMany({});
       } catch (e) {
-        // Continue with next batch — partial data is better than no data
+        // Non-fatal — bulkCreate will still work
       }
+
+      // 2. Bulk create in batches of 500
+      const BATCH_SIZE = 500;
+      let created = 0;
+      for (let i = 0; i < withCoords.length; i += BATCH_SIZE) {
+        const batch = withCoords.slice(i, i + BATCH_SIZE);
+        try {
+          await entity.bulkCreate(batch.map(g => ({
+            code: g.code,
+            name: g.name,
+            lat: g.lat,
+            lng: g.lng,
+            dxcc_num: g.dxcc_num || '',
+            status: g.status || 'Active',
+            island_count: g.island_count || 0,
+            pc_credited: g.pc_credited || '',
+            grp_region: g.grp_region || '',
+          })));
+          created += batch.length;
+        } catch (e) {
+          // Continue with next batch — partial data is better than no data
+        }
+      }
+    } else {
+      // Fallback: external fetch failed — keep existing records, just update metadata
+      created = 0;
     }
 
     // 3. Update ReferenceData metadata record (count only, references: [])
