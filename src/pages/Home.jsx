@@ -82,7 +82,14 @@ const LAYER_COLORS = {
   castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12",
 };
 
-// Build a unified markers array from all reference types
+// Layer labels for search matching
+const LAYER_LABELS = {
+  sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
+  castle: "WCA", iota: "IOTA", lighthouse: "WLOTA",
+  repeater: "Relais", tota: "TOTA", aprs: "APRS", brandmeister: "BrandMeister",
+};
+
+// Build a unified markers array from all reference types (search uses ALL loaded data, not just active layers)
 function buildMarkers(data, activeLayers) {
   const markers = [];
   for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"]) {
@@ -95,11 +102,56 @@ function buildMarkers(data, activeLayers) {
         code: ref.code || ref.reference,
         reference: ref.reference || ref.code,
         layerType: type,
+        layerLabel: LAYER_LABELS[type] || type,
         color: ref.color || LAYER_COLORS[type],
       });
     }
   }
   return markers;
+}
+
+// Build search candidates from ALL loaded data (regardless of active layers) for comprehensive search
+function buildSearchCandidates(data, repeaters) {
+  const candidates = [];
+  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"]) {
+    const refs = data[type] || [];
+    for (const ref of refs) {
+      if (ref.lat == null || ref.lng == null) continue;
+      candidates.push({
+        ...ref,
+        code: ref.code || ref.reference,
+        reference: ref.reference || ref.code,
+        layerType: type,
+        layerLabel: LAYER_LABELS[type] || type,
+        color: ref.color || LAYER_COLORS[type],
+      });
+    }
+  }
+  // Include repeaters
+  for (const r of (repeaters || [])) {
+    if (r.lat == null || r.lng == null) continue;
+    candidates.push({
+      ...r,
+      code: r.callsign,
+      name: r.location_name || r.callsign,
+      layerType: "repeater",
+      layerLabel: LAYER_LABELS.repeater,
+      color: "#3b82f6",
+    });
+  }
+  // Include TOTA
+  for (const t of (data.tota || [])) {
+    if (t.lat == null || t.lng == null) continue;
+    candidates.push({
+      ...t,
+      code: t.code,
+      name: t.name,
+      layerType: "tota",
+      layerLabel: LAYER_LABELS.tota,
+      color: "#f97316",
+    });
+  }
+  return candidates;
 }
 
 // Component to handle map events (zoom, move) and expose map ref
@@ -272,21 +324,27 @@ export default function Home() {
   // Build unified markers array for MapMarkers
   const allMarkers = useMemo(() => buildMarkers(data, activeLayers), [data, activeLayers]);
 
-  // Search across all markers
+  // Search across ALL loaded data (not just active layers) — matches code, name, layerType, layerLabel
+  const searchCandidates = useMemo(() => buildSearchCandidates(data, repeaters), [data, repeaters]);
+
   useEffect(() => {
     if (!searchQuery || searchQuery.length < 2) {
       setSearchResults([]);
       return;
     }
     const q = searchQuery.toLowerCase();
-    const results = allMarkers
+    const results = searchCandidates
       .filter(m =>
         (m.code || m.reference || "").toLowerCase().includes(q) ||
-        (m.name || "").toLowerCase().includes(q)
+        (m.name || "").toLowerCase().includes(q) ||
+        (m.layerType || "").toLowerCase().includes(q) ||
+        (m.layerLabel || "").toLowerCase().includes(q) ||
+        (m.callsign || "").toLowerCase().includes(q) ||
+        (m.location_name || "").toLowerCase().includes(q)
       )
-      .slice(0, 20);
+      .slice(0, 30);
     setSearchResults(results);
-  }, [searchQuery, allMarkers]);
+  }, [searchQuery, searchCandidates]);
 
   // Show performance suggestion when many markers are loaded
   useEffect(() => {
@@ -603,8 +661,8 @@ export default function Home() {
       {/* Splash Screen */}
       {showSplash && <SplashScreen onDismiss={() => setShowSplash(false)} />}
 
-      {/* First Time Setup */}
-      <FirstTimeSetup onDone={() => setSetupComplete(true)} />
+      {/* First Time Setup — only after splash dismissed */}
+      {!showSplash && <FirstTimeSetup onDone={() => setSetupComplete(true)} />}
 
       {/* Version Changelog Popup */}
       {showChangelog && <VersionChangelogPopup onClose={() => setShowChangelog(false)} />}
@@ -620,6 +678,7 @@ export default function Home() {
         style={{ background: "#e8e8e8" }}
       >
         <MapTileLayer
+          key={baseLayer}
           url={tileConfig.url}
           attribution={tileConfig.attribution}
           maxZoom={tileConfig.maxZoom}

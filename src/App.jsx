@@ -52,6 +52,10 @@ function AuthenticatedApp() {
         <Route path="/admin/users" element={<UserManagement />} />
       </Route>
       <Route path="/test-report" element={<TestReport />} />
+      <Route path="/einstellungen" element={<Navigate to="/settings" replace />} />
+      <Route path="/logbuch" element={<Navigate to="/log" replace />} />
+      <Route path="/karte" element={<Navigate to="/" replace />} />
+      <Route path="/hilfe" element={<Navigate to="/help" replace />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

@@ -23,17 +23,16 @@ export default function FoxHuntingSwitch({ mode, onModeChange }) {
         </button>
         <button
           onClick={() => {
-            onModeChange("hunting");
             setShowHint(true);
             setTimeout(() => setShowHint(false), 5000);
           }}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-            !isFox ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-700"
-          }`}
-          title="Hunting-Modus: Fuchsjagd-Modul (coming soon)"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 cursor-not-allowed opacity-60"
+          title="Hunting-Modus: Fuchsjagd-DF-Tools — kommt bald"
+          aria-disabled="true"
         >
           <Crosshair className="w-3.5 h-3.5" />
-          Hunting
+          <span>Hunting</span>
+          <span className="ml-0.5 px-1.5 py-0.5 text-[8px] font-bold bg-amber-100 text-amber-700 rounded-full uppercase tracking-wide">Bald</span>
         </button>
       </div>
       {showHint && (
