@@ -53,10 +53,12 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
       );
       const response = await Promise.race([responsePromise, timeoutPromise]);
 
+      // SDK may wrap response in a `data` field — handle both formats
+      const responseData = response?.data || response;
+
       if (!myAbort.aborted && onDataLoaded) {
-        onDataLoaded(response?.references || {}, isFirstLoadRef.current);
+        onDataLoaded(responseData?.references || {}, isFirstLoadRef.current);
         isFirstLoadRef.current = false;
-        // Track the bounds we've fetched so we can skip re-fetching within this area
         fetchedBoundsRef.current = padded;
       }
     } catch (e) {

@@ -515,6 +515,8 @@ export async function fetchIotaData(): Promise<any[]> {
         headers: {
           'User-Agent': BROWSER_UA,
           'Accept': 'application/json, text/plain, */*',
+          'Referer': 'https://www.iota-world.org/islands-on-the-air/downloads.html',
+          'Origin': 'https://www.iota-world.org',
         },
         redirect: 'follow',
       });
