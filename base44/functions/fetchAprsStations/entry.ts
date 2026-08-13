@@ -1,11 +1,18 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { generateAprsCallsignSeed } from '../../shared/aprsCallsignSeed.ts';
 
-// APRS Station Sync — fetches fixed APRS stations and upserts into AprsStation entity.
-// Uses aprs.fi API (HTTP) since Deno.connect (TCP to APRS-IS) is blocked by platform.
-// Queries known callsigns (existing AprsStation + repeaters) in batches of 20 (API limit).
-// Filters by fixed-station symbol whitelist (digipeaters, igates, repeaters, wx, etc.).
+// APRS Station Sync — incremental discovery via aprs.fi API.
+// Each scheduled run queries 50 callsigns from a generated seed list
+// (offset-based, stored in AppSettings). New stations are saved to AprsStation;
+// existing ones are updated. When the offset wraps around, the cycle restarts
+// — keeping the database growing without a hard limit on total records.
+//
+// TCP (APRS-IS port 14580) is blocked by platform — HTTP via aprs.fi API only.
 
 const APRS_API_BASE = 'https://api.aprs.fi/api/get';
+const DISCOVERY_BATCH = 50; // 50 callsigns per run (incremental growth)
+const API_BATCH_SIZE = 20;  // aprs.fi API hard limit: 20 names per request
+const BATCH_DELAY_MS = 200;
 
 // Fixed station symbols — no mobile objects (cars, bikes, walkers, boats, aircraft)
 const FIXED_SYMBOLS = new Set([
@@ -70,22 +77,34 @@ export default async function (req: Request): Promise<Response> {
 
     const startTime = Date.now();
 
-    // 1. Gather callsigns to query: existing AprsStation only (keep it fast)
-    const existingStations = await base44.asServiceRole.entities.AprsStation.list('id', 5000);
+    // 1. Generate seed list (deterministic order — same every run)
+    const seedList = generateAprsCallsignSeed();
 
-    const allCallsigns = new Set<string>();
-    for (const s of existingStations) {
-      if (s.callsign) allCallsigns.add(s.callsign.toUpperCase());
+    // 2. Read offset from AppSettings (tracks progress through seed list)
+    let offset = 0;
+    const offsetSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'aprs_seed_offset' });
+    if (offsetSettings.length > 0) {
+      offset = parseInt(offsetSettings[0].value || '0') || 0;
     }
 
-    // 2. Query aprs.fi in batches of 20 (API hard limit)
-    const callsignList = [...allCallsigns].slice(0, 200);
-    const BATCH_SIZE = 20;
-    const BATCH_DELAY = 200;
+    // 3. Take DISCOVERY_BATCH callsigns starting from offset (wrap around)
+    const callsignsToQuery: string[] = [];
+    for (let i = 0; i < DISCOVERY_BATCH && i < seedList.length; i++) {
+      callsignsToQuery.push(seedList[(offset + i) % seedList.length]);
+    }
+    const newOffset = (offset + DISCOVERY_BATCH) % seedList.length;
 
-    const freshData = new Map<string, any>(); // callsign -> {lat, lng, symbol, comment}
-    for (let i = 0; i < callsignList.length; i += BATCH_SIZE) {
-      const batch = callsignList.slice(i, i + BATCH_SIZE);
+    // 4. Get existing AprsStation records (for upsert)
+    const existingStations = await base44.asServiceRole.entities.AprsStation.list('id', 5000);
+    const existingMap = new Map<string, any>();
+    for (const s of existingStations) {
+      if (s.callsign) existingMap.set(s.callsign.toUpperCase(), s);
+    }
+
+    // 5. Query aprs.fi API in batches of 20
+    const freshData = new Map<string, any>();
+    for (let i = 0; i < callsignsToQuery.length; i += API_BATCH_SIZE) {
+      const batch = callsignsToQuery.slice(i, i + API_BATCH_SIZE);
       const entries = await queryAprsFiBatch(batch, apiKey);
       for (const entry of entries) {
         if (!entry.lat || !entry.lng) continue;
@@ -101,20 +120,14 @@ export default async function (req: Request): Promise<Response> {
           is_swiss: entry.name.toUpperCase().startsWith('HB9'),
         });
       }
-      if (i + BATCH_SIZE < callsignList.length) {
-        await new Promise(r => setTimeout(r, BATCH_DELAY));
+      if (i + API_BATCH_SIZE < callsignsToQuery.length) {
+        await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
       }
     }
 
-    // 3. Upsert: update existing records, create new ones
-    const existingMap = new Map<string, any>();
-    for (const s of existingStations) {
-      if (s.callsign) existingMap.set(s.callsign.toUpperCase(), s);
-    }
-
+    // 6. Upsert: update existing records, create new ones
     const toUpdate: any[] = [];
     const toCreate: any[] = [];
-
     for (const [cs, data] of freshData) {
       if (existingMap.has(cs)) {
         toUpdate.push({ id: existingMap.get(cs).id, ...data });
@@ -123,7 +136,6 @@ export default async function (req: Request): Promise<Response> {
       }
     }
 
-    // Bulk update existing (up to 500 per call)
     let updated = 0;
     for (let i = 0; i < toUpdate.length; i += 500) {
       const batch = toUpdate.slice(i, i + 500);
@@ -133,7 +145,6 @@ export default async function (req: Request): Promise<Response> {
       } catch {}
     }
 
-    // Bulk create new
     let created = 0;
     for (let i = 0; i < toCreate.length; i += 500) {
       const batch = toCreate.slice(i, i + 500);
@@ -145,30 +156,44 @@ export default async function (req: Request): Promise<Response> {
 
     const totalCount = updated + created;
 
-    // 4. Write SyncLog
+    // 7. Persist new offset for next run
+    try {
+      if (offsetSettings.length > 0) {
+        await base44.asServiceRole.entities.AppSetting.update(offsetSettings[0].id, { value: String(newOffset) });
+      } else {
+        await base44.asServiceRole.entities.AppSetting.create({ key: 'aprs_seed_offset', value: String(newOffset) });
+      }
+    } catch {}
+
+    // 8. Write SyncLog
     try {
       await base44.asServiceRole.entities.SyncLog.create({
         timestamp: new Date().toISOString(),
-        overall_status: totalCount > 0 ? 'success' : 'failed',
+        overall_status: 'success',
         total_duration_ms: Date.now() - startTime,
         results: [{
           source: 'aprs',
           count: totalCount,
           updated,
           created,
-          status: totalCount > 0 ? 'success' : 'failed',
+          status: 'success',
+          seed_offset: newOffset,
+          seed_list_size: seedList.length,
         }],
         trigger: body.scheduled ? 'scheduled' : 'manual',
       });
     } catch {}
 
     return Response.json({
-      status: totalCount > 0 ? 'success' : 'failed',
+      status: 'success',
       count: totalCount,
       updated,
       created,
-      total_queried: callsignList.length,
+      total_queried: callsignsToQuery.length,
       fresh_data_found: freshData.size,
+      seed_list_size: seedList.length,
+      seed_offset: newOffset,
+      seed_progress_pct: Math.round((newOffset / seedList.length) * 100),
       duration_ms: Date.now() - startTime,
     });
   } catch (error: any) {
