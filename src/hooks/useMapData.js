@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
-import { loadAllRepeaters, loadAllPrivateNodes, loadAllTotaPoints } from "@/lib/paginatedLoader";
+import { loadAllPrivateNodes, loadAllTotaPoints } from "@/lib/paginatedLoader";
 
-// Loads map data with viewport-based loading for reference types.
-// Reference types (SOTA, POTA, WWFF, WWBOTA, Castles, Lighthouses, IOTA) are loaded
-// viewport-based via ViewportDataLoader component — NOT here.
-// This hook loads: offline cache (instant), repeaters, private nodes, TOTA, admin links.
+// Loads map data with viewport-based loading for reference types AND repeaters.
+// Reference types (SOTA, POTA, WWFF, WWBOTA, Castles, Lighthouses, IOTA) and repeaters
+// are loaded viewport-based via ViewportDataLoader component → getReferencesInBounds.
+// This hook loads: offline cache (instant), private nodes (APRS/BrandMeister), admin links.
 //
 // Timeout guard: loading stops after 30s regardless of completion status,
 // preventing the builder from hanging in "thinking..." state.
@@ -26,7 +26,7 @@ export function useMapData(activeLayers) {
   const cancelRef = useRef(false);
   const timeoutRef = useRef(null);
   // Track which datasets have been loaded from server to avoid duplicate fetches
-  const loadedRef = useRef({ repeaters: false, privateNodes: false, adminLinks: false });
+  const loadedRef = useRef({ privateNodes: false, adminLinks: false });
 
   // Load offline cache synchronously on mount — instant display if available
   useEffect(() => {
@@ -51,14 +51,18 @@ export function useMapData(activeLayers) {
     if (cachedTota.length > 0) setData(prev => ({ ...prev, tota: cachedTota }));
   }, []);
 
-  // Merge viewport-loaded reference data (called by ViewportDataLoader)
+  // Merge viewport-loaded reference data AND repeaters (called by ViewportDataLoader)
   const onViewportData = useCallback((references, isFirstLoad) => {
+    // Handle repeaters separately — viewport-based, replace on each fetch
+    if (Array.isArray(references.repeater)) {
+      setRepeaters(references.repeater.filter(r => r.lat != null && r.lng != null));
+    }
+    // Handle reference types (SOTA, POTA, etc.)
     setData(prev => {
       const next = { ...prev };
       for (const [type, refs] of Object.entries(references)) {
+        if (type === 'repeater') continue;
         if (Array.isArray(refs)) {
-          // On first load, replace offline cache with server data
-          // On subsequent loads (pan/zoom), also replace — viewport data is authoritative
           next[type] = refs.filter(r => r.lat != null && r.lng != null);
         }
       }
@@ -71,9 +75,8 @@ export function useMapData(activeLayers) {
   }, []);
 
   // Server loading — gated by activeLayers. Only loads data for layers the user has enabled.
-  // Data loads once and stays in state; toggling a layer off hides markers but keeps data
-  // so toggling back on is instant. Reference types (SOTA, POTA, etc.) are loaded
-  // viewport-based by ViewportDataLoader, which also checks activeLayers.
+  // Repeaters and reference types are loaded viewport-based by ViewportDataLoader.
+  // This hook loads private nodes (APRS/BrandMeister, smaller dataset) and admin links.
   useEffect(() => {
     let active = true;
     cancelRef.current = false;
@@ -87,33 +90,16 @@ export function useMapData(activeLayers) {
       return;
     }
 
+    // Show loading indicator — ViewportDataLoader sets false on first viewport data
+    setLoading(true);
+    setLoadingMessage("Daten werden geladen…");
+
     const tasks = [];
 
-    // Fetch repeaters via paginated loader — only when repeater layer is active
-    if (needRepeaters && !loadedRef.current.repeaters) {
-      loadedRef.current.repeaters = true;
-      setLoading(true);
-      setLoadingMessage("Relais werden geladen…");
-      tasks.push((async () => {
-        try {
-          await loadAllRepeaters({
-            onBatch: (batch, total) => {
-              if (cancelRef.current) return;
-              // Filter out repeaters without valid coordinates — they can't be rendered
-              // on the map and waste memory/bandwidth (47k+ US repeaters without coords).
-              const withCoords = batch.filter(r => r.lat != null && r.lng != null);
-              setRepeaters(prev => [...prev, ...withCoords]);
-              setLoadingMessage(`Relais werden geladen… (${total})`);
-            },
-          });
-        } catch (e) { /* silent */ }
-      })());
-    }
-
-    // Fetch private nodes (APRS + BrandMeister) — only when APRS or BrandMeister layer is active
+    // Private nodes (APRS + BrandMeister) — load all (smaller dataset)
+    // Repeaters are loaded viewport-based via ViewportDataLoader → getReferencesInBounds
     if (needPrivateNodes && !loadedRef.current.privateNodes) {
       loadedRef.current.privateNodes = true;
-      setLoading(true);
       setLoadingMessage("APRS-Nodes werden geladen…");
       tasks.push((async () => {
         try {
@@ -139,15 +125,19 @@ export function useMapData(activeLayers) {
       })());
     }
 
-    if (tasks.length > 0) {
-      // Timeout guard — stop loading after 30s regardless of completion
-      timeoutRef.current = setTimeout(() => {
-        if (active && !cancelRef.current) setLoading(false);
-      }, LOADING_TIMEOUT_MS);
+    // Timeout guard — stop loading after 30s regardless of completion
+    timeoutRef.current = setTimeout(() => {
+      if (active && !cancelRef.current) setLoading(false);
+    }, LOADING_TIMEOUT_MS);
 
+    if (tasks.length > 0) {
       Promise.all(tasks).then(() => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        if (active && !cancelRef.current) setLoading(false);
+        // For private-nodes-only (no repeater layer), stop loading immediately
+        if (!needRepeaters && active && !cancelRef.current) {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          setLoading(false);
+        }
+        // For repeater layer active, loading is stopped by onViewportData or timeout
       });
     }
 

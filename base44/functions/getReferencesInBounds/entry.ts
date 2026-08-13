@@ -8,12 +8,13 @@ import { loadAllPoints, loadPointsInBounds } from '../../shared/pointUpsert.ts';
 // SOTA, POTA, and WWFF are stored as individual records (SotaPoint, PotaPoint, WwffPoint)
 // to avoid MongoDB's 16MB BSON document limit. Other types (wwbota, castle, iota, lighthouse)
 // remain in ReferenceData.references arrays (well under the limit).
+// Repeaters are also loaded viewport-based from the Repeater entity.
 
 const typeCache: Record<string, { refs: any[]; time: number }> = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Types stored as individual point entities (not in ReferenceData.references)
-const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint'; normalize: (r: any) => any }> = {
+const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'Repeater'; normalize: (r: any) => any }> = {
   sota: {
     entity: 'SotaPoint',
     normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng })
@@ -44,6 +45,10 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
       link: 'https://www.iota-world.org/'
     })
   },
+  repeater: {
+    entity: 'Repeater',
+    normalize: (r) => r
+  },
 };
 
 async function loadReferenceData(base44, type: string): Promise<any[]> {
@@ -57,21 +62,23 @@ async function loadReferenceData(base44, type: string): Promise<any[]> {
 }
 
 async function loadType(base44, type: string, bounds?: { north: number; south: number; east: number; west: number }): Promise<any[]> {
-  // Point types (sota, pota, hbff) — use database-level bounds filtering to avoid
-  // loading ALL records (181k SotaPoint exceeds the read traffic volume limit).
+  // Point types (sota, pota, hbff, repeater) — use database-level bounds filtering to avoid
+  // loading ALL records (181k SotaPoint / 48k Repeater exceeds the read traffic volume limit).
   // Falls back to loadAllPoints only if bounds are not provided (e.g. offline cache).
   if (POINT_TYPES[type]) {
     const ptConfig = POINT_TYPES[type];
     if (bounds) {
       const points = await loadPointsInBounds(base44, ptConfig.entity, bounds);
       if (points.length > 0) return points.map(ptConfig.normalize);
-      // Fallback: load from ReferenceData (pre-migration data)
-      return loadReferenceData(base44, type);
+      // Fallback: load from ReferenceData (pre-migration data) — not for repeaters
+      if (type !== 'repeater') return loadReferenceData(base44, type);
+      return [];
     }
     // No bounds — load all (used by offline cache downloads)
     const points = await loadAllPoints(base44, ptConfig.entity);
     if (points.length > 0) return points.map(ptConfig.normalize);
-    return loadReferenceData(base44, type);
+    if (type !== 'repeater') return loadReferenceData(base44, type);
+    return [];
   }
 
   // Non-point types (wwbota, castle, iota, lighthouse) use ReferenceData arrays —
@@ -111,13 +118,13 @@ export default async function(req: Request): Promise<Response> {
     // max_per_type overrides the default cap — used by offline cache downloads to get all points
     const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;
 
-    // Load each type in parallel with a per-type timeout (3s) — prevents one slow type
+    // Load each type in parallel with a per-type timeout (10s) — prevents one slow type
     // (e.g. 181k SotaPoint bounds query) from blocking the entire response
     const results = await Promise.all(
       allTypes.map(async (type) => {
         try {
           const typeTimeout = new Promise<any[]>((_, reject) =>
-            setTimeout(() => reject(new Error('type_timeout')), 3000)
+            setTimeout(() => reject(new Error('type_timeout')), 10000)
           );
           const refs = await Promise.race([
             loadType(base44, type, bounds),

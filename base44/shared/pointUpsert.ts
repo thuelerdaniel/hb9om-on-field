@@ -130,7 +130,7 @@ export async function loadAllPoints(
  */
 export async function loadPointsInBounds(
   base44: any,
-  entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint',
+  entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'Repeater',
   bounds: { north: number; south: number; east: number; west: number }
 ): Promise<any[]> {
   const entity = base44.asServiceRole?.entities?.[entityName];

@@ -6,10 +6,11 @@ import { base44 } from "@/api/base44Client";
 // Replaces the old "load all 270k+ points into memory" approach.
 // Calls getReferencesInBounds backend function on debounced pan/zoom.
 // Accumulates visited areas so panning back doesn't re-fetch.
+// Also loads repeaters viewport-based (not all 48k at once).
 const DEBOUNCE_MS = 350;
 const MAX_PER_TYPE = 3000;
 const REQUEST_TIMEOUT_MS = 10000;
-const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"];
+const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater"];
 
 export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline, reloadTrigger }) {
   const map = useMap();
