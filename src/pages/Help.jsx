@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell, RadioTower, Signal, Network } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell, RadioTower, Signal, Network, Database } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
@@ -11,7 +11,7 @@ import { generateAdminHelpPdf } from "@/lib/generateAdminHelpPdf";
 import { base44 } from "@/api/base44Client";
 import { resetChangelog } from "@/components/map/VersionChangelogPopup";
 import { useToast } from "@/components/ui/use-toast";
-import { APP_VERSION } from "@/lib/constants";
+import { APP_VERSION, APP_BUILD, DATA_SOURCES } from "@/lib/appVersion";
 
 const SECTIONS = [
   {
@@ -846,8 +846,35 @@ export default function Help() {
           <p className="text-xs text-blue-700 dark:text-blue-300 mt-1.5">Zeigt die Änderungen seit v0.75 nach dem Splash Screen.</p>
         </div>
 
+        {/* Data Sources Reference */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Database className="w-4 h-4 text-blue-600" />
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Datenquellen & Sync-Zeiten</h3>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
+            Alle Referenzdaten werden täglich von den offiziellen Quellen synchronisiert (03:00–07:00 UTC).
+            IOTA-Daten werden täglich von iota-world.org synchronisiert. Repeater-Daten werden aus RepeaterBook und Hearham aggregiert.
+            Bei fehlenden Daten prüfen Sie den Sync-Status im Hamburger-Menü.
+          </p>
+          <div className="space-y-1.5">
+            {DATA_SOURCES.map((src, i) => (
+              <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 dark:border-slate-700/50 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-gray-700 dark:text-slate-300">{src.name}</span>
+                  <span className="text-gray-400 dark:text-slate-500 ml-2 text-[10px]">{src.url}</span>
+                </div>
+                <div className="text-right flex-shrink-0 ml-2">
+                  <span className="text-gray-600 dark:text-slate-400 text-[10px]">{src.count}</span>
+                  <span className="text-gray-400 dark:text-slate-500 ml-2 text-[10px]">{src.schedule}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-4 text-center text-xs text-gray-500 dark:text-slate-400">
-          <p>HB9OM On Field v{APP_VERSION} · Amateurfunk Referenzkarte & QSO-Logbuch</p>
+          <p>HB9OM On Field v{APP_VERSION} (Build {APP_BUILD}) · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
             <Link to="/privacy" className="text-blue-600 font-medium hover:underline">Datenschutzerklärung</Link>
             {" · "}

@@ -41,27 +41,56 @@ const SOURCES = [
   { source: 'ch_repeater_links', label: 'CH-Relais-Links', function_name: 'fetchCHRepeaterLinks', function_payload: { scheduled: true }, order: 12 },
 ];
 
-// Assign fixed sequential times to sources, 10 minutes apart, starting at 00:00 UTC.
-// SOTA is forced to 03:00 UTC (as requested — it takes ~276s and should not block others).
-// All other sources get times in order: 00:00, 00:10, 00:20, ..., skipping the 03:00 slot.
+// Staggered sync schedule — sources grouped by type, 1x daily 03:00–07:00 UTC.
+// This spreads API load and ensures no two heavy sources run simultaneously.
+// Sub-sources (lighthouse regions, repeater regions, hearham) get sequential
+// 10-minute slots within their group's window.
 const SLOT_INTERVAL_MIN = 10;
 
-function fixedTimeForIndex(index: number, isSota: boolean): string {
-  if (isSota) return '03:00';
-  // Assign slots before 03:00 first (00:00-02:50), then after 03:00 (03:10-05:50)
-  const slotsBeforeSota = 18; // 00:00-02:50 (18 × 10min = 180min = 3h)
-  if (index < slotsBeforeSota) {
-    const totalMin = index * SLOT_INTERVAL_MIN;
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+// Base time per source group (HH:MM UTC). Sub-sources within a group get
+// sequential slots starting from the base time.
+const SOURCE_GROUP_TIMES: Record<string, string> = {
+  sota: '03:00',
+  iota: '03:00',
+  pota: '03:30',
+  hbff: '04:00',
+  wwbota: '04:30',
+  castle: '04:30',
+  lighthouse: '05:30',
+  repeater: '05:00',
+  aprs: '06:00',
+  tota: '06:30',
+  fm_funknetz: '06:30',
+  ch_repeater_links: '06:30',
+};
+
+// Track per-group slot counters so sub-sources within a group get sequential times
+const groupSlotCounters: Record<string, number> = {};
+
+function fixedTimeForSource(source: string): string {
+  // Determine the group key (strip region suffixes like lighthouse_eu_north → lighthouse)
+  let groupKey = source;
+  for (const prefix of ['lighthouse_', 'repeater_']) {
+    if (source.startsWith(prefix)) {
+      groupKey = prefix.slice(0, -1); // 'lighthouse' or 'repeater'
+      break;
+    }
   }
-  // After SOTA: start at 03:10
-  const afterIndex = index - slotsBeforeSota;
-  const totalMin = 3 * 60 + 10 + afterIndex * SLOT_INTERVAL_MIN; // 03:10 + offset
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  // Hearham repeaters belong to the repeater group
+  if (source.includes('hearham')) groupKey = 'repeater';
+
+  const baseTime = SOURCE_GROUP_TIMES[groupKey] || '06:30';
+  const counter = groupSlotCounters[groupKey] || 0;
+  groupSlotCounters[groupKey] = counter + 1;
+
+  if (counter === 0) return baseTime;
+
+  // Sub-sources: add sequential 10-min slots after the base time
+  const [h, m] = baseTime.split(':').map(Number);
+  const totalMin = h * 60 + m + counter * SLOT_INTERVAL_MIN;
+  const nh = Math.floor(totalMin / 60);
+  const nm = totalMin % 60;
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
 }
 
 // Convert HH:MM UTC to today's ISO datetime
@@ -105,13 +134,12 @@ export default async function(req: Request): Promise<Response> {
     // Sources are sorted by display_order, then assigned 10-min slots.
     // SOTA is forced to 03:00 UTC.
     const sortedSources = [...SOURCES].sort((a, b) => a.order - b.order);
-    let slotIndex = 0;
+    // Reset group counters for this run
+    for (const k of Object.keys(groupSlotCounters)) delete groupSlotCounters[k];
     const schedule = [];
     for (const src of sortedSources) {
-      const isSota = src.source === 'sota';
-      const scheduledTime = fixedTimeForIndex(slotIndex, isSota);
+      const scheduledTime = fixedTimeForSource(src.source);
       const nextRunIso = timeToIsoUTC(scheduledTime);
-      if (!isSota) slotIndex++;
 
       // Find existing record for this source
       const existing = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: src.source });

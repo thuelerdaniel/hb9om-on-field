@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Settings, HelpCircle, RefreshCw, LogOut, X, Radio, Cloud, CloudOff, ChevronRight, User } from "lucide-react";
+import { Settings, HelpCircle, RefreshCw, LogOut, X, Radio, Cloud, CloudOff, ChevronRight, User, Shield, ChevronDown, ChevronUp } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { APP_VERSION, APP_BUILD, APP_CHANGELOG, PRIVACY_NOTICE } from "@/lib/appVersion";
 
 export default function MapMenuDrawer({ open, onClose, isLoading, loadingMessage }) {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [syncStatus, setSyncStatus] = useState(null);
   const [checkingSync, setCheckingSync] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -173,7 +175,7 @@ export default function MapMenuDrawer({ open, onClose, isLoading, loadingMessage
           )}
 
           {/* Account / Logout */}
-          <div className="px-4 py-3 mt-auto border-t border-gray-100 dark:border-slate-700/50">
+          <div className="px-4 py-3 border-t border-gray-100 dark:border-slate-700/50">
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
@@ -184,6 +186,45 @@ export default function MapMenuDrawer({ open, onClose, isLoading, loadingMessage
                 <p className="text-[10px] text-gray-400 dark:text-slate-500">Aus dem Konto ausloggen</p>
               </div>
             </button>
+          </div>
+
+          {/* Privacy notice */}
+          <div className="px-4 py-2 border-t border-gray-100 dark:border-slate-700/50">
+            <div className="flex items-start gap-2 px-1">
+              <Shield className="w-3 h-3 text-gray-400 dark:text-slate-500 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] text-gray-400 dark:text-slate-500 leading-relaxed">{PRIVACY_NOTICE}</p>
+            </div>
+            <Link to="/privacy" onClick={onClose} className="text-[10px] text-blue-500 hover:underline pl-5">
+              Datenschutzerklärung
+            </Link>
+          </div>
+
+          {/* Version + Build + Changelog */}
+          <div className="px-4 py-3 border-t border-gray-100 dark:border-slate-700/50" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
+            <div className="flex items-center justify-between mb-1">
+              <div>
+                <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">HB9OM On Field</p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-500">v{APP_VERSION} (Build {APP_BUILD})</p>
+              </div>
+              <button
+                onClick={() => setShowChangelog(!showChangelog)}
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400"
+                title="Was ist neu"
+              >
+                {showChangelog ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            {showChangelog && (
+              <div className="mt-2 space-y-1">
+                <p className="text-[10px] font-semibold text-gray-500 dark:text-slate-400">Was ist neu in v{APP_VERSION}:</p>
+                {APP_CHANGELOG.map((change, i) => (
+                  <div key={i} className="flex items-start gap-1.5 text-[10px] text-gray-400 dark:text-slate-500">
+                    <span className="text-gray-300 dark:text-slate-600">•</span>
+                    <span>{change}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
