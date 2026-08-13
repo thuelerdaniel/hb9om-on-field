@@ -745,6 +745,124 @@ export const SECTIONS = [
     ]
   },
   {
+    title: "ABDECKUNG & AUSBREITUNGSMODELLE",
+    shortTitle: "Abdeckung",
+    color: [249, 115, 22],
+    letter: "A",
+    description: "Die App verwendet zwei physikalische Ausbreitungsmodelle: ITM+ für VHF/UHF (6m bis 23cm) und KW-Modell für Kurzwelle (160m bis 10m). Beide berechnen 36 Radiale mit echten SRTM-Höhendaten und Link-Budget pro Radial.",
+    items: [
+      {
+        title: "Ausbreitungsmodelle – Übersicht",
+        body: "Die App verwendet zwei verschiedene physikalische Ausbreitungsmodelle je nach Frequenzbereich: Für VHF/UHF (6m bis 23cm) das ITM+-Modell (Improved Terrain Model) und für Kurzwelle/HF (160m bis 10m) das KW-Modell mit Bodenwelle, Raumwelle und NVIS. Beide Modelle berechnen 36 Radiale (alle 10 Grad) um den Sender und ergeben ein asymmetrisches Polygon, das Gelaende und physikalische Ausbreitungseffekte beruecksichtigt. Die Berechnung verwendet echte SRTM 30m Hoehendaten via OpenTopoData API.",
+        steps: [
+          { icon: "radio", text: "VHF/UHF (6m-23cm): ITM+ mit LOS, Beugung, Troposcatter, Reflexion" },
+          { icon: "radio", text: "KW/HF (160m-10m): Bodenwelle + Raumwelle (MUF/LUF) + NVIS" },
+          { icon: "mapPin", text: "36 Radiale (alle 10 Grad) mit SRTM 30m Hoehendaten" },
+          { icon: "signal", text: "Link-Budget: FSPL, Boden-, Vegetations-, Gebaeudeverluste" }
+        ],
+        tip: "Tipp: Die Berechnung dauert 5-15 Sekunden pro Sender. Das Ergebnis ist ein asymmetrisches Polygon, kein einfacher Kreis."
+      },
+      {
+        title: "ITM+-Modell (VHF/UHF: 6m bis 23cm)",
+        body: "Das ITM+-Modell (Improved Terrain Model) berechnet die Reichweite fuer VHF- und UHF-Baender mit vier Ausbreitungsmechanismen: 1) Line-of-Sight (LOS): Direkte Sichtlinie mit Erdkruemmung (k-Faktor 4/3) und Fresnel-Zonen-Clearance. 2) Knife-Edge Diffraction: Beugung an Gelaendekanten nach ITU-R P.526 — Signale biegen um Berge und Huegel. 3) Troposcatter: Streuung an Troposphaeren-Turbulenzen fuer Reichweiten ueber die Sichtlinie hinaus (bis 30% ueber LOS). 4) Two-Ray Reflection: Bodenreflexion bei niedrigen Antennen. Pro Radial wird das Maximum aus allen vier Mechanismen als effektive Reichweite genommen. Die Rx-Empfindlichkeit haengt vom Modus ab (FM: -117 dBm, DMR: -112 dBm, SSB: -130 dBm, CW: -137 dBm).",
+        steps: [
+          { icon: "eye", text: "LOS: Sichtlinie mit Erdkruemmung (k=4/3) und Fresnel-Zone" },
+          { icon: "mountain", text: "Knife-Edge Beugung: Signale biegen um Gelaendekanten (ITU-R P.526)" },
+          { icon: "cloud", text: "Troposcatter: Streuung an Troposphaere, bis 30% ueber LOS" },
+          { icon: "radio", text: "Two-Ray: Bodenreflexion bei niedrigen Antennen" }
+        ],
+        tip: "Tipp: 2m FM 50W auf einem Berg: LOS bis 40 km, + Beugung bis 55 km in Tallagen, + Troposcatter bis 65 km."
+      },
+      {
+        title: "KW-/HF-Modell (160m bis 10m)",
+        body: "Das KW-Modell berechnet die Reichweite fuer Kurzwellen-Baender mit drei Ausbreitungsmechanismen: 1) Bodenwelle (Ground Wave): Signalausbreitung entlang der Erdoberflaeche mit frequenzabhaengiger Daempfung. Niedrige Frequenzen (160m, 80m) haben eine staerkere Bodenwelle (bis 200 km), hoehe Frequenzen (20m, 15m) nur wenige Kilometer. 2) Raumwelle (Sky Wave): Reflexion an der Ionosphaere (F2-Schicht) — abhaengig von MUF (Maximum Usable Frequency) und LUF (Lowest Usable Frequency). MUF = foF2 x 3.5, foF2 haengt von Sonnenhoehe und Sonnenaktivitaet ab. Bei Tag ist die MUF hoeher (bis 30 MHz), bei Nacht niedriger (5-10 MHz). 3) NVIS (Near Vertical Incidence Skywave): Bei 3-10 MHz mit niedriger Antenne (2m) wird das Signal fast senkrecht in die Ionosphaere gestrahlt und reflektiert — deckt 0-500 km ohne Skip-Zone. Ideal fuer regionale Kommunikation.",
+        steps: [
+          { icon: "radio", text: "Bodenwelle: entlang Erdoberflaeche, 160m bis 200 km, 20m nur ~20 km" },
+          { icon: "cloud", text: "Raumwelle: Reflexion an F2-Schicht, MUF/LUF abhaengig von Sonnenaktivitaet" },
+          { icon: "sun", text: "NVIS: 3-10 MHz, niedrige Antenne, 0-500 km ohne Skip-Zone" }
+        ],
+        tip: "Tipp: 80m Tag: Bodenwelle bis 120 km + NVIS bis 500 km. 20m Tag: Raumwelle bis 3000 km. 80m Nacht: MUF sinkt, nur niedrige Frequenzen."
+      },
+      {
+        title: "MUF, LUF und Sonnenaktivitaet",
+        body: "Die ionosphaerische Ausbreitung haengt stark von der Sonnenaktivitaet ab. Die App berechnet MUF (Maximum Usable Frequency) und LUF (Lowest Usable Frequency) aus der Sonnenhoehe (Deklination, Tageszeit, Breitengrad) und einem Solar-Aktivitaetsfaktor (0.7 = Solar Minimum, 1.0 = Mittel, 1.3 = Solar Maximum). foF2 = (1.5 + 4.5 x sin(Sonnenhoehe)) x Solar-Aktivitaet. MUF = foF2 x 3.5. LUF = 5 x Solar-Aktivitaet (Tag) bzw. 2 x Solar-Aktivitaet (Nacht). Wenn die gewaehlte Frequenz ueber der MUF liegt, ist das Band geschlossen. Wenn sie unter der LUF liegt, ist die Daempfung zu hoch. Im Abdeckungs-Dialog wird MUF/LUF und die Sonnenhoehe angezeigt, mit einer Warnung bei geschlossenem Band.",
+        steps: [
+          { icon: "sun", text: "Solar-Aktivitaet: 0.7 (Min) bis 1.3 (Max), Standard 1.0 (Mittel)" },
+          { icon: "sun", text: "foF2 = (1.5 + 4.5 x sin(Sonnenhoehe)) x Solar-Aktivitaet" },
+          { icon: "barChart3", text: "MUF = foF2 x 3.5 · LUF = 5 x Solar (Tag) / 2 x Solar (Nacht)" },
+          { icon: "alertTriangle", text: "Warnung bei f > MUF (Band geschlossen) oder f < LUF (zu viel Daempfung)" }
+        ],
+        tip: "Tipp: 20m bei Nacht im Solar Minimum: MUF ~7 MHz, Band geschlossen (14 MHz > MUF). 40m bei Tag im Solar Maximum: MUF ~25 MHz, Band offen."
+      },
+      {
+        title: "Skip-Zone bei KW-Raumwelle",
+        body: "Bei der Raumwelle entsteht eine Skip-Zone: der Bereich zwischen der maximalen Bodenwellen-Reichweite und dem ersten Reflexionspunkt an der Ionosphaere, in dem kein Signal empfangbar ist. Die App berechnet die Skip-Zone und zeigt sie als grauen gestrichelten Kreis auf der Karte. Innerhalb der Skip-Zone ist kein Empfang moeglich (ausser NVIS im 3-10 MHz Bereich). Ausserhalb der Skip-Zone beginnt die Raumwellen-Abdeckung. Die Skip-Zone ist frequenzabhaengig: hoehe Frequenzen haben eine groessere Skip-Zone (20m: 500-1500 km), niedrigere Frequenzen eine kleinere (80m: 100-300 km). NVIS ueberbrueckt die Skip-Zone bei 3-10 MHz mit niedriger Antenne.",
+        steps: [
+          { icon: "mapPin", text: "Skip-Zone: zwischen Bodenwelle-Max und erstem Reflexionspunkt" },
+          { icon: "eye", text: "Innerhalb Skip-Zone: kein Empfang (ausser NVIS 3-10 MHz)" },
+          { icon: "radio", text: "Ausserhalb Skip-Zone: Raumwellen-Empfang bis 3000 km" }
+        ],
+        tip: "Tipp: 20m Raumwelle: Skip-Zone 500-1500 km. Innerhalb 500 km kein Empfang, ab 1500 km Raumwelle bis 3000 km."
+      },
+      {
+        title: "Link-Budget und Empfindlichkeit",
+        body: "Das Link-Budget berechnet die Signalstaerke am Empfaenger: Sendeleistung (dBW) + Antennengewinn (dBi) - Freiraumdaempfung (FSPL) - Bodenverluste - Vegetationsverluste - Gebaeudeverluste - atmosphaerische Daempfung = Rx-Signal (dBm). Wenn das Rx-Signal ueber der Empfindlichkeit des Empfaengers liegt (mit Margin), ist die Verbindung moeglich. Die Empfindlichkeit haengt vom Modus ab: FM -117 dBm, DMR -112 dBm, D-STAR -112 dBm, Fusion -112 dBm, SSB -130 dBm, CW -137 dBm, FT8 -130 dBm. Ein Margin von 10 dB wird als zuverlaessig betrachtet. Die FSPL steigt mit der Frequenz: 145 MHz bei 30 km = 105 dB, 438 MHz bei 30 km = 115 dB (10 dB mehr = ca. 3x weniger Reichweite).",
+        steps: [
+          { icon: "signal", text: "EIRP = P_TX (dBW) + G_TX (dBi)" },
+          { icon: "signal", text: "Rx = EIRP - FSPL - Boden - Vegetation - Gebaeude - atmosphaerisch" },
+          { icon: "check", text: "Verbindung moeglich wenn Rx > Empfindlichkeit + 10 dB Margin" }
+        ],
+        tip: "Tipp: 50W (47 dBW) + 5 dBi = 52 dBm EIRP. 2m bei 30 km: FSPL 105 dB, Rx = -53 dBm, Margin zu FM (-117): 64 dB, sehr zuverlaessig."
+      },
+      {
+        title: "SRTM-Hoehendaten und Radiale",
+        body: "Die Abdeckungsberechnung verwendet SRTM 30m Hoehendaten (Shuttle Radar Topography Mission) via OpenTopoData API. Pro Sender werden 36 Radiale (alle 10 Grad) berechnet: entlang jedes Radials werden Hoehenprofile in 1-km-Schritten abgefragt. Fuer jeden Punkt wird geprueft: ist LOS frei (Sichtlinie mit Erdkruemmung und Fresnel-Zone)? Gibt es eine Beugungsmoeglichkeit am naechsten Hindernis? Ist Troposcatter moeglich? Das Ergebnis pro Radial ist die maximale Reichweite ueber alle Ausbreitungsmechanismen. Die 36 Radiale bilden zusammen ein asymmetrisches Polygon, das Berge (engere Reichweite) und Taeler (weitere Reichweite) abbildet.",
+        steps: [
+          { icon: "mapPin", text: "36 Radiale (alle 10 Grad) um den Sender" },
+          { icon: "mountain", text: "SRTM 30m Hoehenprofil in 1-km-Schritten pro Radial" },
+          { icon: "eye", text: "LOS-Pruefung mit Erdkruemmung und Fresnel-Zone" },
+          { icon: "signal", text: "Max aus LOS, Beugung, Troposcatter, Reflexion pro Radial" }
+        ],
+        tip: "Tipp: Relais auf einem Berg: Nord-Radial (ueber Berg) = 15 km, Sued-Radial (ueber Tal) = 45 km. Das Polygon ist asymmetrisch, kein Kreis."
+      },
+      {
+        title: "Band-spezifische Parameter",
+        body: "Jedes Band hat eigene physikalische Parameter: maximale Reichweite (flach/Gelaende), Antennengewinn, Fresnel-Clearance, Boden-/Vegetations-/Gebaeudeverluste, Beugungsfaktor, atmosphaerische Daempfung und k-Faktor. Fuer KW-Baender zusaetzlich: Bodenwellen-Daempfung (feucht/trocken), Raumwellen-Reichweite und NVIS-Reichweite. Niedrige Frequenzen (160m, 80m) haben eine staerkere Bodenwelle und hoehe Beugung, hoehe Frequenzen (70cm, 23cm) haben eine hoehe FSPL und geringere Beugung. Die Parameter basieren auf ITU-R Empfehlungen (P.368, P.526, P.837) und empirischen Werten aus dem Amateurfunk-Bereich.",
+        steps: [
+          { icon: "barChart3", text: "2m: max. 80 km flach, 40 km Gelaende, Beugung 0.5" },
+          { icon: "barChart3", text: "70cm: max. 50 km flach, 25 km Gelaende, Beugung 0.35" },
+          { icon: "barChart3", text: "23cm: max. 25 km flach, 12 km Gelaende, Beugung 0.25" },
+          { icon: "barChart3", text: "80m: max. 120 km flach, Bodenwelle + NVIS 500 km" }
+        ],
+        tip: "Tipp: Die Parameter basieren auf ITU-R P.368 (Bodenwelle), P.526 (Beugung) und P.837 (atmosphaerisch)."
+      },
+      {
+        title: "Eigene Abdeckung berechnen (Modus B)",
+        body: "Mit dem orange-farbenen Radio-Button links auf der Karte koennen Sie Ihre eigene Sendereichweite berechnen. Geben Sie Ihre Position (GPS, QTH-Locator oder Kartenklick), Geraeteart (Mobil/Fix/Portabel), Sendeleistung, Band/Frequenz und Modus ein. Die App berechnet 36 Radiale mit SRTM-Hoehen, LOS und Link-Budget. Das Ergebnis ist ein oranges Polygon auf der Karte, das Ihre effektive Reichweite unter Beruecksichtigung von Gelaende zeigt. Fuer KW-Baender werden zusaetzlich MUF/LUF, Sonnenhoehe und NVIS-Modus angezeigt. Die Parameter (ausser Position) werden gespeichert. Die Position wird aus Datenschutzgruenden nicht gespeichert.",
+        steps: [
+          { icon: "radio", text: "Radio-Button (orange) links auf der Karte antippen" },
+          { icon: "crosshair", text: "Position setzen: GPS, QTH-Locator oder Kartenklick" },
+          { icon: "settings", text: "Geraeteart (Mobil/Fix/Portabel), Sendeleistung, Band, Modus" },
+          { icon: "sun", text: "KW: NVIS-Modus und Solar-Aktivitaet einstellen" },
+          { icon: "satellite", text: "Abdeckung berechnen: oranges Polygon erscheint auf der Karte" }
+        ],
+        tip: "Tipp: Verschiedene Geraetearten ergeben verschiedene Polygone: Mobil 50W 2m gross, Portabel 5W 70cm klein. KW-Baender zeigen MUF/LUF und Skip-Zone."
+      },
+      {
+        title: "App-Funktionen anpassen (Feature-Flags)",
+        body: "In den Einstellungen unter App-Funktionen anpassen koennen Sie die App personalisieren: Layer ein-/ausschalten, Baender aktivieren (Standard: nur 2m und 70cm), Werkzeuge ein-/ausblenden (GPS, Logbuch, QSO, Filter, Abdeckung, etc.), Offline-Funktionen und erweiterte Optionen. Die Einstellungen werden lokal gespeichert und mit dem Benutzerprofil synchronisiert. Schnell-Vorlagen (Minimal, Standard, KW-Modus, VHF/UHF, 2m/70cm) setzen alle Funktionen auf einmal. Der Auf Standard zuruecksetzen-Button stellt die werkseitigen Standardwerte wieder her. Neue Benutzer starten mit minimaler Konfiguration (nur Log QSO, Layers, GPS).",
+        steps: [
+          { icon: "settings", text: "Einstellungen oeffnen" },
+          { icon: "sliders", text: "App-Funktionen anpassen aufklappen" },
+          { icon: "check", text: "Layer, Baender, Werkzeuge, Offline, Erweitert ein-/ausschalten" },
+          { icon: "zap", text: "Schnell-Vorlage waehlen (Minimal, Standard, KW, VHF/UHF, 2m/70cm)" },
+          { icon: "rotateCcw", text: "Auf Standard zuruecksetzen fuer werkseitige Defaults" }
+        ],
+        tip: "Tipp: KW-Modus aktiviert nur KW-Baender mit NVIS. VHF/UHF aktiviert nur VHF/UHF-Baender. Standard aktiviert alle Funktionen."
+      }
+    ]
+  },
+  {
     title: "RELAIS & VERLINKUNGEN",
     shortTitle: "Relais",
     color: [59, 130, 246],

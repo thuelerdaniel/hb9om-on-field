@@ -263,6 +263,51 @@ const SECTIONS = [
         title: "Relais-Abdeckung im Popup",
         body: "Im Relais-Popup sehen Sie den Abdeckungs-Status: Prozentzahl und Fortschrittsbalken zeigen den Verfeinerungsgrad (0% = Band-Schätzung, 100% = Terrain-LOS). Wenn noch keine Abdeckung berechnet wurde, steht «Noch nicht berechnet». Administratoren sehen einen Button «Abdeckung berechnen» oder «Neu berechnen», um die Abdeckung für dieses spezifische Relais sofort zu berechnen. Die Berechnung verwendet SRTM 30m Höhendaten und dauert ca. 5-15 Sekunden.",
         example: "Relais anklicken → «Mehr Informationen» → Abdeckungs-Status zeigt «Noch nicht berechnet» → Admin: «Abdeckung berechnen» klicken → Polygon erscheint."
+      },
+      {
+        title: "Ausbreitungsmodelle – Übersicht",
+        body: "Die App verwendet zwei verschiedene physikalische Ausbreitungsmodelle je nach Frequenzbereich: Für VHF/UHF (6m bis 23cm) das ITM+-Modell (Improved Terrain Model) und für Kurzwelle/HF (160m bis 10m) das KW-Modell mit Bodenwelle, Raumwelle und NVIS. Beide Modelle berechnen 36 Radiale (alle 10°) um den Sender und ergeben ein asymmetrisches Polygon, das Gelände und physikalische Ausbreitungseffekte berücksichtigt. Die Berechnung verwendet echte SRTM 30m Höhendaten via OpenTopoData API.",
+        example: "2m/70cm → ITM+ mit LOS, Beugung, Troposcatter und Reflexion · 80m/40m → KW mit Bodenwelle, Raumwelle (MUF/LUF) und NVIS."
+      },
+      {
+        title: "ITM+-Modell (VHF/UHF: 6m–23cm)",
+        body: "Das ITM+-Modell (Improved Terrain Model) berechnet die Reichweite für VHF- und UHF-Bänder mit vier Ausbreitungsmechanismen: 1) Line-of-Sight (LOS): Direkte Sichtlinie mit Erdkrümmung (k-Faktor 4/3) und Fresnel-Zonen-Clearance. 2) Knife-Edge Diffraction: Beugung an Geländekanten nach dem ITU-R P.526-Modell — Signale biegen um Berge und Hügel. 3) Troposcatter: Streuung an Troposphären-Turbulenzen für Reichweiten über die Sichtlinie hinaus (bis ~30% über LOS). 4) Two-Ray Reflection: Bodenreflexion bei niedrigen Antennen (Bodenwelle im VHF-Bereich). Pro Radial wird das Maximum aus allen vier Mechanismen als effektive Reichweite genommen. Das Link-Budget berechnet Freiraumdämpfung (FSPL), Boden-, Vegetations- und Gebäudeverluste sowie atmosphärische Dämpfung. Die Rx-Empfindlichkeit hängt vom Modus ab (FM: -117 dBm, DMR: -112 dBm, SSB: -130 dBm, CW: -137 dBm).",
+        example: "2m FM 50W auf einem Berg: LOS bis 40 km, + Beugung bis 55 km in Tallagen, + Troposcatter bis 65 km bei guter Troposphäre → asymmetrisches Polygon."
+      },
+      {
+        title: "KW-/HF-Modell (160m–10m)",
+        body: "Das KW-Modell berechnet die Reichweite für Kurzwellen-Bänder mit drei Ausbreitungsmechanismen: 1) Bodenwelle (Ground Wave): Signalausbreitung entlang der Erdoberfläche mit frequenzabhängiger Dämpfung (ground_alpha_moist/dry). Niedrige Frequenzen (160m, 80m) haben eine stärkere Bodenwelle (bis 200 km), höhere Frequenzen (20m, 15m) nur wenige Kilometer. 2) Raumwelle (Sky Wave): Reflexion an der Ionosphäre (F2-Schicht) — abhängig von MUF (Maximum Usable Frequency) und LUF (Lowest Usable Frequency). Die MUF wird aus foF2 (kritische Frequenz) × 3.5 berechnet, foF2 hängt von Sonnenhöhe und Sonnenaktivität (Solarzyklus) ab. Bei Tag ist die MUF höher (bis ~30 MHz), bei Nacht niedriger (~5-10 MHz). 3) NVIS (Near Vertical Incidence Skywave): Bei Frequenzen 3-10 MHz mit niedriger Antenne (2m) wird das Signal fast senkrecht in die Ionosphäre gestrahlt und reflektiert — deckt 0-500 km ohne Skip-Zone. Ideal für regionale Kommunikation bei schlechten Bodenwellen-Bedingungen.",
+        example: "80m Tag: Bodenwelle bis 120 km + NVIS bis 500 km · 20m Tag: Raumwelle bis 3000 km, Bodenwelle nur ~20 km · 80m Nacht: MUF sinkt, Raumwelle nur bei niedrigen Frequenzen."
+      },
+      {
+        title: "MUF, LUF und Sonnenaktivität",
+        body: "Die ionosphärische Ausbreitung hängt stark von der Sonnenaktivität ab. Die App berechnet MUF (Maximum Usable Frequency) und LUF (Lowest Usable Frequency) aus der Sonnenhöhe (Deklination, Tageszeit, Breitengrad) und einem Solar-Aktivitätsfaktor (0.7 = Solar Minimum, 1.0 = Mittel, 1.3 = Solar Maximum). foF2 = (1.5 + 4.5 × sin(Sonnenhöhe)) × Solar-Aktivität. MUF = foF2 × 3.5. LUF = 5 × Solar-Aktivität (Tag) bzw. 2 × Solar-Aktivität (Nacht). Wenn die gewählte Frequenz über der MUF liegt, ist das Band geschlossen (Signal durchquert die Ionosphäre). Wenn sie unter der LUF liegt, ist die Dämpfung zu hoch. Im Abdeckungs-Dialog wird MUF/LUF und die Sonnenhöhe angezeigt, mit einer Warnung bei geschlossenem Band.",
+        example: "20m bei Nacht im Solar Minimum: MUF ~7 MHz → Band geschlossen (14 MHz > MUF) · 40m bei Tag im Solar Maximum: MUF ~25 MHz → Band offen."
+      },
+      {
+        title: "Skip-Zone bei KW-Raumwelle",
+        body: "Bei der Raumwelle entsteht eine Skip-Zone: der Bereich zwischen der maximalen Bodenwellen-Reichweite und dem ersten Reflexionspunkt an der Ionosphäre, in dem kein Signal empfangbar ist. Die App berechnet die Skip-Zone und zeigt sie als grauen gestrichelten Kreis auf der Karte. Innerhalb der Skip-Zone ist kein Empfang möglich (ausser NVIS im 3-10 MHz Bereich). Ausserhalb der Skip-Zone beginnt die Raumwellen-Abdeckung. Die Skip-Zone ist frequenzabhängig: höhere Frequenzen haben eine grössere Skip-Zone (20m: ~500-1500 km), niedrigere Frequenzen eine kleinere (80m: ~100-300 km). NVIS überbrückt die Skip-Zone bei 3-10 MHz mit niedriger Antenne.",
+        example: "20m Raumwelle: Skip-Zone 500-1500 km → innerhalb 500 km kein Empfang (ausser NVIS), ab 1500 km Raumwellen-Empfang bis 3000 km."
+      },
+      {
+        title: "Link-Budget und Empfindlichkeit",
+        body: "Das Link-Budget berechnet die Signalstärke am Empfänger: Sendeleistung (dBW) + Antennengewinn (dBi) − Freiraumdämpfung (FSPL) − Bodenverluste − Vegetationsverluste − Gebäudeverluste − atmosphärische Dämpfung = Rx-Signal (dBm). Wenn das Rx-Signal über der Empfindlichkeit des Empfängers liegt (mit Margin), ist die Verbindung möglich. Die Empfindlichkeit hängt vom Modus ab: FM -117 dBm, DMR -112 dBm, D-STAR -112 dBm, Fusion -112 dBm, SSB -130 dBm, CW -137 dBm, FT8 -130 dBm. Ein Margin von 10 dB wird als zuverlässig betrachtet. Die FSPL steigt mit der Frequenz: 145 MHz bei 30 km = 105 dB, 438 MHz bei 30 km = 115 dB (10 dB mehr = ca. 3x weniger Reichweite).",
+        example: "50W (47 dBW) + 5 dBi Antenne = 52 dBm EIRP · 2m bei 30 km: FSPL 105 dB → Rx = 52 - 105 = -53 dBm · Margin zu FM (-117): 64 dB → sehr zuverlässig."
+      },
+      {
+        title: "SRTM-Höhendaten und Radiale",
+        body: "Die Abdeckungsberechnung verwendet SRTM 30m Höhendaten (Shuttle Radar Topography Mission) via OpenTopoData API. Pro Sender werden 36 Radiale (alle 10°) berechnet: entlang jedes Radials werden Höhenprofile in 1-km-Schritten abgefragt. Für jeden Punkt wird geprüft: ist LOS frei (Sichtlinie mit Erdkrümmung und Fresnel-Zone)? Gibt es eine Beugungsmöglichkeit am nächsten Hindernis? Ist Troposcatter möglich? Das Ergebnis pro Radial ist die maximale Reichweite über alle Ausbreitungsmechanismen. Die 36 Radiale bilden zusammen ein asymmetrisches Polygon, das Berge (engere Reichweite) und Täler (weitere Reichweite) abbildet. Die Berechnung dauert 5-15 Sekunden pro Sender.",
+        example: "Relais auf einem Berg: Nord-Radial (über Berg) = 15 km, Süd-Radial (über Tal) = 45 km → asymmetrisches Polygon, nicht ein einfacher Kreis."
+      },
+      {
+        title: "Band-spezifische Parameter",
+        body: "Jedes Band hat eigene physikalische Parameter: maximale Reichweite (flach/Gelände), Antennengewinn, Fresnel-Clearance, Boden-/Vegetations-/Gebäudeverluste, Beugungsfaktor, atmosphärische Dämpfung und k-Faktor. Für KW-Bänder zusätzlich: Bodenwellen-Dämpfung (feucht/trocken), Raumwellen-Reichweite und NVIS-Reichweite. Niedrige Frequenzen (160m, 80m) haben eine stärkere Bodenwelle und höhere Beugung, höhere Frequenzen (70cm, 23cm) haben eine höhere FSPL und geringere Beugung. Die Parameter basieren auf ITU-R Empfehlungen (P.368, P.526, P.837) und empirischen Werten aus dem Amateurfunk-Bereich.",
+        example: "2m: max. 80 km flach, 40 km Gelände, Beugung 0.5 · 70cm: max. 50 km flach, 25 km Gelände, Beugung 0.35 · 23cm: max. 25 km flach, 12 km Gelände, Beugung 0.25."
+      },
+      {
+        title: "App-Funktionen anpassen (Feature-Flags)",
+        body: "In den Einstellungen unter «App-Funktionen anpassen» können Sie die App personalisieren: Layer ein-/ausschalten, Bänder aktivieren (Standard: nur 2m und 70cm), Werkzeuge ein-/ausblenden (GPS, Logbuch, QSO, Filter, Abdeckung, etc.), Offline-Funktionen und erweiterte Optionen. Die Einstellungen werden lokal gespeichert und mit dem Benutzerprofil synchronisiert. Schnell-Vorlagen (Minimal, Standard, KW-Modus, VHF/UHF, 2m/70cm) setzen alle Funktionen auf einmal. Der «Auf Standard zurücksetzen»-Button stellt die werkseitigen Standardwerte wieder her. Neue Benutzer starten mit minimaler Konfiguration (nur Log QSO, Layers, GPS).",
+        example: "Einstellungen → App-Funktionen → «KW-Modus» Vorlage → nur KW-Bänder aktiv, VHF/UHF ausgeblendet, NVIS verfügbar → speichern."
       }
     ]
   },
