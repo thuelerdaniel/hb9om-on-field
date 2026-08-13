@@ -1,55 +1,59 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { todayUTC, isToday, extractCount, extractStatus, shuffle } from '../../shared/syncHelpers.ts';
 
-// ─── Dynamic Daily Sync Batch Scheduler ───
-// Replaces the old 5-minute checker + fixed-time orchestrator.
-// Runs every 5 minutes between 03:00-06:30 UTC via cron automation.
-// Each run processes ONE source from a daily-shuffled order.
-// After all sources complete (or 06:15 UTC deadline), sends admin report.
+// ─── Weekly Sync Batch Scheduler ───
+// Replaces the old daily scheduler. Runs on Mondays (full sync, 01:00-05:00 UTC)
+// and Thursdays (partial CH/EU repeater sync, 03:00-04:00 UTC).
 //
 // Key rules:
+// - Monday: All sources with weekly_enabled=true and "Monday" in weekly_days
+// - Thursday: Only sources with "Thursday" in weekly_days (eu_priority1, eu_priority2, uk, fm_funknetz, ch_links)
+// - Other days: idle (APRS streaming runs separately via its own daily automation)
 // - Max 1 source at a time (sequential, no parallelism)
-// - Each source runs at most 1x per day ("already ran today" check)
-// - Heavy sources (SOTA, WWFF, Castle): 10s pause before/after
-// - Per-source timeout: 120s (lighthouse 60s)
-// - Retry 1x after 30s on failure
-// - 06:15 UTC deadline: remaining sources marked "skipped", report sent
-// - APRS (fetchAprsFi) excluded — handled by fetchAprsStations separately
+// - Each source runs at most 1x per scheduled day ("already ran today" check)
+// - SOTA: chunked CSV processing — if hasMore=true, status stays 'pending' and resumes next tick
+// - After Monday batch completion: triggers sendDailyAdminReport with mode='weekly'
+// - APRS (fetchAprsFi/fetchAprsStations) excluded — runs via separate daily automation
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const SOURCE_TIMEOUT_MS = 120000;
+const SOTA_TIMEOUT_MS = 200000; // SOTA needs more time for CSV download + chunk processing
 const LIGHTHOUSE_TIMEOUT_MS = 60000;
 const RETRY_DELAY_MS = 30000;
 const HEAVY_PAUSE_MS = 10000;
 const HEAVY_SOURCES = new Set(['sota', 'hbff', 'castle']);
-const WINDOW_START_HOUR = 3;
-const DEADLINE_HOUR = 6;
-const DEADLINE_MIN = 15;
-const HARD_END_HOUR = 6;
-const HARD_END_MIN = 30;
 
-function inTimeWindow(): boolean {
+// Time windows per day (UTC hours)
+const WINDOWS: Record<string, { start: number; deadline: number; hardEnd: number }> = {
+  Monday: { start: 1, deadline: 5, hardEnd: 5 },    // 01:00-05:00 UTC
+  Thursday: { start: 3, deadline: 4, hardEnd: 4 },   // 03:00-04:00 UTC
+};
+
+function getTimeWindow(dayName: string) {
+  return WINDOWS[dayName] || null;
+}
+
+function inTimeWindow(dayName: string): boolean {
+  const win = getTimeWindow(dayName);
+  if (!win) return false;
   const now = new Date();
   const h = now.getUTCHours();
-  const m = now.getUTCMinutes();
-  if (h < WINDOW_START_HOUR) return false;
-  if (h > HARD_END_HOUR) return false;
-  if (h === HARD_END_HOUR && m > HARD_END_MIN) return false;
+  if (h < win.start) return false;
+  if (h >= win.hardEnd) return false;
   return true;
 }
 
-function isPastDeadline(): boolean {
+function isPastDeadline(dayName: string): boolean {
+  const win = getTimeWindow(dayName);
+  if (!win) return true;
   const now = new Date();
   const h = now.getUTCHours();
-  const m = now.getUTCMinutes();
-  if (h > DEADLINE_HOUR) return true;
-  if (h === DEADLINE_HOUR && m >= DEADLINE_MIN) return true;
+  if (h > win.deadline) return true;
   return false;
 }
 
-// ─── Unified source state logic ───
-// A source needs to run if: pending (regardless of last_run_time), or a new day started.
-// A source is done if: success/failed/skipped AND ran today.
-// This handles the orchestrator's reset (sets last_run_time=today + last_status=pending).
+// ─── Source state logic ───
 function needsToRun(s: any): boolean {
   if (s.last_status === 'running') return false;
   if (s.last_status === 'pending') return true;
@@ -62,24 +66,23 @@ function isDone(s: any): boolean {
 }
 
 // Get or create today's shuffled order (stored in AppSettings)
-async function getTodaysOrder(base44: any, enabledSources: any[]): Promise<string[]> {
-  const key = 'daily_batch_order_' + todayUTC();
+async function getTodaysOrder(base44: any, dayName: string, enabledSources: any[]): Promise<string[]> {
+  const key = 'weekly_batch_order_' + dayName + '_' + todayUTC();
   const settings = await base44.asServiceRole.entities.AppSetting.filter({ key });
 
   if (settings.length > 0) {
     try {
       const state = JSON.parse(settings[0].value || '{}');
-      if (state.date === todayUTC() && Array.isArray(state.order) && state.order.length > 0) {
+      if (state.date === todayUTC() && state.day === dayName && Array.isArray(state.order) && state.order.length > 0) {
         return state.order;
       }
     } catch {}
   }
 
-  // Create new shuffled order from sources that need to run today
   const pending = enabledSources.filter(s => needsToRun(s));
   const shuffled = shuffle(pending);
   const order = shuffled.map((s: any) => s.source);
-  const state = { date: todayUTC(), order, createdAt: new Date().toISOString() };
+  const state = { date: todayUTC(), day: dayName, order, createdAt: new Date().toISOString() };
 
   if (settings.length > 0) {
     await base44.asServiceRole.entities.AppSetting.update(settings[0].id, { value: JSON.stringify(state) });
@@ -92,14 +95,13 @@ async function getTodaysOrder(base44: any, enabledSources: any[]): Promise<strin
 
 // Check if report was already sent today
 async function isReportSentToday(base44: any): Promise<boolean> {
-  const key = 'daily_report_sent_' + todayUTC();
+  const key = 'weekly_report_sent_' + todayUTC();
   const settings = await base44.asServiceRole.entities.AppSetting.filter({ key });
   return settings.length > 0;
 }
 
-// Mark report as sent today
 async function markReportSent(base44: any): Promise<void> {
-  const key = 'daily_report_sent_' + todayUTC();
+  const key = 'weekly_report_sent_' + todayUTC();
   const settings = await base44.asServiceRole.entities.AppSetting.filter({ key });
   if (settings.length > 0) return;
   try {
@@ -136,9 +138,22 @@ export default async function (req: Request): Promise<Response> {
       if (user.role !== 'admin') return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
     }
 
+    // Determine day of week
+    const now = new Date();
+    const dayName = DAY_NAMES[now.getUTCDay()];
+
+    // Manual runs can override the day (for testing)
+    const effectiveDay = body.day || dayName;
+
+    // Check if this day has a sync window
+    const win = getTimeWindow(effectiveDay);
+    if (!win) {
+      return Response.json({ status: 'idle', message: `Kein Sync-Fenster für ${effectiveDay} (APRS läuft separat)` });
+    }
+
     // Check time window (scheduled runs only — manual runs bypass)
-    if (body.scheduled === true && !inTimeWindow()) {
-      return Response.json({ status: 'idle', message: 'Ausserhalb Zeitfenster (03:00-06:30 UTC)' });
+    if (body.scheduled === true && !inTimeWindow(effectiveDay)) {
+      return Response.json({ status: 'idle', message: `Ausserhalb Zeitfenster für ${effectiveDay}` });
     }
 
     // Check auto_update setting
@@ -152,49 +167,53 @@ export default async function (req: Request): Promise<Response> {
       } catch {}
     }
 
+    // Get all schedules and filter by weekly_enabled + day
     const allSchedules = await base44.asServiceRole.entities.DailyRefreshSchedule.list('display_order', 100);
-    // Filter out APRS (fetchAprsFi) — handled by fetchAprsStations separately
     const enabledSources = (allSchedules || []).filter((s: any) =>
-      s.enabled && s.function_name !== 'fetchAprsFi'
+      s.weekly_enabled &&
+      Array.isArray(s.weekly_days) &&
+      s.weekly_days.includes(effectiveDay) &&
+      s.function_name !== 'fetchAprsFi' &&
+      s.function_name !== 'fetchAprsStations'
     );
 
     if (enabledSources.length === 0) {
-      return Response.json({ status: 'idle', message: 'Keine aktivierten Quellen' });
+      return Response.json({ status: 'idle', message: `Keine aktivierten Quellen für ${effectiveDay}` });
     }
 
-    // ─── Deadline check: 06:15 UTC (scheduled runs only) ───
-    // Manual runs bypass the deadline — admin can force-process sources anytime.
-    if (body.scheduled === true && isPastDeadline()) {
+    // ─── Deadline check (scheduled runs only) ───
+    if (body.scheduled === true && isPastDeadline(effectiveDay)) {
       const remaining = enabledSources.filter((s: any) => needsToRun(s));
       let skippedCount = 0;
       for (const src of remaining) {
         try {
           await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
             last_status: 'skipped',
-            last_error: 'Übersprungen: 06:15 UTC Deadline erreicht',
+            last_error: `Übersprungen: ${effectiveDay} Deadline erreicht`,
             last_run_time: new Date().toISOString(),
           });
           skippedCount++;
         } catch {}
       }
 
-      // Send report if not already sent
-      if (!(await isReportSentToday(base44))) {
+      // Send weekly report on Monday if not already sent
+      if (effectiveDay === 'Monday' && !(await isReportSentToday(base44))) {
         try {
-          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true });
+          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly' });
           await markReportSent(base44);
         } catch {}
       }
 
       return Response.json({
         status: 'deadline',
+        day: effectiveDay,
         skipped: skippedCount,
-        message: 'Deadline erreicht — verbleibende Quellen übersprungen, Report versendet',
+        message: 'Deadline erreicht — verbleibende Quellen übersprungen',
       });
     }
 
     // ─── Get or create today's shuffled order ───
-    const order = await getTodaysOrder(base44, enabledSources);
+    const order = await getTodaysOrder(base44, effectiveDay, enabledSources);
     const sourceMap = new Map(enabledSources.map((s: any) => [s.source, s]));
 
     // ─── Find next source to process ───
@@ -202,22 +221,22 @@ export default async function (req: Request): Promise<Response> {
     for (const key of order) {
       const src = sourceMap.get(key);
       if (!src) continue;
-      if (!needsToRun(src)) continue; // Already done today, running, or skipped
+      if (!needsToRun(src)) continue;
       nextSource = src;
       break;
     }
 
     if (!nextSource) {
-      // No due source — check if all done, then send report
+      // No due source — check if all done, then send report (Monday only)
       const allDone = enabledSources.every((s: any) => isDone(s));
-      if (allDone && !(await isReportSentToday(base44))) {
+      if (allDone && effectiveDay === 'Monday' && !(await isReportSentToday(base44))) {
         try {
-          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true });
+          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly' });
           await markReportSent(base44);
         } catch {}
-        return Response.json({ status: 'complete', message: 'Alle Quellen abgeschlossen, Report versendet' });
+        return Response.json({ status: 'complete', day: effectiveDay, message: 'Alle Quellen abgeschlossen, Wochen-Report versendet' });
       }
-      return Response.json({ status: 'idle', message: 'Keine fällige Quelle' });
+      return Response.json({ status: 'idle', day: effectiveDay, message: 'Keine fällige Quelle' });
     }
 
     // ─── Heavy source pause BEFORE ───
@@ -225,7 +244,7 @@ export default async function (req: Request): Promise<Response> {
       await new Promise(r => setTimeout(r, HEAVY_PAUSE_MS));
     }
 
-    // Mark as running (BEFORE processing — prevents concurrent invocations picking same source)
+    // Mark as running
     try {
       await base44.asServiceRole.entities.DailyRefreshSchedule.update(nextSource.id, {
         last_status: 'running',
@@ -233,7 +252,9 @@ export default async function (req: Request): Promise<Response> {
     } catch {}
 
     const taskStart = Date.now();
-    const timeout = nextSource.source.startsWith('lighthouse')
+    const timeout = nextSource.source === 'sota'
+      ? SOTA_TIMEOUT_MS
+      : nextSource.source.startsWith('lighthouse')
       ? LIGHTHOUSE_TIMEOUT_MS
       : SOURCE_TIMEOUT_MS;
 
@@ -241,8 +262,9 @@ export default async function (req: Request): Promise<Response> {
     let result = await runSourceWithTimeout(base44, nextSource, timeout);
     let retried = false;
 
-    // ─── Retry on failure (1x after 30s) ───
-    const firstFailed = result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed');
+    // ─── Retry on failure (1x after 30s) — but NOT for SOTA partial chunks ───
+    const isSotaPartial = nextSource.source === 'sota' && result.ok && result.data?.has_more;
+    const firstFailed = !isSotaPartial && (result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed'));
     if (firstFailed) {
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
       result = await runSourceWithTimeout(base44, nextSource, timeout);
@@ -250,6 +272,54 @@ export default async function (req: Request): Promise<Response> {
     }
 
     const duration = Date.now() - taskStart;
+
+    // ─── SOTA chunked: if hasMore=true, keep status='pending' to resume next tick ───
+    if (nextSource.source === 'sota' && result.ok && result.data?.has_more) {
+      const progressPct = result.data.progress_pct || 0;
+      const processedSoFar = result.data.processed_so_far || 0;
+      const totalCount = result.data.total || 0;
+      try {
+        await base44.asServiceRole.entities.DailyRefreshSchedule.update(nextSource.id, {
+          last_run_time: new Date().toISOString(),
+          last_status: 'pending', // Keep pending so it runs again next tick
+          last_count: processedSoFar,
+          last_duration_ms: duration,
+          last_error: `Chunked: ${progressPct}% verarbeitet (${processedSoFar}/${totalCount})`,
+        });
+      } catch {}
+
+      // Write SyncLog for the chunk
+      try {
+        await base44.asServiceRole.entities.SyncLog.create({
+          timestamp: new Date().toISOString(),
+          overall_status: 'partial',
+          total_duration_ms: duration,
+          results: [{
+            source: 'sota',
+            label: nextSource.label,
+            status: 'partial',
+            count: result.data.count || 0,
+            duration_ms: duration,
+            error: `Chunk ${progressPct}% (${processedSoFar}/${totalCount})`,
+            retried: false,
+          }],
+          trigger: body.scheduled ? 'scheduled' : 'manual',
+        });
+      } catch {}
+
+      return Response.json({
+        status: 'processed_chunk',
+        day: effectiveDay,
+        source: 'sota',
+        progress_pct: progressPct,
+        processed_so_far: processedSoFar,
+        total: totalCount,
+        has_more: true,
+        duration_ms: duration,
+      });
+    }
+
+    // ─── Normal completion ───
     const status = result.timedOut
       ? 'timeout'
       : extractStatus(result.data);
@@ -258,7 +328,6 @@ export default async function (req: Request): Promise<Response> {
       ? `Timeout nach ${timeout / 1000}s`
       : (result.data?.error || (status === 'success' && count === 0 ? 'Warnung: 0 Einträge geladen' : ''));
 
-    // Build error detail for admins
     let errorDetail = '';
     if (status !== 'success') {
       errorDetail = JSON.stringify({
@@ -309,17 +378,17 @@ export default async function (req: Request): Promise<Response> {
       await new Promise(r => setTimeout(r, HEAVY_PAUSE_MS));
     }
 
-    // ─── Check if all done → send report ───
+    // ─── Check if all done → send weekly report (Monday only) ───
     let reportTriggered = false;
     try {
       const allAfter = await base44.asServiceRole.entities.DailyRefreshSchedule.list('display_order', 100);
       const stillIncomplete = (allAfter || []).filter((s: any) => {
-        if (!s.enabled) return false;
-        if (s.function_name === 'fetchAprsFi') return false; // Excluded
+        if (!s.weekly_enabled || !Array.isArray(s.weekly_days) || !s.weekly_days.includes(effectiveDay)) return false;
+        if (s.function_name === 'fetchAprsFi' || s.function_name === 'fetchAprsStations') return false;
         return !isDone(s);
       });
-      if (stillIncomplete.length === 0 && !(await isReportSentToday(base44))) {
-        await base44.functions.invoke('sendDailyAdminReport', { scheduled: true });
+      if (stillIncomplete.length === 0 && effectiveDay === 'Monday' && !(await isReportSentToday(base44))) {
+        await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly' });
         await markReportSent(base44);
         reportTriggered = true;
       }
@@ -327,6 +396,7 @@ export default async function (req: Request): Promise<Response> {
 
     return Response.json({
       status: 'processed',
+      day: effectiveDay,
       checked_at: new Date().toISOString(),
       source: nextSource.source,
       label: nextSource.label,

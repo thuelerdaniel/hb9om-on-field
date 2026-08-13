@@ -52,7 +52,31 @@
     "enabled": {
       "type": "boolean",
       "default": true,
-      "description": "Ob diese Quelle automatisch aktualisiert wird"
+      "description": "Ob diese Quelle automatisch aktualisiert wird (legacy \u2014 durch weekly_enabled ersetzt)"
+    },
+    "weekly_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ob diese Quelle im Wochen-Sync aktiv ist"
+    },
+    "weekly_days": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday"
+        ]
+      },
+      "default": [
+        "Monday"
+      ],
+      "description": "Wochentage an denen diese Quelle synchronisiert wird"
     },
     "function_name": {
       "type": "string",
@@ -64,7 +88,7 @@
     },
     "scheduled_time_utc": {
       "type": "string",
-      "description": "Geplante UTC-Zeit heute (HH:MM)"
+      "description": "Geplante UTC-Zeit heute (HH:MM) \u2014 Referenz, nicht mehr aktiv verwendet"
     },
     "next_run_utc": {
       "type": "string",

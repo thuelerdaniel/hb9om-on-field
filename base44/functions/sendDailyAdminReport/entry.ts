@@ -1,8 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 
-// This function runs at 07:00 UTC daily (after all sources have completed, 00:00-06:00 UTC).
-// It collects all source results, gathers app usage statistics, and sends
-// a rich HTML email to admins. No test/verification email is sent.
+// This function sends a sync report to admins.
+// mode='weekly' (default for scheduled Monday runs): Weekly sync report with delta comparison
+// mode='daily' (manual or legacy): Daily report without delta
+//
+// Triggered by runDailySyncBatch after Monday batch completion, or manually by admins.
 
 function todayUTC(): string {
   return new Date().toISOString().split('T')[0];
@@ -36,9 +38,19 @@ function statusBadge(status: string): string {
     pending: '#f59e0b',
     running: '#3b82f6',
     skipped: '#9ca3af',
+    partial: '#f59e0b',
   };
   const bg = colors[status] || '#9ca3af';
   return `<span style="background:${bg};color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;">${status}</span>`;
+}
+
+// Format delta with color
+function formatDelta(current: number, previous: number | undefined): string {
+  if (previous == null) return '<span style="color:#3b82f6;font-size:11px;">Neu</span>';
+  const delta = current - previous;
+  if (delta > 0) return `<span style="color:#16a34a;font-size:11px;">+${delta}</span>`;
+  if (delta < 0) return `<span style="color:#dc2626;font-size:11px;">${delta}</span>`;
+  return `<span style="color:#9ca3af;font-size:11px;">±0</span>`;
 }
 
 export default async function(req: Request): Promise<Response> {
@@ -54,25 +66,28 @@ export default async function(req: Request): Promise<Response> {
       if (user.role !== 'admin') return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
     }
 
+    const mode = body.mode || 'weekly';
+
     // --- 1. Collect source results ---
     const allSchedules = await base44.asServiceRole.entities.DailyRefreshSchedule.list("display_order", 100);
 
-    // Don't send the report until ALL enabled sources have completed today
-    // (success, failed, or skipped — but NOT pending or running).
-    // This prevents mid-sync reports. The checker triggers this function after
-    // the last source completes; the 07:00 UTC automation is a backup.
-    const incompleteSources = (allSchedules || []).filter(s => {
-      if (!s.enabled) return false;
-      if (s.last_status === 'pending' || s.last_status === 'running') return true;
-      if (!s.last_run_time || !isToday(s.last_run_time)) return true;
-      return false;
-    });
-    if (incompleteSources.length > 0 && body.scheduled === true) {
-      return Response.json({
-        status: 'waiting',
-        message: `${incompleteSources.length} Quelle(n) noch ausstehend — Report verschoben`,
-        incomplete: incompleteSources.length,
+    // For weekly mode, don't block on incomplete sources — the scheduler only calls
+    // this after all sources are done (or deadline reached).
+    // For manual/daily mode, check if sources are still incomplete.
+    if (mode === 'daily' && body.scheduled === true) {
+      const incompleteSources = (allSchedules || []).filter(s => {
+        if (!s.enabled) return false;
+        if (s.last_status === 'pending' || s.last_status === 'running') return true;
+        if (!s.last_run_time || !isToday(s.last_run_time)) return true;
+        return false;
       });
+      if (incompleteSources.length > 0) {
+        return Response.json({
+          status: 'waiting',
+          message: `${incompleteSources.length} Quelle(n) noch ausstehend — Report verschoben`,
+          incomplete: incompleteSources.length,
+        });
+      }
     }
 
     const todaySources = (allSchedules || []).filter(s => s.last_run_time && isToday(s.last_run_time));
@@ -98,12 +113,9 @@ export default async function(req: Request): Promise<Response> {
     } catch {}
 
     try {
-      // QSO stats — count and group by country and reference type
       const logs = await base44.asServiceRole.entities.Log.list("-created_date", 5000);
       stats.totalQsos = logs.length;
       for (const log of logs) {
-        // Case-insensitive country merging — normalize to title case to avoid
-        // duplicates like "Federal Republic Of Germany" vs "FEDERAL REPUBLIC OF GERMANY"
         const rawCountry = log.operator_country || 'Unbekannt';
         const country = rawCountry.charAt(0).toUpperCase() + rawCountry.slice(1).toLowerCase();
         stats.qsosByCountry[country] = (stats.qsosByCountry[country] || 0) + 1;
@@ -112,15 +124,12 @@ export default async function(req: Request): Promise<Response> {
       }
     } catch {}
 
-    // Cache layer counts — use ReferenceData.total_count for large entities
-    // (filter({}) is capped at 5000, so for SOTA/POTA/WWFF we use ReferenceData)
     try {
       const refData = await base44.asServiceRole.entities.ReferenceData.list();
       const refMap: Record<string, any> = {};
       for (const entry of refData || []) {
         refMap[entry.type] = entry;
       }
-      // SOTA, POTA, WWFF, WWBOTA, castle, lighthouse, iota — from ReferenceData
       const refTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'lighthouse', 'iota'];
       for (const t of refTypes) {
         const entry = refMap[t];
@@ -133,7 +142,6 @@ export default async function(req: Request): Promise<Response> {
       stats.totalWwffPoints = stats.cacheLayers['hbff'] || 0;
     } catch {}
 
-    // Direct entity counts (smaller entities under 5000 cap)
     try {
       const repeaters = await base44.asServiceRole.entities.Repeater.filter({});
       stats.totalRepeaters = repeaters.length;
@@ -158,24 +166,26 @@ export default async function(req: Request): Promise<Response> {
       stats.cacheLayers['repeaterLinks'] = repLinks.length;
     } catch {}
 
-    // Check for demo video
-    let videoInfo = 'Kein Video vorhanden';
-    try {
-      const videoSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'demo_video_url' });
-      if (videoSettings && videoSettings.length > 0 && videoSettings[0].value) {
-        videoInfo = `Video verfügbar: <a href="${videoSettings[0].value}" style="color:#3b82f6;">${videoSettings[0].value}</a>`;
-      }
-    } catch {}
+    // --- 3. Weekly delta: load last week's counts ---
+    let lastWeekCounts: Record<string, number> = {};
+    if (mode === 'weekly') {
+      try {
+        const lastWeekSetting = await base44.asServiceRole.entities.AppSetting.filter({ key: 'weekly_report_last_counts' });
+        if (lastWeekSetting && lastWeekSetting.length > 0 && lastWeekSetting[0].value) {
+          lastWeekCounts = JSON.parse(lastWeekSetting[0].value);
+        }
+      } catch {}
+    }
 
-    // --- 3. Build HTML email ---
+    // --- 4. Build HTML email ---
     const today = new Date().toLocaleDateString('de-CH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const reportTitle = mode === 'weekly' ? 'Wochen-Sync Bericht' : 'Daten-Report';
+    const reportSubtitle = mode === 'weekly' ? `Wochen-Sync · ${today}` : `Täglicher Daten-Report · ${today}`;
 
-    // Source results table — sources with 0 entries get a warning badge,
-    // sources that never ran today get "übersprungen" (skipped) instead of "pending".
+    // Source results table
     const sourceRows = (allSchedules || []).map(s => {
       const rawStatus = s.last_status || 'pending';
       const ran = s.last_run_time && isToday(s.last_run_time);
-      // Determine display status: 0-entry success → 'skipped' warning; not-run → 'skipped'
       let displayStatus = rawStatus;
       let warningNote = '';
       if (!ran) {
@@ -183,28 +193,72 @@ export default async function(req: Request): Promise<Response> {
       } else if (rawStatus === 'success' && (s.last_count == null || s.last_count === 0)) {
         displayStatus = 'skipped';
         warningNote = '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">⚠ 0 Einträge — Quelle möglicherweise nicht erreichbar</div>';
+      } else if (rawStatus === 'pending' && ran) {
+        displayStatus = 'partial';
+        warningNote = '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">⏳ Chunked — wird in nächstem Tick fortgesetzt</div>';
       }
       const duration = s.last_duration_ms ? `${(s.last_duration_ms / 1000).toFixed(1)}s` : '—';
       const count = s.last_count != null ? s.last_count : '—';
       const error = s.last_error ? `<div style="font-size:11px;color:#dc2626;margin-top:2px;">${s.last_error}</div>` : '';
+      const deltaCell = mode === 'weekly' ? `<td style="padding:6px 8px;font-size:13px;text-align:right;">${formatDelta(count !== '—' ? count : 0, lastWeekCounts[s.source])}</td>` : '';
       return `
         <tr style="border-bottom:1px solid #eee;">
           <td style="padding:6px 8px;font-size:13px;font-weight:600;color:#333;">${s.label || s.source}${error}${warningNote}</td>
           <td style="padding:6px 8px;">${statusBadge(displayStatus)}</td>
           <td style="padding:6px 8px;font-size:13px;color:#666;text-align:right;">${count}</td>
           <td style="padding:6px 8px;font-size:13px;color:#666;text-align:right;">${duration}</td>
+          ${deltaCell}
         </tr>`;
     }).join('');
+
+    // Problems section
+    const problemSources = (allSchedules || []).filter(s => {
+      const ran = s.last_run_time && isToday(s.last_run_time);
+      if (!ran) return false;
+      return s.last_status === 'failed' || (s.last_status === 'success' && (s.last_count == null || s.last_count === 0));
+    });
+    const problemsHtml = problemSources.length > 0 ? `
+    <div style="padding:16px;border-bottom:1px solid #eee;">
+      <h2 style="margin:0 0 10px;font-size:15px;color:#dc2626;">⚠️ Probleme (${problemSources.length})</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:2px solid #ddd;">
+            <th style="padding:5px 6px;text-align:left;font-size:11px;color:#666;text-transform:uppercase;">Quelle</th>
+            <th style="padding:5px 6px;text-align:left;font-size:11px;color:#666;text-transform:uppercase;">Status</th>
+            <th style="padding:5px 6px;text-align:left;font-size:11px;color:#666;text-transform:uppercase;">Fehler</th>
+          </tr>
+        </thead>
+        <tbody>${problemSources.map(s => `
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:5px 6px;font-size:12px;font-weight:600;color:#333;">${s.label || s.source}</td>
+            <td style="padding:5px 6px;">${statusBadge(s.last_status === 'success' ? 'skipped' : s.last_status)}</td>
+            <td style="padding:5px 6px;font-size:11px;color:#dc2626;">${s.last_error || '0 Einträge geladen'}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>` : '';
+
+    // APRS streaming section
+    const aprsCount = stats.totalPrivateNodes || 0;
+    const aprsDelta = mode === 'weekly' ? formatDelta(aprsCount, lastWeekCounts['aprs']) : '';
+    const aprsSection = `
+    <div style="padding:16px;border-bottom:1px solid #eee;">
+      <h2 style="margin:0 0 10px;font-size:15px;color:#333;">📡 APRS-Streaming</h2>
+      <p style="margin:0;font-size:13px;color:#666;">
+        Aktuelle AprsStation-Anzahl: <strong style="font-size:16px;color:#8b5cf6;">${aprsCount.toLocaleString('de-CH')}</strong>
+        ${aprsDelta ? ` &nbsp; ${aprsDelta}` : ''}
+        <br/><span style="font-size:11px;color:#999;">Inkrementelle Synchronisation läuft separat (täglich 06:30 UTC)</span>
+      </p>
+    </div>`;
 
     // Country stats (top 10)
     const countryEntries = Object.entries(stats.qsosByCountry).sort((a: any, b: any) => b[1] - a[1]).slice(0, 10);
     const maxCountry = countryEntries.length > 0 ? countryEntries[0][1] : 1;
     const countryColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#14b8a6'];
-    const countryRows = countryEntries.map((entry: any, i: number) => 
+    const countryRows = countryEntries.map((entry: any, i: number) =>
       barRow(entry[0] || 'Unbekannt', entry[1], maxCountry, countryColors[i % countryColors.length])
     ).join('');
 
-    // Reference type stats (layer usage)
+    // Reference type stats
     const refTypeLabels: Record<string, string> = {
       sota: 'SOTA', pota: 'POTA', hbff: 'WWFF', wwbota: 'WWBOTA', castle: 'Burgen',
       iota: 'IOTA', lighthouse: 'Leuchttürme', repeater: 'Relais', swiss_protected: 'Naturzonen',
@@ -215,23 +269,6 @@ export default async function(req: Request): Promise<Response> {
     const refRows = refEntries.map((entry: any, i: number) =>
       barRow(refTypeLabels[entry[0]] || entry[0], entry[1], maxRef, countryColors[i % countryColors.length])
     ).join('');
-
-    // Admin report content config — which sections to include
-    // Default: all sections enabled. Admins can disable sections via AppSetting.
-    let reportConfig: any = {
-      showSources: true,
-      showUsage: true,
-      showCache: true,
-      showCountries: true,
-      showRefTypes: true,
-      showVideo: true,
-    };
-    try {
-      const configSetting = await base44.asServiceRole.entities.AppSetting.filter({ key: 'admin_report_config' });
-      if (configSetting && configSetting.length > 0 && configSetting[0].value) {
-        reportConfig = { ...reportConfig, ...JSON.parse(configSetting[0].value) };
-      }
-    } catch {}
 
     // Cache layer labels
     const cacheLayerLabels: Record<string, string> = {
@@ -252,6 +289,12 @@ export default async function(req: Request): Promise<Response> {
       </tr>`
     ).join('');
 
+    // Total batch duration
+    const totalBatchDuration = todaySources.reduce((sum: number, s: any) => sum + (s.last_duration_ms || 0), 0);
+    const batchDurationStr = `${Math.floor(totalBatchDuration / 60000)}m ${Math.round((totalBatchDuration % 60000) / 1000)}s`;
+
+    const deltaHeader = mode === 'weekly' ? '<th style="padding:5px 6px;text-align:right;font-size:11px;color:#666;text-transform:uppercase;">Delta</th>' : '';
+
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -260,7 +303,7 @@ export default async function(req: Request): Promise<Response> {
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#1e3a5f,#2d5a8e);padding:20px 16px;">
       <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700;">📡 HB9OM On Field</h1>
-      <p style="margin:4px 0 0;color:#a8c8e8;font-size:13px;">Täglicher Daten-Report · ${today}</p>
+      <p style="margin:4px 0 0;color:#a8c8e8;font-size:13px;">${reportSubtitle}</p>
     </div>
 
     <!-- Overall Status -->
@@ -269,12 +312,14 @@ export default async function(req: Request): Promise<Response> {
         ${statusBadge(overallStatus)}
         <span style="font-size:14px;font-weight:600;color:#333;">${successCount}/${totalCount} Quellen erfolgreich</span>
       </div>
-      ${failedCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;font-size:12px;color:#dc2626;">⚠️ ${failedCount} Quelle(n) fehlgeschlagen — siehe Details unten.</div>` : ''}
+      <div style="margin-top:8px;font-size:12px;color:#666;">
+        Batch-Dauer gesamt: <strong>${batchDurationStr}</strong> · Total Einträge verarbeitet: <strong>${todaySources.reduce((s: number, src: any) => s + (src.last_count || 0), 0).toLocaleString('de-CH')}</strong>
+      </div>
+      ${failedCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;font-size:12px;color:#dc2626;">⚠️ ${failedCount} Quelle(n) fehlgeschlagen — siehe Probleme unten.</div>` : ''}
       ${warningCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border-radius:6px;font-size:12px;color:#f59e0b;">⚠️ ${warningCount} Quelle(n) mit 0 Einträgen — Quelle möglicherweise nicht erreichbar.</div>` : ''}
       ${pendingSources.length > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#f3f4f6;border-radius:6px;font-size:12px;color:#6b7280;">⏭️ ${pendingSources.length} Quelle(n) übersprungen / nicht ausgeführt.</div>` : ''}
     </div>
 
-    ${reportConfig.showSources ? `
     <!-- Source Results Table -->
     <div style="padding:16px;border-bottom:1px solid #eee;">
       <h2 style="margin:0 0 10px;font-size:15px;color:#333;">📋 Quellen-Status</h2>
@@ -286,43 +331,26 @@ export default async function(req: Request): Promise<Response> {
             <th style="padding:5px 6px;text-align:left;font-size:11px;color:#666;text-transform:uppercase;">Status</th>
             <th style="padding:5px 6px;text-align:right;font-size:11px;color:#666;text-transform:uppercase;">Einträge</th>
             <th style="padding:5px 6px;text-align:right;font-size:11px;color:#666;text-transform:uppercase;">Dauer</th>
+            ${deltaHeader}
           </tr>
         </thead>
-        <tbody>${(allSchedules || []).map(s => {
-          const rawStatus = s.last_status || 'pending';
-          const ran = s.last_run_time && isToday(s.last_run_time);
-          let displayStatus = rawStatus;
-          let warningNote = '';
-          if (!ran) {
-            displayStatus = 'skipped';
-          } else if (rawStatus === 'success' && (s.last_count == null || s.last_count === 0)) {
-            displayStatus = 'skipped';
-            warningNote = '<div style="font-size:10px;color:#f59e0b;margin-top:2px;">⚠ 0 Einträge</div>';
-          }
-          const duration = s.last_duration_ms ? `${(s.last_duration_ms / 1000).toFixed(1)}s` : '—';
-          const count = s.last_count != null ? s.last_count : '—';
-          const error = s.last_error ? `<div style="font-size:10px;color:#dc2626;margin-top:2px;">${s.last_error}</div>` : '';
-          return `<tr style="border-bottom:1px solid #eee;">
-            <td style="padding:5px 6px;font-size:12px;font-weight:600;color:#333;">${s.label || s.source}${error}${warningNote}</td>
-            <td style="padding:5px 6px;">${statusBadge(displayStatus)}</td>
-            <td style="padding:5px 6px;font-size:12px;color:#666;text-align:right;">${count}</td>
-            <td style="padding:5px 6px;font-size:12px;color:#666;text-align:right;">${duration}</td>
-          </tr>`;
-        }).join('')}</tbody>
+        <tbody>${sourceRows}</tbody>
       </table>
       </div>
-    </div>` : ''}
+    </div>
 
-    ${reportConfig.showCache ? `
+    ${problemsHtml}
+
+    ${aprsSection}
+
     <!-- Cache Storage -->
     <div style="padding:16px;border-bottom:1px solid #eee;">
       <h2 style="margin:0 0 10px;font-size:15px;color:#333;">💾 Daten-Cache Speicherung</h2>
       <table style="width:100%;border-collapse:collapse;">
         <tbody>${cacheRows}</tbody>
       </table>
-    </div>` : ''}
+    </div>
 
-    ${reportConfig.showUsage ? `
     <!-- Usage Statistics -->
     <div style="padding:16px;border-bottom:1px solid #eee;">
       <h2 style="margin:0 0 10px;font-size:15px;color:#333;">📊 App-Nutzung</h2>
@@ -352,9 +380,9 @@ export default async function(req: Request): Promise<Response> {
           <div style="font-size:10px;color:#666;text-transform:uppercase;">APRS</div>
         </div>
       </div>
-    </div>` : ''}
+    </div>
 
-    ${reportConfig.showCountries && countryRows ? `
+    ${countryRows ? `
     <!-- QSOs by Country -->
     <div style="padding:16px;border-bottom:1px solid #eee;">
       <h2 style="margin:0 0 10px;font-size:15px;color:#333;">🌍 QSOs nach Land (Top 10)</h2>
@@ -363,7 +391,7 @@ export default async function(req: Request): Promise<Response> {
       </table>
     </div>` : ''}
 
-    ${reportConfig.showRefTypes && refRows ? `
+    ${refRows ? `
     <!-- Layer Usage -->
     <div style="padding:16px;border-bottom:1px solid #eee;">
       <h2 style="margin:0 0 10px;font-size:15px;color:#333;">🗺️ Häufigste Referenz-Typen</h2>
@@ -372,31 +400,21 @@ export default async function(req: Request): Promise<Response> {
       </table>
     </div>` : ''}
 
-    ${reportConfig.showVideo ? `
-    <!-- Video -->
-    <div style="padding:16px;border-bottom:1px solid #eee;">
-      <h2 style="margin:0 0 6px;font-size:15px;color:#333;">🎬 Demo-Video</h2>
-      <p style="margin:0;font-size:12px;color:#666;">${videoInfo}</p>
-    </div>` : ''}
-
     <!-- Footer -->
     <div style="padding:12px 16px;background:#f8f8f8;">
       <p style="margin:0;font-size:10px;color:#999;text-align:center;">
-        Dieser Report wird täglich um 07:00 UTC automatisch generiert.<br/>
+        ${mode === 'weekly' ? 'Dieser Report wird wöchentlich am Montag nach Abschluss des Sync-Batches automatisch generiert.' : 'Dieser Report wird nach Abschluss des Sync-Batches automatisch generiert.'}<br/>
         HB9OM On Field · Amateurfunk Referenz-Map
       </p>
     </div>
   </div>
 </body></html>`;
 
-    // --- 4. Get admin users ---
+    // --- 5. Get admin users ---
     const allUsers = await base44.asServiceRole.entities.User.list();
     let admins = allUsers.filter((u: any) => u.role === 'admin' && u.email);
-
-    // Filter out admins who disabled the daily report
     admins = admins.filter((u: any) => u.admin_email_enabled !== false);
 
-    // If targetUserId is set (test report for one admin), filter to just that user
     if (body.targetUserId) {
       admins = admins.filter((u: any) => u.id === body.targetUserId);
     }
@@ -405,20 +423,22 @@ export default async function(req: Request): Promise<Response> {
       return Response.json({ status: 'skipped', message: 'Keine Admin-E-Mails gefunden oder alle deaktiviert' });
     }
 
-    // Build recipient list — use admin_email_override if set and verified, else account email
     const recipients = admins.map((admin: any) => ({
       admin,
       email: (admin.admin_email_override && admin.admin_email_verified) ? admin.admin_email_override : admin.email,
     }));
 
-    // --- 5. Send the full HTML report to all recipients ---
-    // (Test email verification removed — no longer sending a verification test email)
+    // --- 6. Send the report ---
+    const subject = mode === 'weekly'
+      ? `📡 HB9OM Wochen-Sync Bericht – ${today} – ${overallStatus.toUpperCase()}`
+      : `📡 HB9OM Daily Report – ${today} – ${overallStatus.toUpperCase()}`;
+
     const sendResults = [];
     for (const recipient of recipients) {
       try {
         await base44.asServiceRole.integrations.Core.SendEmail({
           to: recipient.email,
-          subject: `📡 HB9OM Daily Report – ${today} – ${overallStatus.toUpperCase()}`,
+          subject,
           body: html,
         });
         sendResults.push({ admin: recipient.email, status: 'success' });
@@ -427,8 +447,30 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
+    // --- 7. Store this week's counts for next week's delta (weekly mode only) ---
+    if (mode === 'weekly') {
+      try {
+        const currentCounts: Record<string, number> = {};
+        for (const s of allSchedules || []) {
+          if (s.last_count != null) {
+            currentCounts[s.source] = s.last_count;
+          }
+        }
+        // Also store APRS count
+        currentCounts['aprs'] = stats.totalPrivateNodes || 0;
+
+        const existing = await base44.asServiceRole.entities.AppSetting.filter({ key: 'weekly_report_last_counts' });
+        if (existing && existing.length > 0) {
+          await base44.asServiceRole.entities.AppSetting.update(existing[0].id, { value: JSON.stringify(currentCounts) });
+        } else {
+          await base44.asServiceRole.entities.AppSetting.create({ key: 'weekly_report_last_counts', value: JSON.stringify(currentCounts) });
+        }
+      } catch {}
+    }
+
     return Response.json({
       status: 'success',
+      mode,
       overall_status: overallStatus,
       sources_total: totalCount,
       sources_success: successCount,
@@ -440,7 +482,7 @@ export default async function(req: Request): Promise<Response> {
       stats,
     });
   } catch (error) {
-    return Response.json({ 
+    return Response.json({
       status: 'failed',
       error: error.message || String(error),
       stack: error.stack || '',
