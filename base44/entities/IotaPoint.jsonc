@@ -1,0 +1,57 @@
+{
+  "name": "IotaPoint",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "IOTA Referenz-Code (z.B. AF-001, EU-005)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name der Inselgruppe"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad (Center der Bounding-Box)"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad (Center der Bounding-Box)"
+    },
+    "dxcc_num": {
+      "type": "string",
+      "description": "DXCC-Nummer(n), komma-separiert"
+    },
+    "status": {
+      "type": "string",
+      "description": "Status: Active oder Not Activated"
+    },
+    "island_count": {
+      "type": "number",
+      "description": "Anzahl Inseln in der Gruppe"
+    },
+    "pc_credited": {
+      "type": "string",
+      "description": "Credit-Prozentsatz"
+    },
+    "grp_region": {
+      "type": "string",
+      "description": "Region der Inselgruppe"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "code",
+    "name"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}
