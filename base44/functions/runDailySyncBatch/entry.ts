@@ -46,6 +46,21 @@ function isPastDeadline(): boolean {
   return false;
 }
 
+// ─── Unified source state logic ───
+// A source needs to run if: pending (regardless of last_run_time), or a new day started.
+// A source is done if: success/failed/skipped AND ran today.
+// This handles the orchestrator's reset (sets last_run_time=today + last_status=pending).
+function needsToRun(s: any): boolean {
+  if (s.last_status === 'running') return false;
+  if (s.last_status === 'pending') return true;
+  return !isToday(s.last_run_time);
+}
+
+function isDone(s: any): boolean {
+  if (s.last_status === 'pending' || s.last_status === 'running') return false;
+  return isToday(s.last_run_time);
+}
+
 // Get or create today's shuffled order (stored in AppSettings)
 async function getTodaysOrder(base44: any, enabledSources: any[]): Promise<string[]> {
   const key = 'daily_batch_order_' + todayUTC();
@@ -60,8 +75,8 @@ async function getTodaysOrder(base44: any, enabledSources: any[]): Promise<strin
     } catch {}
   }
 
-  // Create new shuffled order from sources not yet run today
-  const pending = enabledSources.filter(s => !isToday(s.last_run_time));
+  // Create new shuffled order from sources that need to run today
+  const pending = enabledSources.filter(s => needsToRun(s));
   const shuffled = shuffle(pending);
   const order = shuffled.map((s: any) => s.source);
   const state = { date: todayUTC(), order, createdAt: new Date().toISOString() };
@@ -150,9 +165,7 @@ export default async function (req: Request): Promise<Response> {
     // ─── Deadline check: 06:15 UTC (scheduled runs only) ───
     // Manual runs bypass the deadline — admin can force-process sources anytime.
     if (body.scheduled === true && isPastDeadline()) {
-      const remaining = enabledSources.filter((s: any) =>
-        !isToday(s.last_run_time) && s.last_status !== 'skipped' && s.last_status !== 'running'
-      );
+      const remaining = enabledSources.filter((s: any) => needsToRun(s));
       let skippedCount = 0;
       for (const src of remaining) {
         try {
@@ -189,18 +202,14 @@ export default async function (req: Request): Promise<Response> {
     for (const key of order) {
       const src = sourceMap.get(key);
       if (!src) continue;
-      if (src.last_status === 'running') continue; // Currently running (concurrent invocation)
-      if (isToday(src.last_run_time)) continue; // Already ran today
-      if (src.last_status === 'skipped') continue; // Already skipped
+      if (!needsToRun(src)) continue; // Already done today, running, or skipped
       nextSource = src;
       break;
     }
 
     if (!nextSource) {
       // No due source — check if all done, then send report
-      const allDone = enabledSources.every((s: any) =>
-        isToday(s.last_run_time) || s.last_status === 'skipped'
-      );
+      const allDone = enabledSources.every((s: any) => isDone(s));
       if (allDone && !(await isReportSentToday(base44))) {
         try {
           await base44.functions.invoke('sendDailyAdminReport', { scheduled: true });
@@ -307,9 +316,7 @@ export default async function (req: Request): Promise<Response> {
       const stillIncomplete = (allAfter || []).filter((s: any) => {
         if (!s.enabled) return false;
         if (s.function_name === 'fetchAprsFi') return false; // Excluded
-        if (s.last_status === 'pending' || s.last_status === 'running') return true;
-        if (!isToday(s.last_run_time) && s.last_status !== 'skipped') return true;
-        return false;
+        return !isDone(s);
       });
       if (stillIncomplete.length === 0 && !(await isReportSentToday(base44))) {
         await base44.functions.invoke('sendDailyAdminReport', { scheduled: true });
