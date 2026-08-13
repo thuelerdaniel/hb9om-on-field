@@ -280,7 +280,7 @@ export default function AdminPanel({
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Angemeldete Benutzer, Passwörter zurücksetzen</p>
             </div>
             <Link
-              to="/users"
+              to="/admin/users"
               className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center gap-1.5"
             >
               <Users className="w-3.5 h-3.5" />
