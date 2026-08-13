@@ -147,9 +147,9 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({ status: 'idle', message: 'Keine aktivierten Quellen' });
     }
 
-    // ─── Deadline check: 06:15 UTC ───
-    // Mark remaining sources as skipped and send report
-    if (isPastDeadline()) {
+    // ─── Deadline check: 06:15 UTC (scheduled runs only) ───
+    // Manual runs bypass the deadline — admin can force-process sources anytime.
+    if (body.scheduled === true && isPastDeadline()) {
       const remaining = enabledSources.filter((s: any) =>
         !isToday(s.last_run_time) && s.last_status !== 'skipped' && s.last_status !== 'running'
       );
