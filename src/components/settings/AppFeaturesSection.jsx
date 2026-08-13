@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, SlidersHorizontal, RotateCcw, Layers, Radio, Wrench, WifiOff, Settings2, Check } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, RotateCcw, Layers, Radio, Wrench, WifiOff, Settings2, Check, MapPin, Crosshair } from "lucide-react";
 import { useAppFeatures, DEFAULT_FEATURES, QUICK_PRESETS, applyToolDependencies } from "@/lib/appFeatures";
 
 // Toggle definitions per category
@@ -55,6 +55,8 @@ const TOOL_TOGGLES = [
     { key: "zoom", label: "Zoom-Controls", desc: "Zoom-Buttons auf Karte" },
     { key: "search", label: "Suche", desc: "Referenz/Ort-Suchleiste" },
     { key: "coords", label: "Koordinaten-Anzeige", desc: "Koordinaten im Popup" },
+    { key: "center_position", label: "Auf Position zentrieren", desc: "Karte auf gespeicherte Position zentrieren", icon: MapPin },
+    { key: "set_position", label: "Position auf Karte setzen", desc: "Per Kartenklick Position festlegen", icon: Crosshair },
   ]},
   { group: "Abdeckung", items: [
     { key: "repeater_coverage", label: "Repeater-Abdeckung", desc: "Abdeckungspolygone für Relais" },
@@ -103,7 +105,7 @@ function ToggleSwitch({ enabled, onChange, disabled }) {
   );
 }
 
-// --- Toggle Row ---
+// --- Toggle Row (Schieber rechts — Standard) ---
 function ToggleRow({ label, desc, enabled, onChange, disabled, dependsOn, parentEnabled }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5">
@@ -117,6 +119,18 @@ function ToggleRow({ label, desc, enabled, onChange, disabled, dependsOn, parent
         )}
       </div>
       <ToggleSwitch enabled={enabled} onChange={onChange} disabled={disabled} />
+    </div>
+  );
+}
+
+// --- Toggle Row Band (Schieber vorne, dann Bezeichnung) ---
+function ToggleRowBand({ label, enabled, onChange }) {
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <ToggleSwitch enabled={enabled} onChange={onChange} />
+      <span className={`text-sm font-medium ${enabled ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}>
+        {label}
+      </span>
     </div>
   );
 }
@@ -146,6 +160,7 @@ export default function AppFeaturesSection({ isAdmin = false }) {
   const { features, setFeatures } = useAppFeatures();
   const [resetConfirm, setResetConfirm] = useState(false);
   const [presetApplied, setPresetApplied] = useState(null);
+  const [sectionOpen, setSectionOpen] = useState(false);
 
   const updateCategory = (category, key, value) => {
     let newCategory = { ...features[category], [key]: value };
@@ -194,16 +209,26 @@ export default function AppFeaturesSection({ isAdmin = false }) {
 
   return (
     <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-100 dark:border-slate-700">
-        <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4" /> App-Funktionen anpassen
-        </h2>
-        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Blende Funktionen aus die du nicht brauchst</p>
-      </div>
+      {/* Header — klickbar, per default zugeklappt */}
+      <button
+        onClick={() => setSectionOpen(!sectionOpen)}
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="w-4 h-4 text-gray-600 dark:text-slate-400" />
+          <div className="text-left">
+            <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">App-Funktionen anpassen</h2>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Blende Funktionen aus die du nicht brauchst</p>
+          </div>
+        </div>
+        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${sectionOpen ? "rotate-180" : ""}`} />
+      </button>
 
+      {/* Inhalt — nur wenn aufgeklappt */}
+      {sectionOpen && (
+        <>
       {/* Quick-Buttons */}
-      <div className="p-4 border-b border-gray-100 dark:border-slate-700">
+      <div className="p-4 border-t border-gray-100 dark:border-slate-700">
         <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase mb-2">Schnell-Vorlagen</p>
         <div className="grid grid-cols-2 gap-2">
           {[
@@ -262,7 +287,7 @@ export default function AppFeaturesSection({ isAdmin = false }) {
               <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase mt-2 mb-1">{cat.group}</p>
               <div className="grid grid-cols-2 gap-x-3">
                 {cat.items.map(item => (
-                  <ToggleRow
+                  <ToggleRowBand
                     key={item.key}
                     label={`${item.label} (${item.freq})`}
                     enabled={features.bands[item.key] !== false}
@@ -348,7 +373,7 @@ export default function AppFeaturesSection({ isAdmin = false }) {
         </AccordionCategory>
       </div>
 
-      {/* Reset Button */}
+      {/* Reset Button — Auf Standard zurücksetzen */}
       <div className="p-4 border-t border-gray-100 dark:border-slate-700">
         <button
           onClick={handleReset}
@@ -359,9 +384,11 @@ export default function AppFeaturesSection({ isAdmin = false }) {
           }`}
         >
           {resetConfirm ? <Check className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
-          {resetConfirm ? "Wirklich alle einblenden?" : "Alle Funktionen einblenden"}
+          {resetConfirm ? "Wirklich auf Standard zurücksetzen?" : "Auf Standard zurücksetzen"}
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }

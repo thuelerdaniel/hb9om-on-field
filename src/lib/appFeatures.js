@@ -27,7 +27,8 @@ export const LAYER_KEY_MAP = {
   brandmeister: "brandmeister",
 };
 
-// Default: Layer alle an, Bänder alle an, Tools minimal (per Nachtrag)
+// Default per Nachtrag: Layer alle an, Bänder nur 2m+70cm, Tools minimal,
+// Offline alles aus, Erweiterte Optionen alle aus
 export const DEFAULT_FEATURES = {
   layers: {
     sota: true, pota: true, wwff: true, wca: true, bota: true,
@@ -36,9 +37,9 @@ export const DEFAULT_FEATURES = {
     repeater: true, aprs: true, brandmeister: true,
   },
   bands: {
-    "160m": true, "80m": true, "60m": true, "40m": true, "30m": true,
-    "20m": true, "17m": true, "15m": true, "12m": true, "10m": true,
-    "6m": true, "2m": true, "1.25m": true, "70cm": true, "33cm": true, "23cm": true,
+    "160m": false, "80m": false, "60m": false, "40m": false, "30m": false,
+    "20m": false, "17m": false, "15m": false, "12m": false, "10m": false,
+    "6m": false, "2m": true, "1.25m": false, "70cm": true, "33cm": false, "23cm": false,
   },
   tools: {
     fox_hunt: false, legende: false, filter: false, zoom: true,
@@ -47,13 +48,14 @@ export const DEFAULT_FEATURES = {
     logbook: true, statistics: false, qso_add: true, dxcc: false,
     admin: true, json_import: false, sync_status: false,
     change_requests: false, feature_requests: false,
+    center_position: false, set_position: false,
   },
   offline: {
-    offline_mode: true, map_download: true, data_download: true, auto_cache: true,
+    offline_mode: false, map_download: false, data_download: false, auto_cache: false,
   },
   advanced: {
-    advanced_propagation: true, kw_propagation: true, solar_activity: "medium",
-    auto_time: true, map_tile: "osm", marker_density: "medium",
+    advanced_propagation: false, kw_propagation: false, solar_activity: "medium",
+    auto_time: false, map_tile: "osm", marker_density: "medium",
     language: "de", imperial: false,
   },
 };
@@ -67,12 +69,18 @@ export const QUICK_PRESETS = {
     offline: { offline_mode: true, map_download: false, data_download: false, auto_cache: false },
     advanced: { advanced_propagation: true, kw_propagation: false, solar_activity: "medium", auto_time: true, map_tile: "osm", marker_density: "medium", language: "de", imperial: false },
   },
-  standard: JSON.parse(JSON.stringify(DEFAULT_FEATURES)),
+  standard: {
+    layers: { sota: true, pota: true, wwff: true, wca: true, bota: true, tota: true, iota: true, lighthouse: true, naturzonen: true, hazards: true, fm_funknetz: true, ch_repeater_links: true, repeater: true, aprs: true, brandmeister: true },
+    bands: { "160m": true, "80m": true, "60m": true, "40m": true, "30m": true, "20m": true, "17m": true, "15m": true, "12m": true, "10m": true, "6m": true, "2m": true, "1.25m": true, "70cm": true, "33cm": true, "23cm": true },
+    tools: { fox_hunt: false, legende: true, filter: true, zoom: true, search: true, coords: false, repeater_coverage: true, own_coverage: true, gps: true, qth_locator: true, height_profile: true, logbook: true, statistics: true, qso_add: true, dxcc: false, admin: true, json_import: false, sync_status: false, change_requests: true, feature_requests: true, center_position: true, set_position: true },
+    offline: { offline_mode: true, map_download: true, data_download: true, auto_cache: true },
+    advanced: { advanced_propagation: true, kw_propagation: true, solar_activity: "medium", auto_time: true, map_tile: "osm", marker_density: "medium", language: "de", imperial: false },
+  },
   kw: {
     layers: { sota: true, pota: true, wwff: true, wca: true, bota: true, tota: true, iota: true, lighthouse: true, naturzonen: true, hazards: true, fm_funknetz: false, ch_repeater_links: false, repeater: false, aprs: false, brandmeister: false },
     bands: { "160m": true, "80m": true, "60m": true, "40m": true, "30m": true, "20m": true, "17m": true, "15m": true, "12m": true, "10m": true, "6m": false, "2m": false, "1.25m": false, "70cm": false, "33cm": false, "23cm": false },
-    tools: { fox_hunt: false, legende: false, filter: false, zoom: true, search: false, coords: false, repeater_coverage: false, own_coverage: true, gps: true, qth_locator: true, height_profile: false, logbook: true, statistics: false, qso_add: true, dxcc: false, admin: true, json_import: false, sync_status: false, change_requests: false, feature_requests: false },
-    offline: { ...DEFAULT_FEATURES.offline },
+    tools: { fox_hunt: false, legende: false, filter: false, zoom: true, search: false, coords: false, repeater_coverage: false, own_coverage: true, gps: true, qth_locator: true, height_profile: false, logbook: true, statistics: false, qso_add: true, dxcc: false, admin: true, json_import: false, sync_status: false, change_requests: false, feature_requests: false, center_position: false, set_position: false },
+    offline: { offline_mode: false, map_download: false, data_download: false, auto_cache: false },
     advanced: { advanced_propagation: true, kw_propagation: true, solar_activity: "medium", auto_time: true, map_tile: "osm", marker_density: "medium", language: "de", imperial: false },
   },
   vhf_uhf: {
@@ -85,7 +93,7 @@ export const QUICK_PRESETS = {
   two_seventy: {
     layers: { sota: false, pota: false, wwff: false, wca: false, bota: false, tota: false, iota: false, lighthouse: false, naturzonen: false, hazards: false, fm_funknetz: false, ch_repeater_links: false, repeater: true, aprs: false, brandmeister: false },
     bands: { "160m": false, "80m": false, "60m": false, "40m": false, "30m": false, "20m": false, "17m": false, "15m": false, "12m": false, "10m": false, "6m": false, "2m": true, "1.25m": false, "70cm": true, "33cm": false, "23cm": false },
-    tools: { fox_hunt: false, legende: false, filter: true, zoom: true, search: false, coords: false, repeater_coverage: true, own_coverage: true, gps: true, qth_locator: true, height_profile: false, logbook: true, statistics: false, qso_add: true, dxcc: false, admin: true, json_import: false, sync_status: false, change_requests: false, feature_requests: false },
+    tools: { fox_hunt: false, legende: false, filter: true, zoom: true, search: false, coords: false, repeater_coverage: true, own_coverage: true, gps: true, qth_locator: true, height_profile: false, logbook: true, statistics: false, qso_add: true, dxcc: false, admin: true, json_import: false, sync_status: false, change_requests: false, feature_requests: false, center_position: false, set_position: false },
     offline: { ...DEFAULT_FEATURES.offline },
     advanced: { ...DEFAULT_FEATURES.advanced, kw_propagation: false },
   },

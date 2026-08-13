@@ -226,6 +226,7 @@ export default function Home() {
   const [userCoveragePosition, setUserCoveragePosition] = useState(null);
   const [userCoverageDevice, setUserCoverageDevice] = useState("mobil");
   const [mapClickForCoverage, setMapClickForCoverage] = useState(false);
+  const [mapClickForPosition, setMapClickForPosition] = useState(false);
 
   // Donation popup trigger — increments on layer menu open/close to trigger check
   const [donationTriggerKey, setDonationTriggerKey] = useState(0);
@@ -713,10 +714,17 @@ export default function Home() {
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           lockedScale={lockedScale}
-          onMapClick={mapClickForCoverage ? (latlng) => {
-            setUserCoveragePosition([latlng.lat, latlng.lng]);
-            setMapClickForCoverage(false);
-          } : null}
+          onMapClick={(latlng) => {
+            if (mapClickForCoverage) {
+              setUserCoveragePosition([latlng.lat, latlng.lng]);
+              setMapClickForCoverage(false);
+            } else if (mapClickForPosition) {
+              setFixedPosition([latlng.lat, latlng.lng]);
+              setUserPosition([latlng.lat, latlng.lng]);
+              setMapClickForPosition(false);
+              mapRef.current?.flyTo([latlng.lat, latlng.lng], 13, { duration: 1 });
+            }
+          }}
         />
         <ViewportDataLoader
           activeLayers={activeLayers}
@@ -882,6 +890,8 @@ export default function Home() {
         isOffline={isOffline}
         onToggleOffline={toggleOffline}
         onOpenOfflineDownload={() => setShowOfflineDialog(true)}
+        onSetPositionViaMap={() => setMapClickForPosition(true)}
+        setPositionActive={mapClickForPosition}
       />
 
       {/* Drag-Mode Toggle (Marker verschieben für Positionskorrektur) — only if filter tool enabled */}
@@ -1111,6 +1121,14 @@ export default function Home() {
       {/* Map click hint for coverage position — shown when mapClickForCoverage is active */}
       {mapClickForCoverage && (
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[2000] bg-orange-500 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-2 pointer-events-none">
+          <MapPin className="w-5 h-5 animate-bounce" />
+          <span className="text-sm font-semibold">Auf Karte klicken um Position zu setzen</span>
+        </div>
+      )}
+
+      {/* Map click hint for setting position — shown when mapClickForPosition is active */}
+      {mapClickForPosition && (
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[2000] bg-blue-500 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-2 pointer-events-none">
           <MapPin className="w-5 h-5 animate-bounce" />
           <span className="text-sm font-semibold">Auf Karte klicken um Position zu setzen</span>
         </div>
