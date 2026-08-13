@@ -183,8 +183,13 @@ export default async function(req) {
       const priority1Countries = countriesToFetch.filter(c => c.priority === 1);
       const priority1Codes = new Set(priority1Countries.map(c => c.code));
 
-      for (let i = 0; i < countriesToFetch.length; i += BATCH_SIZE) {
-        const chunk = countriesToFetch.slice(i, i + BATCH_SIZE);
+      // US states have large list pages (200-1000+ repeaters each) — use smaller batches
+      // to avoid exceeding the platform worker memory limit (128MB).
+      const isNARegion = region === 'na_us' || region === 'na_ca';
+      const effectiveBatchSize = isNARegion ? 3 : BATCH_SIZE;
+
+      for (let i = 0; i < countriesToFetch.length; i += effectiveBatchSize) {
+        const chunk = countriesToFetch.slice(i, i + effectiveBatchSize);
         const results = await Promise.all(chunk.map(async (country: any) => {
           try {
             const isNA = country.region_type === 'north_america';
