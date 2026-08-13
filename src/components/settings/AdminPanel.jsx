@@ -21,7 +21,7 @@ import RestorePointManager from "@/components/admin/RestorePointManager";
 import TotaManager from "@/components/admin/TotaManager";
 import AdminCollapsibleSection from "@/components/admin/AdminCollapsibleSection";
 import DataCacheOverview from "@/components/admin/DataCacheOverview";
-import DailyRefreshScheduleManager from "@/components/admin/DailyRefreshScheduleManager";
+import SyncPlanManager from "@/components/admin/SyncPlanManager";
 import ApiKeyManager from "@/components/admin/ApiKeyManager";
 import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import MobileSelect from "@/components/ui/MobileSelect";
@@ -339,7 +339,7 @@ export default function AdminPanel({
       {/* ====== GROUP 2: Daten-Cache & Aktualisierung ====== */}
       <AdminCollapsibleSection
         title="Daten-Cache & Aktualisierung"
-        description="Alle Layer-Statistiken, Tagesplan, manuelle Aktualisierung"
+        description="Alle Layer-Statistiken, Wochen-Sync-Plan, manuelle Aktualisierung"
         icon={Database}
         status={groupCacheStatus}
         statusLabel={groupCacheLabel}
@@ -352,9 +352,9 @@ export default function AdminPanel({
           onRefresh={fetchCoverageProgress}
         />
 
-        {/* Daily Refresh Schedule Manager */}
+        {/* Weekly Sync Plan Manager */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
-          <DailyRefreshScheduleManager />
+          <SyncPlanManager />
         </div>
 
         {/* Refresh / Auto-update */}

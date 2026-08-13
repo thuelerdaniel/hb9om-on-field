@@ -49,6 +49,16 @@
       "type": "string",
       "description": "Anzeigename der Quelle"
     },
+    "sync_type": {
+      "type": "string",
+      "enum": [
+        "full_batch",
+        "partial",
+        "daily"
+      ],
+      "default": "full_batch",
+      "description": "Sync-Typ: full_batch (Mo Voll-Batch), partial (Do Teil-Sync Relais), daily (taeglich APRS)"
+    },
     "enabled": {
       "type": "boolean",
       "default": true,
@@ -77,6 +87,11 @@
         "Monday"
       ],
       "description": "Wochentage an denen diese Quelle synchronisiert wird"
+    },
+    "incremental_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ob inkrementeller Sync aktiviert ist (nur Deltas laden statt Voll-Sync)"
     },
     "function_name": {
       "type": "string",
@@ -107,7 +122,8 @@
         "running",
         "success",
         "failed",
-        "skipped"
+        "skipped",
+        "timeout"
       ],
       "default": "pending",
       "description": "Status der letzten Ausfuehrung"
