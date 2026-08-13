@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LocateFixed, Crosshair, CloudOff, Cloud } from "lucide-react";
+import { LocateFixed, Crosshair, CloudOff, Cloud, Download } from "lucide-react";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 export default function MapPositionControls({
@@ -7,6 +7,7 @@ export default function MapPositionControls({
   onGetGps,
   isOffline,
   onToggleOffline,
+  onOpenOfflineDownload,
 }) {
   const [gpsLoading, setGpsLoading] = useState(false);
   const { containerRef } = useDraggablePosition("drag-position-controls");
@@ -56,6 +57,15 @@ export default function MapPositionControls({
         title="Karte auf gespeicherte Position zentrieren"
       >
         <LocateFixed className="w-5 h-5" />
+      </button>
+
+      {/* Offline area download */}
+      <button
+        onClick={onOpenOfflineDownload}
+        className="w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+        title="Karten-Bereich für Offline-Verwendung herunterladen"
+      >
+        <Download className="w-5 h-5" />
       </button>
     </div>
   );

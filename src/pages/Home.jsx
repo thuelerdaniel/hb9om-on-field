@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Move } from "lucide-react";
 import { MapContainer, useMap, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
@@ -770,13 +770,28 @@ export default function Home() {
         baseLayer={baseLayer}
       />
 
-      {/* Position Controls (offline, GPS, center position) */}
+      {/* Position Controls (offline, GPS, center position, offline download) */}
       <MapPositionControls
         onCenterPosition={handleCenterOnPosition}
         onGetGps={handleGetGps}
         isOffline={isOffline}
         onToggleOffline={toggleOffline}
+        onOpenOfflineDownload={() => setShowOfflineDialog(true)}
       />
+
+      {/* Drag-Mode Toggle (Marker verschieben für Positionskorrektur) */}
+      <button
+        onClick={() => setDragMode(!dragMode)}
+        className={`fixed left-4 z-[1000] w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border transition-colors ${
+          dragMode
+            ? "bg-blue-500 border-blue-600 text-white"
+            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+        }`}
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 140px)" }}
+        title={dragMode ? "Marker-Verschiebung aktiv — tippen zum Deaktivieren" : "Marker verschieben (Positionskorrektur)"}
+      >
+        <Move className="w-5 h-5" />
+      </button>
 
       {/* Filter buttons — positioned based on active layers */}
       {filterButtons.map(btn => {
