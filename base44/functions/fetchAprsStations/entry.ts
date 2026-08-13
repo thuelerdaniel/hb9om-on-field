@@ -10,7 +10,7 @@ import { generateAprsCallsignSeed } from '../../shared/aprsCallsignSeed.ts';
 // TCP (APRS-IS port 14580) is blocked by platform — HTTP via aprs.fi API only.
 
 const APRS_API_BASE = 'https://api.aprs.fi/api/get';
-const DISCOVERY_BATCH = 50; // 50 callsigns per run (incremental growth)
+const DISCOVERY_BATCH = 600; // 600 per run × 1 daily = 17,925 seed in ~30 days
 const API_BATCH_SIZE = 20;  // aprs.fi API hard limit: 20 names per request
 const BATCH_DELAY_MS = 200;
 
