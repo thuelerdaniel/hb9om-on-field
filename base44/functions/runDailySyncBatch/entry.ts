@@ -111,7 +111,7 @@ async function markReportSent(base44: any): Promise<void> {
 
 // Run a source with timeout
 async function runSourceWithTimeout(base44: any, src: any, timeout: number): Promise<{ ok: boolean; data: any; timedOut: boolean }> {
-  const payload = { ...(src.function_payload || {}), scheduled: true };
+  const payload = { ...(src.function_payload || {}), scheduled: true, incremental: !!src.incremental_enabled };
   try {
     const data = await Promise.race([
       base44.functions.invoke(src.function_name, payload).then((res: any) => res?.data || res),
