@@ -98,6 +98,8 @@ export default async function(req: Request): Promise<Response> {
           const masked = { ...config };
           if (masked.qrz_password) masked.qrz_password = '***';
           if (masked.qrz_api_key) masked.qrz_api_key = '***';
+          if (masked.aprs_fi_api_key) masked.aprs_fi_api_key = '***';
+          if (masked.brandmeister_api_key) masked.brandmeister_api_key = '***';
           return Response.json({ status: 'success', config: masked });
         }
       } catch {}
@@ -114,6 +116,8 @@ export default async function(req: Request): Promise<Response> {
           const oldConfig = JSON.parse(existing[0].value || '{}');
           if (finalConfig.qrz_password === '***') finalConfig.qrz_password = oldConfig.qrz_password || '';
           if (finalConfig.qrz_api_key === '***') finalConfig.qrz_api_key = oldConfig.qrz_api_key || '';
+          if (finalConfig.aprs_fi_api_key === '***') finalConfig.aprs_fi_api_key = oldConfig.aprs_fi_api_key || '';
+          if (finalConfig.brandmeister_api_key === '***') finalConfig.brandmeister_api_key = oldConfig.brandmeister_api_key || '';
           await base44.asServiceRole.entities.AppSetting.update(existing[0].id, { value: JSON.stringify(finalConfig), enabled: true });
         } else {
           await base44.asServiceRole.entities.AppSetting.create({ key: CLUB_CALLSIGN_KEY, value: JSON.stringify(finalConfig), enabled: true });

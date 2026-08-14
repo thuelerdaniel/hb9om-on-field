@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from "react";
 import {
   Building, Loader2, CheckCircle2, Save, KeyRound, Search, Radio,
-  AlertCircle, Shield, User,
+  AlertCircle, Shield,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import PasswordInput from "@/components/settings/PasswordInput";
+
+// Helper: call testCredentials backend function for club credential tests
+function testClub(service) {
+  return base44.functions.invoke("testCredentials", { service })
+    .then(res => res.data)
+    .catch(e => ({ success: false, message: e?.message || "Fehler beim Testen" }));
+}
 
 export default function ClubCallsignManager() {
   const [config, setConfig] = useState({
@@ -46,7 +54,6 @@ export default function ClubCallsignManager() {
           aprs_fi_api_key: cfg.aprs_fi_api_key === "***",
           brandmeister_api_key: cfg.brandmeister_api_key === "***",
         });
-        // Cache club callsign for QSO form pre-fill
         if (cfg.club_callsign) {
           localStorage.setItem("hb9om_club_callsign", cfg.club_callsign);
         }
@@ -63,15 +70,8 @@ export default function ClubCallsignManager() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Preserve masked fields — send *** for unchanged sensitive fields
       const saveConfig = { ...config };
-      for (const [key, masked] of Object.entries(maskedFields)) {
-        if (masked && saveConfig[key] === "***") {
-          // Keep *** — backend will preserve existing value
-        }
-      }
       await base44.functions.invoke("manageApiKeys", { action: "setClubCallsign", config: saveConfig });
-      // Cache club callsign for QSO form pre-fill
       if (config.club_callsign) {
         localStorage.setItem("hb9om_club_callsign", config.club_callsign);
       }
@@ -152,63 +152,55 @@ export default function ClubCallsignManager() {
               className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase">QRZ-Passwort (Club)</label>
-            <input
-              type="password"
-              value={config.qrz_password}
-              onChange={e => setConfig({ ...config, qrz_password: e.target.value })}
-              placeholder={maskedFields.qrz_password ? "*** (überschreiben zum Ändern)" : "QRZ.com-Passwort des Clubs"}
-              autoComplete="off"
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase">QRZ API-Key (Club-Rufzeichen)</label>
-            <input
-              type="password"
-              value={config.qrz_api_key}
-              onChange={e => setConfig({ ...config, qrz_api_key: e.target.value })}
-              placeholder={maskedFields.qrz_api_key ? "*** (überschreiben zum Ändern)" : "API-Key für Club-Rufzeichen"}
-              autoComplete="off"
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono"
-            />
-            <p className="text-[10px] text-gray-400 mt-1">
-              Dieser API-Key wird für QRZ-Abfragen des Club-Rufzeichens verwendet (z.B. beim Clubstation-Modus im QSO-Logbuch).
-            </p>
-          </div>
+          <PasswordInput
+            label="QRZ-Passwort (Club)"
+            value={config.qrz_password}
+            onChange={(v) => setConfig({ ...config, qrz_password: v })}
+            placeholder={maskedFields.qrz_password ? "*** (überschreiben zum Ändern)" : "QRZ.com-Passwort des Clubs"}
+            autoComplete="off"
+            onTest={config.qrz_username && config.qrz_password ? () => testClub("club_qrz") : null}
+            testLabel="Club QRZ-Login testen"
+            testDisabled={!config.qrz_username || !config.qrz_password}
+          />
+          <PasswordInput
+            label="QRZ API-Key (Club-Rufzeichen)"
+            value={config.qrz_api_key}
+            onChange={(v) => setConfig({ ...config, qrz_api_key: v })}
+            placeholder={maskedFields.qrz_api_key ? "*** (überschreiben zum Ändern)" : "API-Key für Club-Rufzeichen"}
+            autoComplete="off"
+            onTest={config.qrz_api_key && config.qrz_api_key !== "***" ? () => testClub("club_qrz_apikey") : (maskedFields.qrz_api_key ? () => testClub("club_qrz_apikey") : null)}
+            testLabel="Club QRZ API-Key testen"
+            testDisabled={!config.qrz_api_key && !maskedFields.qrz_api_key}
+          />
+          <p className="text-[10px] text-gray-400 mt-1">
+            Dieser API-Key wird für QRZ-Abfragen des Club-Rufzeichens verwendet (z.B. beim Clubstation-Modus im QSO-Logbuch).
+          </p>
         </div>
       </div>
 
       <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
         <h3 className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2">Weitere Club API-Keys</h3>
         <div className="space-y-2">
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-              <Radio className="w-3 h-3" /> APRS.fi API-Key (Club)
-            </label>
-            <input
-              type="password"
-              value={config.aprs_fi_api_key}
-              onChange={e => setConfig({ ...config, aprs_fi_api_key: e.target.value })}
-              placeholder={maskedFields.aprs_fi_api_key ? "*** (überschreiben zum Ändern)" : "APRS.fi API-Key des Clubs"}
-              autoComplete="off"
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-              <KeyRound className="w-3 h-3" /> BrandMeister API-Key (Club)
-            </label>
-            <input
-              type="password"
-              value={config.brandmeister_api_key}
-              onChange={e => setConfig({ ...config, brandmeister_api_key: e.target.value })}
-              placeholder={maskedFields.brandmeister_api_key ? "*** (überschreiben zum Ändern)" : "BrandMeister API-Key des Clubs"}
-              autoComplete="off"
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono"
-            />
-          </div>
+          <PasswordInput
+            label="APRS.fi API-Key (Club)"
+            value={config.aprs_fi_api_key}
+            onChange={(v) => setConfig({ ...config, aprs_fi_api_key: v })}
+            placeholder={maskedFields.aprs_fi_api_key ? "*** (überschreiben zum Ändern)" : "APRS.fi API-Key des Clubs"}
+            autoComplete="off"
+            onTest={(config.aprs_fi_api_key || maskedFields.aprs_fi_api_key) ? () => testClub("club_aprs") : null}
+            testLabel="Club APRS-Key testen"
+            testDisabled={!config.aprs_fi_api_key && !maskedFields.aprs_fi_api_key}
+          />
+          <PasswordInput
+            label="BrandMeister API-Key (Club)"
+            value={config.brandmeister_api_key}
+            onChange={(v) => setConfig({ ...config, brandmeister_api_key: v })}
+            placeholder={maskedFields.brandmeister_api_key ? "*** (überschreiben zum Ändern)" : "BrandMeister API-Key des Clubs"}
+            autoComplete="off"
+            onTest={(config.brandmeister_api_key || maskedFields.brandmeister_api_key) ? () => testClub("club_bm") : null}
+            testLabel="Club BM-Key testen"
+            testDisabled={!config.brandmeister_api_key && !maskedFields.brandmeister_api_key}
+          />
         </div>
       </div>
 

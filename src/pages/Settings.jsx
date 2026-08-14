@@ -212,83 +212,50 @@ export default function Settings() {
     } catch (e) { }
   };
 
+  // Central credential test — uses testCredentials backend function for all services.
+  // Returns source response so users see what the API actually returned (point 5).
   const handleQrzTest = async () => {
     setQrzTesting(true);
     setQrzTestResult(null);
     try {
-      const res = await base44.functions.invoke("fetchQRZ", {
-        callsign: "HB9OM"
+      const res = await base44.functions.invoke("testCredentials", {
+        service: "qrz",
+        callsign: myCallsign.trim() || "HB9OM",
+        scope: credentialSource,
       });
-      if (res.data?.error) {
-        setQrzTestResult({ success: false, message: res.data.error });
-      } else if (res.data?.callsign) {
-        setQrzTestResult({ success: true, message: `Erfolgreich: ${res.data.callsign} – ${res.data.name || 'kein Name'}`, data: res.data });
-      } else {
-        setQrzTestResult({ success: false, message: "Unerwartete Antwort von QRZ.com" });
-      }
+      setQrzTestResult(res.data);
     } catch (e) {
-      const detail = e?.response?.data?.error || e?.message || "unbekannt";
-      setQrzTestResult({ success: false, message: "Fehler: " + detail });
+      setQrzTestResult({ success: false, message: "Fehler: " + (e?.message || "unbekannt") });
     } finally {
       setQrzTesting(false);
     }
   };
 
-  // Test APRS.fi API key (point 2)
+  const handleQrzApiKeyTest = async () => {
+    return base44.functions.invoke("testCredentials", {
+      service: "qrz_apikey",
+      scope: credentialSource,
+    }).then(res => res.data).catch(e => ({ success: false, message: e?.message || "Fehler" }));
+  };
+
   const handleAprsTest = async () => {
-    setAprsTesting(true);
-    setAprsTestResult(null);
-    try {
-      const res = await base44.functions.invoke("fetchAprsFi", { callsign: "HB9OM", test: true });
-      if (res.data?.error) {
-        setAprsTestResult({ success: false, message: res.data.error });
-      } else if (res.data?.found !== undefined) {
-        setAprsTestResult({ success: true, message: "APRS.fi API-Key funktioniert" });
-      } else {
-        setAprsTestResult({ success: false, message: "Unerwartete Antwort" });
-      }
-    } catch (e) {
-      setAprsTestResult({ success: false, message: e?.message || "Fehler beim Testen" });
-    } finally {
-      setAprsTesting(false);
-    }
+    return base44.functions.invoke("testCredentials", {
+      service: "aprs",
+      scope: credentialSource,
+    }).then(res => res.data).catch(e => ({ success: false, message: e?.message || "Fehler" }));
   };
 
-  // Test RepeaterBook login (point 2)
   const handleRepeaterbookTest = async () => {
-    setRepeaterbookTesting(true);
-    setRepeaterbookTestResult(null);
-    try {
-      const res = await base44.functions.invoke("fetchRepeaters", { test_login: true });
-      if (res.data?.error) {
-        setRepeaterbookTestResult({ success: false, message: res.data.error });
-      } else {
-        setRepeaterbookTestResult({ success: true, message: "RepeaterBook-Login funktioniert" });
-      }
-    } catch (e) {
-      setRepeaterbookTestResult({ success: false, message: e?.message || "Fehler beim Testen" });
-    } finally {
-      setRepeaterbookTesting(false);
-    }
+    return base44.functions.invoke("testCredentials", {
+      service: "repeaterbook",
+    }).then(res => res.data).catch(e => ({ success: false, message: e?.message || "Fehler" }));
   };
 
-  // Test BrandMeister login (point 2)
   const handleBmTest = async () => {
-    setBmTesting(true);
-    setBmTestResult(null);
-    try {
-      // BrandMeister has no dedicated test endpoint — we test via fetchAprsStations which uses BM data
-      const res = await base44.functions.invoke("fetchAprsStations", { test_bm: true });
-      if (res.data?.error) {
-        setBmTestResult({ success: false, message: res.data.error });
-      } else {
-        setBmTestResult({ success: true, message: "BrandMeister-Zugang funktioniert" });
-      }
-    } catch (e) {
-      setBmTestResult({ success: false, message: e?.message || "Fehler beim Testen" });
-    } finally {
-      setBmTesting(false);
-    }
+    return base44.functions.invoke("testCredentials", {
+      service: "brandmeister",
+      scope: credentialSource,
+    }).then(res => res.data).catch(e => ({ success: false, message: e?.message || "Fehler" }));
   };
 
   // Config completeness items (point 10)
@@ -613,7 +580,18 @@ export default function Settings() {
                       {qrzTestResult.success
                         ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
-                      <span>{qrzTestResult.message}</span>
+                      <div className="flex-1 min-w-0">
+                        <span>{qrzTestResult.message}</span>
+                        {qrzTestResult.source && (
+                          <span className="block text-[10px] opacity-60 mt-0.5">Quelle: {qrzTestResult.source}</span>
+                        )}
+                        {qrzTestResult.sourceResponse && (
+                          <details className="mt-1">
+                            <summary className="text-[10px] opacity-50 cursor-pointer select-none">Antwort der Quelle</summary>
+                            <pre className="text-[9px] mt-1 p-1.5 bg-black/5 dark:bg-white/5 rounded overflow-x-auto max-h-24 overflow-y-auto whitespace-pre-wrap break-all">{typeof qrzTestResult.sourceResponse === 'string' ? qrzTestResult.sourceResponse : JSON.stringify(qrzTestResult.sourceResponse, null, 2)}</pre>
+                          </details>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -626,28 +604,45 @@ export default function Settings() {
               )}
             </div>
 
-            {/* Credential Source Selector (point 4) */}
-            {!usesClubCredentials && !isDemo && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                  <Shield className="w-4 h-4 text-blue-500" /> Zugangsdaten-Priorität
-                </label>
-                <p className="text-xs text-gray-500 mt-0.5">Welche Zugangsdaten sollen für App-Abfragen verwendet werden?</p>
-                <MobileSelect
-                  value={credentialSource}
-                  onValueChange={setCredentialSource}
-                  triggerClassName="w-full mt-2 text-sm"
-                  options={[
-                    { value: "auto", label: "Auto (Fallback: Persönlich → Club → Code)" },
-                    { value: "personal", label: "Persönliche Zugangsdaten" },
-                    { value: "club", label: "Club-Zugangsdaten" },
-                  ]}
-                />
-                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                  Bei "Auto" werden persönliche Angaben bevorzugt, falls vorhanden. Fehlen diese, werden Club-Daten oder die im Code hinterlegten Secrets verwendet.
+            {/* Credential Source Selector (point 4) — admins get all 3 options (incl. Code fallback),
+                regular users get only personal + club, demo is greyed out */}
+            <div className={`p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg ${isDemo ? 'opacity-50' : ''}`}>
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-blue-500" /> Zugangsdaten-Priorität
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">Welche Zugangsdaten sollen für App-Abfragen verwendet werden?</p>
+              {isDemo ? (
+                <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                  <Info className="w-3.5 h-3.5" />
+                  Demo-Konto: verwendet immer Club-Zugangsdaten — Auswahl gesperrt
                 </p>
-              </div>
-            )}
+              ) : (
+                <>
+                  <MobileSelect
+                    value={credentialSource}
+                    onValueChange={setCredentialSource}
+                    triggerClassName="w-full mt-2 text-sm"
+                    options={
+                      isAdmin
+                        ? [
+                            { value: "auto", label: "Auto (Fallback: Persönlich → Club → Code)" },
+                            { value: "personal", label: "Persönliche Zugangsdaten" },
+                            { value: "club", label: "Club-Zugangsdaten" },
+                          ]
+                        : [
+                            { value: "personal", label: "Persönliche Zugangsdaten" },
+                            { value: "club", label: "Club-Zugangsdaten" },
+                          ]
+                    }
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                    {isAdmin
+                      ? 'Bei "Auto" werden persönliche Angaben bevorzugt, falls vorhanden. Fehlen diese, werden Club-Daten oder die im Code hinterlegten Secrets verwendet.'
+                      : 'Persönliche Angaben werden bevorzugt. Fehlen diese, werden die Club-Daten verwendet.'}
+                  </p>
+                </>
+              )}
+            </div>
 
             {/* APRS.fi API Key */}
             <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
@@ -708,6 +703,9 @@ export default function Settings() {
                   onChange={setQrzApiKey}
                   placeholder="Persönlicher QRZ.com API-Key (für Logbuch-Upload)"
                   autoComplete="off"
+                  onTest={qrzApiKey.trim() ? handleQrzApiKeyTest : null}
+                  testLabel="QRZ API-Key testen"
+                  testDisabled={!qrzApiKey.trim()}
                 />
               )}
               <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">

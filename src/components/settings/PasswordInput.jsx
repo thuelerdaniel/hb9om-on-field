@@ -79,7 +79,18 @@ export default function PasswordInput({
               {testResult.success
                 ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                 : <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />}
-              <span>{testResult.message}</span>
+              <div className="flex-1 min-w-0">
+                <span>{testResult.message}</span>
+                {testResult.source && (
+                  <span className="block text-[10px] opacity-60 mt-0.5">Quelle: {testResult.source}</span>
+                )}
+                {testResult.sourceResponse && (
+                  <details className="mt-1">
+                    <summary className="text-[10px] opacity-50 cursor-pointer select-none">Antwort der Quelle</summary>
+                    <pre className="text-[9px] mt-1 p-1.5 bg-black/5 dark:bg-white/5 rounded overflow-x-auto max-h-24 overflow-y-auto whitespace-pre-wrap break-all">{typeof testResult.sourceResponse === 'string' ? testResult.sourceResponse : JSON.stringify(testResult.sourceResponse, null, 2)}</pre>
+                  </details>
+                )}
+              </div>
             </div>
           )}
         </div>
