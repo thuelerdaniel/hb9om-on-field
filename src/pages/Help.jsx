@@ -236,8 +236,8 @@ const SECTIONS = [
       },
       {
         title: "Relais-Abdeckung (Terrain-LOS mit SRTM)",
-        body: "Die Relais-Abdeckung wird mit echten Geländedaten berechnet: SRTM 30m Höhenprofile via OpenTopoData API, Line-of-Sight (Sichtlinie) mit Erdkrümmung, Fresnel-Zone und Link-Budget pro Radial. Pro Relais werden 36 Radiale (alle 10°) berechnet — das Ergebnis ist ein asymmetrisches Polygon, das Berge und Täler berücksichtigt. Die Abdeckung wird als halbtransparentes Polygon auf der Karte angezeigt (nicht als einfacher Kreis). Aktivieren Sie die Abdeckung über den «Abdeckung anzeigen»-Toggle im Relais-Filter oder klicken Sie auf ein einzelnes Relais und dann auf den Abdeckung-Button im Popup. Schweizer Relais werden mit voller Terrain-Berechnung behandelt, weltweite Relais erhalten eine Band-Schätzung. Die Berechnung läuft wöchentlich automatisch (Montag nach Sync) oder manuell über den Admin-Bereich.",
-        example: "Relais-Filter → «Abdeckung anzeigen» einschalten → asymmetrische Polygone erscheinen auf der Karte → enger in Berg-Richtung, weiter in Tal-Richtung."
+        body: "Die Relais-Abdeckung wird mit echten Geländedaten berechnet: SRTM 30m Höhenprofile via OpenTopoData API, Line-of-Sight (Sichtlinie) mit Erdkrümmung, Fresnel-Zone und Link-Budget pro Radial. Pro Relais werden 72 Radiale (alle 5°) berechnet — das Ergebnis ist ein asymmetrisches Polygon, das Berge und Täler berücksichtigt. Die maximale Reichweite wird dynamisch aus der Antennenhöhe berechnet (Horizontformel: 3.57×√h): ein Relais auf 2500m Säntis sieht bis ~120km, die Abdeckung erstreckt sich entsprechend. Bergketten (mehrere hohe Hindernisse) werden als harte Blockade behandelt — kein Signal dringt dahinter durch. Die Abdeckung wird mit einem Radial-Gradienten gerendert, der von innen nach aussen weich ausläuft (nicht als einfacher Kreis oder harte Kante). Aktivieren Sie die Abdeckung über den «Abdeckung anzeigen»-Toggle im Relais-Filter oder klicken Sie auf ein einzelnes Relais und dann auf den Abdeckung-Button im Popup. Schweizer Relais werden mit voller Terrain-Berechnung behandelt, weltweite Relais erhalten eine Band-Schätzung. Die Berechnung läuft wöchentlich automatisch (Montag nach Sync) oder manuell über den Admin-Bereich.",
+        example: "Relais-Filter → «Abdeckung anzeigen» einschalten → asymmetrische Polygone mit weichem Rand erscheinen → enger in Berg-Richtung, weiter in Tal-Richtung → Säntis: weites Polygon bis zum Horizont."
       },
       {
         title: "Eigene Abdeckung berechnen (MODUS B)",
@@ -261,12 +261,12 @@ const SECTIONS = [
       },
       {
         title: "Relais-Abdeckung im Popup",
-        body: "Im Relais-Popup sehen Sie den Abdeckungs-Status: Prozentzahl und Fortschrittsbalken zeigen den Verfeinerungsgrad (0% = Band-Schätzung, 100% = Terrain-LOS). Wenn noch keine Abdeckung berechnet wurde, steht «Noch nicht berechnet». Administratoren sehen einen Button «Abdeckung berechnen» oder «Neu berechnen», um die Abdeckung für dieses spezifische Relais sofort zu berechnen. Die Berechnung verwendet SRTM 30m Höhendaten und dauert ca. 5-15 Sekunden.",
-        example: "Relais anklicken → «Mehr Informationen» → Abdeckungs-Status zeigt «Noch nicht berechnet» → Admin: «Abdeckung berechnen» klicken → Polygon erscheint."
+        body: "Im Relais-Popup sehen Sie den Abdeckungs-Status: Prozentzahl und Fortschrittsbalken zeigen den Verfeinerungsgrad (0% = Band-Schätzung, 100% = Terrain-LOS). Wenn noch keine Abdeckung berechnet wurde, steht «Noch nicht berechnet». Administratoren sehen einen Button «Abdeckung berechnen» oder «Neu berechnen», um die Abdeckung für dieses spezifische Relais sofort zu berechnen. Die Berechnung verwendet SRTM 30m Höhendaten mit 72 Radialen und dauert ca. 60-160 Sekunden — die alte Abdeckung wird vorher gelöscht, damit keine veralteten Daten bleiben.",
+        example: "Relais anklicken → «Mehr Informationen» → Abdeckungs-Status zeigt «Noch nicht berechnet» → Admin: «Abdeckung berechnen» klicken → nach 1-2 Minuten erscheint das Polygon mit weichem Rand."
       },
       {
         title: "Ausbreitungsmodelle – Übersicht",
-        body: "Die App verwendet zwei verschiedene physikalische Ausbreitungsmodelle je nach Frequenzbereich: Für VHF/UHF (6m bis 23cm) das ITM+-Modell (Improved Terrain Model) und für Kurzwelle/HF (160m bis 10m) das KW-Modell mit Bodenwelle, Raumwelle und NVIS. Beide Modelle berechnen 36 Radiale (alle 10°) um den Sender und ergeben ein asymmetrisches Polygon, das Gelände und physikalische Ausbreitungseffekte berücksichtigt. Die Berechnung verwendet echte SRTM 30m Höhendaten via OpenTopoData API.",
+        body: "Die App verwendet zwei verschiedene physikalische Ausbreitungsmodelle je nach Frequenzbereich: Für VHF/UHF (6m bis 23cm) das ITM+-Modell (Improved Terrain Model) und für Kurzwelle/HF (160m bis 10m) das KW-Modell mit Bodenwelle, Raumwelle und NVIS. Beide Modelle berechnen 72 Radiale (alle 5°) um den Sender und ergeben ein asymmetrisches Polygon, das Gelände und physikalische Ausbreitungseffekte berücksichtigt. Die maximale Reichweite wird dynamisch aus der Antennenhöhe berechnet (Horizontformel), nicht durch ein starres Band-Limit. Die Berechnung verwendet echte SRTM 30m Höhendaten via OpenTopoData API.",
         example: "2m/70cm → ITM+ mit LOS, Beugung, Troposcatter und Reflexion · 80m/40m → KW mit Bodenwelle, Raumwelle (MUF/LUF) und NVIS."
       },
       {
@@ -296,8 +296,8 @@ const SECTIONS = [
       },
       {
         title: "SRTM-Höhendaten und Radiale",
-        body: "Die Abdeckungsberechnung verwendet SRTM 30m Höhendaten (Shuttle Radar Topography Mission) via OpenTopoData API. Pro Sender werden 36 Radiale (alle 10°) berechnet: entlang jedes Radials werden Höhenprofile in 1-km-Schritten abgefragt. Für jeden Punkt wird geprüft: ist LOS frei (Sichtlinie mit Erdkrümmung und Fresnel-Zone)? Gibt es eine Beugungsmöglichkeit am nächsten Hindernis? Ist Troposcatter möglich? Das Ergebnis pro Radial ist die maximale Reichweite über alle Ausbreitungsmechanismen. Die 36 Radiale bilden zusammen ein asymmetrisches Polygon, das Berge (engere Reichweite) und Täler (weitere Reichweite) abbildet. Die Berechnung dauert 5-15 Sekunden pro Sender.",
-        example: "Relais auf einem Berg: Nord-Radial (über Berg) = 15 km, Süd-Radial (über Tal) = 45 km → asymmetrisches Polygon, nicht ein einfacher Kreis."
+        body: "Die Abdeckungsberechnung verwendet SRTM 30m Höhendaten (Shuttle Radar Topography Mission) via OpenTopoData API. Pro Sender werden 72 Radiale (alle 5°) berechnet: entlang jedes Radials werden Höhenprofile in adaptiven Schritten abgefragt (0.5km für <30km Reichweite, 1km für 30-60km, 2km für >60km). Die maximale Reichweite wird dynamisch aus der Antennenhöhe berechnet (Horizontformel 3.57×√h, gedeckelt bei 120km). Für jeden Punkt wird geprüft: ist LOS frei (Sichtlinie mit Erdkrümmung und Fresnel-Zone)? Gibt es eine Beugungsmöglichkeit am nächsten Hindernis? Ist Troposcatter möglich? Bergketten (3+ hohe Hindernisse) blockieren komplett — kein Signal dringt durch. Die 72 Radiale werden mit Moving-Average geglättet (3 Durchgänge) und bilden zusammen ein asymmetrisches Polygon mit natürlichem, weichem Verlauf. Die Berechnung dauert 60-160 Sekunden pro Relais (72 Radiale × adaptive Schritte × Höhen-API).",
+        example: "Relais auf einem Berg: Nord-Radial (über Berg) = 15 km, Süd-Radial (über Tal) = 80 km → asymmetrisches Polygon mit weichem Rand, nicht ein einfacher Kreis."
       },
       {
         title: "Band-spezifische Parameter",
