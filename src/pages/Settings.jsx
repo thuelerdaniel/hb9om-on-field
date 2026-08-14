@@ -453,6 +453,56 @@ export default function Settings() {
         {/* Config Completeness Bar (point 10) */}
         <ConfigCompletenessBar items={configItems} />
 
+        {isAdmin && (
+          <div className="rounded-xl border-2 border-slate-700 overflow-hidden">
+            <button
+              onClick={() => setShowAdminPanel(!showAdminPanel)}
+              className="w-full bg-slate-800 text-white p-4 flex items-center justify-between hover:bg-slate-700 transition-colors"
+            >
+              <span className="flex items-center gap-2 font-bold text-sm">
+                <Shield className="w-5 h-5" /> Admin-Bereich
+              </span>
+              <ChevronDown className={`w-5 h-5 transition-transform ${showAdminPanel ? 'rotate-180' : ''}`} />
+            </button>
+            {showAdminPanel && (
+              <div className="space-y-6 p-4 bg-slate-50 dark:bg-slate-900">
+                <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}>
+                <AdminPanel
+                  cacheStatus={cacheStatus}
+                  loading={loading}
+                  refreshing={refreshing}
+                  refreshResult={refreshResult}
+                  handleRefresh={handleRefresh}
+                  autoUpdateEnabled={autoUpdateEnabled}
+                  autoUpdateLoading={autoUpdateLoading}
+                  handleToggleAutoUpdate={handleToggleAutoUpdate}
+                  notifyNewUser={notifyNewUser}
+                  notifyDbUpdate={notifyDbUpdate}
+                  notifyAppErrors={notifyAppErrors}
+                  notifyDemoLogin={notifyDemoLogin}
+                  notifyLoading={notifyLoading}
+                  handleToggleNotification={handleToggleNotification}
+                  setNotifyNewUser={setNotifyNewUser}
+                  setNotifyDbUpdate={setNotifyDbUpdate}
+                  setNotifyAppErrors={setNotifyAppErrors}
+                  setNotifyDemoLogin={setNotifyDemoLogin}
+                  logs={logs}
+                  adminPendingRequests={adminPendingRequests}
+                  adminPendingFeatureRequests={adminPendingFeatureRequests}
+                  demoSettingUp={demoSettingUp}
+                  demoSetupResult={demoSetupResult}
+                  demoOtpCode={demoOtpCode}
+                  setDemoOtpCode={setDemoOtpCode}
+                  demoVerifying={demoVerifying}
+                  handleSetupDemo={handleSetupDemo}
+                  handleVerifyDemoOtp={handleVerifyDemoOtp}
+                />
+                </Suspense>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Profil & QRZ</h2></div>
         {/* User Profile */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
@@ -957,56 +1007,6 @@ export default function Settings() {
             </Link>
           </div>
         </section>
-        )}
-
-        {isAdmin && (
-          <div className="rounded-xl border-2 border-slate-700 overflow-hidden">
-            <button
-              onClick={() => setShowAdminPanel(!showAdminPanel)}
-              className="w-full bg-slate-800 text-white p-4 flex items-center justify-between hover:bg-slate-700 transition-colors"
-            >
-              <span className="flex items-center gap-2 font-bold text-sm">
-                <Shield className="w-5 h-5" /> Admin-Bereich
-              </span>
-              <ChevronDown className={`w-5 h-5 transition-transform ${showAdminPanel ? 'rotate-180' : ''}`} />
-            </button>
-            {showAdminPanel && (
-              <div className="space-y-6 p-4 bg-slate-50 dark:bg-slate-900">
-                <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}>
-                <AdminPanel
-                  cacheStatus={cacheStatus}
-                  loading={loading}
-                  refreshing={refreshing}
-                  refreshResult={refreshResult}
-                  handleRefresh={handleRefresh}
-                  autoUpdateEnabled={autoUpdateEnabled}
-                  autoUpdateLoading={autoUpdateLoading}
-                  handleToggleAutoUpdate={handleToggleAutoUpdate}
-                  notifyNewUser={notifyNewUser}
-                  notifyDbUpdate={notifyDbUpdate}
-                  notifyAppErrors={notifyAppErrors}
-                  notifyDemoLogin={notifyDemoLogin}
-                  notifyLoading={notifyLoading}
-                  handleToggleNotification={handleToggleNotification}
-                  setNotifyNewUser={setNotifyNewUser}
-                  setNotifyDbUpdate={setNotifyDbUpdate}
-                  setNotifyAppErrors={setNotifyAppErrors}
-                  setNotifyDemoLogin={setNotifyDemoLogin}
-                  logs={logs}
-                  adminPendingRequests={adminPendingRequests}
-                  adminPendingFeatureRequests={adminPendingFeatureRequests}
-                  demoSettingUp={demoSettingUp}
-                  demoSetupResult={demoSetupResult}
-                  demoOtpCode={demoOtpCode}
-                  setDemoOtpCode={setDemoOtpCode}
-                  demoVerifying={demoVerifying}
-                  handleSetupDemo={handleSetupDemo}
-                  handleVerifyDemoOtp={handleVerifyDemoOtp}
-                />
-                </Suspense>
-              </div>
-            )}
-          </div>
         )}
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Konto</h2></div>

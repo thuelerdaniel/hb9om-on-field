@@ -308,9 +308,14 @@ export function checkLOS(
   tx_antenna_height_m: number,
   k_factor: number,
   rx_height_m: number = 1.5
-): { blocked: boolean; block_distance_km: number | null; obstacle_h_m: number; obstacle_d1_km: number; obstacle_d2_km: number } {
+): { blocked: boolean; block_distance_km: number | null; obstacle_h_m: number; obstacle_d1_km: number; obstacle_d2_km: number; is_mountain_range: boolean } {
   const tx_total_h = tx_elevation_m + tx_antenna_height_m;
-  let obstacle_h = 0, obstacle_d1 = 0, obstacle_d2 = 0;
+  // Scan the ENTIRE path to find the highest obstacle — not just the first one.
+  // A mountain range may have multiple ridges; the highest one determines
+  // diffraction loss. The FIRST block point determines where LOS ends.
+  let firstBlockDist: number | null = null;
+  let maxObstacleH = 0, maxObstacleD1 = 0, maxObstacleD2 = 0;
+  let obstacleCount = 0;
   for (let i = 1; i < elevations.length; i++) {
     const elev = elevations[i];
     if (elev == null) continue;
@@ -320,11 +325,29 @@ export function checkLOS(
     const terrain_h = elev + rx_height_m;
     if (terrain_h > los_height) {
       const h_obstacle = terrain_h - los_height;
-      if (h_obstacle > obstacle_h) { obstacle_h = h_obstacle; obstacle_d1 = d; obstacle_d2 = distances_km[distances_km.length - 1] - d; }
-      return { blocked: true, block_distance_km: d, obstacle_h_m: obstacle_h, obstacle_d1_km: obstacle_d1, obstacle_d2_km: obstacle_d2 };
+      if (firstBlockDist == null) firstBlockDist = d;
+      if (h_obstacle > maxObstacleH) {
+        maxObstacleH = h_obstacle;
+        maxObstacleD1 = d;
+        maxObstacleD2 = distances_km[distances_km.length - 1] - d;
+      }
+      obstacleCount++;
     }
   }
-  return { blocked: false, block_distance_km: null, obstacle_h_m: 0, obstacle_d1_km: 0, obstacle_d2_km: 0 };
+  // A mountain range is a cluster of multiple high obstacles (>50m each)
+  // — diffraction cannot penetrate; coverage behind is zero.
+  const isMountainRange = obstacleCount >= 3 && maxObstacleH > 50;
+  if (firstBlockDist != null) {
+    return {
+      blocked: true,
+      block_distance_km: firstBlockDist,
+      obstacle_h_m: maxObstacleH,
+      obstacle_d1_km: maxObstacleD1,
+      obstacle_d2_km: maxObstacleD2,
+      is_mountain_range: isMountainRange,
+    };
+  }
+  return { blocked: false, block_distance_km: null, obstacle_h_m: 0, obstacle_d1_km: 0, obstacle_d2_km: 0, is_mountain_range: false };
 }
 
 export function deriveTerrainFactor(repeaterElev: number, surroundingElevs: (number | null)[]): { factor: number; description: string } {
@@ -339,6 +362,42 @@ export function deriveTerrainFactor(repeaterElev: number, surroundingElevs: (num
   if (heightDiff < -100) return { factor: 0.75, description: 'tief gelegen (-100m)' };
   if (heightDiff < -50) return { factor: 0.9, description: 'leicht abgesenkt (-50m)' };
   return { factor: 1.0, description: 'flaches Gelände' };
+}
+
+// ============================================================
+// Smoothing: moving-average on radial ranges for natural shapes
+// ============================================================
+
+export function smoothRanges(ranges: number[], passes: number = 2): number[] {
+  let result = [...ranges];
+  const n = result.length;
+  for (let p = 0; p < passes; p++) {
+    const smoothed = [...result];
+    for (let i = 0; i < n; i++) {
+      const prev = result[(i - 1 + n) % n];
+      const curr = result[i];
+      const next = result[(i + 1) % n];
+      smoothed[i] = (prev + 2 * curr + next) / 4;
+    }
+    result = smoothed;
+  }
+  return result;
+}
+
+// ============================================================
+// Dynamic max range: LOS horizon distance based on antenna height
+// A repeater at 2500m with 10m antenna can see ~178km to the horizon.
+// Formula: d_km = 3.57 * (sqrt(h_tx) + sqrt(h_rx))  with k-factor refraction
+// ============================================================
+
+export function losHorizonKm(txElev_m: number, txAntenna_m: number, rxHeight_m: number = 1.5, k: number = 4/3): number {
+  const R = 6371 * k; // effective earth radius
+  const hTx = (txElev_m + txAntenna_m) / 1000; // km
+  const hRx = rxHeight_m / 1000;
+  // Distance to horizon from Tx: d = sqrt(2*R*h)
+  const dTx = Math.sqrt(2 * R * hTx);
+  const dRx = Math.sqrt(2 * R * hRx);
+  return Math.round((dTx + dRx) * 10) / 10;
 }
 
 // ============================================================
@@ -366,10 +425,9 @@ async function calculateVHFCoverage(
   params: CoverageParams,
   options: { radials?: number; max_range_km?: number; apiUrl?: string; antenna_height_m?: number }
 ): Promise<CoverageResult> {
-  const numRadials = options.radials || 36;
-  const bandMaxRange = options.max_range_km || params.params.max_range_terrain_km;
+  // 72 radials for smoother, more natural coverage shapes (was 36)
+  const numRadials = options.radials || 72;
   const antennaHeight = options.antenna_height_m ?? params.antenna_height_m ?? 10;
-  const stepKm = 1.0;
   const k_factor = params.params.k_factor;
   const rxHeight = 1.5;
 
@@ -379,8 +437,24 @@ async function calculateVHFCoverage(
     elevation_m = elevResult[0];
   }
   if (elevation_m == null) {
-    return fallbackBandEstimate(origin, params, numRadials, bandMaxRange);
+    return fallbackBandEstimate(origin, params, numRadials, options.max_range_km || params.params.max_range_flat_km);
   }
+
+  // Dynamic max range: use the LOS horizon distance if it exceeds the band cap.
+  // A repeater at 2500m can see ~178km — coverage should extend there if power allows.
+  // Cap at 120km to keep elevation API calls manageable (72 radials × 120 steps = 8640 pts).
+  const horizonKm = losHorizonKm(elevation_m, antennaHeight, rxHeight, k_factor);
+  const bandFlatCap = options.max_range_km || params.params.max_range_flat_km;
+  // The actual max range is limited by BOTH the LOS horizon AND the link budget.
+  // We probe up to the horizon distance (or the band cap, whichever is larger),
+  // and the link budget calculation will naturally cut off where signal is too weak.
+  const bandMaxRange = Math.min(Math.max(bandFlatCap, horizonKm), 120);
+  // Adaptive step size: coarser steps for large ranges to keep API calls manageable.
+  // 72 radials × steps per radial = total elevation points (batched at 100 per API call).
+  //   < 30km:  0.5km steps → 60 steps  → 4,320 pts → ~43 API calls
+  //   30-60km: 1.0km steps → 60 steps  → 4,320 pts → ~43 API calls
+  //   60-120km: 2.0km steps → 60 steps → 4,320 pts → ~43 API calls
+  const stepKm = bandMaxRange > 60 ? 2.0 : bandMaxRange > 30 ? 1.0 : 0.5;
 
   const allPoints: Array<{ lat: number; lng: number }> = [];
   const radialPointIndices: number[][] = [];
@@ -426,6 +500,8 @@ async function calculateVHFCoverage(
     let losBlocked = false;
     let blockDist: number | null = null;
     let obstacleH = 0, obstacleD1 = 0, obstacleD2 = 0;
+    // Mountain range: multiple high obstacles → hard block, no diffraction/troposcatter
+    const isMountainRange = losResult.is_mountain_range;
 
     if (losResult.blocked && losResult.block_distance_km != null) {
       losBlocked = true;
@@ -460,10 +536,18 @@ async function calculateVHFCoverage(
       const l_vegetation = params.params.vegetation_loss_db_per_km * forest_km;
       const l_atmosphere = params.params.atmospheric_loss_db * (d / 30);
 
-      // Diffraction loss (only beyond LOS blockage)
+      // Diffraction loss (only beyond LOS blockage).
+      // Mountain ranges (multiple high obstacles) block completely — no diffraction.
+      // Large obstacles (>200m above LOS) also block almost completely.
       let l_diff = 0;
       if (losBlocked && d >= blockDist!) {
-        l_diff = knifeEdgeDiffraction(params.f_MHz, obstacleH, obstacleD1, obstacleD2);
+        if (isMountainRange) {
+          l_diff = 60; // Hard block — mountain range, no signal gets through
+        } else if (obstacleH > 200) {
+          l_diff = 40 + knifeEdgeDiffraction(params.f_MHz, obstacleH, obstacleD1, obstacleD2);
+        } else {
+          l_diff = knifeEdgeDiffraction(params.f_MHz, obstacleH, obstacleD1, obstacleD2);
+        }
       }
 
       // Direct path with diffraction
@@ -477,9 +561,10 @@ async function calculateVHFCoverage(
         rx_two_ray = rx_direct + adjust;
       }
 
-      // Troposcatter (only when LOS blocked and direct insufficient)
+      // Troposcatter (only when LOS blocked and direct insufficient).
+      // No troposcatter behind mountain ranges — they block completely.
       let rx_tropo = -999;
-      if (losBlocked && d >= blockDist! && rx_direct < params.Rx_sensitivity_dbm) {
+      if (losBlocked && !isMountainRange && d >= blockDist! && rx_direct < params.Rx_sensitivity_dbm) {
         const l_tropo = troposcatterLoss(d, params.f_MHz);
         rx_tropo = erp_dbw + 30 - l_tropo + G_RX;
       }
@@ -534,12 +619,24 @@ async function calculateVHFCoverage(
     overallPolyPoints.push([overallPt.lng, overallPt.lat]);
   }
 
+  // Smooth the overall polygon for natural shapes — moving average on ranges,
+  // then rebuild polygon points from smoothed ranges.
+  const rawRanges = radialResults.map(r => r.range_km);
+  const smoothedRanges = smoothRanges(rawRanges, 3);
+  const smoothedOverallPolyPoints: number[][] = [];
+  for (let r = 0; r < numRadials; r++) {
+    const angle = (360 / numRadials) * r;
+    const pt = destinationPoint(origin.lat, origin.lng, smoothedRanges[r], angle);
+    smoothedOverallPolyPoints.push([pt.lng, pt.lat]);
+  }
+  smoothedOverallPolyPoints.push(smoothedOverallPolyPoints[0]);
+
   losPolyPoints.push(losPolyPoints[0]);
   diffPolyPoints.push(diffPolyPoints[0]);
   tropoPolyPoints.push(tropoPolyPoints[0]);
   overallPolyPoints.push(overallPolyPoints[0]);
 
-  const ranges = radialResults.map(r => r.range_km);
+  const ranges = smoothedRanges;
   const avgRange = ranges.reduce((a, b) => a + b, 0) / ranges.length;
   const maxRange = Math.max(...ranges);
   const minRange = Math.min(...ranges);
@@ -550,7 +647,7 @@ async function calculateVHFCoverage(
   const tropoAvg = radialResults.reduce((a, r) => a + Math.max(0, r.troposcatter_range_km - r.diffraction_range_km), 0) / radialResults.length;
 
   return {
-    polygon: { type: 'Polygon', coordinates: [overallPolyPoints] },
+    polygon: { type: 'Polygon', coordinates: [smoothedOverallPolyPoints] },
     mode_polygons: {
       los: { type: 'Polygon', coordinates: [losPolyPoints] },
       diffraction: { type: 'Polygon', coordinates: [diffPolyPoints] },
@@ -560,8 +657,8 @@ async function calculateVHFCoverage(
     avg_range_km: Math.round(avgRange * 10) / 10,
     max_range_km: Math.round(maxRange * 10) / 10,
     min_range_km: Math.round(minRange * 10) / 10,
-    max_direction: { angle: radialResults[maxIdx].angle, range_km: radialResults[maxIdx].range_km },
-    min_direction: { angle: radialResults[minIdx].angle, range_km: radialResults[minIdx].range_km },
+    max_direction: { angle: radialResults[maxIdx].angle, range_km: smoothedRanges[maxIdx] },
+    min_direction: { angle: radialResults[minIdx].angle, range_km: smoothedRanges[minIdx] },
     terrain_blocked_count: radialResults.filter(r => r.los_blocked).length,
     power_limited_count: radialResults.filter(r => r.power_limited).length,
     elevation_m, terrain_factor: terrainInfo.factor, coverage_source: 'terrain_los',

@@ -3,6 +3,7 @@ import { CircleMarker, Polyline, Popup, useMap, Marker, Circle, Polygon } from "
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
 import DraggablePopup from "@/components/map/DraggablePopup";
+import CoveragePolygon, { CoverageCircle } from "@/components/map/CoveragePolygon";
 import { getModeColor, repeaterMatchesMode, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { isInContinents } from "@/lib/continents";
@@ -490,8 +491,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
   return (
     <>
       {/* Coverage — terrain polygon (LOS) OR circle from calculated radius.
-          Only repeaters with ACTUAL calculated coverage data are rendered.
-          Uncalculated repeaters (no coverage_radius_km, no polygon) show nothing. */}
+           Only repeaters with ACTUAL calculated coverage data are rendered.
+           Uses a radial gradient fill for a natural fade-out effect (auslaufen).
+           Uncalculated repeaters (no coverage_radius_km, no polygon) show nothing. */}
       {(showCoverage || (individualCoverage && individualCoverage.size > 0)) && cappedRepeaters.map((r, idx) => {
         const showThis = showCoverage || (individualCoverage && individualCoverage.has(r.id));
         if (!showThis) return null;
@@ -504,22 +506,19 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         const refinementPct = r.coverage_refinement_pct || 0;
         const fillOpacity = r.status === "off-air"
           ? 0.02
-          : 0.05 + (refinementPct / 100) * 0.20;
+          : 0.08 + (refinementPct / 100) * 0.20;
 
-        // Terrain-LOS polygon: render asymmetric GeoJSON polygon
+        // Terrain-LOS polygon: render asymmetric GeoJSON polygon with gradient fill
         if (r.coverage_polygon?.coordinates?.[0] && r.coverage_source === "terrain_los") {
           const polyPositions = r.coverage_polygon.coordinates[0].map(([lng, lat]) => [lat, lng]);
           return (
-            <Polygon
+            <CoveragePolygon
               key={`cov-${r.id || idx}`}
               positions={polyPositions}
-              pathOptions={{
-                color: color,
-                weight: 1.5,
-                opacity: 0.5,
-                fillColor: color,
-                fillOpacity: fillOpacity,
-              }}
+              color={color}
+              fillOpacity={fillOpacity}
+              weight={1.2}
+              strokeOpacity={0.35}
             />
           );
         }
@@ -528,17 +527,14 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
         const radiusKm = r.coverage_radius_km;
         if (radiusKm == null) return null;
         return (
-          <Circle
+          <CoverageCircle
             key={`cov-${r.id || idx}`}
             center={[r.lat, r.lng]}
-            radius={radiusKm * 1000}
-            pathOptions={{
-              color: color,
-              weight: refinementPct >= 50 ? 1 : 0.5,
-              opacity: 0.3 + (refinementPct / 100) * 0.3,
-              fillColor: color,
-              fillOpacity: fillOpacity,
-            }}
+            radiusKm={radiusKm}
+            color={color}
+            fillOpacity={fillOpacity}
+            weight={refinementPct >= 50 ? 0.8 : 0.5}
+            strokeOpacity={0.25 + (refinementPct / 100) * 0.25}
           />
         );
       })}
