@@ -18,7 +18,7 @@ export default function GpsPublicConfig() {
     () => localStorage.getItem("hb9om_gps_public_comment") || ""
   );
   const [symbol, setSymbol] = useState(
-    () => localStorage.getItem("hb9om_gps_public_symbol") || "mobile"
+    () => localStorage.getItem("hb9om_gps_public_symbol") || "dot"
   );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [toggling, setToggling] = useState(false);

@@ -88,7 +88,7 @@ export default function Settings() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [perfSuggestionReset, setPerfSuggestionReset] = useState(false);
   const [heavyLoadReset, setHeavyLoadReset] = useState(false);
-  const [gpsTrackingEnabled, setGpsTrackingEnabled] = useState(() => localStorage.getItem("hb9om_gps_tracking_enabled") === "true");
+  const [gpsTrackingEnabled, setGpsTrackingEnabled] = useState(() => localStorage.getItem("hb9om_gps_tracking_enabled") !== "false");
   const [gpsTrackingInterval, setGpsTrackingInterval] = useState(() => parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"));
   const [gpsPublicEnabled, setGpsPublicEnabled] = useState(() => localStorage.getItem("hb9om_gps_public_enabled") !== "false");
   const [showAdminPanel, setShowAdminPanel] = useState(false);

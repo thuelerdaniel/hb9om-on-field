@@ -116,6 +116,14 @@ export const APRS_SYMBOLS = {
     name: "Fussgänger (Mobile)",
     aprsCode: "//"
   },
+  dot: {
+    // Einfacher Punkt — Standard für öffentliche GPS-Position
+    svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="14" cy="14" r="6" fill="${color}" stroke="white" stroke-width="2"/>
+    </svg>`,
+    name: "Punkt (Standard)",
+    aprsCode: "/O"
+  },
   other: {
     // APRS Default — Kreis
     svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">

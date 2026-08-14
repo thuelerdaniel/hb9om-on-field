@@ -22,30 +22,38 @@ function getGpsIcon() {
 }
 
 // APRS symbol icon cache — used when public position is ON.
-// The user's chosen APRS symbol is rendered exactly at the GPS position.
+// The user's chosen APRS symbol is rendered exactly at the GPS position,
+// with the callsign as a visible permanent label below the symbol.
 const aprsIconCache = new Map();
-function getAprsGpsIcon(aprsSymbol) {
-  const symbol = aprsSymbol || "mobile";
-  if (aprsIconCache.has(symbol)) return aprsIconCache.get(symbol);
+function getAprsGpsIcon(aprsSymbol, callsign) {
+  const symbol = aprsSymbol || "dot";
+  const cs = callsign || "";
+  const key = `${symbol}-${cs}`;
+  if (aprsIconCache.has(key)) return aprsIconCache.get(key);
 
   const svg = getAprsSymbolSvg(symbol, "#16a34a");
   // Wrap SVG in a centered container with a small position dot at the exact center,
-  // so the marker is 100% at the GPS coordinates.
+  // so the marker is 100% at the GPS coordinates. The callsign is shown as a
+  // permanent label below the symbol.
+  const labelHtml = cs
+    ? `<div style="position:absolute;top:30px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(22,163,74,0.92);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.3);letter-spacing:0.3px;">${cs}</div>`
+    : "";
   const html = `
     <div style="position:relative;width:28px;height:28px;">
       ${svg}
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:4px;height:4px;border-radius:50%;background:#ffffff;border:1.5px solid #16a34a;box-shadow:0 0 3px rgba(22,163,74,0.8);z-index:10;"></div>
+      ${labelHtml}
     </div>
   `;
   const icon = L.divIcon({ html, className: "gps-tracker-icon aprs", iconSize: [28, 28], iconAnchor: [14, 14] });
-  aprsIconCache.set(symbol, icon);
+  aprsIconCache.set(key, icon);
   return icon;
 }
 
 export default function GpsTracker({ onPublicPositionUpdate }) {
   const [position, setPosition] = useState(null);
   const [currentAprsSymbol, setCurrentAprsSymbol] = useState(
-    () => localStorage.getItem("hb9om_gps_public_symbol") || "mobile"
+    () => localStorage.getItem("hb9om_gps_public_symbol") || "dot"
   );
   // Bump this to force the tracking effect to re-run when settings change
   const [settingsVersion, setSettingsVersion] = useState(0);
@@ -59,13 +67,13 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
   // must also call setSettingsVersion(v => v + 1).
   const refreshSettings = useCallback(() => {
     settingsRef.current = {
-      enabled: localStorage.getItem("hb9om_gps_tracking_enabled") === "true",
+      enabled: localStorage.getItem("hb9om_gps_tracking_enabled") !== "false",
       intervalSec: parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"),
       publicEnabled: localStorage.getItem("hb9om_gps_public_enabled") !== "false",
       callsign: localStorage.getItem("hb9om_user_callsign") || "",
       deviceType: localStorage.getItem("hb9om_cov_device") || "mobil",
       comment: localStorage.getItem("hb9om_gps_public_comment") || "",
-      aprsSymbol: localStorage.getItem("hb9om_gps_public_symbol") || "mobile",
+      aprsSymbol: localStorage.getItem("hb9om_gps_public_symbol") || "dot",
     };
     setCurrentAprsSymbol(settingsRef.current.aprsSymbol);
   }, []);
@@ -183,14 +191,16 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
 
   if (!position) return null;
 
-  // Use APRS symbol when public position is enabled, blue crosshair otherwise
+  // Use APRS symbol when public position is enabled, blue crosshair otherwise.
+  // When public, the callsign is shown as a permanent visible label on the marker.
   const publicEnabled = settingsRef.current.publicEnabled;
-  const icon = publicEnabled ? getAprsGpsIcon(currentAprsSymbol) : getGpsIcon();
+  const callsign = settingsRef.current.callsign;
+  const icon = publicEnabled ? getAprsGpsIcon(currentAprsSymbol, callsign) : getGpsIcon();
 
   return (
     <Marker position={position} icon={icon} zIndexOffset={900}>
       <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
-        {publicEnabled ? "📍 Mein Standort (öffentlich)" : "📍 Mein GPS-Standort"}
+        {publicEnabled ? `📍 ${callsign || "Mein Standort"} (öffentlich)` : "📍 Mein GPS-Standort"}
       </Tooltip>
     </Marker>
   );

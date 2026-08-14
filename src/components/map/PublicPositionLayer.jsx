@@ -4,20 +4,25 @@ import L from "leaflet";
 import { Radio, MapPin, Clock, MessageSquare } from "lucide-react";
 import { getAprsSymbolSvg } from "@/lib/aprsSymbols";
 
-// Render icon cache keyed by symbol+isOwn
+// Render icon cache keyed by symbol+isOwn+callsign
 const iconCache = new Map();
 
-function getPublicIcon(aprsSymbol, isOwn) {
-  const symbol = aprsSymbol || "mobile";
-  const key = `${symbol}-${isOwn}`;
+function getPublicIcon(aprsSymbol, isOwn, callsign) {
+  const symbol = aprsSymbol || "dot";
+  const cs = callsign || "";
+  const key = `${symbol}-${isOwn}-${cs}`;
   if (iconCache.has(key)) return iconCache.get(key);
 
   const color = isOwn ? "#16a34a" : "#6366f1";
   const svg = getAprsSymbolSvg(symbol, color);
+  const labelHtml = cs
+    ? `<div style="position:absolute;top:30px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(${isOwn ? "22,163,74" : "99,102,241"},0.92);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.3);letter-spacing:0.3px;">${cs}</div>`
+    : "";
   const html = `
     <div style="position:relative;width:28px;height:28px;">
       ${svg}
       ${isOwn ? '<div style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:1.5px solid white;"></div>' : ''}
+      ${labelHtml}
     </div>
   `;
   const icon = L.divIcon({ html, className: "public-position-icon", iconSize: [28, 28], iconAnchor: [14, 14] });
@@ -53,7 +58,7 @@ function PublicPositionLayerInner({ positions, userCallsign }) {
           <Marker
             key={p.id || `${p.callsign}-${p.lat}-${p.lng}`}
             position={[p.lat, p.lng]}
-            icon={getPublicIcon(p.aprs_symbol, isOwn)}
+            icon={getPublicIcon(p.aprs_symbol, isOwn, p.callsign)}
             zIndexOffset={isOwn ? 850 : 800}
           >
             <Tooltip direction="top" offset={[0, -14]} opacity={0.92}>
