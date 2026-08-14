@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from "react";
-import { Polygon, Circle, Marker, Popup } from "react-leaflet";
+import { Polygon, Circle, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 
 // Mode colors for VHF/UHF (ITM+)
@@ -28,7 +28,7 @@ function geoJsonToLeaflet(coords) {
 // Renders the user's coverage polygon (MODUS B) on the map.
 // VHF/UHF: multi-color polygons (LOS=blue, Diffraction=light blue, Troposcatter=pale blue)
 // KW/HF: multi-color polygons (Ground Wave=green, Sky Wave=blue, NVIS=violet) + Skip Zone
-function UserCoverageLayerInner({ coverage, position, deviceType }) {
+function UserCoverageLayerInner({ coverage, position, deviceType, onMarkerClick }) {
   // Position marker icon
   const deviceIcon = useMemo(() => {
     const icons = { mobil: "🚗", fix: "🏠", portabel: "📻" };
@@ -138,9 +138,13 @@ function UserCoverageLayerInner({ coverage, position, deviceType }) {
         </>
       )}
 
-      {/* Position marker */}
+      {/* Position marker — click reopens the coverage dialog */}
       {position && Number.isFinite(position[0]) && Number.isFinite(position[1]) && (
-        <Marker position={position} icon={deviceIcon}>
+        <Marker
+          position={position}
+          icon={deviceIcon}
+          eventHandlers={{ click: () => onMarkerClick?.() }}
+        >
           <Popup>
             <div className="text-xs space-y-1">
               <strong>Meine Position</strong><br />
@@ -174,6 +178,12 @@ function UserCoverageLayerInner({ coverage, position, deviceType }) {
               ) : (
                 <span className="text-gray-500">Position gewählt — Abdeckung berechnen im Dialog</span>
               )}
+              <button
+                onClick={() => onMarkerClick?.()}
+                className="mt-1 text-blue-600 hover:underline text-[11px] font-medium"
+              >
+                Abdeckungs-Dialog öffnen
+              </button>
             </div>
           </Popup>
         </Marker>

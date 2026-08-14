@@ -91,6 +91,7 @@ export default function Settings() {
   const [heavyLoadReset, setHeavyLoadReset] = useState(false);
   const [gpsTrackingEnabled, setGpsTrackingEnabled] = useState(() => localStorage.getItem("hb9om_gps_tracking_enabled") === "true");
   const [gpsTrackingInterval, setGpsTrackingInterval] = useState(() => parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"));
+  const [gpsPublicEnabled, setGpsPublicEnabled] = useState(() => localStorage.getItem("hb9om_gps_public_enabled") !== "false");
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   // Offline management is now handled by <OfflineManager /> component
   const { features: appFeatures } = useAppFeatures();

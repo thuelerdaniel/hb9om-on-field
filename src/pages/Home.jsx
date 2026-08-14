@@ -240,13 +240,35 @@ export default function Home() {
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
 
-  // User coverage (MODUS B)
+  // User coverage (MODUS B) — persisted to localStorage so it survives page reloads.
+  // The coverage stays on the map like other reference symbols until explicitly deleted.
+  const COVERAGE_STORAGE_KEY = "hb9om_user_coverage_current";
   const [showUserCoverageDialog, setShowUserCoverageDialog] = useState(false);
-  const [userCoverage, setUserCoverage] = useState(null);
-  const [userCoveragePosition, setUserCoveragePosition] = useState(null);
-  const [userCoverageDevice, setUserCoverageDevice] = useState("mobil");
+  const [userCoverage, setUserCoverage] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem(COVERAGE_STORAGE_KEY)); return s?.coverage || null; } catch { return null; }
+  });
+  const [userCoveragePosition, setUserCoveragePosition] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem(COVERAGE_STORAGE_KEY)); return s?.position || null; } catch { return null; }
+  });
+  const [userCoverageDevice, setUserCoverageDevice] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem(COVERAGE_STORAGE_KEY)); return s?.device || "mobil"; } catch { return "mobil"; }
+  });
   const [mapClickForCoverage, setMapClickForCoverage] = useState(false);
   const [mapClickForPosition, setMapClickForPosition] = useState(false);
+
+  // Persist coverage state to localStorage — saves when a position is set,
+  // even before coverage is calculated, so the marker survives page reloads.
+  useEffect(() => {
+    if (userCoveragePosition) {
+      localStorage.setItem(COVERAGE_STORAGE_KEY, JSON.stringify({
+        coverage: userCoverage,
+        position: userCoveragePosition,
+        device: userCoverageDevice,
+      }));
+    } else {
+      localStorage.removeItem(COVERAGE_STORAGE_KEY);
+    }
+  }, [userCoverage, userCoveragePosition, userCoverageDevice]);
 
   // Public positions — shared GPS positions visible to all users
   const [publicPositions, setPublicPositions] = useState([]);
@@ -952,6 +974,7 @@ export default function Home() {
             coverage={userCoverage}
             position={userCoveragePosition}
             deviceType={userCoverageDevice}
+            onMarkerClick={() => setShowUserCoverageDialog(true)}
           />
         )}
 
@@ -1284,9 +1307,14 @@ export default function Home() {
         <UserCoverageDialog
           onClose={() => { setShowUserCoverageDialog(false); setMapClickForCoverage(false); }}
           onCoverageResult={(result) => {
-            setUserCoverage(result);
-            setUserCoveragePosition(result._position || null);
-            setUserCoverageDevice(result._device || "mobil");
+            if (!result) {
+              setUserCoverage(null);
+              setUserCoveragePosition(null);
+            } else {
+              setUserCoverage(result);
+              setUserCoveragePosition(result._position || null);
+              setUserCoverageDevice(result._device || "mobil");
+            }
           }}
           mapCenter={mapRef.current?.getCenter()?.lat ? [mapRef.current.getCenter().lat, mapRef.current.getCenter().lng] : null}
           externalPosition={userCoveragePosition}

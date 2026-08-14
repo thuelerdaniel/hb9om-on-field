@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { X, MapPin, Car, Home, Radio, Loader2, Satellite, Crosshair, Sun, Sunrise, Moon, Save, Trash2, RefreshCw, History, Eye, EyeOff, ChevronDown, ChevronUp, Navigation } from "lucide-react";
+import { X, MapPin, Car, Home, Radio, Loader2, Satellite, Crosshair, Sun, Sunrise, Moon, Save, Trash2, RefreshCw, History, ChevronDown, ChevronUp } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -103,8 +103,6 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
   const [history, setHistory] = useState(() => loadHistory());
   const [showHistory, setShowHistory] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-  const [publicEnabled, setPublicEnabled] = useState(() => localStorage.getItem("hb9om_gps_public_enabled") === "true");
-  const [publicLoading, setPublicLoading] = useState(false);
 
   // --- Dragging ---
   const panelRef = useRef(null);
@@ -380,53 +378,6 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     handleCalculate();
   };
 
-  // --- Public position toggle ---
-  const handlePublicToggle = async () => {
-    const newVal = !publicEnabled;
-    setPublicLoading(true);
-    try {
-      if (newVal) {
-        // Enable public mode — need GPS position
-        if (!position) {
-          // Try to get GPS first
-          if (navigator.geolocation) {
-            await new Promise((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  setPosition([pos.coords.latitude, pos.coords.longitude]);
-                  resolve();
-                },
-                () => reject(new Error("GPS nicht verfügbar")),
-                { enableHighAccuracy: true, timeout: 10000 }
-              );
-            });
-          }
-        }
-        const callsign = localStorage.getItem("hb9om_user_callsign") || "Unknown";
-        await base44.functions.invoke("managePublicPosition", {
-          action: "set",
-          lat: position[0], lng: position[1],
-          callsign,
-          device_type: deviceType,
-        });
-        localStorage.setItem("hb9om_gps_public_enabled", "true");
-        setPublicEnabled(true);
-        window.dispatchEvent(new Event("gps-public-changed"));
-        toast({ title: "Position öffentlich", description: "Alle Benutzer sehen nun Ihren Standort" });
-      } else {
-        await base44.functions.invoke("managePublicPosition", { action: "remove" });
-        localStorage.setItem("hb9om_gps_public_enabled", "false");
-        setPublicEnabled(false);
-        window.dispatchEvent(new Event("gps-public-changed"));
-        toast({ title: "Position privat", description: "Standort nicht mehr öffentlich" });
-      }
-    } catch (e) {
-      toast({ title: "Fehler", description: e.message, variant: "destructive" });
-    } finally {
-      setPublicLoading(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
       <div
@@ -467,33 +418,6 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
               <button onClick={handleQthLookup} className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200">OK</button>
             </div>
             {position && <p className="text-[10px] text-gray-500 mt-1">{position[0].toFixed(5)}, {position[1].toFixed(5)}</p>}
-          </div>
-
-          {/* Public position toggle */}
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {publicEnabled ? <Eye className="w-4 h-4 text-indigo-600" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
-                <div>
-                  <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Position öffentlich teilen</span>
-                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-0.5">
-                    {publicEnabled ? "Alle Benutzer sehen Ihren Standort" : "Nur Sie sehen Ihre Position"}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handlePublicToggle}
-                disabled={publicLoading}
-                className={`relative w-10 h-5 rounded-full transition-colors ${publicEnabled ? "bg-indigo-500" : "bg-gray-300 dark:bg-slate-600"}`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${publicEnabled ? "left-5" : "left-0.5"}`} />
-              </button>
-            </div>
-            {publicEnabled && (
-              <p className="text-[9px] text-indigo-500 dark:text-indigo-400 mt-1.5 flex items-center gap-1">
-                <Navigation className="w-2.5 h-2.5" /> Refresh gemäss GPS-Einstellung in den Settings
-              </p>
-            )}
           </div>
 
           {/* KW: Tageszeit & MUF Anzeige */}
