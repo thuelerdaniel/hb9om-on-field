@@ -154,6 +154,9 @@ export async function generateFlyer() {
         "Offline-Karten für den Feldeinsatz herunterladen",
         "Gefahren & Störquellen: Hochspannungsleitungen von map.geo.admin.ch",
         "GPS-Standort-Tracking mit einstellbarem Intervall (30 s – 1 h)",
+        "Eigene Abdeckung berechnen: Terrain-LOS-Polygon mit SRTM-Höhen",
+        "Abdeckungs-Verlauf: mehrere Berechnungen speichern & laden",
+        "Öffentliche Position teilen: GPS-Standort für alle sichtbar",
       ],
     },
     {

@@ -245,6 +245,21 @@ const SECTIONS = [
         example: "Radio-Button klicken → GPS → «Mobil» → 50 W → 2m → FM → «Abdeckung berechnen» → oranges Polygon zeigt Reichweite mit Geländeeinfluss."
       },
       {
+        title: "Abdeckungs-Dialog verschiebbar & Antennenhöhe",
+        body: "Der Abdeckungs-Dialog kann frei auf dem Bildschirm verschoben werden: greifen Sie den Dialog an der Titelleiste (Header) und ziehen Sie ihn an eine beliebige Stelle. Die Antennenhöhe ist sowohl über einen Slider als auch über eine Zahleneingabe einstellbar — für präzise Werte tippen Sie die Zahl direkt ein, für schnelles Ausprobieren verwenden Sie den Slider. Die Antennenhöhe beeinflusst die Horizontreichweite (3.57×√h) und damit die Grösse des resultierenden Polygons.",
+        example: "Dialog am Header greifen → an freie Stelle ziehen → Antennenhöhe per Slider auf 10m → Polygon wird kleiner → Zahleneingabe auf 25m für präzisen Wert."
+      },
+      {
+        title: "Berechnungs-Verlauf verwalten",
+        body: "Mehrere Abdeckungs-Berechnungen werden automatisch im Verlauf gespeichert. Jede Berechnung erscheint mit Datum, Position, Band und Modus. Sie können eine frühere Berechnung erneut laden (Polygon erscheint wieder auf der Karte) oder einzelne Einträge löschen. Beim «Neu berechnen» wird abgefragt, wie viele der vorgängigen Berechnungen behalten werden sollen — so vermeiden Sie versehentliches Verlieren wichtiger Referenz-Polygone. Der Verlauf wird pro Gerät lokal gespeichert.",
+        example: "Berechnung 1 (2m) → Berechnung 2 (70cm) → Verlauf zeigt beide → 2m-Eintrag laden → Polygon erscheint → 70cm-Eintrag löschen."
+      },
+      {
+        title: "Öffentliche Position teilen",
+        body: "Sie können Ihren GPS-Standort als öffentliche Position markieren — alle Benutzer der App sehen Ihre Position dann auf der Karte mit Ihrem Rufzeichen und einem Zeitstempel. Aktivieren Sie den Toggle «Öffentlich teilen» im Abdeckungs-Dialog. Die Position wird automatisch im in den Einstellungen konfigurierten GPS-Intervall aktualisiert (z.B. alle 30 Sekunden). Andere Benutzer sehen Ihre Position als Marker mit Popup (Rufzeichen, Geräteart, letzte Aktualisierung). Sie können die öffentliche Freigabe jederzeit wieder deaktivieren — die Position verschwindet dann sofort für alle.",
+        example: "Abdeckungs-Dialog → «Öffentlich teilen» aktivieren → eigene Position erscheint auf allen Karten → GPS-Intervall 30s → Position aktualisiert sich automatisch → Toggle aus → Position verschwindet."
+      },
+      {
         title: "Frequenz-spezifische Abdeckung",
         body: "Die Abdeckungsberechnung verwendet die exakte Frequenz (nicht nur das Band): Freiraumdämpfung (FSPL) steigt mit der Frequenz, Fresnel-Zone wird bei höheren Frequenzen kleiner, Beugung an Hindernissen nimmt mit der Frequenz ab. Beispiel: 145.325 MHz (2m) bei 30 km → FSPL 105.2 dB; 438.500 MHz (70cm) bei 30 km → FSPL 114.8 dB (9.6 dB mehr Dämpfung = ca. 3x weniger Reichweite). Die Parameter pro Band umfassen: max_range_flat/terrain, antenna_gain, ground_loss, vegetation_loss, building_loss, diffraction_factor, atmospheric_loss und k_factor.",
         example: "2m-Relais zeigt weiteres Polygon als 70cm-Relais am selben Standort → 23cm-Relais deutlich enger → Berg-Richtung bei allen enger als Tal-Richtung."
