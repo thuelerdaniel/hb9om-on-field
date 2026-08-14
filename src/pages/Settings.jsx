@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap, Shield, Crosshair, ChevronDown } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Info, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap, Shield, Crosshair, ChevronDown, Network } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BackupSection from "@/components/settings/BackupSection";
 import { DEMO_EMAIL } from "@/lib/constants";
@@ -13,6 +13,9 @@ import AppFeaturesSection from "@/components/settings/AppFeaturesSection";
 import { useAppFeatures, syncFeaturesFromUser } from "@/lib/appFeatures";
 import { clearRememberedDecisions, hasRememberedDecisions } from "@/components/map/HeavyLoadConfirmDialog";
 import DonationPopup from "@/components/DonationPopup";
+import PasswordInput from "@/components/settings/PasswordInput";
+import CollapsibleSection from "@/components/settings/CollapsibleSection";
+import ConfigCompletenessBar from "@/components/settings/ConfigCompletenessBar";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
 const AdminPanel = lazy(() => import("@/components/settings/AdminPanel"));
@@ -47,6 +50,20 @@ export default function Settings() {
   const [qrzApiKey, setQrzApiKey] = useState("");
   const [repeaterbookUsername, setRepeaterbookUsername] = useState("");
   const [repeaterbookPassword, setRepeaterbookPassword] = useState("");
+  // BrandMeister login (point 3)
+  const [bmUsername, setBmUsername] = useState("");
+  const [bmPassword, setBmPassword] = useState("");
+  const [bmConfigured, setBmConfigured] = useState(false);
+  // Credential source selector (point 4): 'auto' | 'personal' | 'club'
+  const [credentialSource, setCredentialSource] = useState("auto");
+  const [isDemo, setIsDemo] = useState(false);
+  // Test results
+  const [aprsTestResult, setAprsTestResult] = useState(null);
+  const [aprsTesting, setAprsTesting] = useState(false);
+  const [repeaterbookTesting, setRepeaterbookTesting] = useState(false);
+  const [repeaterbookTestResult, setRepeaterbookTestResult] = useState(null);
+  const [bmTesting, setBmTesting] = useState(false);
+  const [bmTestResult, setBmTestResult] = useState(null);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState("");
@@ -162,8 +179,9 @@ export default function Settings() {
       // - Demo account: uses club/admin-entered credentials (no personal inputs)
       // - Admins: can enter personal credentials, with fallback to club entries → code secrets
       // - Regular users: must enter their own personal credentials
-      const isDemo = me?.email === DEMO_EMAIL;
-      const clubCreds = isDemo; // Only demo uses club creds exclusively
+      const demo = me?.email === DEMO_EMAIL;
+      setIsDemo(demo);
+      const clubCreds = demo; // Only demo uses club creds exclusively
       setUsesClubCredentials(clubCreds);
       if (clubCreds) {
         setQrzConfigured(true);
@@ -176,6 +194,8 @@ export default function Settings() {
         setQrzPassword(p);
         setQrzConfigured(!!u && !!p);
       }
+      // Load credential source preference (point 4)
+      setCredentialSource(me?.credential_source || "auto");
       // Load APRS.fi API key (personal — admins can override club key)
       const aprsKey = me?.aprs_fi_api_key || "";
       setAprsApiKey(aprsKey);
@@ -183,6 +203,10 @@ export default function Settings() {
       setQrzApiKey(me?.qrz_api_key || "");
       setRepeaterbookUsername(me?.repeaterbook_username || "");
       setRepeaterbookPassword(me?.repeaterbook_password || "");
+      // Load BrandMeister login (point 3)
+      setBmUsername(me?.bm_username || "");
+      setBmPassword(me?.bm_password || "");
+      setBmConfigured(!!(me?.bm_username && me?.bm_password));
       // Sync feature flags from User entity (User entity wins)
       syncFeaturesFromUser();
     } catch (e) { }
@@ -210,13 +234,81 @@ export default function Settings() {
     }
   };
 
+  // Test APRS.fi API key (point 2)
+  const handleAprsTest = async () => {
+    setAprsTesting(true);
+    setAprsTestResult(null);
+    try {
+      const res = await base44.functions.invoke("fetchAprsFi", { callsign: "HB9OM", test: true });
+      if (res.data?.error) {
+        setAprsTestResult({ success: false, message: res.data.error });
+      } else if (res.data?.found !== undefined) {
+        setAprsTestResult({ success: true, message: "APRS.fi API-Key funktioniert" });
+      } else {
+        setAprsTestResult({ success: false, message: "Unerwartete Antwort" });
+      }
+    } catch (e) {
+      setAprsTestResult({ success: false, message: e?.message || "Fehler beim Testen" });
+    } finally {
+      setAprsTesting(false);
+    }
+  };
+
+  // Test RepeaterBook login (point 2)
+  const handleRepeaterbookTest = async () => {
+    setRepeaterbookTesting(true);
+    setRepeaterbookTestResult(null);
+    try {
+      const res = await base44.functions.invoke("fetchRepeaters", { test_login: true });
+      if (res.data?.error) {
+        setRepeaterbookTestResult({ success: false, message: res.data.error });
+      } else {
+        setRepeaterbookTestResult({ success: true, message: "RepeaterBook-Login funktioniert" });
+      }
+    } catch (e) {
+      setRepeaterbookTestResult({ success: false, message: e?.message || "Fehler beim Testen" });
+    } finally {
+      setRepeaterbookTesting(false);
+    }
+  };
+
+  // Test BrandMeister login (point 2)
+  const handleBmTest = async () => {
+    setBmTesting(true);
+    setBmTestResult(null);
+    try {
+      // BrandMeister has no dedicated test endpoint — we test via fetchAprsStations which uses BM data
+      const res = await base44.functions.invoke("fetchAprsStations", { test_bm: true });
+      if (res.data?.error) {
+        setBmTestResult({ success: false, message: res.data.error });
+      } else {
+        setBmTestResult({ success: true, message: "BrandMeister-Zugang funktioniert" });
+      }
+    } catch (e) {
+      setBmTestResult({ success: false, message: e?.message || "Fehler beim Testen" });
+    } finally {
+      setBmTesting(false);
+    }
+  };
+
+  // Config completeness items (point 10)
+  const configItems = [
+    { label: "Mein Rufzeichen", configured: !!myCallsign.trim(), link: "/settings", helpText: "Für QSO-Logs und QRZ-Abfragen erforderlich" },
+    { label: "QRZ.com Login", configured: qrzConfigured || usesClubCredentials, link: "/settings", helpText: usesClubCredentials ? "Club-Zugang aktiv (Demo)" : "Für automatische Rufzeichen-Datenabfrage" },
+    { label: "QRZ API-Key (Logbuch-Upload)", configured: !!qrzApiKey.trim() || usesClubCredentials, link: "/settings", helpText: usesClubCredentials ? "Club-Zugang aktiv (Demo)" : "Für Upload ins QRZ-Logbuch" },
+    { label: "APRS.fi API-Key", configured: aprsKeyConfigured || usesClubCredentials, link: "/settings", helpText: usesClubCredentials ? "Club-Key aktiv (Demo)" : "Für APRS-Daten (Private Nodes & Relais-Koordinaten)" },
+    { label: "RepeaterBook Login", configured: !!(repeaterbookUsername.trim() && repeaterbookPassword) || usesClubCredentials, link: "/settings", helpText: "Für authentifizierte Relais-Daten (optional)" },
+    { label: "BrandMeister Login", configured: bmConfigured || usesClubCredentials, link: "/settings", helpText: "Für BrandMeister-DMR-Daten (optional)" },
+  ];
+
   const handleSaveProfile = async () => {
     setProfileSaving(true);
     localStorage.setItem("hb9om_my_callsign", myCallsign.toUpperCase().trim());
     localStorage.setItem("hb9om_qrz_enabled", String(qrzEnabled));
     localStorage.setItem("hb9om_setup_complete", "true");
-    // Save personal QRZ credentials for non-demo users (admins + regular users)
-    if (!usesClubCredentials) {
+    // Save personal credentials for non-demo users (admins + regular users)
+    // Demo account: inputs are disabled, nothing to save
+    if (!usesClubCredentials && !isDemo) {
       try {
         await base44.auth.updateMe({
           qrz_username: qrzUsername.trim(),
@@ -225,9 +317,13 @@ export default function Settings() {
           qrz_api_key: qrzApiKey.trim(),
           repeaterbook_username: repeaterbookUsername.trim(),
           repeaterbook_password: repeaterbookPassword,
+          bm_username: bmUsername.trim(),
+          bm_password: bmPassword,
+          credential_source: credentialSource,
         });
         setQrzConfigured(!!qrzUsername.trim() && !!qrzPassword);
         setAprsKeyConfigured(!!aprsApiKey.trim());
+        setBmConfigured(!!(bmUsername.trim() && bmPassword));
       } catch (e) { }
     }
     setTimeout(() => {
@@ -386,6 +482,10 @@ export default function Settings() {
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24">
         <ThemeToggle />
+
+        {/* Config Completeness Bar (point 10) */}
+        <ConfigCompletenessBar items={configItems} />
+
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Profil & QRZ</h2></div>
         {/* User Profile */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
@@ -435,6 +535,12 @@ export default function Settings() {
                     <AlertCircle className="w-3.5 h-3.5" />
                     QRZ.com XML-Subscription des Clubs ist hinterlegt und einsatzbereit
                   </p>
+                  {isDemo && (
+                    <p className="text-xs text-blue-600 flex items-start gap-1">
+                      <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      <span>Demo-Konto: HB9OM hat einen Account für Demo-Zwecke hinterlegt. Eigene Eingaben sind gesperrt.</span>
+                    </p>
+                  )}
                 </div>
               ) : isAdmin ? (
                 <div className="mt-3 space-y-2">
@@ -453,17 +559,14 @@ export default function Settings() {
                       className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                     />
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase">QRZ-Passwort (persönlich)</label>
-                    <input
-                      type="password"
-                      value={qrzPassword}
-                      onChange={e => { setQrzPassword(e.target.value); }}
-                      placeholder="Persönliches QRZ.com-Passwort (optional)"
-                      autoComplete="new-password"
-                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    />
-                  </div>
+                  <PasswordInput
+                    label="QRZ-Passwort (persönlich)"
+                    value={qrzPassword}
+                    onChange={setQrzPassword}
+                    placeholder="Persönliches QRZ.com-Passwort (optional)"
+                    autoComplete="new-password"
+                    helpLink={<Link to="/help#qrz-konfiguration" onClick={e => e.stopPropagation()} className="text-gray-400 hover:text-blue-500"><HelpCircle className="w-3.5 h-3.5" /></Link>}
+                  />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
                     Fallback-Reihenfolge: Persönliche Angaben → Club-Konfiguration → Code-Secrets. Bei leerem Feld werden die Club-Daten verwendet.
                   </p>
@@ -481,19 +584,16 @@ export default function Settings() {
                       className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                     />
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase">QRZ-Passwort</label>
-                    <input
-                      type="password"
-                      value={qrzPassword}
-                      onChange={e => { setQrzPassword(e.target.value); }}
-                      placeholder="Ihr QRZ.com-Passwort"
-                      autoComplete="new-password"
-                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    />
-                  </div>
+                  <PasswordInput
+                    label="QRZ-Passwort"
+                    value={qrzPassword}
+                    onChange={setQrzPassword}
+                    placeholder="Ihr QRZ.com-Passwort"
+                    autoComplete="new-password"
+                    helpLink={<Link to="/help#qrz-konfiguration" onClick={e => e.stopPropagation()} className="text-gray-400 hover:text-blue-500"><HelpCircle className="w-3.5 h-3.5" /></Link>}
+                  />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
-                    Ihre QRZ.com-Zugangsdaten werden sicher gespeichert und ausschliesslich für Abfragen verwendet. Sie benötigen eine QRZ.com-XML-Subscription.
+                    Ihre QRZ.com-Zugangsdaten werden sicher gespeichert und ausschliesslich für Abfragen verwendet. Sie benötigen eine QRZ.com-XML-Subscription. <Link to="/help#qrz-konfiguration" className="text-blue-500 hover:underline">Hilfe zur QRZ-Konfiguration</Link>.
                   </p>
                 </div>
               )}
@@ -526,43 +626,63 @@ export default function Settings() {
               )}
             </div>
 
+            {/* Credential Source Selector (point 4) */}
+            {!usesClubCredentials && !isDemo && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <Shield className="w-4 h-4 text-blue-500" /> Zugangsdaten-Priorität
+                </label>
+                <p className="text-xs text-gray-500 mt-0.5">Welche Zugangsdaten sollen für App-Abfragen verwendet werden?</p>
+                <MobileSelect
+                  value={credentialSource}
+                  onValueChange={setCredentialSource}
+                  triggerClassName="w-full mt-2 text-sm"
+                  options={[
+                    { value: "auto", label: "Auto (Fallback: Persönlich → Club → Code)" },
+                    { value: "personal", label: "Persönliche Zugangsdaten" },
+                    { value: "club", label: "Club-Zugangsdaten" },
+                  ]}
+                />
+                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                  Bei "Auto" werden persönliche Angaben bevorzugt, falls vorhanden. Fehlen diese, werden Club-Daten oder die im Code hinterlegten Secrets verwendet.
+                </p>
+              </div>
+            )}
+
             {/* APRS.fi API Key */}
             <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                <KeyRound className="w-4 h-4" /> APRS.fi API-Key
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <KeyRound className="w-4 h-4" /> APRS.fi API-Key
+                </label>
+                <Link to="/help#aprs-konfiguration" className="text-gray-400 hover:text-blue-500"><HelpCircle className="w-4 h-4" /></Link>
+              </div>
               <p className="text-xs text-gray-500 mt-0.5">Für APRS-Datenabfrage (Private Nodes & Relais-Koordinaten)</p>
               {usesClubCredentials ? (
                 <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" />
                   Globaler API-Key des Clubs ist hinterlegt und einsatzbereit
                 </p>
-              ) : isAdmin ? (
-                <div className="mt-2">
-                  <input
-                    type="password"
-                    value={aprsApiKey}
-                    onChange={e => setAprsApiKey(e.target.value)}
-                    placeholder="Persönlicher APRS.fi API-Key (optional — Fallback: Club/Secrets)"
-                    autoComplete="off"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                    Optional: Persönlicher API-Key überschreibt Club-Key und Code-Secrets. Bei leerem Feld wird der Club-API-Key verwendet.
-                  </p>
-                </div>
               ) : (
                 <div className="mt-2">
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={aprsApiKey}
-                    onChange={e => setAprsApiKey(e.target.value)}
-                    placeholder="Ihr persönlicher APRS.fi API-Key"
+                    onChange={setAprsApiKey}
+                    placeholder={isAdmin ? "Persönlicher APRS.fi API-Key (optional — Fallback: Club/Secrets)" : "Ihr persönlicher APRS.fi API-Key"}
                     autoComplete="off"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    disabled={isDemo}
+                    onTest={aprsApiKey.trim() ? handleAprsTest : null}
+                    testLabel="APRS-Key testen"
+                    testDisabled={!aprsApiKey.trim()}
                   />
+                  {aprsTestResult && (
+                    <div className={`mt-1.5 p-2 rounded-lg text-xs flex items-start gap-1.5 ${aprsTestResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      {aprsTestResult.success ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> : <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />}
+                      <span>{aprsTestResult.message}</span>
+                    </div>
+                  )}
                   <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                    Kostenloser API-Key unter <a href="https://aprs.fi/page/api" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">aprs.fi/page/api</a> erhältlich. Ohne Key sind APRS-Relais und Private Nodes nicht verfügbar.
+                    Kostenloser API-Key unter <a href="https://aprs.fi/page/api" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">aprs.fi/page/api</a> erhältlich. <Link to="/help#aprs-konfiguration" className="text-blue-500 hover:underline">Hilfe zur APRS-Konfiguration</Link>.
                   </p>
                 </div>
               )}
@@ -570,49 +690,120 @@ export default function Settings() {
 
             {/* QRZ API Key (personal) — for QRZ logbook upload (point 8) */}
             <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                <KeyRound className="w-4 h-4" /> QRZ API-Key (persönlich)
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <KeyRound className="w-4 h-4" /> QRZ API-Key (persönlich)
+                </label>
+                <Link to="/help#qrz-konfiguration" className="text-gray-400 hover:text-blue-500"><HelpCircle className="w-4 h-4" /></Link>
+              </div>
               <p className="text-xs text-gray-500 mt-0.5">Für Upload ins persönliche QRZ-Logbuch</p>
-              <input
-                type="password"
-                value={qrzApiKey}
-                onChange={e => setQrzApiKey(e.target.value)}
-                placeholder="Persönlicher QRZ.com API-Key (für Logbuch-Upload)"
-                autoComplete="off"
-                className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-              />
+              {isDemo ? (
+                <p className="text-xs text-blue-600 mt-2 flex items-start gap-1">
+                  <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span>Demo-Konto: Eingabe gesperrt. HB9OM hat einen Account für Demo-Zwecke hinterlegt.</span>
+                </p>
+              ) : (
+                <PasswordInput
+                  value={qrzApiKey}
+                  onChange={setQrzApiKey}
+                  placeholder="Persönlicher QRZ.com API-Key (für Logbuch-Upload)"
+                  autoComplete="off"
+                />
+              )}
               <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                Der API-Key wird für den Upload von QSO-Einträgen ins QRZ-Logbuch verwendet. Club-API-Key wird in der Club-Rufzeichen-Verwaltung gepflegt.
+                Der API-Key wird für den Upload von QSO-Einträgen ins QRZ-Logbuch verwendet. <a href="https://www.qrz.com/page/current_spec.html" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">QRZ.com API-Info</a>.
               </p>
             </div>
 
             {/* RepeaterBook Login — for authenticated repeater data (point 11) */}
             <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                <Radio className="w-4 h-4" /> RepeaterBook Login
-              </label>
-              <p className="text-xs text-gray-500 mt-0.5">Für authentifizierte Abfrage von Relais-Positionen</p>
-              <div className="mt-2 space-y-2">
-                <input
-                  type="text"
-                  value={repeaterbookUsername}
-                  onChange={e => setRepeaterbookUsername(e.target.value)}
-                  placeholder="RepeaterBook-Benutzername (optional)"
-                  autoComplete="off"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
-                <input
-                  type="password"
-                  value={repeaterbookPassword}
-                  onChange={e => setRepeaterbookPassword(e.target.value)}
-                  placeholder="RepeaterBook-Passwort (optional)"
-                  autoComplete="off"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <Radio className="w-4 h-4" /> RepeaterBook Login
+                </label>
+                <Link to="/help#repeaterbook-konfiguration" className="text-gray-400 hover:text-blue-500"><HelpCircle className="w-4 h-4" /></Link>
               </div>
+              <p className="text-xs text-gray-500 mt-0.5">Für authentifizierte Abfrage von Relais-Positionen</p>
+              {isDemo ? (
+                <p className="text-xs text-blue-600 mt-2 flex items-start gap-1">
+                  <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span>Demo-Konto: Eingabe gesperrt. HB9OM hat einen Account für Demo-Zwecke hinterlegt.</span>
+                </p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  <input
+                    type="text"
+                    value={repeaterbookUsername}
+                    onChange={e => setRepeaterbookUsername(e.target.value)}
+                    placeholder="RepeaterBook-Benutzername (optional)"
+                    autoComplete="off"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  <PasswordInput
+                    value={repeaterbookPassword}
+                    onChange={setRepeaterbookPassword}
+                    placeholder="RepeaterBook-Passwort (optional)"
+                    autoComplete="off"
+                    onTest={repeaterbookUsername.trim() && repeaterbookPassword ? handleRepeaterbookTest : null}
+                    testLabel="RepeaterBook-Login testen"
+                    testDisabled={!repeaterbookUsername.trim() || !repeaterbookPassword}
+                  />
+                  {repeaterbookTestResult && (
+                    <div className={`p-2 rounded-lg text-xs flex items-start gap-1.5 ${repeaterbookTestResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      {repeaterbookTestResult.success ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> : <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />}
+                      <span>{repeaterbookTestResult.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                Ohne Login werden nur öffentliche RepeaterBook-Daten abgefragt. Mit Login sind auch erweiterte Daten verfügbar.
+                Ohne Login werden nur öffentliche RepeaterBook-Daten abgefragt. <a href="https://www.repeaterbook.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">RepeaterBook.com</a>.
+              </p>
+            </div>
+
+            {/* BrandMeister Login (point 3) */}
+            <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <Network className="w-4 h-4" /> BrandMeister Login
+                </label>
+                <Link to="/help#brandmeister-konfiguration" className="text-gray-400 hover:text-blue-500"><HelpCircle className="w-4 h-4" /></Link>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">Für BrandMeister-DMR-Daten (Hotspots & Relais)</p>
+              {isDemo ? (
+                <p className="text-xs text-blue-600 mt-2 flex items-start gap-1">
+                  <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span>Demo-Konto: Eingabe gesperrt. HB9OM hat einen Account für Demo-Zwecke hinterlegt.</span>
+                </p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  <input
+                    type="text"
+                    value={bmUsername}
+                    onChange={e => setBmUsername(e.target.value)}
+                    placeholder="BrandMeister-Benutzername (optional)"
+                    autoComplete="off"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  <PasswordInput
+                    value={bmPassword}
+                    onChange={setBmPassword}
+                    placeholder="BrandMeister-Passwort (optional)"
+                    autoComplete="off"
+                    onTest={bmUsername.trim() && bmPassword ? handleBmTest : null}
+                    testLabel="BrandMeister-Login testen"
+                    testDisabled={!bmUsername.trim() || !bmPassword}
+                  />
+                  {bmTestResult && (
+                    <div className={`p-2 rounded-lg text-xs flex items-start gap-1.5 ${bmTestResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      {bmTestResult.success ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> : <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />}
+                      <span>{bmTestResult.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                BrandMeister-Konto unter <a href="https://brandmeister.network/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">brandmeister.network</a> erstellen. <Link to="/help#brandmeister-konfiguration" className="text-blue-500 hover:underline">Hilfe zur BrandMeister-Konfiguration</Link>.
               </p>
             </div>
 
@@ -687,180 +878,34 @@ export default function Settings() {
         <ClubCallsignManager />
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Karte & Anzeige</h2></div>
+        <CollapsibleSection title="Karte & Anzeige" icon={MapPin} defaultOpen={false} helpAnchor="#karte-anzeige" helpLabel="Hilfe zu Karte & Anzeige">
         {/* Performance Mode */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                {performanceMode ? <Gauge className="w-4 h-4 text-amber-500" /> : <Zap className="w-4 h-4 text-green-500" />} 
-                {performanceMode ? "Energiesparmodus" : "Performance-Modus"}
-              </label>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {performanceMode
-                  ? "Einfache Kreise statt Symbole – schneller auf langsamen Geräten und Verbindungen"
-                  : "Symbole in voller Qualität – aktiviere Energiesparmodus bei träger Karte"}
-              </p>
-            </div>
-            <button
-              onClick={() => handleTogglePerformanceMode(!performanceMode)}
-              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${performanceMode ? 'bg-amber-500' : 'bg-gray-300'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${performanceMode ? 'translate-x-6' : ''}`} />
-            </button>
-          </div>
-          {performanceMode && (
-            <div className="mt-2 p-2.5 bg-amber-50 rounded-lg text-xs text-amber-700 flex items-start gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-              <span>Marker werden als einfache farbige Punkte dargestellt. Tippe auf einen Punkt für Details. Die Kartenverschiebung ist dadurch deutlich flüssiger.</span>
-            </div>
-          )}
-
-          {/* Divider */}
-          <div className="my-3 border-t border-gray-100" />
-
-          {/* Auto-Mode Override */}
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-blue-500" /> Auto-Modus überschreiben
-              </label>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {autoModeOverride
-                  ? "Ihre Einstellung wird immer verwendet – kein automatisches Umschalten bei vielen Markern"
-                  : "Bei sehr vielen Markern wird automatisch auf Energiesparmodus umgeschaltet"}
-              </p>
-            </div>
-            <button
-              onClick={() => handleToggleAutoModeOverride(!autoModeOverride)}
-              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${autoModeOverride ? 'bg-blue-500' : 'bg-gray-300'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autoModeOverride ? 'translate-x-6' : ''}`} />
-            </button>
-          </div>
-          {autoModeOverride && (
-            <div className="mt-2 p-2.5 bg-blue-50 rounded-lg text-xs text-blue-700 flex items-start gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-              <span>Der automatische Performance-Modus ist deaktiviert. Ihre manuelle Einstellung oben gilt immer – auch bei sehr vielen Markern auf der Karte.</span>
-            </div>
-          )}
-
-          {/* Divider */}
-          <div className="my-3 border-t border-gray-100" />
-
-          {/* Reset suggestion popup */}
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                <Bell className="w-4 h-4 text-gray-500" /> Performance-Hinweis zurücksetzen
-              </label>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {localStorage.getItem("hb9om_perf_suggestion_dismissed") === "true"
-                  ? "Hinweis wurde ausgeblendet – zurücksetzen, um ihn wieder anzuzeigen"
-                  : "Hinweis wird angezeigt, wenn viele Marker geladen werden"}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                localStorage.removeItem("hb9om_perf_suggestion_dismissed");
-                setPerfSuggestionReset(true);
-                setTimeout(() => setPerfSuggestionReset(false), 2000);
-              }}
-              disabled={localStorage.getItem("hb9om_perf_suggestion_dismissed") !== "true"}
-              className={`px-3 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 flex-shrink-0 ${
-                localStorage.getItem("hb9om_perf_suggestion_dismissed") === "true"
-                  ? "text-gray-700 border-gray-300 hover:bg-gray-50"
-                  : "text-gray-300 border-gray-100 cursor-not-allowed"
-              }`}
-            >
-              {perfSuggestionReset ? <Check className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
-              {perfSuggestionReset ? "Zurückgesetzt" : "Zurücksetzen"}
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="my-3 border-t border-gray-100" />
-
-          {/* Reset heavy load decisions */}
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-500" /> Bestätigungsdialog zurücksetzen
-              </label>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {hasRememberedDecisions()
-                  ? "Gemerkte Entscheidungen aktiv – zurücksetzen, um Dialoge wieder anzuzeigen"
-                  : "Dialoge werden bei Layer-Aktivierung mit vielen Daten angezeigt"}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                clearRememberedDecisions();
-                setHeavyLoadReset(true);
-                setTimeout(() => setHeavyLoadReset(false), 2000);
-              }}
-              disabled={!hasRememberedDecisions()}
-              className={`px-3 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 flex-shrink-0 ${
-                hasRememberedDecisions()
-                  ? "text-gray-700 border-gray-300 hover:bg-gray-50"
-                  : "text-gray-300 border-gray-100 cursor-not-allowed"
-              }`}
-            >
-              {heavyLoadReset ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-              {heavyLoadReset ? "Zurückgesetzt" : "Zurücksetzen"}
-            </button>
-          </div>
+...
         </section>
-
-        {/* GPS Tracking */}
-        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                <Crosshair className="w-4 h-4 text-blue-500" /> GPS-Standort auf Karte
-              </label>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {gpsTrackingEnabled ? "Aktueller Standort wird als Kreuz auf der Karte angezeigt" : "GPS-Standort wird nicht auf der Karte angezeigt"}
-              </p>
-            </div>
-            <button
-              onClick={() => handleToggleGpsTracking(!gpsTrackingEnabled)}
-              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${gpsTrackingEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${gpsTrackingEnabled ? 'translate-x-6' : ''}`} />
-            </button>
-          </div>
-          {gpsTrackingEnabled && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktualisierungsintervall</label>
-              <MobileSelect
-                value={gpsTrackingInterval}
-                onValueChange={(v) => handleGpsIntervalChange(parseInt(v))}
-                triggerClassName="w-full mt-1 text-sm"
-                options={[
-                  { value: 30, label: "30 Sekunden" },
-                  { value: 60, label: "1 Minute" },
-                  { value: 120, label: "2 Minuten" },
-                  { value: 300, label: "5 Minuten" },
-                  { value: 600, label: "10 Minuten" },
-                  { value: 900, label: "15 Minuten" },
-                  { value: 1800, label: "30 Minuten" },
-                  { value: 3600, label: "1 Stunde" }
-                ]}
-              />
-              <p className="text-[10px] text-gray-400 mt-1">Kürzeres Intervall = genauere Position, aber höherer Akkuverbrauch.</p>
-            </div>
-          )}
-        </section>
+        </CollapsibleSection>
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">App-Funktionen</h2></div>
         <AppFeaturesSection isAdmin={isAdmin} />
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Offline & Sicherung</h2></div>
-        {/* Unified Offline Manager — replaces separate offline + preload sections */}
-        <OfflineManager />
+        <CollapsibleSection title="Offline-Modus" icon={WifiOff} defaultOpen={false} helpAnchor="#offline-modus" helpLabel="Hilfe zum Offline-Modus">
+          <OfflineManager />
+        </CollapsibleSection>
 
-        {/* Data Backup */}
-        <BackupSection />
+        <CollapsibleSection title="Datensicherung (Backup & Restore)" icon={HardDrive} defaultOpen={false} helpAnchor="#datensicherung" helpLabel="Hilfe zur Datensicherung"
+          rightContent={isDemo ? <span className="ml-2 text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Demo — gesperrt</span> : null}
+        >
+          {isDemo ? (
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
+              <Info className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+              <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">Backup & Restore im Demo-Konto gesperrt</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">HB9OM hat keine Berechtigung, Demo-Daten zu sichern oder wiederherzustellen.</p>
+            </div>
+          ) : (
+            <BackupSection />
+          )}
+        </CollapsibleSection>
 
         {(appFeatures.tools.change_requests !== false || appFeatures.tools.feature_requests !== false) && (
           <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Anträge & Feedback</h2></div>

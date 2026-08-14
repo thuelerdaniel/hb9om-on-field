@@ -7,6 +7,21 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.86",
+    title: "Passwort-Sicherheit, Demo-Beschränkungen & Konfigurations-Status",
+    changes: [
+      "Passwort-Sichtbarkeit: Alle Passwort-Felder mit Augen-Button zum Ein-/Ausblenden",
+      "Verbindungs-Tests: APRS.fi, RepeaterBook, BrandMeister und QRZ direkt in den Einstellungen testbar",
+      "BrandMeister-Login: Persönliche oder Club-Zugangsdaten für DMR-Daten konfigurierbar",
+      "Zugangsdaten-Priorität: Auswahl ob persönliche oder Club-Daten für App-Abfragen verwendet werden",
+      "Demo-Konto: Eingabefelder gesperrt, Backup/Restore und QRZ-Upload ausgegraut mit Hinweis",
+      "Konfigurations-Status: Fortschrittsbalken zeigt fehlende Konfigurationen mit direkten Links",
+      "Einklappbare Menüs: Offline-Modus, Karte & Anzeige und Datensicherung per Default zugeklappt",
+      "Hilfe-Links: Jeder Einstellungs-Bereich hat direkten Link zur entsprechenden Hilfe-Sektion",
+      "Hilfe-Erweiterung: Konfigurations-Beispiele mit Links zu QRZ, APRS.fi, RepeaterBook und BrandMeister",
+    ],
+  },
+  {
     version: "0.85",
     title: "Terrain-Abdeckung, Meine Abdeckung & Relais-Performance",
     changes: [

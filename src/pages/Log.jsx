@@ -10,6 +10,7 @@ import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
 import DonationPopup from "@/components/DonationPopup";
 import LogStats from "@/components/log/LogStats";
+import { DEMO_EMAIL } from "@/lib/constants";
 import { loadLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync, syncPending, getPendingCount } from "@/lib/localLogStore";
 
 const REF_TYPE_LABELS = {
@@ -41,9 +42,12 @@ export default function Log() {
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [qrzUploading, setQrzUploading] = useState(false);
   const [qrzUploadResult, setQrzUploadResult] = useState(null);
+  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
     loadEntries();
+    // Check if demo account (point 13)
+    base44.auth.me().then(me => setIsDemo(me?.email === DEMO_EMAIL)).catch(() => {});
   }, []);
 
   // React to background log-store changes (optimistic sync completions)
@@ -390,22 +394,31 @@ export default function Log() {
 
           {filtered.length > 0 && (
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => handleQrzUpload('club')}
-                disabled={qrzUploading}
-                className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 disabled:opacity-40 flex items-center gap-1.5"
-                title="Gefilterte QSOs zu QRZ.com Club-Logbuch hochladen"
-              >
-                {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Club
-              </button>
-              <button
-                onClick={() => handleQrzUpload('personal')}
-                disabled={qrzUploading}
-                className="px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
-                title="Gefilterte QSOs zu persönlichem QRZ-Logbuch hochladen"
-              >
-                {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Pers.
-              </button>
+              {isDemo ? (
+                <span className="px-3 py-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-1.5" title="QRZ-Upload im Demo-Konto gesperrt">
+                  <Upload className="w-4 h-4 opacity-40" />
+                  <span className="opacity-60">QRZ-Upload (Demo gesperrt)</span>
+                </span>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleQrzUpload('club')}
+                    disabled={qrzUploading}
+                    className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 disabled:opacity-40 flex items-center gap-1.5"
+                    title="Gefilterte QSOs zu QRZ.com Club-Logbuch hochladen"
+                  >
+                    {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Club
+                  </button>
+                  <button
+                    onClick={() => handleQrzUpload('personal')}
+                    disabled={qrzUploading}
+                    className="px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
+                    title="Gefilterte QSOs zu persönlichem QRZ-Logbuch hochladen"
+                  >
+                    {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Pers.
+                  </button>
+                </>
+              )}
             </div>
           )}
           {qrzUploadResult && (
