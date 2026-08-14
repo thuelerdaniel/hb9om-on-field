@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { RadioTower, Signal, ChevronDown, X, Search, Info } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
@@ -25,8 +25,14 @@ export default function TotaFilter({
   leftOffsetClass = "left-16",
   defaultOpen = true,
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = localStorage.getItem("hb9om_filter_open_tota");
+    if (saved !== null) return saved === "true";
+    return defaultOpen;
+  });
   const { containerRef } = useDraggablePosition("drag-tota-filter");
+
+  useEffect(() => { localStorage.setItem("hb9om_filter_open_tota", String(isOpen)); }, [isOpen]);
 
   const allOn = !filterTypes || filterTypes.length === TOTA_TYPE_IDS.length;
   const noneOn = filterTypes && filterTypes.length === 0;

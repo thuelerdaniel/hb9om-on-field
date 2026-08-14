@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Network, Search, ChevronDown, X, Hash, Radio, Zap } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
@@ -26,8 +26,14 @@ export default function BrandMeisterFilter({
   leftOffsetClass = "left-16",
   defaultOpen = true,
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = localStorage.getItem("hb9om_filter_open_brandmeister");
+    if (saved !== null) return saved === "true";
+    return defaultOpen;
+  });
   const { containerRef } = useDraggablePosition("drag-bm-filter");
+
+  useEffect(() => { localStorage.setItem("hb9om_filter_open_brandmeister", String(isOpen)); }, [isOpen]);
 
   // null or all = no filter (show everything); array = filter by selected types
   const allOn = !filterTypes || filterTypes.length === BM_TYPE_IDS.length;

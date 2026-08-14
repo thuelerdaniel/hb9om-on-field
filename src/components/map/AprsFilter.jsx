@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Wifi, Search, ChevronDown, X, Info } from "lucide-react";
 import { NODE_TYPE_LABELS, NODE_COLORS } from "@/components/map/PrivateNodeLayer";
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
@@ -20,8 +20,14 @@ export default function AprsFilter({
   leftOffsetClass = "left-16",
   defaultOpen = true,
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = localStorage.getItem("hb9om_filter_open_aprs");
+    if (saved !== null) return saved === "true";
+    return defaultOpen;
+  });
   const { containerRef } = useDraggablePosition("drag-aprs-filter");
+
+  useEffect(() => { localStorage.setItem("hb9om_filter_open_aprs", String(isOpen)); }, [isOpen]);
 
   // null or all = no filter (show everything); array = filter by selected types
   const allOn = !filterTypes || filterTypes.length === ALL_TYPES.length;

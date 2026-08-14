@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLink, Check, SlidersHorizontal } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { CONTINENTS } from "@/lib/continents";
@@ -27,10 +27,16 @@ export default function RepeaterFilter({
   leftOffsetClass = "left-3",
   defaultOpen = true,
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = localStorage.getItem("hb9om_filter_open_repeater");
+    if (saved !== null) return saved === "true";
+    return defaultOpen;
+  });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCountryPanel, setShowCountryPanel] = useState(false);
   const { containerRef } = useDraggablePosition("drag-repeater-filter");
+
+  useEffect(() => { localStorage.setItem("hb9om_filter_open_repeater", String(isOpen)); }, [isOpen]);
 
   const toggleMode = (mode) => {
     if (filterModes.includes(mode)) {

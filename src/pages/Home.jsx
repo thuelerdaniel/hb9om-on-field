@@ -207,10 +207,20 @@ export default function Home() {
   // Data loading — gated by activeLayers (only loads data for enabled layers)
   const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData } = useMapData(activeLayers);
   const [baseLayer, setBaseLayer] = useState(() => localStorage.getItem("hb9om_base_layer") || "osm");
-  const [lockedScale, setLockedScale] = useState(null);
-  const [mapOpacity, setMapOpacity] = useState(1);
-  const [activeContinents, setActiveContinents] = useState([]);
-  const [activeCountries, setActiveCountries] = useState([]);
+  const [lockedScale, setLockedScale] = useState(() => {
+    const saved = localStorage.getItem("hb9om_locked_scale");
+    return saved ? parseInt(saved) : null;
+  });
+  const [mapOpacity, setMapOpacity] = useState(() => {
+    const saved = localStorage.getItem("hb9om_map_opacity");
+    return saved ? parseFloat(saved) : 1;
+  });
+  const [activeContinents, setActiveContinents] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("hb9om_active_continents")) || []; } catch { return []; }
+  });
+  const [activeCountries, setActiveCountries] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("hb9om_active_countries")) || []; } catch { return []; }
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [placeResults, setPlaceResults] = useState([]);
@@ -223,8 +233,8 @@ export default function Home() {
 
   // UI mode state
   const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("hb9om_performance_mode") === "true");
-  const [dragMode, setDragMode] = useState(false);
-  const [foxMode, setFoxMode] = useState("fox");
+  const [dragMode, setDragMode] = useState(() => localStorage.getItem("hb9om_drag_mode") === "true");
+  const [foxMode, setFoxMode] = useState(() => localStorage.getItem("hb9om_fox_mode") || "fox");
   const [showLogForm, setShowLogForm] = useState(false);
   const [editLogEntry, setEditLogEntry] = useState(null);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
@@ -371,6 +381,35 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("hb9om_performance_mode", String(performanceMode));
   }, [performanceMode]);
+
+  // Save map opacity, drag mode, fox mode, continents/countries, locked scale
+  useEffect(() => {
+    localStorage.setItem("hb9om_map_opacity", String(mapOpacity));
+  }, [mapOpacity]);
+
+  useEffect(() => {
+    localStorage.setItem("hb9om_drag_mode", String(dragMode));
+  }, [dragMode]);
+
+  useEffect(() => {
+    localStorage.setItem("hb9om_fox_mode", foxMode);
+  }, [foxMode]);
+
+  useEffect(() => {
+    localStorage.setItem("hb9om_active_continents", JSON.stringify(activeContinents));
+  }, [activeContinents]);
+
+  useEffect(() => {
+    localStorage.setItem("hb9om_active_countries", JSON.stringify(activeCountries));
+  }, [activeCountries]);
+
+  useEffect(() => {
+    if (lockedScale != null) {
+      localStorage.setItem("hb9om_locked_scale", String(lockedScale));
+    } else {
+      localStorage.removeItem("hb9om_locked_scale");
+    }
+  }, [lockedScale]);
 
   // Auto-dismiss splash after 3 seconds
   useEffect(() => {

@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { MapPin, BookOpen, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { MapPin, BookOpen, Settings as SettingsIcon, LogOut, Shield } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAppFeatures } from "@/lib/appFeatures";
 
@@ -9,6 +9,16 @@ export default function BottomNavigation() {
   const { features: rawFeatures } = useAppFeatures();
   const features = rawFeatures || { tools: {}, layers: {}, bands: {} };
   const tools = features.tools || {};
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await base44.auth.me();
+        setIsAdmin(me?.role === "admin");
+      } catch {}
+    })();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -19,7 +29,6 @@ export default function BottomNavigation() {
   };
 
   // Build nav items based on feature flags
-  // Karte (always), Logbuch (if enabled), Einstellungen (always), Abmelden (always)
   const navItems = [
     { path: "/", label: "Karte", icon: MapPin, always: true },
   ];
@@ -48,6 +57,23 @@ export default function BottomNavigation() {
           </Link>
         );
       })}
+
+      {/* Admin-Link — rot, nur für Admins */}
+      {isAdmin && (
+        <Link
+          to="/settings"
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${
+            location.pathname.startsWith("/admin")
+              ? "text-red-600 dark:text-red-400"
+              : "text-red-500 dark:text-red-400 hover:text-red-600"
+          }`}
+          title="Admin-Menü"
+        >
+          <Shield className={`w-4 h-4 ${location.pathname.startsWith("/admin") ? "scale-110" : ""} transition-transform`} />
+          <span className="text-[10px] font-bold leading-none text-red-500 dark:text-red-400">Admin</span>
+        </Link>
+      )}
+
       <button
         onClick={handleLogout}
         className="flex flex-col items-center gap-0.5 px-2 py-1 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"

@@ -38,8 +38,10 @@ function formatTimeAgo(iso) {
 }
 
 function PublicPositionLayerInner({ positions, userCallsign }) {
+  // Filter out own position — GpsTracker renders the user's own symbol
+  // directly at the GPS coordinates, so we don't duplicate it here.
   const visible = useMemo(() =>
-    (positions || []).filter(p => p.lat != null && p.lng != null),
+    (positions || []).filter(p => p.lat != null && p.lng != null && !p.is_own),
     [positions]
   );
 
