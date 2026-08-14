@@ -149,11 +149,16 @@
       "enum": [
         "band_estimate",
         "aprs_refined",
+        "terrain_los",
         "terrain_adjusted",
         "manual"
       ],
       "default": "band_estimate",
       "description": "Quelle der Abdeckungsdaten"
+    },
+    "coverage_polygon": {
+      "type": "object",
+      "description": "GeoJSON Polygon der Terrain-LOS Abdeckung (asymmetrisch, 36 Radiale)"
     },
     "coverage_refinement_pct": {
       "type": "number",

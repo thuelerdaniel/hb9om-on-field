@@ -1,24 +1,24 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Clock, RefreshCw, Loader2, Calendar, Globe, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, RefreshCw, Loader2, Calendar, Globe, ChevronDown, ChevronUp, Radio, TrendingUp } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
-// Admin component to view and configure the repeater coverage calculation schedule.
-// Shows the weekly cron schedule and allows incremental configuration.
+// Admin component to view repeater coverage calculation status and trigger manual calculation.
+// The cron job runs daily (platform scheduled automation) and processes the oldest
+// uncalculated repeaters worldwide. This component shows progress statistics.
 export default function CoverageScheduleManager() {
-  const [automations, setAutomations] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+  const [calcResult, setCalcResult] = useState(null);
   const { toast } = useToast();
 
-  const fetchAutomations = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch DailyRefreshSchedule entries for repeater coverage sources
-      const schedules = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({
-        source: "ch_repeater_links",
-      });
-      setAutomations(schedules || []);
+      const res = await base44.functions.invoke("calculateRepeaterCoverage", { stats_only: true });
+      setStats(res.data?.global || null);
     } catch {
       // silent
     } finally {
@@ -27,38 +27,34 @@ export default function CoverageScheduleManager() {
   }, []);
 
   useEffect(() => {
-    fetchAutomations();
-  }, [fetchAutomations]);
+    fetchStats();
+  }, [fetchStats]);
 
-  const handleToggleDay = async (scheduleId, currentDays, day) => {
-    const newDays = currentDays.includes(day)
-      ? currentDays.filter(d => d !== day)
-      : [...currentDays, day];
+  const handleManualBatch = async () => {
+    setCalculating(true);
+    setCalcResult(null);
     try {
-      await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleId, {
-        weekly_days: newDays,
+      const res = await base44.functions.invoke("calculateRepeaterCoverage", {
+        country_code: "all",
+        batch_limit: 30,
+        delay_ms: 1000,
       });
-      toast({ title: "Aktualisiert", description: `Wochentage geändert: ${newDays.join(", ") || "Keine"}` });
-      fetchAutomations();
+      setCalcResult(res.data);
+      toast({
+        title: "Batch berechnet",
+        description: `${res.data?.calculated || 0} Relais berechnet, ${res.data?.skipped || 0} übersprungen`,
+      });
+      fetchStats();
     } catch (e) {
       toast({ title: "Fehler", description: e.message, variant: "destructive" });
+    } finally {
+      setCalculating(false);
     }
   };
 
-  const handleToggleEnabled = async (scheduleId, currentEnabled) => {
-    try {
-      await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleId, {
-        weekly_enabled: !currentEnabled,
-      });
-      toast({ title: !currentEnabled ? "Aktiviert" : "Deaktiviert", description: "Cron-Job Status aktualisiert" });
-      fetchAutomations();
-    } catch (e) {
-      toast({ title: "Fehler", description: e.message, variant: "destructive" });
-    }
-  };
-
-  const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const DAY_LABELS = { Monday: "Mo", Tuesday: "Di", Wednesday: "Mi", Thursday: "Do", Friday: "Fr", Saturday: "Sa", Sunday: "So" };
+  const pct = stats && stats.totalRepeaters > 0
+    ? Math.round((stats.calculated / stats.totalRepeaters) * 100)
+    : 0;
 
   return (
     <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
@@ -75,7 +71,7 @@ export default function CoverageScheduleManager() {
 
       {!expanded && (
         <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-          Wöchentliche Terrain-LOS Berechnung für CH-Relais (Montag 07:00 UTC)
+          Tägliche Terrain-LOS Berechnung weltweit — {pct}% abgedeckt
         </p>
       )}
 
@@ -85,82 +81,79 @@ export default function CoverageScheduleManager() {
             <div className="flex justify-center py-4">
               <Loader2 className="w-5 h-5 animate-spin text-gray-300" />
             </div>
-          ) : automations.length === 0 ? (
-            <div className="text-center py-4">
-              <Calendar className="w-6 h-6 text-gray-200 mx-auto mb-1" />
-              <p className="text-xs text-gray-400">Kein Cron-Job für Abdeckungsberechnung konfiguriert</p>
-              <p className="text-[10px] text-gray-400 mt-1">
-                Der Cron-Job wird automatisch erstellt wenn die Abdeckungsberechnung zum ersten Mal ausgelöst wird.
-              </p>
-            </div>
-          ) : (
-            automations.map(sched => (
-              <div key={sched.id} className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2.5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5 text-teal-600" />
-                    <span className="text-xs font-semibold text-gray-900 dark:text-slate-100">
-                      {sched.label || sched.source}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleToggleEnabled(sched.id, sched.weekly_enabled)}
-                    className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${sched.weekly_enabled ? "bg-teal-600" : "bg-gray-300"}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${sched.weekly_enabled ? "translate-x-5" : ""}`} />
-                  </button>
+          ) : stats ? (
+            <>
+              {/* Progress bar */}
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-gray-500 dark:text-slate-400">Berechnet</span>
+                  <span className="font-semibold text-gray-900 dark:text-slate-100">
+                    {stats.calculated?.toLocaleString()} / {stats.totalRepeaters?.toLocaleString()} ({pct}%)
+                  </span>
                 </div>
-
-                <div className="text-[10px] text-gray-500 dark:text-slate-400 mb-2">
-                  Funktion: <span className="font-mono">{sched.function_name}</span>
-                </div>
-
-                {sched.last_run_time && (
-                  <div className="text-[10px] text-gray-500 dark:text-slate-400 mb-2">
-                    Letzte Ausführung: {new Date(sched.last_run_time).toLocaleString("de-CH")} · Status: {sched.last_status || "unbekannt"}
-                    {sched.last_count != null && ` · ${sched.last_count} Relais`}
-                  </div>
-                )}
-
-                <div>
-                  <div className="text-[10px] text-gray-500 dark:text-slate-400 mb-1">Wochentage:</div>
-                  <div className="flex gap-1 flex-wrap">
-                    {DAYS.map(day => {
-                      const active = (sched.weekly_days || ["Monday"]).includes(day);
-                      return (
-                        <button
-                          key={day}
-                          onClick={() => handleToggleDay(sched.id, sched.weekly_days || [], day)}
-                          className={`px-2 py-1 text-[10px] font-medium rounded-md transition-colors ${
-                            active
-                              ? "bg-teal-600 text-white"
-                              : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
-                          }`}
-                        >
-                          {DAY_LABELS[day]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-slate-700">
-                  <div className="text-[10px] text-gray-500 dark:text-slate-400 mb-1">Inkrementelle Konfiguration:</div>
-                  <div className="text-[10px] text-gray-400">
-                    Sync-Typ: <span className="font-mono">{sched.sync_type || "full_batch"}</span>
-                  </div>
-                  {sched.incremental_enabled && (
-                    <div className="text-[10px] text-green-600 mt-0.5">
-                      Inkrementeller Sync aktiv — nur Deltas werden berechnet
-                    </div>
-                  )}
+                <div className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-teal-500 rounded-full transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
               </div>
-            ))
+
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2">
+                  <div className="text-gray-400 text-[10px]">Mit Koordinaten</div>
+                  <div className="font-semibold text-gray-900 dark:text-slate-100">{stats.withCoords?.toLocaleString() || 0}</div>
+                </div>
+                <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2">
+                  <div className="text-gray-400 text-[10px]">Terrain-LOS</div>
+                  <div className="font-semibold text-teal-600">{stats.terrainAdjusted?.toLocaleString() || 0}</div>
+                </div>
+                <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2">
+                  <div className="text-gray-400 text-[10px]">APRS-verfeinert</div>
+                  <div className="font-semibold text-blue-600">{stats.aprsRefined?.toLocaleString() || 0}</div>
+                </div>
+                <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2">
+                  <div className="text-gray-400 text-[10px]">Wartet auf Neuberechnung</div>
+                  <div className="font-semibold text-amber-600">{stats.pendingRecalc?.toLocaleString() || 0}</div>
+                </div>
+              </div>
+
+              {/* Cron info */}
+              <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-2.5 text-xs">
+                <div className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300 font-semibold mb-1">
+                  <Calendar className="w-3.5 h-3.5" />
+                  Cron-Job: Täglich 05:00 UTC
+                </div>
+                <p className="text-[10px] text-teal-600 dark:text-teal-400 leading-relaxed">
+                  Verarbeitet weltweit die ältesten/unkalkulierten Relais zuerst (50 pro Lauf).
+                  Bei ~10'000 Relais dauert eine vollständige Abdeckung ca. 200 Tage.
+                </p>
+              </div>
+
+              {/* Manual trigger */}
+              <button
+                onClick={handleManualBatch}
+                disabled={calculating}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-40"
+              >
+                {calculating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TrendingUp className="w-3.5 h-3.5" />}
+                {calculating ? "Berechne..." : "Manuellen Batch starten (30 Relais)"}
+              </button>
+
+              {calcResult && (
+                <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 text-xs text-gray-600 dark:text-slate-400">
+                  <div>Berechnet: {calcResult.calculated} · Übersprungen: {calcResult.skipped} · Fehler: {calcResult.errors}</div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">Dauer: {(calcResult.duration_ms / 1000).toFixed(1)}s</div>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-gray-400 text-center py-4">Statistiken nicht verfügbar</p>
           )}
 
           <button
-            onClick={fetchAutomations}
+            onClick={fetchStats}
             disabled={loading}
             className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-50 disabled:opacity-40"
           >

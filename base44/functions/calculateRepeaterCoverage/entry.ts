@@ -27,30 +27,29 @@ export default async function(req: any): Promise<Response> {
 
     // --- Stats-only mode: return global coverage statistics without calculating ---
     if (statsOnly) {
-      const allRepeaters = await base44.asServiceRole.entities.Repeater.filter({}, '-created_date', 500);
-      let totalRepeaters = allRepeaters.length;
-      let withCoords = 0, aprsRefined = 0, terrainAdjusted = 0, calculated = 0, pendingRecalc = 0;
+      // Fetch repeaters WITH coordinates only — those without coords can't be calculated.
+      const withCoordRepeaters = await base44.asServiceRole.entities.Repeater.filter({ lat: { $ne: null } }, '-created_date', 500);
+      // Also fetch total count from ReferenceData for the "total" display
+      let totalRepeaters = 0;
+      try {
+        const refData = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'repeater' });
+        for (const rec of refData) {
+          if (rec.total_count && rec.total_count > totalRepeaters) totalRepeaters = rec.total_count;
+        }
+      } catch {}
+      if (totalRepeaters === 0) totalRepeaters = withCoordRepeaters.length;
+
+      let withCoords = withCoordRepeaters.length, aprsRefined = 0, terrainAdjusted = 0, calculated = 0, pendingRecalc = 0;
       let refinementSum = 0;
       const countriesSet = new Set();
 
-      for (const r of allRepeaters) {
-        if (r.lat != null && r.lng != null) withCoords++;
+      for (const r of withCoordRepeaters) {
         if (r.coverage_source === 'aprs_refined') aprsRefined++;
         if (r.coverage_source === 'terrain_los' || r.coverage_source === 'terrain_adjusted') terrainAdjusted++;
         if (r.coverage_updated != null) calculated++;
         if (r.needs_recalc === true) pendingRecalc++;
         if (r.coverage_refinement_pct != null) refinementSum += r.coverage_refinement_pct;
         if (r.country_code) countriesSet.add(r.country_code);
-      }
-
-      // If we hit the 500 limit, approximate total from ReferenceData
-      if (totalRepeaters === 500) {
-        try {
-          const refData = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'repeater' });
-          for (const rec of refData) {
-            if (rec.total_count && rec.total_count > totalRepeaters) totalRepeaters = rec.total_count;
-          }
-        } catch {}
       }
 
       const avgRefinementPct = withCoords > 0 ? Math.round((refinementSum / withCoords) * 10) / 10 : 0;
@@ -125,17 +124,33 @@ export default async function(req: any): Promise<Response> {
       });
     }
 
-    // --- Batch mode (admin) ---
-    const scope = countryCode || 'CH';
-    const filter = scope === 'all' ? {} : { country_code: scope };
-    const repeaters = await base44.asServiceRole.entities.Repeater.filter(filter, '-created_date', 500);
+    // --- Batch mode (admin or cron) ---
+    // Worldwide coverage: process repeaters that haven't been calculated yet (oldest/null first).
+    // This ensures all repeaters get coverage within ~1 year of daily cron runs.
+    // A specific country can be requested via country_code; 'all' or omitting it processes worldwide.
+    const scope = countryCode || 'all';
+    // Filter for repeaters WITH coordinates — those without can't be coverage-calculated.
+    // Sort by coverage_updated ASCENDING — null/oldest first, so uncalculated repeaters
+    // are prioritized. This ensures the cron job progresses through all repeaters over time.
+    const filter = scope === 'all'
+      ? { lat: { $ne: null } }
+      : { country_code: scope, lat: { $ne: null } };
+    const repeaters = await base44.asServiceRole.entities.Repeater.filter(filter, 'coverage_updated', 500);
 
     let calculated = 0, errors = 0, skipped = 0;
     const errorDetails: string[] = [];
     const startTime = Date.now();
+    // Batch limit per run — keeps within function timeout. fetchElevations already
+    // rate-limits internally (250ms between 100-point batches), so 1s between repeaters
+    // is sufficient. ~50 repeaters per run × 365 daily runs = 18,250/year.
+    const BATCH_LIMIT = body?.batch_limit || 50;
+    const delayMs = body?.delay_ms || 1000;
 
     for (const r of repeaters) {
+      if (calculated >= BATCH_LIMIT) break;
       if (r.lat == null || r.lng == null) { skipped++; continue; }
+      // Skip if already has terrain_los coverage newer than 168h (7 days) unless forced.
+      // This prevents recalculating the same repeaters every run.
       if (!forceRecalc && r.coverage_source === 'terrain_los' && r.coverage_updated != null) {
         const ageH = (Date.now() - new Date(r.coverage_updated).getTime()) / (1000 * 60 * 60);
         if (ageH < 168) { skipped++; continue; }
@@ -163,7 +178,7 @@ export default async function(req: any): Promise<Response> {
           needs_recalc: false,
         });
         calculated++;
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Rate limit
+        await new Promise(resolve => setTimeout(resolve, delayMs));
       } catch (e: any) {
         errors++;
         errorDetails.push(`${r.callsign} ${r.frequency}: ${e?.message || 'Fehler'}`);
@@ -173,6 +188,7 @@ export default async function(req: any): Promise<Response> {
     return Response.json({
       success: true, scope, total: repeaters.length,
       calculated, errors, skipped,
+      batch_limit: BATCH_LIMIT,
       duration_ms: Date.now() - startTime,
       error_details: errorDetails.slice(0, 10),
     });

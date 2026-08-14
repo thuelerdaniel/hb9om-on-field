@@ -120,9 +120,18 @@ export default function AdminPanel({
     setCoverageLoading(true);
     setCoverageResult(null);
     try {
-      const res = await base44.functions.invoke("calculateRepeaterCoverage", { country_code: coverageScope, force: true });
+      const res = await base44.functions.invoke("calculateRepeaterCoverage", {
+        country_code: coverageScope,
+        force: true,
+        batch_limit: coverageScope === "all" ? 30 : 50,
+        delay_ms: 1000,
+      });
       setCoverageResult(res.data);
-      toast({ title: "Abdeckung berechnet", description: `${res.data?.updated || 0} Relais aktualisiert (${res.data?.aprsRefined || 0} APRS-verfeinert)`, duration: 5000 });
+      toast({
+        title: "Abdeckung berechnet",
+        description: `${res.data?.calculated || 0} Relais berechnet, ${res.data?.skipped || 0} übersprungen, ${res.data?.errors || 0} Fehler`,
+        duration: 5000,
+      });
       fetchCoverageProgress();
     } catch (e) {
       toast({ title: "Fehler", description: e.message || "Unbekannter Fehler", variant: "destructive" });
@@ -448,7 +457,7 @@ export default function AdminPanel({
             <Signal className="w-4 h-4 text-green-600" /> Relais-Abdeckung berechnen
           </h3>
           <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
-            Terrain-LOS mit SRTM 30m Höhendaten, Fresnel-Zone & Link-Budget. Erstellt asymmetrische Abdeckungspolygone. Weltweite Relais: Band-Schätzung. CH-Relais: volle Terrain-Berechnung.
+            Terrain-LOS mit SRTM 30m Höhendaten, Fresnel-Zone & Link-Budget. Erstellt asymmetrische Abdeckungspolygone. Der tägliche Cron-Job berechnet weltweit die ältesten/unkalkulierten Relais zuerst.
           </p>
 
           {/* Global progress indicator */}
@@ -552,7 +561,7 @@ export default function AdminPanel({
           </div>
           {coverageResult && (
             <div className="mt-2 p-2 rounded-lg text-xs bg-green-50 dark:bg-green-900/20 text-green-700">
-              {coverageResult.scope === "worldwide" ? "Weltweit" : coverageResult.scope}: {coverageResult.total} Relais · {coverageResult.bandEstimated} Band-Schätzungen · {coverageResult.aprsRefined} APRS-verfeinert · {coverageResult.updated} aktualisiert
+              {coverageResult.scope === "all" ? "Weltweit" : coverageResult.scope}: {coverageResult.total} Relais durchsucht · {coverageResult.calculated} berechnet · {coverageResult.skipped} übersprungen · {coverageResult.errors} Fehler · {(coverageResult.duration_ms / 1000).toFixed(1)}s
             </div>
           )}
 
