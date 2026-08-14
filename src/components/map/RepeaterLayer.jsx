@@ -489,10 +489,17 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
 
   return (
     <>
-      {/* Coverage — terrain polygon (LOS) OR circle fallback (band estimate) */}
+      {/* Coverage — terrain polygon (LOS) OR circle from calculated radius.
+          Only repeaters with ACTUAL calculated coverage data are rendered.
+          Uncalculated repeaters (no coverage_radius_km, no polygon) show nothing. */}
       {(showCoverage || (individualCoverage && individualCoverage.size > 0)) && cappedRepeaters.map((r, idx) => {
         const showThis = showCoverage || (individualCoverage && individualCoverage.has(r.id));
         if (!showThis) return null;
+
+        // Skip repeaters with no calculated coverage data at all
+        const hasCalculated = r.coverage_radius_km != null || r.coverage_polygon?.coordinates?.[0];
+        if (!hasCalculated) return null;
+
         const color = getModeColor(r.primary_mode);
         const refinementPct = r.coverage_refinement_pct || 0;
         const fillOpacity = r.status === "off-air"
@@ -517,8 +524,9 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
           );
         }
 
-        // Fallback: circle from coverage_radius_km or band estimate
-        const radiusKm = r.coverage_radius_km || COVERAGE_RADIUS_KM[r.band] || COVERAGE_RADIUS_KM["Other"];
+        // Circle from calculated coverage_radius_km (no band estimate fallback)
+        const radiusKm = r.coverage_radius_km;
+        if (radiusKm == null) return null;
         return (
           <Circle
             key={`cov-${r.id || idx}`}

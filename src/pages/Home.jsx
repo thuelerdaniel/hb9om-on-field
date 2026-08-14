@@ -564,12 +564,14 @@ export default function Home() {
     setRepeaterCorrection(repeater);
   }, []);
 
-  // Toggle individual coverage
-  const handleToggleCoverage = useCallback((repeaterId) => {
+  // Toggle individual coverage — accepts either a repeater object or an id string
+  const handleToggleCoverage = useCallback((repeaterOrId) => {
+    const id = typeof repeaterOrId === 'string' ? repeaterOrId : repeaterOrId?.id;
+    if (!id) return;
     setIndividualCoverage(prev => {
       const next = new Set(prev);
-      if (next.has(repeaterId)) next.delete(repeaterId);
-      else next.add(repeaterId);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);

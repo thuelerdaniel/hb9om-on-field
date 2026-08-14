@@ -82,12 +82,21 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         action: "triggerCoverage",
         repeater_id: repeater.id,
       });
+      // manageRepeater returns { success, result: { coverage_radius_km, coverage_source, polygon, ... } }
+      // The SDK may wrap it under .data — handle both structures
+      const result = res?.result || res?.data?.result || res?.data;
       repeater.needs_recalc = false;
       repeater.coverage_updated = new Date().toISOString();
-      if (res?.data?.coverage_radius_km != null) {
-        repeater.coverage_radius_km = res.data.coverage_radius_km;
-        repeater.coverage_refinement_pct = res.data.coverage_refinement_pct ?? 100;
-        repeater.coverage_source = res.data.coverage_source || "terrain_adjusted";
+      if (result?.coverage_radius_km != null) {
+        repeater.coverage_radius_km = result.coverage_radius_km;
+        repeater.coverage_refinement_pct = result.coverage_refinement_pct ?? 100;
+        repeater.coverage_source = result.coverage_source || "terrain_adjusted";
+        // Update the polygon so the map can render the asymmetric terrain-LOS shape
+        if (result.polygon) {
+          repeater.coverage_polygon = result.polygon;
+        }
+        if (result.elevation_m != null) repeater.elevation_m = result.elevation_m;
+        if (result.terrain_factor != null) repeater.terrain_factor = result.terrain_factor;
       }
       setCalcResult({ success: true, message: "Abdeckung berechnet — wird auf Karte angezeigt" });
       // Auto-toggle coverage display if not already on
