@@ -413,9 +413,56 @@ const SECTIONS = [
         example: "Rufzeichen «HB9ABC» eingeben → Speichern → beim nächsten Clubstation-QSO bereits vorausgefüllt."
       },
       {
-        title: "QRZ.com Abfrage",
+        anchor: "qrz-konfiguration",
+        title: "QRZ.com Abfrage & Konfiguration",
         body: "Jeder Benutzer kann seine eigenen QRZ.com-Zugangsdaten in den Einstellungen hinterlegen (Benutzername & Passwort). Geben Sie Ihre Daten ein und speichern Sie das Profil. Der Schalter wird erst aktiviert, wenn Anmeldedaten hinterlegt sind. Administratoren und der Demo-Benutzer nutzen automatisch die Club-XML-Subscription. Klicken Sie auf «QRZ-Verbindung testen», um zu prüfen, ob die Anmeldung funktioniert. Beim Erfassen eines QSOs werden Name, Adresse, Land, Grid-Locator und E-Mail des Operators automatisch von QRZ.com geladen.",
-        example: "Einstellungen → QRZ-Benutzername & Passwort eingeben → Speichern → Schalter aktivieren → «Verbindung testen»."
+        example: "Einstellungen → QRZ-Benutzername & Passwort eingeben → Speichern → Schalter aktivieren → «Verbindung testen».",
+        links: [
+          { label: "QRZ.com Konto erstellen", url: "https://www.qrz.com/register" },
+          { label: "QRZ.com XML-Subscription (erforderlich)", url: "https://www.qrz.com/page/current_spec.html" },
+        ]
+      },
+      {
+        anchor: "aprs-konfiguration",
+        title: "APRS.fi API-Key konfigurieren",
+        body: "Für die APRS-Datenabfrage (Private Nodes, Relais-Koordinaten) benötigen Sie einen APRS.fi API-Key. Der Key ist kostenlos erhältlich. Gehen Sie auf aprs.fi/page/api, melden Sie sich mit Ihrem APRS-Rufzeichen an und fordern Sie einen API-Key an. Geben Sie den Key in den Einstellungen unter «APRS.fi API-Key» ein. Klicken Sie auf «APRS-Key testen», um die Funktion zu prüfen. Ohne Key sind APRS-Relais und Private Nodes nicht verfügbar. Demo-Konto: Der Club-Key ist bereits hinterlegt.",
+        example: "aprs.fi/page/api → API-Key anfordern → Einstellungen → Key eingeben → «Testen».",
+        links: [
+          { label: "APRS.fi API-Key anfordern (kostenlos)", url: "https://aprs.fi/page/api" },
+        ]
+      },
+      {
+        anchor: "repeaterbook-konfiguration",
+        title: "RepeaterBook Login konfigurieren",
+        body: "Für authentifizierte Abfragen von Relais-Positionen können Sie Ihren RepeaterBook-Login hinterlegen. Ohne Login werden nur öffentliche Daten abgefragt. Mit Login sind auch erweiterte Daten verfügbar. Erstellen Sie ein kostenloses Konto auf repeaterbook.com, geben Sie Benutzername und Passwort in den Einstellungen ein und testen Sie die Verbindung. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet.",
+        example: "repeaterbook.com → Konto erstellen → Einstellungen → Login eingeben → «Testen».",
+        links: [
+          { label: "RepeaterBook Konto erstellen (kostenlos)", url: "https://www.repeaterbook.com/" },
+        ]
+      },
+      {
+        anchor: "brandmeister-konfiguration",
+        title: "BrandMeister Login konfigurieren",
+        body: "Für BrandMeister-DMR-Daten (Hotspots & Relais) können Sie Ihren BrandMeister-Login hinterlegen. Erstellen Sie ein Konto auf brandmeister.network, geben Sie Benutzername und Passwort in den Einstellungen ein und testen Sie die Verbindung. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet.",
+        example: "brandmeister.network → Konto erstellen → Einstellungen → Login eingeben → «Testen».",
+        links: [
+          { label: "BrandMeister Konto erstellen", url: "https://brandmeister.network/" },
+        ]
+      },
+      {
+        title: "Zugangsdaten-Priorität (Club vs. Persönlich)",
+        body: "In den Einstellungen können Sie unter «Zugangsdaten-Priorität» festlegen, welche Zugangsdaten für App-Abfragen verwendet werden: «Auto» (Fallback: Persönlich → Club → Code), «Persönliche Zugangsdaten» oder «Club-Zugangsdaten». Bei «Auto» werden persönliche Angaben bevorzugt, falls vorhanden. Fehlen diese, werden Club-Daten oder die im Code hinterlegten Secrets verwendet. Das Demo-Konto nutzt immer die Club-Daten — eigene Eingaben sind gesperrt.",
+        example: "Einstellungen → «Zugangsdaten-Priorität» → «Persönliche Zugangsdaten» wählen → alle Abfragen nutzen Ihre eigenen Daten."
+      },
+      {
+        title: "Konfigurations-Status (Fortschrittsbalken)",
+        body: "Oben in den Einstellungen wird ein Fortschrittsbalken angezeigt, der anzeigt, wie viele Konfigurationen erfasst sind. Fehlende Konfigurationen werden mit Erklärung und direktem Link aufgelistet. Bei 100% sind alle Funktionen verfügbar. Bei fehlenden Konfigurationen sind die entsprechenden Funktionen (z.B. APRS-Layer ohne API-Key) in der App ausgegraut.",
+        example: "Fortschrittsbalken zeigt 60% → fehlende Konfiguration anklicken → direkt zum Eingabefeld springen."
+      },
+      {
+        title: "Demo-Konto Beschränkungen",
+        body: "Das Demo-Konto (demo@hb9om.ch) hat eingeschränkte Funktionen: Eingabefelder für QRZ, APRS, RepeaterBook und BrandMeister sind gesperrt (HB9OM hat Accounts für Demo-Zwecke hinterlegt). Backup & Restore sind gesperrt. QRZ-Uploads aus dem Logbuch sind gesperrt. Alle gesperrten Funktionen sind ausgegraut mit entsprechendem Hinweis. Normale Benutzerkonten haben volle Funktionalität.",
+        example: "Demo-Konto → Einstellungen → alle Passwort-Felder grau mit Hinweis «Demo-Konto: gesperrt»."
       },
       {
         title: "Daten aktualisieren",
@@ -682,6 +729,22 @@ function HelpSection({ section }) {
               {item.example && (
                 <div className="mt-2 px-3 py-2 bg-gray-50 dark:bg-slate-900 rounded-lg text-xs text-gray-600 dark:text-slate-300 border border-gray-100 dark:border-slate-700">
                   <span className="font-semibold text-gray-700 dark:text-slate-200">💡 Beispiel:</span> {item.example}
+                </div>
+              )}
+
+              {item.links && item.links.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {item.links.map((link, j) => (
+                    <a
+                      key={j}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                    >
+                      {link.label} <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ))}
                 </div>
               )}
             </div>
