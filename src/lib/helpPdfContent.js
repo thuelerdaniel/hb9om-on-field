@@ -523,7 +523,7 @@ export const SECTIONS = [
       },
       {
         title: "QRZ.com Abfrage & Konfiguration",
-        body: "Jeder Benutzer kann seine eigenen QRZ.com-Zugangsdaten in den Einstellungen hinterlegen (Benutzername und Passwort). Der Schalter wird erst aktiviert, wenn Anmeldedaten hinterlegt sind. Administratoren und der Demo-Benutzer nutzen automatisch die Club-XML-Subscription. Administratoren können zwischen globalen und persönlichen Keys wählen — normale Benutzer behalten immer ihre eigenen Angaben. Für die QRZ-Abfrage wird eine XML-Subscription benötigt (kostenpflichtig). Für den Logbuch-Upload zu QRZ.com wird zusätzlich ein API-Key benötigt.",
+        body: "Jeder Benutzer kann seine eigenen QRZ.com-Zugangsdaten in den Einstellungen hinterlegen (Benutzername und Passwort). Der Schalter wird erst aktiviert, wenn Anmeldedaten hinterlegt sind. Administratoren und der Demo-Benutzer nutzen automatisch die Club-XML-Subscription. Administratoren können zwischen globalen und persönlichen Keys wählen — normale Benutzer behalten immer ihre eigenen Angaben. Für die QRZ-Abfrage wird eine XML-Subscription benötigt (kostenpflichtig). Für den Logbuch-Upload zu QRZ.com wird zusätzlich ein API-Key benötigt. Alle Passwort-Felder haben einen Augen-Button zum Ein- und Ausblenden. Jeder API-Key und jedes Login kann direkt in den Einstellungen getestet werden — bei Fehlern wird die Antwort der Quelle im Detail ausgeklappt.",
         steps: [
           { icon: "globe", text: "Konto auf qrz.com erstellen (falls noch nicht vorhanden)" },
           { icon: "creditCard", text: "XML-Subscription abschliessen (erforderlich für API-Zugriff)" },
@@ -532,79 +532,82 @@ export const SECTIONS = [
           { icon: "pencil", text: "QRZ-Passwort eingeben (Augen-Button zum Einblenden)" },
           { icon: "save", text: "«Speichern» antippen" },
           { icon: "check", text: "Schalter «QRZ aktivieren» umlegen" },
-          { icon: "search", text: "«QRZ-Verbindung testen» für Prüfung" }
+          { icon: "search", text: "«QRZ-Verbindung testen» für Prüfung (Admins: auch ohne eigene Zugangsdaten möglich)" },
+          { icon: "keyRound", text: "QRZ API-Key (persönlich) eingeben und «QRZ API-Key testen»" }
         ],
         links: [
           { label: "QRZ.com Konto erstellen", url: "https://www.qrz.com/register" },
           { label: "QRZ.com XML-Subscription", url: "https://www.qrz.com/page/current_spec.html" }
         ],
-        tip: "Tipp: Beim Erfassen eines QSOs werden Name, Adresse, Land, Grid-Locator und E-Mail des Operators automatisch von QRZ.com geladen. Admins können im Admin-Bereich unter «API-Keys» zwischen globalen und persönlichen Keys wechseln."
+        tip: "Tipp: Beim Erfassen eines QSOs werden Name, Adresse, Land, Grid-Locator und E-Mail des Operators automatisch von QRZ.com geladen. Admins können im Admin-Bereich unter «API-Keys» zwischen globalen und persönlichen Keys wechseln. Der Test verwendet immer das eigene Rufzeichen und respektiert die eingestellte Zugangsdaten-Priorität."
       },
       {
         title: "APRS.fi API-Key konfigurieren",
-        body: "Für die APRS-Datenabfrage (Private Nodes, Relais-Koordinaten) benötigen Sie einen APRS.fi API-Key. Der Key ist kostenlos erhältlich. Ohne Key sind APRS-Relais und Private Nodes nicht verfügbar. Demo-Konto: Der Club-Key ist bereits hinterlegt.",
+        body: "Für die APRS-Datenabfrage (Private Nodes, Relais-Koordinaten) benötigen Sie einen APRS.fi API-Key. Der Key ist kostenlos erhältlich. Ohne Key sind APRS-Relais und Private Nodes nicht verfügbar. Demo-Konto: Der Club-Key ist bereits hinterlegt. Der Test-Button «APRS-Key testen» prüft den Key direkt gegen die APRS.fi API und zeigt bei Fehlern die Antwort der Quelle an.",
         steps: [
           { icon: "globe", text: "Auf aprs.fi/page/api gehen" },
           { icon: "user", text: "Mit APRS-Rufzeichen anmelden" },
           { icon: "keyRound", text: "API-Key anfordern (kostenlos)" },
           { icon: "settings", text: "Einstellungen → «APRS.fi API-Key»" },
-          { icon: "pencil", text: "Key eingeben" },
-          { icon: "search", text: "«APRS-Key testen» für Prüfung" }
+          { icon: "pencil", text: "Key eingeben (Augen-Button zum Einblenden)" },
+          { icon: "search", text: "«APRS-Key testen» für Prüfung — Antwort der Quelle wird ausgeklappt bei Fehler" }
         ],
         links: [
           { label: "APRS.fi API-Key anfordern", url: "https://aprs.fi/page/api" }
         ],
-        tip: "Tipp: Der API-Key ist kostenlos und wird sofort nach der Anmeldung mit dem APRS-Rufzeichen ausgestellt."
+        tip: "Tipp: Der API-Key ist kostenlos und wird sofort nach der Anmeldung mit dem APRS-Rufzeichen ausgestellt. Der Test-Button erscheint erst, wenn ein Key eingegeben wurde."
       },
       {
         title: "RepeaterBook Login konfigurieren",
-        body: "Für authentifizierte Abfragen von Relais-Positionen können Sie Ihren RepeaterBook-Login hinterlegen. Ohne Login werden nur öffentliche Daten abgefragt. Mit Login sind auch erweiterte Daten verfügbar. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet.",
+        body: "Für authentifizierte Abfragen von Relais-Positionen können Sie Ihren RepeaterBook-Login hinterlegen. Ohne Login werden nur öffentliche Daten abgefragt. Mit Login sind auch erweiterte Daten verfügbar. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet. Der Test-Button «Testen» prüft den Login direkt gegen RepeaterBook und zeigt bei Fehlern die Antwort der Quelle an.",
         steps: [
           { icon: "globe", text: "Konto auf repeaterbook.com erstellen (kostenlos)" },
           { icon: "settings", text: "Einstellungen → «RepeaterBook Login»" },
           { icon: "pencil", text: "Benutzername eingeben" },
           { icon: "pencil", text: "Passwort eingeben (Augen-Button zum Einblenden)" },
-          { icon: "search", text: "«Testen» für Verbindungsprüfung" }
+          { icon: "search", text: "«Testen» für Verbindungsprüfung — Test-Button erscheint bei eingegebenem Login" }
         ],
         links: [
           { label: "RepeaterBook Konto erstellen", url: "https://www.repeaterbook.com/" }
         ],
-        tip: "Tipp: Ein RepeaterBook-Konto ist kostenlos und gibt Zugang zu erweiterten Relais-Daten."
+        tip: "Tipp: Ein RepeaterBook-Konto ist kostenlos und gibt Zugang zu erweiterten Relais-Daten. Der Test-Button erscheint erst, wenn Benutzername und Passwort eingegeben wurden."
       },
       {
         title: "BrandMeister Login konfigurieren",
-        body: "Für BrandMeister-DMR-Daten (Hotspots und Relais) können Sie Ihren BrandMeister-Login hinterlegen. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet.",
+        body: "Für BrandMeister-DMR-Daten (Hotspots und Relais) können Sie Ihren BrandMeister-Login hinterlegen. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet. Der Test-Button «Testen» prüft den Login direkt gegen BrandMeister und zeigt bei Fehlern die Antwort der Quelle an.",
         steps: [
           { icon: "globe", text: "Konto auf brandmeister.network erstellen" },
           { icon: "settings", text: "Einstellungen → «BrandMeister Login»" },
           { icon: "pencil", text: "Benutzername eingeben" },
           { icon: "pencil", text: "Passwort eingeben (Augen-Button zum Einblenden)" },
-          { icon: "search", text: "«Testen» für Verbindungsprüfung" }
+          { icon: "search", text: "«Testen» für Verbindungsprüfung — Test-Button erscheint bei eingegebenem Login" }
         ],
         links: [
           { label: "BrandMeister Konto erstellen", url: "https://brandmeister.network/" }
         ],
-        tip: "Tipp: BrandMeister ist ein globales DMR-Netzwerk. Ein Konto ist kostenlos."
+        tip: "Tipp: BrandMeister ist ein globales DMR-Netzwerk. Ein Konto ist kostenlos. Der Test-Button erscheint erst, wenn Benutzername und Passwort eingegeben wurden."
       },
       {
         title: "Zugangsdaten-Priorität (Club vs. Persönlich)",
-        body: "In den Einstellungen können Sie unter «Zugangsdaten-Priorität» festlegen, welche Zugangsdaten für App-Abfragen verwendet werden: «Auto» (Fallback: Persönlich → Club → Code), «Persönliche Zugangsdaten» oder «Club-Zugangsdaten». Bei «Auto» werden persönliche Angaben bevorzugt, falls vorhanden. Das Demo-Konto nutzt immer die Club-Daten — eigene Eingaben sind gesperrt.",
+        body: "In den Einstellungen können Sie unter «Zugangsdaten-Priorität» festlegen, welche Zugangsdaten für App-Abfragen verwendet werden. Administratoren haben drei Optionen: «Auto» (Fallback: Persönlich → Club → Code), «Persönliche Zugangsdaten» oder «Club-Zugangsdaten». Normale Benutzer haben zwei Optionen: «Persönlich» oder «Club». Bei «Auto» werden persönliche Angaben bevorzugt, falls vorhanden. Das Demo-Konto nutzt immer die Club-Daten — eigene Eingaben sind gesperrt. Die Zugangsdaten-Priorität wirkt sich auf alle Abfragen aus: QRZ, APRS.fi, RepeaterBook und BrandMeister.",
         steps: [
           { icon: "settings", text: "Einstellungen → «Zugangsdaten-Priorität»" },
-          { icon: "list", text: "«Auto», «Persönlich» oder «Club» wählen" },
+          { icon: "list", text: "Admins: «Auto», «Persönlich» oder «Club» wählen" },
+          { icon: "list", text: "User: «Persönlich» oder «Club» wählen" },
           { icon: "save", text: "Auswahl wird sofort gespeichert" }
         ],
-        tip: "Tipp: Bei «Auto» werden persönliche Angaben bevorzugt, fallen diese zurück auf Club-Daten oder im Code hinterlegte Secrets."
+        tip: "Tipp: Bei «Auto» werden persönliche Angaben bevorzugt, fallen diese zurück auf Club-Daten oder im Code hinterlegte Secrets. Die Einstellung wirkt sich auf alle API-Abfragen aus."
       },
       {
         title: "Konfigurations-Status (Fortschrittsbalken)",
-        body: "Oben in den Einstellungen wird ein Fortschrittsbalken angezeigt, der anzeigt, wie viele Konfigurationen erfasst sind. Fehlende Konfigurationen werden mit Erklärung und direktem Link aufgelistet. Bei 100% sind alle Funktionen verfügbar. Bei fehlenden Konfigurationen sind die entsprechenden Funktionen in der App ausgegraut.",
+        body: "Oben in den Einstellungen wird ein Fortschrittsbalken angezeigt, der anzeigt, wie viele Konfigurationen erfasst sind. Fehlende Konfigurationen werden mit Erklärung und direktem Link aufgelistet. Bei 100% sind alle Funktionen verfügbar. Bei fehlenden Konfigurationen sind die entsprechenden Funktionen in der App ausgegraut. Jede Konfiguration kann direkt getestet werden — Test-Buttons erscheinen automatisch, sobald ein Wert eingegeben wurde.",
         steps: [
           { icon: "barChart", text: "Fortschrittsbalken oben in den Einstellungen" },
           { icon: "alertCircle", text: "Fehlende Konfigurationen werden aufgelistet" },
-          { icon: "pencil", text: "Angeklickte Konfiguration springt direkt zum Eingabefeld" }
+          { icon: "pencil", text: "Angeklickte Konfiguration springt direkt zum Eingabefeld" },
+          { icon: "search", text: "Test-Button antippen um Verbindung zu prüfen" }
         ],
-        tip: "Tipp: Bei 100% sind alle Funktionen (QRZ, APRS, RepeaterBook, BrandMeister) verfügbar."
+        tip: "Tipp: Bei 100% sind alle Funktionen (QRZ, APRS, RepeaterBook, BrandMeister) verfügbar. Test-Buttons erscheinen erst, wenn ein Wert eingegeben wurde — bei Fehlern wird die Antwort der Quelle ausgeklappt."
       },
       {
         title: "Demo-Konto Beschränkungen",
@@ -619,16 +622,18 @@ export const SECTIONS = [
       },
       {
         title: "Club-Rufzeichen Verwaltung (Admin)",
-        body: "Administratoren finden in den Einstellungen einen eigenen Reiter «Club-Rufzeichen», der alle Club-bezogenen Konfigurationen zentralisiert: Club-Rufzeichen (z.B. HB9OM), Club-Name, QRZ.com Club-Zugang (Benutzername, Passwort, API-Key für Club-Rufzeichen), APRS.fi API-Key und BrandMeister API-Key. Die Konfiguration wird an allen Orten verwendet, an denen das Club-Rufzeichen benötigt wird (QSO-Logbuch Clubstation-Modus, Filter, Statistiken). Die Eingabe an den verschiedenen Orten bleibt weiterhin möglich, wird aber zentral verwaltet.",
+        body: "Administratoren finden in den Einstellungen einen eigenen Reiter «Club-Rufzeichen», der alle Club-bezogenen Konfigurationen zentralisiert: Club-Rufzeichen (z.B. HB9OM), Club-Name, QRZ.com Club-Zugang (Benutzername, Passwort, API-Key für Club-Rufzeichen), APRS.fi API-Key und BrandMeister API-Key. Die Konfiguration wird an allen Orten verwendet, an denen das Club-Rufzeichen benötigt wird (QSO-Logbuch Clubstation-Modus, Filter, Statistiken). Die Eingabe an den verschiedenen Orten bleibt weiterhin möglich, wird aber zentral verwaltet. Alle Club-Credentials haben eigene Test-Buttons: «Club QRZ-Login testen», «Club QRZ API-Key testen», «Club APRS-Key testen» und «Club BM-Key testen». Bei Fehlern wird die Antwort der Quelle ausgeklappt angezeigt. Gespeicherte Club-Passwörter und API-Keys werden maskiert (••••••••) und können mit dem Augen-Button eingeblendet werden.",
         steps: [
           { icon: "settings", text: "Einstellungen → Reiter «Club-Rufzeichen»" },
           { icon: "building", text: "Club-Rufzeichen eingeben (z.B. HB9OM)" },
           { icon: "pencil", text: "Club-Name eingeben" },
           { icon: "keyRound", text: "QRZ Club-Zugang hinterlegen (Benutzername, Passwort, API-Key)" },
+          { icon: "search", text: "«Club QRZ-Login testen» und «Club QRZ API-Key testen»" },
           { icon: "radio", text: "APRS.fi und BrandMeister API-Keys für Club erfassen" },
+          { icon: "search", text: "«Club APRS-Key testen» und «Club BM-Key testen»" },
           { icon: "save", text: "«Club-Konfiguration speichern»" }
         ],
-        tip: "Tipp: Der QRZ API-Key für das Club-Rufzeichen wird für QRZ-Abfragen im Clubstation-Modus verwendet. Globale API-Keys (für alle Admins) werden im Admin-Bereich unter «API-Keys» verwaltet."
+        tip: "Tipp: Der QRZ API-Key für das Club-Rufzeichen wird für QRZ-Abfragen im Clubstation-Modus verwendet. Globale API-Keys (für alle Admins) werden im Admin-Bereich unter «API-Keys» verwaltet. Alle Club-Test-Buttons verwenden die zentrale testCredentials-Funktion und zeigen bei Fehlern die Original-Antwort der Quelle."
       },
       {
         title: "API-Key Verwaltung (Admin)",

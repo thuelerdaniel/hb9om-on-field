@@ -565,7 +565,7 @@ export default function Settings() {
                 </div>
               )}
 
-              {qrzEnabled && qrzConfigured && (
+              {qrzEnabled && (qrzConfigured || isAdmin) && (
                 <div className="mt-3 space-y-2">
                   <button
                     onClick={handleQrzTest}
@@ -597,7 +597,7 @@ export default function Settings() {
                 </div>
               )}
 
-              {(!qrzEnabled || !qrzConfigured) && (
+              {(!qrzEnabled || (!qrzConfigured && !isAdmin)) && (
                 <p className="text-xs text-gray-500 mt-2">
                   QRZ-Abfrage {!qrzConfigured ? 'nicht konfiguriert' : 'deaktiviert'}. Rufzeichen-Daten manuell im QSO-Formular eingeben.
                 </p>
