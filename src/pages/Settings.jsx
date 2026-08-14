@@ -49,11 +49,10 @@ export default function Settings() {
   const [aprsApiKey, setAprsApiKey] = useState("");
   const [aprsKeyConfigured, setAprsKeyConfigured] = useState(false);
   const [qrzApiKey, setQrzApiKey] = useState("");
-  const [repeaterbookUsername, setRepeaterbookUsername] = useState("");
-  const [repeaterbookPassword, setRepeaterbookPassword] = useState("");
-  // BrandMeister login (point 3)
-  const [bmUsername, setBmUsername] = useState("");
-  const [bmPassword, setBmPassword] = useState("");
+  // RepeaterBook API-Token (seit März 2026: Cloudflare blockt Login, Token erforderlich)
+  const [repeaterbookApiToken, setRepeaterbookApiToken] = useState("");
+  // BrandMeister API-Key (statt Login-Formular)
+  const [bmApiKey, setBmApiKey] = useState("");
   const [bmConfigured, setBmConfigured] = useState(false);
   // Credential source selector (point 4): 'auto' | 'personal' | 'club'
   const [credentialSource, setCredentialSource] = useState("auto");
@@ -203,12 +202,10 @@ export default function Settings() {
       setAprsApiKey(aprsKey);
       setAprsKeyConfigured(!!aprsKey);
       setQrzApiKey(me?.qrz_api_key || "");
-      setRepeaterbookUsername(me?.repeaterbook_username || "");
-      setRepeaterbookPassword(me?.repeaterbook_password || "");
-      // Load BrandMeister login (point 3)
-      setBmUsername(me?.bm_username || "");
-      setBmPassword(me?.bm_password || "");
-      setBmConfigured(!!(me?.bm_username && me?.bm_password));
+      setRepeaterbookApiToken(me?.repeaterbook_api_token || "");
+      // Load BrandMeister API-Key
+      setBmApiKey(me?.brandmeister_api_key || "");
+      setBmConfigured(!!(me?.brandmeister_api_key));
       // Sync feature flags from User entity (User entity wins)
       syncFeaturesFromUser();
     } catch (e) { }
@@ -250,6 +247,7 @@ export default function Settings() {
   const handleRepeaterbookTest = async () => {
     return base44.functions.invoke("testCredentials", {
       service: "repeaterbook",
+      scope: credentialSource,
     }).then(res => res.data).catch(e => ({ success: false, message: e?.message || "Fehler" }));
   };
 
@@ -266,8 +264,8 @@ export default function Settings() {
     { label: "QRZ.com Login", configured: qrzConfigured || usesClubCredentials, link: "/settings", helpText: usesClubCredentials ? "Club-Zugang aktiv (Demo)" : "Für automatische Rufzeichen-Datenabfrage" },
     { label: "QRZ API-Key (Logbuch-Upload)", configured: !!qrzApiKey.trim() || usesClubCredentials, link: "/settings", helpText: usesClubCredentials ? "Club-Zugang aktiv (Demo)" : "Für Upload ins QRZ-Logbuch" },
     { label: "APRS.fi API-Key", configured: aprsKeyConfigured || usesClubCredentials, link: "/settings", helpText: usesClubCredentials ? "Club-Key aktiv (Demo)" : "Für APRS-Daten (Private Nodes & Relais-Koordinaten)" },
-    { label: "RepeaterBook Login", configured: !!(repeaterbookUsername.trim() && repeaterbookPassword) || usesClubCredentials, link: "/settings", helpText: "Für authentifizierte Relais-Daten (optional)" },
-    { label: "BrandMeister Login", configured: bmConfigured || usesClubCredentials, link: "/settings", helpText: "Für BrandMeister-DMR-Daten (optional)" },
+    { label: "RepeaterBook API-Token", configured: !!repeaterbookApiToken.trim() || usesClubCredentials, link: "/settings", helpText: "Für automatischen Relais-Sync (optional, JSON-Import als Fallback)" },
+    { label: "BrandMeister API-Key", configured: bmConfigured || usesClubCredentials, link: "/settings", helpText: "Für BrandMeister-DMR-Daten (Repeater-Liste auch ohne Key)" },
   ];
 
   const handleSaveProfile = async () => {
@@ -284,15 +282,13 @@ export default function Settings() {
           qrz_password: qrzPassword,
           aprs_fi_api_key: aprsApiKey.trim(),
           qrz_api_key: qrzApiKey.trim(),
-          repeaterbook_username: repeaterbookUsername.trim(),
-          repeaterbook_password: repeaterbookPassword,
-          bm_username: bmUsername.trim(),
-          bm_password: bmPassword,
+          repeaterbook_api_token: repeaterbookApiToken.trim(),
+          brandmeister_api_key: bmApiKey.trim(),
           credential_source: credentialSource,
         });
         setQrzConfigured(!!qrzUsername.trim() && !!qrzPassword);
         setAprsKeyConfigured(!!aprsApiKey.trim());
-        setBmConfigured(!!(bmUsername.trim() && bmPassword));
+        setBmConfigured(!!(bmApiKey.trim()));
       } catch (e) { }
     }
     setTimeout(() => {
@@ -765,38 +761,30 @@ export default function Settings() {
               </p>
             </div>
 
-            {/* RepeaterBook Login — for authenticated repeater data (point 11) */}
+            {/* RepeaterBook API-Token — seit März 2026: Cloudflare blockt Login, Token erforderlich */}
             <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                  <Radio className="w-4 h-4" /> RepeaterBook Login
+                  <Radio className="w-4 h-4" /> RepeaterBook API-Token
                 </label>
                 <Link to="/help#repeaterbook-konfiguration" className="text-gray-400 hover:text-blue-500"><HelpCircle className="w-4 h-4" /></Link>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">Für authentifizierte Abfrage von Relais-Positionen</p>
+              <p className="text-xs text-gray-500 mt-0.5">Für automatischen Relais-Sync (Cloudflare blockt Login)</p>
               {isDemo ? (
                 <p className="text-xs text-blue-600 mt-2 flex items-start gap-1">
                   <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  <span>Demo-Konto: Eingabe gesperrt. HB9OM hat einen Account für Demo-Zwecke hinterlegt.</span>
+                  <span>Demo-Konto: Eingabe gesperrt. HB9OM hat einen Token für Demo-Zwecke hinterlegt.</span>
                 </p>
               ) : (
                 <div className="mt-2 space-y-2">
-                  <input
-                    type="text"
-                    value={repeaterbookUsername}
-                    onChange={e => setRepeaterbookUsername(e.target.value)}
-                    placeholder="RepeaterBook-Benutzername (optional)"
-                    autoComplete="off"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
                   <PasswordInput
-                    value={repeaterbookPassword}
-                    onChange={setRepeaterbookPassword}
-                    placeholder="RepeaterBook-Passwort (optional)"
+                    value={repeaterbookApiToken}
+                    onChange={setRepeaterbookApiToken}
+                    placeholder="rbuapp_... (im RepeaterBook Dashboard generieren)"
                     autoComplete="off"
-                    onTest={repeaterbookUsername.trim() && repeaterbookPassword ? handleRepeaterbookTest : null}
-                    testLabel="RepeaterBook-Login testen"
-                    testDisabled={!repeaterbookUsername.trim() || !repeaterbookPassword}
+                    onTest={repeaterbookApiToken.trim() ? handleRepeaterbookTest : null}
+                    testLabel="Token testen"
+                    testDisabled={!repeaterbookApiToken.trim()}
                   />
                   {repeaterbookTestResult && (
                     <div className={`p-2 rounded-lg text-xs flex items-start gap-1.5 ${repeaterbookTestResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
@@ -807,42 +795,34 @@ export default function Settings() {
                 </div>
               )}
               <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                Ohne Login werden nur öffentliche RepeaterBook-Daten abgefragt. <a href="https://www.repeaterbook.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">RepeaterBook.com</a>.
+                Token im RepeaterBook Dashboard generieren: <a href="https://www.repeaterbook.com/user/api_apps.php" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">repeaterbook.com/user/api_apps.php</a>. App muss freigeschaltet sein. Kein Token? Manuellen JSON-Export verwenden (Admin → JSON Repeater Import). <Link to="/help#repeaterbook-konfiguration" className="text-blue-500 hover:underline">Hilfe</Link>.
               </p>
             </div>
 
-            {/* BrandMeister Login (point 3) */}
+            {/* BrandMeister API-Key — statt Login-Formular */}
             <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                  <Network className="w-4 h-4" /> BrandMeister Login
+                  <Network className="w-4 h-4" /> BrandMeister API-Key
                 </label>
                 <Link to="/help#brandmeister-konfiguration" className="text-gray-400 hover:text-blue-500"><HelpCircle className="w-4 h-4" /></Link>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">Für BrandMeister-DMR-Daten (Hotspots & Relais)</p>
+              <p className="text-xs text-gray-500 mt-0.5">Für BrandMeister-DMR-Daten (Repeater-Liste auch ohne Key)</p>
               {isDemo ? (
                 <p className="text-xs text-blue-600 mt-2 flex items-start gap-1">
                   <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  <span>Demo-Konto: Eingabe gesperrt. HB9OM hat einen Account für Demo-Zwecke hinterlegt.</span>
+                  <span>Demo-Konto: Eingabe gesperrt. HB9OM hat einen Key für Demo-Zwecke hinterlegt.</span>
                 </p>
               ) : (
                 <div className="mt-2 space-y-2">
-                  <input
-                    type="text"
-                    value={bmUsername}
-                    onChange={e => setBmUsername(e.target.value)}
-                    placeholder="BrandMeister-Benutzername (optional)"
-                    autoComplete="off"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
                   <PasswordInput
-                    value={bmPassword}
-                    onChange={setBmPassword}
-                    placeholder="BrandMeister-Passwort (optional)"
+                    value={bmApiKey}
+                    onChange={setBmApiKey}
+                    placeholder="BrandMeister API-Key (langer Hex-String)"
                     autoComplete="off"
-                    onTest={bmUsername.trim() && bmPassword ? handleBmTest : null}
-                    testLabel="BrandMeister-Login testen"
-                    testDisabled={!bmUsername.trim() || !bmPassword}
+                    onTest={bmApiKey.trim() ? handleBmTest : null}
+                    testLabel="Key testen"
+                    testDisabled={!bmApiKey.trim()}
                   />
                   {bmTestResult && (
                     <div className={`p-2 rounded-lg text-xs flex items-start gap-1.5 ${bmTestResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
@@ -853,7 +833,7 @@ export default function Settings() {
                 </div>
               )}
               <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                BrandMeister-Konto unter <a href="https://brandmeister.network/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">brandmeister.network</a> erstellen. <Link to="/help#brandmeister-konfiguration" className="text-blue-500 hover:underline">Hilfe zur BrandMeister-Konfiguration</Link>.
+                Key im BrandMeister Dashboard generieren: <a href="https://brandmeister.network" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">brandmeister.network</a> → Profile → API. Repeater-Liste ist auch ohne Key öffentlich verfügbar. <Link to="/help#brandmeister-konfiguration" className="text-blue-500 hover:underline">Hilfe</Link>.
               </p>
             </div>
 

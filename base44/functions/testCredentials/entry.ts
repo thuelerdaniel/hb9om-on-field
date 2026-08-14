@@ -157,70 +157,89 @@ export default async function(req: Request): Promise<Response> {
       return Response.json({ success: false, message: `APRS.fi API-Key ungültig (${sourceLabel}): ${data.description || data.code || 'unbekannt'}`, source: sourceLabel, sourceResponse: data });
     }
 
-    // === RepeaterBook Login Test ===
+    // === RepeaterBook API-Token Test ===
+    // RepeaterBook hat seit März 2026 Cloudflare-Anti-Bot-Schutz — Login per Username/Passwort
+    // funktioniert nicht mehr. Stattdessen wird ein API-Token (rbuapp_...) verwendet.
+    // Token-Header: X-RB-App-Token, User-Agent muss App-Name/Version enthalten.
     if (service === 'repeaterbook') {
-      const rbUser = (user as any).repeaterbook_username || '';
-      const rbPass = (user as any).repeaterbook_password || '';
-      if (!rbUser || !rbPass) {
-        return Response.json({ success: false, message: 'Keine RepeaterBook-Anmeldedaten hinterlegt', source: 'persönlich' });
+      const clubConfig = await getClubConfig();
+      const pToken = (user as any).repeaterbook_api_token || '';
+      const cToken = clubConfig.repeaterbook_api_token || '';
+      const eToken = process.env.REPEATERBOOK_API_TOKEN || '';
+      let token = '', sourceLabel = '';
+      if (scope === 'personal') { token = pToken; sourceLabel = 'persönlich'; }
+      else if (scope === 'club') { token = cToken; sourceLabel = 'Club'; }
+      else { if (pToken) { token = pToken; sourceLabel = 'persönlich'; } else if (cToken) { token = cToken; sourceLabel = 'Club'; } else { token = eToken; sourceLabel = 'Code-Secret'; } }
+
+      if (!token) {
+        return Response.json({ success: false, message: `Kein RepeaterBook API-Token (${sourceLabel}) hinterlegt`, source: sourceLabel });
       }
       try {
-        const loginUrl = 'https://www.repeaterbook.com/repeater/login.php';
-        const formData = new URLSearchParams();
-        formData.append('username', rbUser);
-        formData.append('password', rbPass);
-        formData.append('login', 'Login');
-        const resp = await fetch(loginUrl, {
-          method: 'POST',
-          body: formData,
-          headers: { 'User-Agent': 'HB9OM-OnField/1.0' },
-          redirect: 'manual' as any,
+        // Test: API-Call mit Token-Header — exportROW.php mit country=Switzerland
+        const testUrl = 'https://www.repeaterbook.com/api/exportROW.php?country=Switzerland';
+        const resp = await fetch(testUrl, {
+          headers: {
+            'X-RB-App-Token': token,
+            'User-Agent': 'HB9OM-OnField/1.0 (+https://hb9om.online; tech@hb9om.ch)',
+            'Accept': 'application/json',
+          },
         });
+        if (resp.status === 401 || resp.status === 403) {
+          return Response.json({ success: false, message: `RepeaterBook API-Token ungültig (${sourceLabel}) — Token prüfen oder App-Freischaltung`, source: sourceLabel, sourceResponse: { status: resp.status } });
+        }
+        if (resp.status === 429) {
+          return Response.json({ success: false, message: `RepeaterBook Rate-Limit erreicht (${sourceLabel}) — später erneut versuchen`, source: sourceLabel, sourceResponse: { status: 429 } });
+        }
         const text = await resp.text();
-        const ok = text.includes('logout') || text.includes('Logout') || resp.status === 302 || resp.status === 301;
-        return Response.json({
-          success: ok,
-          message: ok ? 'RepeaterBook-Login erfolgreich' : 'RepeaterBook-Login fehlgeschlagen – Benutzername/Passwort prüfen',
-          source: 'persönlich',
-          sourceResponse: { status: resp.status, snippet: text.slice(0, 200) },
-        });
+        let data: any = null;
+        try { data = JSON.parse(text); } catch {}
+        // Token gültig wenn API JSON mit Repeatern oder leeres Array zurückgibt
+        if (resp.ok && (Array.isArray(data) || (data && data.results !== undefined))) {
+          const count = Array.isArray(data) ? data.length : (data?.results?.length || 0);
+          return Response.json({ success: true, message: `RepeaterBook API-Token gültig (${sourceLabel}): ${count} Relais für Schweiz`, source: sourceLabel, sourceResponse: { count } });
+        }
+        return Response.json({ success: false, message: `RepeaterBook API-Token ungültig (${sourceLabel}): ${text.slice(0, 200)}`, source: sourceLabel, sourceResponse: { status: resp.status, snippet: text.slice(0, 200) } });
       } catch (e: any) {
-        return Response.json({ success: false, message: `RepeaterBook-Login Test fehlgeschlagen: ${e.message}`, source: 'persönlich' });
+        return Response.json({ success: false, message: `RepeaterBook API-Token Test fehlgeschlagen (${sourceLabel}): ${e.message}`, source: sourceLabel });
       }
     }
 
-    // === BrandMeister Login Test ===
+    // === BrandMeister API-Key Test ===
+    // BrandMeister nutzt API-Keys statt Login-Formular. Key im Dashboard unter
+    // Profile → API generieren. Repeater-Liste ist öffentlich, persönliche Daten brauchen Key.
     if (service === 'brandmeister') {
       const clubConfig = await getClubConfig();
-      const bmUser = (user as any).bm_username || '';
-      const bmPass = (user as any).bm_password || '';
-      const cBmKey = clubConfig.brandmeister_api_key || '';
+      const pKey = (user as any).brandmeister_api_key || '';
+      const cKey = clubConfig.brandmeister_api_key || '';
+      const eKey = process.env.BRANDMEISTER_API_KEY || '';
+      let apiKey = '', sourceLabel = '';
+      if (scope === 'personal') { apiKey = pKey; sourceLabel = 'persönlich'; }
+      else if (scope === 'club') { apiKey = cKey; sourceLabel = 'Club'; }
+      else { if (pKey) { apiKey = pKey; sourceLabel = 'persönlich'; } else if (cKey) { apiKey = cKey; sourceLabel = 'Club'; } else { apiKey = eKey; sourceLabel = 'Code-Secret'; } }
 
-      if (bmUser && bmPass) {
-        try {
-          const resp = await fetch('https://api.brandmeister.network/v2.0/user/', {
-            headers: { 'Authorization': `Basic ${btoa(`${bmUser}:${bmPass}`)}`, 'Accept': 'application/json' },
-          });
-          const data = await resp.json().catch(() => ({}));
-          if (resp.ok && data && !data.error) {
-            return Response.json({ success: true, message: `BrandMeister-Login erfolgreich: ${data.callsign || bmUser}`, source: 'persönlich', sourceResponse: data });
-          }
-          return Response.json({ success: false, message: `BrandMeister-Login fehlgeschlagen: ${data.error || data.message || resp.statusText}`, source: 'persönlich', sourceResponse: data });
-        } catch (e: any) {
-          return Response.json({ success: false, message: `BrandMeister-Login Test fehlgeschlagen: ${e.message}`, source: 'persönlich' });
-        }
+      if (!apiKey) {
+        // Repeater-Liste ist öffentlich — ohne Key verfügbar
+        return Response.json({ success: false, message: 'Kein BrandMeister API-Key hinterlegt — Repeater-Liste öffentlich verfügbar, persönliche Daten benötigen Key', source: 'keine' });
       }
-      if (cBmKey) {
-        try {
-          const resp = await fetch(`https://api.brandmeister.network/v2.0/repeater/?apikey=${encodeURIComponent(cBmKey)}`, { headers: { Accept: 'application/json' } });
-          const data = await resp.json().catch(() => ({}));
-          if (resp.ok) return Response.json({ success: true, message: 'BrandMeister Club API-Key gültig', source: 'Club', sourceResponse: data });
-          return Response.json({ success: false, message: `BrandMeister Club API-Key ungültig: ${data.error || resp.statusText}`, source: 'Club', sourceResponse: data });
-        } catch (e: any) {
-          return Response.json({ success: false, message: `BrandMeister Club API-Key Test fehlgeschlagen: ${e.message}`, source: 'Club' });
+      try {
+        // Test: /v2/user/ mit Bearer-Key
+        const resp = await fetch('https://api.brandmeister.network/v2.0/user/', {
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
+        });
+        if (resp.status === 401 || resp.status === 403) {
+          return Response.json({ success: false, message: `BrandMeister API-Key ungültig (${sourceLabel}) — Key prüfen oder neu generieren`, source: sourceLabel, sourceResponse: { status: resp.status } });
         }
+        if (resp.status === 429) {
+          return Response.json({ success: false, message: `BrandMeister Rate-Limit erreicht (${sourceLabel}) — später erneut versuchen`, source: sourceLabel, sourceResponse: { status: 429 } });
+        }
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data && !data.error) {
+          return Response.json({ success: true, message: `BrandMeister API-Key gültig (${sourceLabel}): ${data.callsign || 'verbunden'}`, source: sourceLabel, sourceResponse: data });
+        }
+        return Response.json({ success: false, message: `BrandMeister API-Key ungültig (${sourceLabel}): ${data.error || data.message || resp.statusText}`, source: sourceLabel, sourceResponse: data });
+      } catch (e: any) {
+        return Response.json({ success: false, message: `BrandMeister API-Key Test fehlgeschlagen (${sourceLabel}): ${e.message}`, source: sourceLabel });
       }
-      return Response.json({ success: false, message: 'Keine BrandMeister-Anmeldedaten hinterlegt', source: 'keine' });
     }
 
     // === Club Credential Tests ===
@@ -276,6 +295,36 @@ export default async function(req: Request): Promise<Response> {
         return Response.json({ success: false, message: `Club BrandMeister API-Key ungültig: ${data.error || resp.statusText}`, source: 'Club', sourceResponse: data });
       } catch (e: any) {
         return Response.json({ success: false, message: `Club BrandMeister API-Key Test fehlgeschlagen: ${e.message}`, source: 'Club' });
+      }
+    }
+
+    // === Club RepeaterBook API-Token Test ===
+    if (service === 'club_repeaterbook') {
+      const clubConfig = await getClubConfig();
+      const token = clubConfig.repeaterbook_api_token || '';
+      if (!token) return Response.json({ success: false, message: 'Kein Club RepeaterBook API-Token hinterlegt', source: 'Club' });
+      try {
+        const testUrl = 'https://www.repeaterbook.com/api/exportROW.php?country=Switzerland';
+        const resp = await fetch(testUrl, {
+          headers: {
+            'X-RB-App-Token': token,
+            'User-Agent': 'HB9OM-OnField/1.0 (+https://hb9om.online; tech@hb9om.ch)',
+            'Accept': 'application/json',
+          },
+        });
+        if (resp.status === 401 || resp.status === 403) {
+          return Response.json({ success: false, message: `Club RepeaterBook API-Token ungültig — Token prüfen oder App-Freischaltung`, source: 'Club', sourceResponse: { status: resp.status } });
+        }
+        const text = await resp.text();
+        let data: any = null;
+        try { data = JSON.parse(text); } catch {}
+        if (resp.ok && (Array.isArray(data) || (data && data.results !== undefined))) {
+          const count = Array.isArray(data) ? data.length : (data?.results?.length || 0);
+          return Response.json({ success: true, message: `Club RepeaterBook API-Token gültig: ${count} Relais für Schweiz`, source: 'Club', sourceResponse: { count } });
+        }
+        return Response.json({ success: false, message: `Club RepeaterBook API-Token ungültig: ${text.slice(0, 200)}`, source: 'Club', sourceResponse: { status: resp.status, snippet: text.slice(0, 200) } });
+      } catch (e: any) {
+        return Response.json({ success: false, message: `Club RepeaterBook API-Token Test fehlgeschlagen: ${e.message}`, source: 'Club' });
       }
     }
 

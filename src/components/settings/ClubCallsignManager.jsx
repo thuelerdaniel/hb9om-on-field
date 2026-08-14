@@ -23,6 +23,7 @@ export default function ClubCallsignManager() {
     qrz_api_key: "",
     aprs_fi_api_key: "",
     brandmeister_api_key: "",
+    repeaterbook_api_token: "",
   });
   const [maskedFields, setMaskedFields] = useState({});
   const [loading, setLoading] = useState(true);
@@ -47,12 +48,14 @@ export default function ClubCallsignManager() {
           qrz_api_key: cfg.qrz_api_key === "***" ? "***" : (cfg.qrz_api_key || ""),
           aprs_fi_api_key: cfg.aprs_fi_api_key === "***" ? "***" : (cfg.aprs_fi_api_key || ""),
           brandmeister_api_key: cfg.brandmeister_api_key === "***" ? "***" : (cfg.brandmeister_api_key || ""),
+          repeaterbook_api_token: cfg.repeaterbook_api_token === "***" ? "***" : (cfg.repeaterbook_api_token || ""),
         });
         setMaskedFields({
           qrz_password: cfg.qrz_password === "***",
           qrz_api_key: cfg.qrz_api_key === "***",
           aprs_fi_api_key: cfg.aprs_fi_api_key === "***",
           brandmeister_api_key: cfg.brandmeister_api_key === "***",
+          repeaterbook_api_token: cfg.repeaterbook_api_token === "***",
         });
         if (cfg.club_callsign) {
           localStorage.setItem("hb9om_club_callsign", cfg.club_callsign);
@@ -201,6 +204,19 @@ export default function ClubCallsignManager() {
             testLabel="Club BM-Key testen"
             testDisabled={!config.brandmeister_api_key && !maskedFields.brandmeister_api_key}
           />
+          <PasswordInput
+            label="RepeaterBook API-Token (Club)"
+            value={config.repeaterbook_api_token}
+            onChange={(v) => setConfig({ ...config, repeaterbook_api_token: v })}
+            placeholder={maskedFields.repeaterbook_api_token ? "*** (überschreiben zum Ändern)" : "RepeaterBook API-Token des Clubs (rbuapp_...)"}
+            autoComplete="off"
+            onTest={(config.repeaterbook_api_token || maskedFields.repeaterbook_api_token) ? () => testClub("club_repeaterbook") : null}
+            testLabel="Club RB-Token testen"
+            testDisabled={!config.repeaterbook_api_token && !maskedFields.repeaterbook_api_token}
+          />
+          <p className="text-[10px] text-gray-400 mt-1">
+            Token im RepeaterBook Dashboard generieren: <a href="https://www.repeaterbook.com/user/api_apps.php" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">repeaterbook.com/user/api_apps.php</a>. App muss freigeschaltet sein.
+          </p>
         </div>
       </div>
 

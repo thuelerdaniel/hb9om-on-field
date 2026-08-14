@@ -448,20 +448,23 @@ const SECTIONS = [
       },
       {
         anchor: "repeaterbook-konfiguration",
-        title: "RepeaterBook Login konfigurieren",
-        body: "Für authentifizierte Abfragen von Relais-Positionen können Sie Ihren RepeaterBook-Login hinterlegen. Ohne Login werden nur öffentliche Daten abgefragt. Mit Login sind auch erweiterte Daten verfügbar. Erstellen Sie ein kostenloses Konto auf repeaterbook.com, geben Sie Benutzername und Passwort in den Einstellungen ein und testen Sie die Verbindung. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet.",
-        example: "repeaterbook.com → Konto erstellen → Einstellungen → Login eingeben → «Testen».",
+        title: "RepeaterBook API-Token konfigurieren",
+        body: "Seit März 2026 blockiert RepeaterBook automatische Logins per Cloudflare-Anti-Bot-Schutz. Statt Benutzername/Passwort wird ein API-Token verwendet. Generieren Sie den Token im RepeaterBook Dashboard unter repeaterbook.com/user/api_apps.php. Voraussetzung: Die App «HB9OM On Field» muss bei RepeaterBook freigeschaltet sein (Freischalt-Formular: repeaterbook.com/api_request.php). Geben Sie den Token (rbuapp_...) in den Einstellungen ein und testen Sie ihn mit «Token testen». Bei Erfolg ist der automatische Sync aktiviert. Bei ungültigem Token: Sync stoppt, Fehlermeldung wird angezeigt. Ohne Token: Sync deaktiviert, manueller JSON-Export als Fallback (Admin → JSON Repeater Import). Demo-Konto: Eingabe gesperrt, Club-Token wird verwendet.",
+        example: "repeaterbook.com/user/api_apps.php → Token generieren → Einstellungen → Token eingeben → «Token testen» → Sync aktiviert.",
         links: [
-          { label: "RepeaterBook Konto erstellen (kostenlos)", url: "https://www.repeaterbook.com/" },
+          { label: "RepeaterBook API-Token generieren", url: "https://www.repeaterbook.com/user/api_apps.php" },
+          { label: "App freischalten (falls noch nicht erfolgt)", url: "https://www.repeaterbook.com/api_request.php" },
+          { label: "RepeaterBook API-Dokumentation", url: "https://www.repeaterbook.com/wiki/doku.php?id=api" },
         ]
       },
       {
         anchor: "brandmeister-konfiguration",
-        title: "BrandMeister Login konfigurieren",
-        body: "Für BrandMeister-DMR-Daten (Hotspots & Relais) können Sie Ihren BrandMeister-Login hinterlegen. Erstellen Sie ein Konto auf brandmeister.network, geben Sie Benutzername und Passwort in den Einstellungen ein und testen Sie die Verbindung. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet.",
-        example: "brandmeister.network → Konto erstellen → Einstellungen → Login eingeben → «Testen».",
+        title: "BrandMeister API-Key konfigurieren",
+        body: "BrandMeister nutzt API-Keys statt Login-Formular. Generieren Sie den Key im BrandMeister Dashboard unter Profile → API (brandmeister.network). Der Key ist ein langer Hex-String, eindeutig pro Nutzer. Geben Sie den Key in den Einstellungen ein und testen Sie ihn mit «Key testen». Bei Erfolg sind persönliche Daten (Last Heard, etc.) verfügbar. Bei ungültigem Key: nur öffentliche Repeater-Liste wird geladen. Ohne Key: Repeater-Liste ist trotzdem öffentlich verfügbar — persönliche Daten nicht. Demo-Konto: Eingabe gesperrt, Club-Key wird verwendet.",
+        example: "brandmeister.network → Profile → API → Key generieren → Einstellungen → Key eingeben → «Key testen».",
         links: [
-          { label: "BrandMeister Konto erstellen", url: "https://brandmeister.network/" },
+          { label: "BrandMeister Dashboard (Key generieren)", url: "https://brandmeister.network" },
+          { label: "BrandMeister API-Keys Info", url: "https://news.brandmeister.network/introducing-user-api-keys/" },
         ]
       },
       {
@@ -476,8 +479,8 @@ const SECTIONS = [
       },
       {
         title: "Demo-Konto Beschränkungen",
-        body: "Das Demo-Konto (demo@hb9om.ch) hat eingeschränkte Funktionen: Eingabefelder für QRZ, APRS, RepeaterBook und BrandMeister sind gesperrt (HB9OM hat Accounts für Demo-Zwecke hinterlegt). Backup & Restore sind gesperrt. QRZ-Uploads aus dem Logbuch sind gesperrt. Alle gesperrten Funktionen sind ausgegraut mit entsprechendem Hinweis. Normale Benutzerkonten haben volle Funktionalität.",
-        example: "Demo-Konto → Einstellungen → alle Passwort-Felder grau mit Hinweis «Demo-Konto: gesperrt»."
+        body: "Das Demo-Konto (demo@hb9om.ch) hat eingeschränkte Funktionen: Eingabefelder für QRZ, APRS, RepeaterBook API-Token und BrandMeister API-Key sind gesperrt (HB9OM hat Accounts für Demo-Zwecke hinterlegt). Backup & Restore sind gesperrt. QRZ-Uploads aus dem Logbuch sind gesperrt. Alle gesperrten Funktionen sind ausgegraut mit entsprechendem Hinweis. Normale Benutzerkonten haben volle Funktionalität.",
+        example: "Demo-Konto → Einstellungen → alle Token-/Key-Felder grau mit Hinweis «Demo-Konto: gesperrt»."
       },
       {
         title: "Daten aktualisieren",

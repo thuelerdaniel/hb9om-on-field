@@ -558,38 +558,41 @@ export const SECTIONS = [
         tip: "Tipp: Der API-Key ist kostenlos und wird sofort nach der Anmeldung mit dem APRS-Rufzeichen ausgestellt. Der Test-Button erscheint erst, wenn ein Key eingegeben wurde."
       },
       {
-        title: "RepeaterBook Login konfigurieren",
-        body: "Für authentifizierte Abfragen von Relais-Positionen können Sie Ihren RepeaterBook-Login hinterlegen. Ohne Login werden nur öffentliche Daten abgefragt. Mit Login sind auch erweiterte Daten verfügbar. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet. Der Test-Button «Testen» prüft den Login direkt gegen RepeaterBook und zeigt bei Fehlern die Antwort der Quelle an.",
+        title: "RepeaterBook API-Token konfigurieren",
+        body: "Seit Maerz 2026 blockiert RepeaterBook automatische Logins per Cloudflare-Anti-Bot-Schutz. Statt Benutzername/Passwort wird ein API-Token (rbuapp_...) verwendet. Der Token wird im RepeaterBook Dashboard unter repeaterbook.com/user/api_apps.php generiert. Voraussetzung: Die App muss bei RepeaterBook freigeschaltet sein (Freischalt-Formular: repeaterbook.com/api_request.php). Geben Sie den Token in den Einstellungen ein und testen Sie ihn. Bei Erfolg ist der automatische Sync aktiviert. Ohne Token: Sync deaktiviert, manueller JSON-Export als Fallback. Demo-Konto: Eingabe gesperrt, Club-Token wird verwendet.",
         steps: [
-          { icon: "globe", text: "Konto auf repeaterbook.com erstellen (kostenlos)" },
-          { icon: "settings", text: "Einstellungen → «RepeaterBook Login»" },
-          { icon: "pencil", text: "Benutzername eingeben" },
-          { icon: "pencil", text: "Passwort eingeben (Augen-Button zum Einblenden)" },
-          { icon: "search", text: "«Testen» für Verbindungsprüfung — Test-Button erscheint bei eingegebenem Login" }
+          { icon: "globe", text: "App bei RepeaterBook freischalten (repeaterbook.com/api_request.php)" },
+          { icon: "keyRound", text: "Token generieren: repeaterbook.com/user/api_apps.php (rbuapp_...)" },
+          { icon: "settings", text: "Einstellungen -> «RepeaterBook API-Token»" },
+          { icon: "pencil", text: "Token eingeben (rbuapp_..., Augen-Button zum Einblenden)" },
+          { icon: "search", text: "«Token testen» — bei Erfolg: Sync aktiviert, bei Fehler: Token pruefen" }
         ],
         links: [
-          { label: "RepeaterBook Konto erstellen", url: "https://www.repeaterbook.com/" }
+          { label: "RepeaterBook API-Token generieren", url: "https://www.repeaterbook.com/user/api_apps.php" },
+          { label: "App freischalten", url: "https://www.repeaterbook.com/api_request.php" },
+          { label: "RepeaterBook API-Doku", url: "https://www.repeaterbook.com/wiki/doku.php?id=api" }
         ],
-        tip: "Tipp: Ein RepeaterBook-Konto ist kostenlos und gibt Zugang zu erweiterten Relais-Daten. Der Test-Button erscheint erst, wenn Benutzername und Passwort eingegeben wurden."
+        tip: "Tipp: Kein Token? Manuellen JSON-Export verwenden (Admin -> JSON Repeater Import). Der Token ist nutzerspezifisch und muss im Dashboard generiert werden. Die App muss freigeschaltet sein."
       },
       {
-        title: "BrandMeister Login konfigurieren",
-        body: "Für BrandMeister-DMR-Daten (Hotspots und Relais) können Sie Ihren BrandMeister-Login hinterlegen. Demo-Konto: Eingabe gesperrt, Club-Daten werden verwendet. Der Test-Button «Testen» prüft den Login direkt gegen BrandMeister und zeigt bei Fehlern die Antwort der Quelle an.",
+        title: "BrandMeister API-Key konfigurieren",
+        body: "BrandMeister nutzt API-Keys statt Login-Formular. Der Key wird im Dashboard unter Profile -> API generiert (brandmeister.network). Der Key ist ein langer Hex-String, eindeutig pro Nutzer. Geben Sie den Key in den Einstellungen ein und testen Sie ihn. Bei Erfolg sind persoenliche Daten (Last Heard, etc.) verfuegbar. Bei ungueltigem Key: nur oeffentliche Repeater-Liste wird geladen. Ohne Key: Repeater-Liste ist trotzdem oeffentlich verfuegbar. Demo-Konto: Eingabe gesperrt, Club-Key wird verwendet.",
         steps: [
-          { icon: "globe", text: "Konto auf brandmeister.network erstellen" },
-          { icon: "settings", text: "Einstellungen → «BrandMeister Login»" },
-          { icon: "pencil", text: "Benutzername eingeben" },
-          { icon: "pencil", text: "Passwort eingeben (Augen-Button zum Einblenden)" },
-          { icon: "search", text: "«Testen» für Verbindungsprüfung — Test-Button erscheint bei eingegebenem Login" }
+          { icon: "globe", text: "Auf brandmeister.network einloggen" },
+          { icon: "keyRound", text: "Dashboard -> Profile -> API -> Key generieren (langer Hex-String)" },
+          { icon: "settings", text: "Einstellungen -> «BrandMeister API-Key»" },
+          { icon: "pencil", text: "Key eingeben (Augen-Button zum Einblenden)" },
+          { icon: "search", text: "«Key testen» — bei Erfolg: persoenliche Daten, bei Fehler: nur oeffentliche Liste" }
         ],
         links: [
-          { label: "BrandMeister Konto erstellen", url: "https://brandmeister.network/" }
+          { label: "BrandMeister Dashboard (Key generieren)", url: "https://brandmeister.network" },
+          { label: "BrandMeister API-Keys Info", url: "https://news.brandmeister.network/introducing-user-api-keys/" }
         ],
-        tip: "Tipp: BrandMeister ist ein globales DMR-Netzwerk. Ein Konto ist kostenlos. Der Test-Button erscheint erst, wenn Benutzername und Passwort eingegeben wurden."
+        tip: "Tipp: Die Repeater-Liste ist auch ohne Key oeffentlich verfuegbar. Der Key wird nur fuer persoenliche Daten (Last Heard, Static Talkgroups) benoetigt."
       },
       {
         title: "Zugangsdaten-Priorität (Club vs. Persönlich)",
-        body: "In den Einstellungen können Sie unter «Zugangsdaten-Priorität» festlegen, welche Zugangsdaten für App-Abfragen verwendet werden. Administratoren haben drei Optionen: «Auto» (Fallback: Persönlich → Club → Code), «Persönliche Zugangsdaten» oder «Club-Zugangsdaten». Normale Benutzer haben zwei Optionen: «Persönlich» oder «Club». Bei «Auto» werden persönliche Angaben bevorzugt, falls vorhanden. Das Demo-Konto nutzt immer die Club-Daten — eigene Eingaben sind gesperrt. Die Zugangsdaten-Priorität wirkt sich auf alle Abfragen aus: QRZ, APRS.fi, RepeaterBook und BrandMeister.",
+        body: "In den Einstellungen können Sie unter «Zugangsdaten-Priorität» festlegen, welche Zugangsdaten für App-Abfragen verwendet werden. Administratoren haben drei Optionen: «Auto» (Fallback: Persönlich → Club → Code), «Persönliche Zugangsdaten» oder «Club-Zugangsdaten». Normale Benutzer haben zwei Optionen: «Persönlich» oder «Club». Bei «Auto» werden persönliche Angaben bevorzugt, falls vorhanden. Das Demo-Konto nutzt immer die Club-Daten — eigene Eingaben sind gesperrt. Die Zugangsdaten-Priorität wirkt sich auf alle Abfragen aus: QRZ, APRS.fi, RepeaterBook API-Token und BrandMeister API-Key.",
         steps: [
           { icon: "settings", text: "Einstellungen → «Zugangsdaten-Priorität»" },
           { icon: "list", text: "Admins: «Auto», «Persönlich» oder «Club» wählen" },
@@ -607,14 +610,14 @@ export const SECTIONS = [
           { icon: "pencil", text: "Angeklickte Konfiguration springt direkt zum Eingabefeld" },
           { icon: "search", text: "Test-Button antippen um Verbindung zu prüfen" }
         ],
-        tip: "Tipp: Bei 100% sind alle Funktionen (QRZ, APRS, RepeaterBook, BrandMeister) verfügbar. Test-Buttons erscheinen erst, wenn ein Wert eingegeben wurde — bei Fehlern wird die Antwort der Quelle ausgeklappt."
+        tip: "Tipp: Bei 100% sind alle Funktionen (QRZ, APRS, RepeaterBook API-Token, BrandMeister API-Key) verfügbar. Test-Buttons erscheinen erst, wenn ein Wert eingegeben wurde — bei Fehlern wird die Antwort der Quelle ausgeklappt."
       },
       {
         title: "Demo-Konto Beschränkungen",
-        body: "Das Demo-Konto (demo@hb9om.ch) hat eingeschränkte Funktionen: Eingabefelder für QRZ, APRS, RepeaterBook und BrandMeister sind gesperrt (HB9OM hat Accounts für Demo-Zwecke hinterlegt). Backup und Restore sind gesperrt. QRZ-Uploads aus dem Logbuch sind gesperrt. Alle gesperrten Funktionen sind ausgegraut mit entsprechendem Hinweis. Normale Benutzerkonten haben volle Funktionalität.",
+        body: "Das Demo-Konto (demo@hb9om.ch) hat eingeschränkte Funktionen: Eingabefelder für QRZ, APRS, RepeaterBook API-Token und BrandMeister API-Key sind gesperrt (HB9OM hat Accounts für Demo-Zwecke hinterlegt). Backup und Restore sind gesperrt. QRZ-Uploads aus dem Logbuch sind gesperrt. Alle gesperrten Funktionen sind ausgegraut mit entsprechendem Hinweis. Normale Benutzerkonten haben volle Funktionalität.",
         steps: [
           { icon: "user", text: "Demo-Konto: demo@hb9om.ch / demo1234" },
-          { icon: "eye", text: "Passwort-Felder sind grau mit Hinweis «Demo-Konto: gesperrt»" },
+          { icon: "eye", text: "Token-/Key-Felder sind grau mit Hinweis «Demo-Konto: gesperrt»" },
           { icon: "archiveRestore", text: "Backup/Restore ausgegraut" },
           { icon: "upload", text: "QRZ-Upload ausgegraut" }
         ],

@@ -35,6 +35,13 @@ const GLOBAL_KEY_INFO = {
     type: "password",
     warning: "BrandMeister-Daten (DMR-Relais, Talkgroups, Crosslinks) sind ohne Key nicht verfügbar.",
   },
+  repeaterbook: {
+    label: "RepeaterBook API-Token",
+    icon: Radio,
+    description: "Globaler API-Token für RepeaterBook (rbuapp_...) — seit März 2026 erforderlich (Cloudflare blockt Login)",
+    type: "password",
+    warning: "RepeaterBook-Sync ist ohne Token deaktiviert. JSON-Import als Fallback verfügbar.",
+  },
 };
 
 const PERSONAL_KEY_INFO = {
@@ -56,6 +63,11 @@ const PERSONAL_KEY_INFO = {
   brandmeister_api_key: {
     label: "BrandMeister API-Key",
     icon: Network,
+    type: "password",
+  },
+  repeaterbook_api_token: {
+    label: "RepeaterBook API-Token",
+    icon: Radio,
     type: "password",
   },
 };

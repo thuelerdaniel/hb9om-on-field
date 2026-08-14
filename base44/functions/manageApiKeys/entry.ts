@@ -19,7 +19,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 const GLOBAL_KEY_PREFIX = 'global_api_key_';
 const CLUB_CALLSIGN_KEY = 'club_callsign_config';
 
-const VALID_GLOBAL_KEYS = ['qrz_username', 'qrz_password', 'aprs_fi', 'brandmeister'];
+const VALID_GLOBAL_KEYS = ['qrz_username', 'qrz_password', 'aprs_fi', 'brandmeister', 'repeaterbook'];
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -100,6 +100,7 @@ export default async function(req: Request): Promise<Response> {
           if (masked.qrz_api_key) masked.qrz_api_key = '***';
           if (masked.aprs_fi_api_key) masked.aprs_fi_api_key = '***';
           if (masked.brandmeister_api_key) masked.brandmeister_api_key = '***';
+          if (masked.repeaterbook_api_token) masked.repeaterbook_api_token = '***';
           return Response.json({ status: 'success', config: masked });
         }
       } catch {}
@@ -118,6 +119,7 @@ export default async function(req: Request): Promise<Response> {
           if (finalConfig.qrz_api_key === '***') finalConfig.qrz_api_key = oldConfig.qrz_api_key || '';
           if (finalConfig.aprs_fi_api_key === '***') finalConfig.aprs_fi_api_key = oldConfig.aprs_fi_api_key || '';
           if (finalConfig.brandmeister_api_key === '***') finalConfig.brandmeister_api_key = oldConfig.brandmeister_api_key || '';
+          if (finalConfig.repeaterbook_api_token === '***') finalConfig.repeaterbook_api_token = oldConfig.repeaterbook_api_token || '';
           await base44.asServiceRole.entities.AppSetting.update(existing[0].id, { value: JSON.stringify(finalConfig), enabled: true });
         } else {
           await base44.asServiceRole.entities.AppSetting.create({ key: CLUB_CALLSIGN_KEY, value: JSON.stringify(finalConfig), enabled: true });
@@ -138,6 +140,7 @@ export default async function(req: Request): Promise<Response> {
           qrz_password: user.qrz_password ? '***' : '',
           aprs_fi_api_key: user.aprs_fi_api_key ? '***' : '',
           brandmeister_api_key: user.brandmeister_api_key ? '***' : '',
+          repeaterbook_api_token: user.repeaterbook_api_token ? '***' : '',
           use_global_keys: user.use_global_keys !== false,
         }
       });
@@ -150,6 +153,7 @@ export default async function(req: Request): Promise<Response> {
       if (body.qrz_password !== undefined && body.qrz_password !== '***') updateData.qrz_password = body.qrz_password;
       if (body.aprs_fi_api_key !== undefined && body.aprs_fi_api_key !== '***') updateData.aprs_fi_api_key = body.aprs_fi_api_key;
       if (body.brandmeister_api_key !== undefined && body.brandmeister_api_key !== '***') updateData.brandmeister_api_key = body.brandmeister_api_key;
+      if (body.repeaterbook_api_token !== undefined && body.repeaterbook_api_token !== '***') updateData.repeaterbook_api_token = body.repeaterbook_api_token;
       if (body.use_global_keys !== undefined) updateData.use_global_keys = body.use_global_keys;
       try {
         await base44.auth.updateMe(updateData);
@@ -162,7 +166,7 @@ export default async function(req: Request): Promise<Response> {
     if (action === 'deletePersonal') {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       const fieldName = body.fieldName;
-      const validFields = ['qrz_username', 'qrz_password', 'aprs_fi_api_key', 'brandmeister_api_key'];
+      const validFields = ['qrz_username', 'qrz_password', 'aprs_fi_api_key', 'brandmeister_api_key', 'repeaterbook_api_token'];
       if (!validFields.includes(fieldName)) {
         return Response.json({ error: `Ungültiges Feld: ${fieldName}` }, { status: 400 });
       }
