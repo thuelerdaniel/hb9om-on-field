@@ -18,7 +18,7 @@ export default async function(req: any): Promise<Response> {
 
     // --- Set / update my public position ---
     if (action === 'set') {
-      const { lat, lng, device_type, label } = body;
+      const { lat, lng, device_type, label, comment, aprs_symbol } = body;
       if (lat == null || lng == null) {
         return Response.json({ error: 'Koordinaten fehlen' }, { status: 400 });
       }
@@ -35,6 +35,8 @@ export default async function(req: any): Promise<Response> {
           lat, lng,
           device_type: device_type || rec.device_type || 'mobil',
           label: label ?? rec.label,
+          comment: comment ?? rec.comment,
+          aprs_symbol: aprs_symbol || rec.aprs_symbol || 'mobile',
           callsign,
           last_updated: now,
           is_active: true,
@@ -48,6 +50,8 @@ export default async function(req: any): Promise<Response> {
         lat, lng,
         device_type: device_type || 'mobil',
         label: label || null,
+        comment: comment || null,
+        aprs_symbol: aprs_symbol || 'mobile',
         last_updated: now,
         is_active: true,
       });
@@ -94,6 +98,8 @@ export default async function(req: any): Promise<Response> {
           lng: p.lng,
           device_type: p.device_type,
           label: p.label,
+          comment: p.comment,
+          aprs_symbol: p.aprs_symbol,
           last_updated: p.last_updated,
           is_own: p.created_by_id === user.id,
         })),
@@ -111,7 +117,7 @@ export default async function(req: any): Promise<Response> {
       return Response.json({
         success: true,
         is_public: rec.is_active === true,
-        position: { lat: rec.lat, lng: rec.lng, device_type: rec.device_type, label: rec.label },
+        position: { lat: rec.lat, lng: rec.lng, device_type: rec.device_type, label: rec.label, comment: rec.comment, aprs_symbol: rec.aprs_symbol },
         last_updated: rec.last_updated,
       });
     }

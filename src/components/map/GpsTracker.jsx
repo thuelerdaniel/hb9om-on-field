@@ -27,7 +27,8 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
     const startTracking = () => {
       const enabled = localStorage.getItem("hb9om_gps_tracking_enabled") === "true";
       const intervalSec = parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60");
-      const publicEnabled = localStorage.getItem("hb9om_gps_public_enabled") === "true";
+      // Live GPS position is ON by default (per default eingeschaltet)
+      const publicEnabled = localStorage.getItem("hb9om_gps_public_enabled") !== "false";
 
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -57,12 +58,16 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
                 lastBroadcastRef.current = now;
                 const callsign = localStorage.getItem("hb9om_user_callsign") || "";
                 const deviceType = localStorage.getItem("hb9om_cov_device") || "mobil";
+                const comment = localStorage.getItem("hb9om_gps_public_comment") || "";
+                const aprsSymbol = localStorage.getItem("hb9om_gps_public_symbol") || "mobile";
                 base44.functions.invoke("managePublicPosition", {
                   action: "set",
                   lat: pos.coords.latitude,
                   lng: pos.coords.longitude,
                   callsign,
                   device_type: deviceType,
+                  comment,
+                  aprs_symbol: aprsSymbol,
                 }).then(res => {
                   if (onPublicPositionUpdate && res?.id) {
                     onPublicPositionUpdate({ id: res.id, lat: pos.coords.latitude, lng: pos.coords.longitude, is_own: true });

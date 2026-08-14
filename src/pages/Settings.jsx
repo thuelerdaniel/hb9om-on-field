@@ -16,6 +16,7 @@ import DonationPopup from "@/components/DonationPopup";
 import PasswordInput from "@/components/settings/PasswordInput";
 import CollapsibleSection from "@/components/settings/CollapsibleSection";
 import ConfigCompletenessBar from "@/components/settings/ConfigCompletenessBar";
+import GpsPublicConfig from "@/components/settings/GpsPublicConfig";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
 const AdminPanel = lazy(() => import("@/components/settings/AdminPanel"));
@@ -929,7 +930,70 @@ export default function Settings() {
         <CollapsibleSection title="Karte & Anzeige" icon={MapPin} defaultOpen={false} helpAnchor="#karte-anzeige" helpLabel="Hilfe zu Karte & Anzeige">
         {/* Performance Mode */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-...
+          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+            <Gauge className="w-4 h-4" /> Performance-Modus
+          </h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-semibold text-gray-900">Kreis-Marker erzwingen</label>
+              <p className="text-xs text-gray-500 mt-0.5">Reduziert Rendering-Last bei vielen Stationen</p>
+            </div>
+            <button
+              onClick={() => handleTogglePerformanceMode(!performanceMode)}
+              className={`relative w-12 h-6 rounded-full transition-colors ${performanceMode ? "bg-gray-900" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${performanceMode ? "translate-x-6" : ""}`} />
+            </button>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <div>
+              <label className="text-sm font-semibold text-gray-900">Auto-Modus überschreiben</label>
+              <p className="text-xs text-gray-500 mt-0.5">Performance-Modus auch bei wenigen Stationen aktiv</p>
+            </div>
+            <button
+              onClick={() => handleToggleAutoModeOverride(!autoModeOverride)}
+              className={`relative w-12 h-6 rounded-full transition-colors ${autoModeOverride ? "bg-gray-900" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autoModeOverride ? "translate-x-6" : ""}`} />
+            </button>
+          </div>
+        </section>
+
+        {/* GPS Tracking */}
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+            <Crosshair className="w-4 h-4" /> GPS-Tracking
+          </h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-semibold text-gray-900">GPS-Tracking aktiv</label>
+              <p className="text-xs text-gray-500 mt-0.5">Standort auf der Karte anzeigen</p>
+            </div>
+            <button
+              onClick={() => handleToggleGpsTracking(!gpsTrackingEnabled)}
+              className={`relative w-12 h-6 rounded-full transition-colors ${gpsTrackingEnabled ? "bg-gray-900" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${gpsTrackingEnabled ? "translate-x-6" : ""}`} />
+            </button>
+          </div>
+          {gpsTrackingEnabled && (
+            <div className="mt-3">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktualisierungs-Intervall</label>
+              <div className="flex gap-2 mt-1">
+                {[30, 60, 300, 600, 1800, 3600].map(sec => (
+                  <button
+                    key={sec}
+                    onClick={() => handleGpsIntervalChange(sec)}
+                    className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${gpsTrackingInterval === sec ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}
+                  >
+                    {sec < 60 ? `${sec}s` : sec < 3600 ? `${sec / 60}min` : `${sec / 3600}h`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Erweiterte Optionen: Live GPS-Position (public), Bemerkung, Symbol */}
+          <GpsPublicConfig />
         </section>
         </CollapsibleSection>
 

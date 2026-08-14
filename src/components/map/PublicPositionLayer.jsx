@@ -1,25 +1,26 @@
 import React, { memo, useMemo } from "react";
 import { Marker, Popup, Tooltip } from "react-leaflet";
 import L from "leaflet";
-import { Radio, MapPin, Clock } from "lucide-react";
+import { Radio, MapPin, Clock, MessageSquare } from "lucide-react";
+import { getAprsSymbolSvg } from "@/lib/aprsSymbols";
 
-// Render a small, shared icon cache keyed by device type
+// Render icon cache keyed by symbol+isOwn
 const iconCache = new Map();
 
-function getPublicIcon(deviceType, isOwn) {
-  const key = `${deviceType}-${isOwn}`;
+function getPublicIcon(aprsSymbol, isOwn) {
+  const symbol = aprsSymbol || "mobile";
+  const key = `${symbol}-${isOwn}`;
   if (iconCache.has(key)) return iconCache.get(key);
 
-  const colors = isOwn ? "#16a34a" : "#6366f1";
-  const ring = isOwn ? "#22c55e" : "#818cf8";
+  const color = isOwn ? "#16a34a" : "#6366f1";
+  const svg = getAprsSymbolSvg(symbol, color);
   const html = `
-    <div style="position:relative;width:32px;height:32px;">
-      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;background:${colors}33;border:2px solid ${ring};box-shadow:0 0 6px ${colors}88;"></div>
-      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:${colors};border:2px solid white;"></div>
+    <div style="position:relative;width:28px;height:28px;">
+      ${svg}
       ${isOwn ? '<div style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:1.5px solid white;"></div>' : ''}
     </div>
   `;
-  const icon = L.divIcon({ html, className: "public-position-icon", iconSize: [32, 32], iconAnchor: [16, 16] });
+  const icon = L.divIcon({ html, className: "public-position-icon", iconSize: [28, 28], iconAnchor: [14, 14] });
   iconCache.set(key, icon);
   return icon;
 }
@@ -50,7 +51,7 @@ function PublicPositionLayerInner({ positions, userCallsign }) {
           <Marker
             key={p.id || `${p.callsign}-${p.lat}-${p.lng}`}
             position={[p.lat, p.lng]}
-            icon={getPublicIcon(p.device_type, isOwn)}
+            icon={getPublicIcon(p.aprs_symbol, isOwn)}
             zIndexOffset={isOwn ? 850 : 800}
           >
             <Tooltip direction="top" offset={[0, -14]} opacity={0.92}>
@@ -76,6 +77,12 @@ function PublicPositionLayerInner({ positions, userCallsign }) {
                 {p.device_type && (
                   <div className="text-[10px] text-gray-400">
                     Typ: {p.device_type}
+                  </div>
+                )}
+                {p.comment && (
+                  <div className="flex items-start gap-1 text-[11px] text-gray-700 bg-gray-50 rounded p-1.5 mt-1">
+                    <MessageSquare className="w-3 h-3 flex-shrink-0 mt-0.5 text-gray-400" />
+                    <span className="break-words">{p.comment}</span>
                   </div>
                 )}
                 {isOwn && (

@@ -28,6 +28,16 @@
       "type": "string",
       "description": "Optionale Bezeichnung der Position"
     },
+    "comment": {
+      "type": "string",
+      "description": "Bemerkung fuer andere Benutzer (sichtbar im Popup)",
+      "maxLength": 500
+    },
+    "aprs_symbol": {
+      "type": "string",
+      "description": "APRS-Symbol-Code (z.B. mobile, car, walker, boat) fuer die Kartenanzeige",
+      "default": "mobile"
+    },
     "last_updated": {
       "type": "string",
       "format": "date-time",

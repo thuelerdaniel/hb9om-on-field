@@ -916,8 +916,9 @@ export default function Home() {
           />
         )}
 
-        {/* Public positions — shared GPS positions visible to all users */}
-        {publicPositions.length > 0 && (
+        {/* Public positions — shared GPS positions visible to all users.
+            Only rendered when the APRS layer is active (per user request). */}
+        {publicPositions.length > 0 && activeLayers.includes("aprs") && (
           <PublicPositionLayer positions={publicPositions} />
         )}
       </MapContainer>
