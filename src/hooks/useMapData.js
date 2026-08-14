@@ -28,27 +28,30 @@ export function useMapData(activeLayers) {
   // Track which datasets have been loaded from server to avoid duplicate fetches
   const loadedRef = useRef({ privateNodes: false, adminLinks: false });
 
-  // Load offline cache synchronously on mount — instant display if available
+  // Load offline cache on mount — async (IndexedDB reads).
+  // Shows cached data instantly if available, before server data loads.
   useEffect(() => {
-    const cached = loadCachedReferenceData();
-    if (cached) {
-      setData(prev => ({
-        sota: cached.sota || [],
-        pota: cached.pota || [],
-        hbff: cached.hbff || [],
-        wwbota: cached.wwbota || [],
-        castle: cached.castle || [],
-        iota: cached.iota || [],
-        lighthouse: cached.lighthouse || [],
-        tota: prev.tota,
-      }));
-    }
-    const cachedRepeaters = loadCachedRepeaters();
-    if (cachedRepeaters.length > 0) setRepeaters(cachedRepeaters);
-    const cachedNodes = loadCachedPrivateNodes();
-    if (cachedNodes.length > 0) setPrivateNodes(cachedNodes);
-    const cachedTota = loadCachedTota();
-    if (cachedTota.length > 0) setData(prev => ({ ...prev, tota: cachedTota }));
+    (async () => {
+      const cached = await loadCachedReferenceData();
+      if (cached) {
+        setData(prev => ({
+          sota: cached.sota || [],
+          pota: cached.pota || [],
+          hbff: cached.hbff || [],
+          wwbota: cached.wwbota || [],
+          castle: cached.castle || [],
+          iota: cached.iota || [],
+          lighthouse: cached.lighthouse || [],
+          tota: prev.tota,
+        }));
+      }
+      const cachedRepeaters = await loadCachedRepeaters();
+      if (cachedRepeaters.length > 0) setRepeaters(cachedRepeaters);
+      const cachedNodes = await loadCachedPrivateNodes();
+      if (cachedNodes.length > 0) setPrivateNodes(cachedNodes);
+      const cachedTota = await loadCachedTota();
+      if (cachedTota.length > 0) setData(prev => ({ ...prev, tota: cachedTota }));
+    })();
   }, []);
 
   // Merge viewport-loaded reference data AND repeaters (called by ViewportDataLoader)

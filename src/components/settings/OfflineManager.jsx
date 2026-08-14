@@ -45,21 +45,21 @@ const formatBytes = (bytes) => {
 export default function OfflineManager() {
   const { toast } = useToast();
   const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
-  const [localStats, setLocalStats] = useState(() => getReferenceTypeStats());
+  const [localStats, setLocalStats] = useState({});
   const [serverCounts, setServerCounts] = useState(null);
   const [loadingCounts, setLoadingCounts] = useState(false);
   const [downloadingTypes, setDownloadingTypes] = useState(new Set());
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [storageInfo, setStorageInfo] = useState({ areas: 0, tiles: 0 });
-  const [offlineReady, setOfflineReady] = useState(() => isOfflineReady());
+  const [offlineReady, setOfflineReady] = useState(false);
   const [offlineCachedAt, setOfflineCachedAt] = useState(() => getCachedAt());
   const [expandedLayers, setExpandedLayers] = useState(false);
   const [missingHint, setMissingHint] = useState(null);
   const [countryFilterType, setCountryFilterType] = useState(null);
 
-  const refreshStats = useCallback(() => {
-    setLocalStats(getReferenceTypeStats());
-    setOfflineReady(isOfflineReady());
+  const refreshStats = useCallback(async () => {
+    setLocalStats(await getReferenceTypeStats());
+    setOfflineReady(await isOfflineReady());
     setOfflineCachedAt(getCachedAt());
   }, []);
 
@@ -69,7 +69,7 @@ export default function OfflineManager() {
     const info = await getStorageEstimate().catch(() => ({ areas: 0, tiles: 0 }));
     setStorageInfo(info);
     // Check map tiles readiness
-    const readiness = getOfflineReadiness();
+    const readiness = await getOfflineReadiness();
     readiness.mapTiles = areas.length > 0;
     // Build missing hint
     const missing = [];
@@ -178,8 +178,8 @@ export default function OfflineManager() {
     toast({ title: "Alle Daten geladen", description: "App ist bereit für Offline-Nutzung", duration: 3000 });
   };
 
-  const handleClearType = (type) => {
-    clearReferenceType(type);
+  const handleClearType = async (type) => {
+    await clearReferenceType(type);
     refreshStats();
     loadData();
     toast({ title: "Gelöscht", description: `${TYPE_LABELS[type]} aus lokalem Speicher entfernt`, duration: 2000 });
@@ -194,9 +194,7 @@ export default function OfflineManager() {
     await clearAllTiles();
     const areas = await getOfflineAreas();
     for (const a of areas) await deleteArea(a.id);
-    clearLocalReferenceCache();
-    localStorage.removeItem("hb9om_refs_repeater");
-    localStorage.removeItem("hb9om_refs_private_nodes");
+    await clearLocalReferenceCache();
     refreshStats();
     loadData();
     toast({ title: "Alle Offline-Daten gelöscht", duration: 2000 });
