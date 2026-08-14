@@ -44,6 +44,9 @@ export default function Settings() {
   const [qrzTestResult, setQrzTestResult] = useState(null);
   const [aprsApiKey, setAprsApiKey] = useState("");
   const [aprsKeyConfigured, setAprsKeyConfigured] = useState(false);
+  const [qrzApiKey, setQrzApiKey] = useState("");
+  const [repeaterbookUsername, setRepeaterbookUsername] = useState("");
+  const [repeaterbookPassword, setRepeaterbookPassword] = useState("");
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState("");
@@ -177,6 +180,9 @@ export default function Settings() {
       const aprsKey = me?.aprs_fi_api_key || "";
       setAprsApiKey(aprsKey);
       setAprsKeyConfigured(!!aprsKey);
+      setQrzApiKey(me?.qrz_api_key || "");
+      setRepeaterbookUsername(me?.repeaterbook_username || "");
+      setRepeaterbookPassword(me?.repeaterbook_password || "");
       // Sync feature flags from User entity (User entity wins)
       syncFeaturesFromUser();
     } catch (e) { }
@@ -215,7 +221,10 @@ export default function Settings() {
         await base44.auth.updateMe({
           qrz_username: qrzUsername.trim(),
           qrz_password: qrzPassword,
-          aprs_fi_api_key: aprsApiKey.trim()
+          aprs_fi_api_key: aprsApiKey.trim(),
+          qrz_api_key: qrzApiKey.trim(),
+          repeaterbook_username: repeaterbookUsername.trim(),
+          repeaterbook_password: repeaterbookPassword,
         });
         setQrzConfigured(!!qrzUsername.trim() && !!qrzPassword);
         setAprsKeyConfigured(!!aprsApiKey.trim());
@@ -559,6 +568,54 @@ export default function Settings() {
               )}
             </div>
 
+            {/* QRZ API Key (personal) — for QRZ logbook upload (point 8) */}
+            <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <KeyRound className="w-4 h-4" /> QRZ API-Key (persönlich)
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">Für Upload ins persönliche QRZ-Logbuch</p>
+              <input
+                type="password"
+                value={qrzApiKey}
+                onChange={e => setQrzApiKey(e.target.value)}
+                placeholder="Persönlicher QRZ.com API-Key (für Logbuch-Upload)"
+                autoComplete="off"
+                className="w-full mt-2 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+              <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                Der API-Key wird für den Upload von QSO-Einträgen ins QRZ-Logbuch verwendet. Club-API-Key wird in der Club-Rufzeichen-Verwaltung gepflegt.
+              </p>
+            </div>
+
+            {/* RepeaterBook Login — for authenticated repeater data (point 11) */}
+            <div className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <Radio className="w-4 h-4" /> RepeaterBook Login
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">Für authentifizierte Abfrage von Relais-Positionen</p>
+              <div className="mt-2 space-y-2">
+                <input
+                  type="text"
+                  value={repeaterbookUsername}
+                  onChange={e => setRepeaterbookUsername(e.target.value)}
+                  placeholder="RepeaterBook-Benutzername (optional)"
+                  autoComplete="off"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <input
+                  type="password"
+                  value={repeaterbookPassword}
+                  onChange={e => setRepeaterbookPassword(e.target.value)}
+                  placeholder="RepeaterBook-Passwort (optional)"
+                  autoComplete="off"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                Ohne Login werden nur öffentliche RepeaterBook-Daten abgefragt. Mit Login sind auch erweiterte Daten verfügbar.
+              </p>
+            </div>
+
             <button
               onClick={handleSaveProfile}
               disabled={profileSaving}
@@ -600,7 +657,7 @@ export default function Settings() {
                         ? <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
                         : <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
                       }
-                      <span className="font-mono font-bold text-sm text-gray-900">{entry.callsign}</span>
+                      <a href={`https://www.qrz.com/db/${entry.callsign}`} target="_blank" rel="noopener noreferrer" className="font-mono font-bold text-sm text-blue-600 hover:underline">{entry.callsign}</a>
                       {entry.name && <span className="text-xs text-gray-500 truncate">{entry.name}</span>}
                     </div>
                     <span className="text-[10px] text-gray-400 flex-shrink-0">
@@ -613,7 +670,7 @@ export default function Settings() {
                       <div className="flex gap-3 flex-wrap">
                         {entry.country && <span>{entry.country}</span>}
                         {entry.grid && <span className="font-mono">Grid: {entry.grid}</span>}
-                        {entry.email && <span>{entry.email}</span>}
+                        {entry.email && <a href={`mailto:${entry.email}`} className="text-blue-600 hover:underline">{entry.email}</a>}
                       </div>
                     </div>
                   ) : (

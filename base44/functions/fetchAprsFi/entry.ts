@@ -21,9 +21,23 @@ export default async function(req) {
       }
     }
 
-    const apiKey = process.env.APRS_FI_API_KEY;
+    // APRS.fi API key priority: personal (user entity) → club config → global secret
+    let apiKey = (user as any)?.aprs_fi_api_key || '';
     if (!apiKey) {
-      return Response.json({ status: 'failed', error: 'APRS_FI_API_KEY secret not set' }, { status: 500 });
+      // Try club config
+      try {
+        const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'club_callsign_config' });
+        if (settings?.length > 0) {
+          const config = JSON.parse(settings[0].value || '{}');
+          apiKey = config.aprs_fi_api_key || '';
+        }
+      } catch {}
+    }
+    if (!apiKey) {
+      apiKey = process.env.APRS_FI_API_KEY || '';
+    }
+    if (!apiKey) {
+      return Response.json({ status: 'failed', error: 'APRS.fi API-Key nicht konfiguriert (persönlich, Club oder global)' }, { status: 500 });
     }
 
     const result = await fetchAprsData(base44, apiKey);

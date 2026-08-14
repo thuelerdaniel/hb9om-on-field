@@ -32,8 +32,9 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
   const [urlInput, setUrlInput] = useState(repeater.web_url || "");
   const [savingUrl, setSavingUrl] = useState(false);
   const [calcLoading, setCalcLoading] = useState(false);
+  const [calcResult, setCalcResult] = useState(null);
   const [showCorrection, setShowCorrection] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   // JSON-imported repeaters have no external source link — show "JSON" badge instead
   const isJsonImport = repeater.source_id === "json-import";
@@ -75,16 +76,29 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
 
   const handleTriggerCoverage = async () => {
     setCalcLoading(true);
+    setCalcResult(null);
     try {
-      await base44.functions.invoke("manageRepeater", {
+      const res = await base44.functions.invoke("manageRepeater", {
         action: "triggerCoverage",
         repeater_id: repeater.id,
       });
       repeater.needs_recalc = false;
       repeater.coverage_updated = new Date().toISOString();
+      if (res?.data?.coverage_radius_km != null) {
+        repeater.coverage_radius_km = res.data.coverage_radius_km;
+        repeater.coverage_refinement_pct = res.data.coverage_refinement_pct ?? 100;
+        repeater.coverage_source = res.data.coverage_source || "terrain_adjusted";
+      }
+      setCalcResult({ success: true, message: "Abdeckung berechnet — wird auf Karte angezeigt" });
+      // Auto-toggle coverage display if not already on
+      if (onToggleCoverage && !showCoverageForThis) {
+        onToggleCoverage(repeater);
+      }
     } catch (e) {
+      setCalcResult({ success: false, message: "Fehler bei der Berechnung" });
     } finally {
       setCalcLoading(false);
+      setTimeout(() => setCalcResult(null), 4000);
     }
   };
 
@@ -508,6 +522,11 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
                 {calcLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                 {calcLoading ? "Berechnung läuft..." : repeater.coverage_radius_km != null ? "Neu berechnen (Admin)" : "Abdeckung berechnen (Admin)"}
               </button>
+            )}
+            {calcResult && (
+              <div className={`mt-1 text-[10px] text-center font-medium ${calcResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                {calcResult.message}
+              </div>
             )}
           </div>
 

@@ -23,8 +23,9 @@ export default function TotaFilter({
   showChTota = false,
   onShowChTotaChange,
   leftOffsetClass = "left-16",
+  defaultOpen = true,
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const { containerRef } = useDraggablePosition("drag-tota-filter");
 
   const allOn = !filterTypes || filterTypes.length === TOTA_TYPE_IDS.length;

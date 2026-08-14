@@ -159,7 +159,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   };
 
   const [isClubstation, setIsClubstation] = useState(editEntry?.is_clubstation ?? (localStorage.getItem(PERSIST_KEYS.isClubstation) === "true"));
-  const [clubCallsign, setClubCallsign] = useState(editEntry?.club_callsign || (localStorage.getItem(PERSIST_KEYS.clubCallsign) || ""));
+  const [clubCallsign, setClubCallsign] = useState(editEntry?.club_callsign || (localStorage.getItem(PERSIST_KEYS.clubCallsign) || localStorage.getItem("hb9om_club_callsign") || ""));
   const [clubOperatorCallsign, setClubOperatorCallsign] = useState(editEntry?.club_operator_callsign || (localStorage.getItem(PERSIST_KEYS.clubOperatorCallsign) || localStorage.getItem("hb9om_my_callsign") || ""));
   const [clubOperatorName, setClubOperatorName] = useState(editEntry?.club_operator_name || (localStorage.getItem(PERSIST_KEYS.clubOperatorName) || ""));
   const [showClubPopup, setShowClubPopup] = useState(false);
@@ -230,6 +230,25 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       setRefName(r.name || "");
     }
   }, [nearbyRefs]);
+
+  // Pre-fill club callsign from settings (cached by ClubCallsignManager)
+  useEffect(() => {
+    if (isEditing) return;
+    const cachedClubCall = localStorage.getItem("hb9om_club_callsign");
+    if (cachedClubCall && !clubCallsign) {
+      setClubCallsign(cachedClubCall);
+    }
+    // Try fetching from backend (admin only — non-admins use cached value)
+    base44.functions.invoke("manageApiKeys", { action: "getClubCallsign" })
+      .then(res => {
+        const cc = res.data?.config?.club_callsign;
+        if (cc) {
+          localStorage.setItem("hb9om_club_callsign", cc);
+          setClubCallsign(prev => prev || cc);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (refType === "generell" && positionCenter && !myGrid) {
@@ -603,7 +622,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
           </div>
         </div>
 
-        <div className="p-4 space-y-2">
+        <div className="p-4 space-y-1.5">
           {/* Allgemeine */}
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Allgemeine</h3>
 
@@ -639,15 +658,13 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
             {isOffline && <p className="text-xs text-amber-600 mt-1">⚠ QRZ-Abfrage nur online möglich – Operator-Daten manuell eingeben</p>}
             {qrzError && <p className="text-xs text-amber-600 mt-1">{qrzError}</p>}
             {operator.name && (
-              <div className="mt-2 p-3 bg-blue-50 rounded-lg text-xs space-y-0.5">
-                <p className="font-medium text-gray-900">{operator.name}</p>
-                {operator.address && <p className="text-gray-600">{operator.address}</p>}
-                <div className="flex gap-3 flex-wrap">
-                  {operator.country && <span className="text-gray-500">{operator.country}</span>}
-                  {operator.grid && <span className="text-gray-500 font-mono">Grid: {operator.grid}</span>}
-                  {operator.email && <span className="text-gray-500">{operator.email}</span>}
-                </div>
-                <p className="text-blue-500 mt-1">✓ Daten von QRZ.com übernommen</p>
+              <div className="mt-1 p-1.5 bg-blue-50 rounded text-[11px] flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="font-medium text-gray-900">{operator.name}</span>
+                {operator.address && <span className="text-gray-500 truncate max-w-[140px]">{operator.address}</span>}
+                {operator.country && <span className="text-gray-500">{operator.country}</span>}
+                {operator.grid && <span className="text-gray-500 font-mono">{operator.grid}</span>}
+                {operator.email && <a href={`mailto:${operator.email}`} className="text-blue-600 hover:underline truncate max-w-[100px]">{operator.email}</a>}
+                <span className="text-blue-500">✓ QRZ</span>
               </div>
             )}
           </div>

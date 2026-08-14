@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, Move, Radio, MapPin } from "lucide-react";
+import { Plus, Move, Radio, MapPin, Loader2 } from "lucide-react";
 import { MapContainer, useMap, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
@@ -96,7 +96,7 @@ const LAYER_LABELS = {
 function buildMarkers(data, activeLayers) {
   const markers = [];
   for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"]) {
-    if (!activeLayers.includes(type)) continue;
+    if (activeLayers && !activeLayers.includes(type)) continue;
     const refs = data[type] || [];
     for (const ref of refs) {
       if (ref.lat == null || ref.lng == null) continue;
@@ -170,7 +170,14 @@ function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale, onMapClic
   }, [map, onMapReady]);
 
   useMapEvents({
-    zoomend: () => {},
+    zoomend: () => {
+      const c = map.getCenter();
+      localStorage.setItem("hb9om_map_state", JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
+    },
+    moveend: () => {
+      const c = map.getCenter();
+      localStorage.setItem("hb9om_map_state", JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
+    },
     click: (e) => { if (onMapClickRef.current) onMapClickRef.current(e.latlng); },
   });
 
@@ -205,6 +212,8 @@ export default function Home() {
   const [activeCountries, setActiveCountries] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [placeResults, setPlaceResults] = useState([]);
+  const [serverSearching, setServerSearching] = useState(false);
 
   // Position state
   const [userPosition, setUserPosition] = useState(null);
@@ -262,31 +271,52 @@ export default function Home() {
   const [repeaterCorrection, setRepeaterCorrection] = useState(null);
   const [individualCoverage, setIndividualCoverage] = useState(new Set());
 
+  // Restore saved filter state (point 13)
+  const savedFilterState = (() => {
+    try { return JSON.parse(localStorage.getItem("hb9om_filter_state")) || {}; } catch { return {}; }
+  })();
+
   // Repeater filters
-  const [repeaterFilterModes, setRepeaterFilterModes] = useState(FILTER_MODES);
-  const [repeaterSearchQuery, setRepeaterSearchQuery] = useState("");
-  const [repeaterFilterCountries, setRepeaterFilterCountries] = useState([]);
-  const [showRepeaterLinks, setShowRepeaterLinks] = useState(false);
-  const [showRepeaterCoverage, setShowRepeaterCoverage] = useState(false);
-  const [showOnlyLinked, setShowOnlyLinked] = useState(false);
-  const [repeaterRadiusKm, setRepeaterRadiusKm] = useState(0);
+  const [repeaterFilterModes, setRepeaterFilterModes] = useState(savedFilterState.repeaterFilterModes || FILTER_MODES);
+  const [repeaterSearchQuery, setRepeaterSearchQuery] = useState(savedFilterState.repeaterSearchQuery || "");
+  const [repeaterFilterCountries, setRepeaterFilterCountries] = useState(savedFilterState.repeaterFilterCountries || []);
+  const [showRepeaterLinks, setShowRepeaterLinks] = useState(savedFilterState.showRepeaterLinks || false);
+  const [showRepeaterCoverage, setShowRepeaterCoverage] = useState(savedFilterState.showRepeaterCoverage || false);
+  const [showOnlyLinked, setShowOnlyLinked] = useState(savedFilterState.showOnlyLinked || false);
+  const [repeaterRadiusKm, setRepeaterRadiusKm] = useState(savedFilterState.repeaterRadiusKm || 0);
 
   // TOTA filters
-  const [totaFilterTypes, setTotaFilterTypes] = useState(null);
-  const [totaSearchQuery, setTotaSearchQuery] = useState("");
-  const [totaFilterCountries, setTotaFilterCountries] = useState([]);
+  const [totaFilterTypes, setTotaFilterTypes] = useState(savedFilterState.totaFilterTypes ?? null);
+  const [totaSearchQuery, setTotaSearchQuery] = useState(savedFilterState.totaSearchQuery || "");
+  const [totaFilterCountries, setTotaFilterCountries] = useState(savedFilterState.totaFilterCountries || []);
   const [showChTota, setShowChTota] = useState(() => localStorage.getItem("hb9om_show_ch_tota") === "true");
   const [totaViewportCount, setTotaViewportCount] = useState({ visible: 0, total: 0 });
 
   // APRS filters
-  const [aprsFilterTypes, setAprsFilterTypes] = useState(null);
-  const [aprsSearchQuery, setAprsSearchQuery] = useState("");
-  const [aprsFilterCountries, setAprsFilterCountries] = useState([]);
+  const [aprsFilterTypes, setAprsFilterTypes] = useState(savedFilterState.aprsFilterTypes ?? null);
+  const [aprsSearchQuery, setAprsSearchQuery] = useState(savedFilterState.aprsSearchQuery || "");
+  const [aprsFilterCountries, setAprsFilterCountries] = useState(savedFilterState.aprsFilterCountries || []);
 
   // BrandMeister filters
-  const [bmFilterTypes, setBmFilterTypes] = useState(null);
-  const [bmSearchQuery, setBmSearchQuery] = useState("");
-  const [bmFilterCountries, setBmFilterCountries] = useState([]);
+  const [bmFilterTypes, setBmFilterTypes] = useState(savedFilterState.bmFilterTypes ?? null);
+  const [bmSearchQuery, setBmSearchQuery] = useState(savedFilterState.bmSearchQuery || "");
+  const [bmFilterCountries, setBmFilterCountries] = useState(savedFilterState.bmFilterCountries || []);
+
+  // Save filter state to localStorage (point 13: remember filter settings)
+  useEffect(() => {
+    const filterState = {
+      repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries,
+      showRepeaterLinks, showRepeaterCoverage, showOnlyLinked, repeaterRadiusKm,
+      totaFilterTypes, totaSearchQuery, totaFilterCountries,
+      aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
+      bmFilterTypes, bmSearchQuery, bmFilterCountries,
+    };
+    localStorage.setItem("hb9om_filter_state", JSON.stringify(filterState));
+  }, [repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries,
+      showRepeaterLinks, showRepeaterCoverage, showOnlyLinked, repeaterRadiusKm,
+      totaFilterTypes, totaSearchQuery, totaFilterCountries,
+      aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
+      bmFilterTypes, bmSearchQuery, bmFilterCountries]);
 
   // Map ref
   const mapRef = useRef(null);
@@ -346,6 +376,8 @@ export default function Home() {
 
   // Build unified markers array for MapMarkers
   const allMarkers = useMemo(() => buildMarkers(data, activeLayers), [data, activeLayers]);
+  // All loaded markers regardless of active layers — used by QSO form for reference selection
+  const allMarkersUnfiltered = useMemo(() => buildMarkers(data, null), [data]);
 
   // Search across ALL loaded data (not just active layers) — matches code, name, layerType, layerLabel
   const searchCandidates = useMemo(() => buildSearchCandidates(data, repeaters), [data, repeaters]);
@@ -368,6 +400,33 @@ export default function Home() {
       .slice(0, 30);
     setSearchResults(results);
   }, [searchQuery, searchCandidates]);
+
+  // Place search via backend (point 14: search places with timeout popup)
+  useEffect(() => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setPlaceResults([]);
+      setServerSearching(false);
+      return;
+    }
+    setServerSearching(true);
+    const timer = setTimeout(() => {
+      base44.functions.invoke("searchPlaces", { query: searchQuery, limit: 10 })
+        .then(res => {
+          setPlaceResults(res.data?.places || []);
+        })
+        .catch(() => setPlaceResults([]))
+        .finally(() => setServerSearching(false));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Merge local results with place results (point 14)
+  const mergedSearchResults = useMemo(() => {
+    const places = placeResults.filter(p =>
+      !searchResults.some(r => r.name === p.name && r.lat === p.lat)
+    );
+    return [...searchResults, ...places].slice(0, 30);
+  }, [searchResults, placeResults]);
 
   // Show performance suggestion when many markers are loaded
   useEffect(() => {
@@ -693,8 +752,8 @@ export default function Home() {
       {/* Map — wrapped in error boundary to prevent white-screen crashes */}
       <MapErrorBoundary>
       <MapContainer
-        center={[46.8, 8.2]}
-        zoom={8}
+        center={(() => { try { const s = JSON.parse(localStorage.getItem("hb9om_map_state")); return s ? [s.lat, s.lng] : [46.8, 8.2]; } catch { return [46.8, 8.2]; } })()}
+        zoom={(() => { try { const s = JSON.parse(localStorage.getItem("hb9om_map_state")); return s?.zoom || 8; } catch { return 8; } })()}
         className="w-full h-full"
         zoomControl={false}
         preferCanvas={true}
@@ -849,10 +908,21 @@ export default function Home() {
       {/* Search Results — only if search is enabled */}
       {features.tools.search !== false && (
         <SearchResults
-          results={searchResults}
+          results={mergedSearchResults}
           onSelect={handleSearchSelect}
           onClose={() => { setSearchQuery(""); setSearchResults([]); }}
         />
+      )}
+
+      {/* Server search indicator (point 14: timeout popup) */}
+      {serverSearching && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[2000] bg-white rounded-xl shadow-2xl p-3 max-w-sm flex items-center gap-3">
+          <Loader2 className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-gray-900">Server-Suche läuft…</p>
+            <p className="text-[10px] text-gray-500">Orte und Referenzen werden gesucht (geschätzt 2-5 Sek.)</p>
+          </div>
+        </div>
       )}
 
       {/* Layer Control */}
@@ -1071,7 +1141,7 @@ export default function Home() {
         <LogEntryForm
           mapCenter={mapRef.current?.getCenter()?.lat ? [mapRef.current.getCenter().lat, mapRef.current.getCenter().lng] : null}
           myPosition={currentPosition}
-          allMarkers={allMarkers}
+          allMarkers={allMarkersUnfiltered}
           activeLayers={activeLayers}
           onClose={() => { setShowLogForm(false); setEditLogEntry(null); }}
           editEntry={editLogEntry}

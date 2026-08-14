@@ -25,6 +25,8 @@ export default function Log() {
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("active");
   const [filterSource, setFilterSource] = useState("all"); // all | club | personal
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(null);
   const [sortBy, setSortBy] = useState("date_desc");
@@ -37,6 +39,8 @@ export default function Log() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [qrzUploading, setQrzUploading] = useState(false);
+  const [qrzUploadResult, setQrzUploadResult] = useState(null);
 
   useEffect(() => {
     loadEntries();
@@ -73,11 +77,13 @@ export default function Log() {
     if (filterStatus !== "all") result = result.filter(e => e.status === filterStatus);
     if (filterSource === "club") result = result.filter(e => e.is_clubstation === true);
     if (filterSource === "personal") result = result.filter(e => !e.is_clubstation);
+    if (filterDateFrom) result = result.filter(e => (e.qso_date || "") >= filterDateFrom);
+    if (filterDateTo) result = result.filter(e => (e.qso_date || "") <= filterDateTo);
     if (sortBy === "date_desc") result.sort((a, b) => (b.qso_date || "").localeCompare(a.qso_date || ""));
     if (sortBy === "date_asc") result.sort((a, b) => (a.qso_date || "").localeCompare(b.qso_date || ""));
     if (sortBy === "callsign") result.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
     return result;
-  }, [entries, filterType, filterStatus, sortBy, filterSource]);
+  }, [entries, filterType, filterStatus, sortBy, filterSource, filterDateFrom, filterDateTo]);
 
   const handleExport = () => {
     const header = "HB9OM On Field - ADIF Export\n<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
@@ -112,6 +118,52 @@ export default function Log() {
     a.download = `hb9om_log_${new Date().toISOString().slice(0, 10)}.adi`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Upload filtered QSOs to QRZ.com logbook (point 8)
+  const handleQrzUpload = async (target) => {
+    if (filtered.length === 0) return;
+    setQrzUploading(true);
+    setQrzUploadResult(null);
+    try {
+      const header = "<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
+      const records = filtered.map(e => {
+        const fullCall = (e.callsign || "") + (e.callsign_suffix || "");
+        const fields = [
+          `<call:${fullCall.length}>${fullCall}`,
+          `<qso_date:8>${(e.qso_date || "").replace(/-/g, "")}`,
+          `<time_on:4>${(e.time_start || "").replace(":", "")}`,
+          `<band:${(e.band || "").length}>${e.band || ""}`,
+          `<mode:${(e.mode || "").length}>${e.mode || ""}`,
+          e.frequency ? `<freq:${String(e.frequency).length}>${e.frequency}` : "",
+          `<rst_sent:${(e.rst_sent || "").length}>${e.rst_sent || ""}`,
+          `<rst_rcvd:${(e.rst_received || "").length}>${e.rst_received || ""}`,
+          e.my_reference ? `<my_sig_info:${(e.my_reference).length}>${e.my_reference}` : "",
+          e.operator_name ? `<name:${(e.operator_name).length}>${e.operator_name}` : "",
+          e.operator_grid ? `<gridsquare:${(e.operator_grid).length}>${e.operator_grid}` : "",
+          e.operator_country ? `<country:${(e.operator_country).length}>${e.operator_country}` : "",
+          e.my_grid ? `<my_gridsquare:${(e.my_grid).length}>${e.my_grid}` : "",
+          e.is_clubstation && e.club_callsign ? `<station_callsign:${(e.club_callsign).length}>${e.club_callsign}` : "",
+          e.is_clubstation && e.club_operator_callsign ? `<operator:${(e.club_operator_callsign).length}>${e.club_operator_callsign}` : "",
+          e.notes ? `<notes:${(e.notes).length}>${e.notes}` : "",
+          e.power != null ? `<tx_pwr:${String(e.power).length}>${e.power}` : "",
+        ].filter(Boolean).join(" ");
+        return fields + " <eor>";
+      }).join("\n");
+
+      const adif = header + records;
+      const res = await base44.functions.invoke("uploadToQrz", { adif_data: adif, target });
+      if (res.data?.error) {
+        setQrzUploadResult({ success: false, message: res.data.error });
+      } else {
+        setQrzUploadResult({ success: true, message: res.data?.message || "Upload erfolgreich" });
+      }
+    } catch (e) {
+      setQrzUploadResult({ success: false, message: e.message || "Fehler beim Upload" });
+    } finally {
+      setQrzUploading(false);
+      setTimeout(() => setQrzUploadResult(null), 5000);
+    }
   };
 
   const handleArchive = async (id) => {
@@ -290,6 +342,33 @@ export default function Log() {
             ]}
           />
 
+          <div className="flex items-center gap-1">
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={e => setFilterDateFrom(e.target.value)}
+              title="Datum von"
+              className="px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+            />
+            <span className="text-gray-400 text-xs">–</span>
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={e => setFilterDateTo(e.target.value)}
+              title="Datum bis"
+              className="px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
+            />
+            {(filterDateFrom || filterDateTo) && (
+              <button
+                onClick={() => { setFilterDateFrom(""); setFilterDateTo(""); }}
+                className="px-2 py-1.5 text-xs text-gray-500 hover:text-gray-700"
+                title="Datum zurücksetzen"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
           <div className="flex-1" />
 
           <span className="text-xs text-gray-400">{filtered.length} Einträge</span>
@@ -308,6 +387,32 @@ export default function Log() {
           >
             <Download className="w-4 h-4" /> Export (ADIF)
           </button>
+
+          {filtered.length > 0 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleQrzUpload('club')}
+                disabled={qrzUploading}
+                className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 disabled:opacity-40 flex items-center gap-1.5"
+                title="Gefilterte QSOs zu QRZ.com Club-Logbuch hochladen"
+              >
+                {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Club
+              </button>
+              <button
+                onClick={() => handleQrzUpload('personal')}
+                disabled={qrzUploading}
+                className="px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
+                title="Gefilterte QSOs zu persönlichem QRZ-Logbuch hochladen"
+              >
+                {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Pers.
+              </button>
+            </div>
+          )}
+          {qrzUploadResult && (
+            <div className={`text-xs font-medium px-2 py-1 rounded ${qrzUploadResult.success ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+              {qrzUploadResult.message}
+            </div>
+          )}
 
           {filtered.length > 0 && filterStatus !== "archived" && (
             <button

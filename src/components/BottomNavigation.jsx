@@ -6,7 +6,9 @@ import { useAppFeatures } from "@/lib/appFeatures";
 
 export default function BottomNavigation() {
   const location = useLocation();
-  const { features } = useAppFeatures();
+  const { features: rawFeatures } = useAppFeatures();
+  const features = rawFeatures || { tools: {}, layers: {}, bands: {} };
+  const tools = features.tools || {};
 
   const handleLogout = async () => {
     try {
@@ -21,7 +23,7 @@ export default function BottomNavigation() {
   const navItems = [
     { path: "/", label: "Karte", icon: MapPin, always: true },
   ];
-  if (features.tools.logbook !== false) {
+  if (tools.logbook !== false) {
     navItems.push({ path: "/log", label: "Logbuch", icon: BookOpen });
   }
   navItems.push({ path: "/settings", label: "Einstell.", icon: SettingsIcon });

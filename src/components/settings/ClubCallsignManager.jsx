@@ -46,6 +46,10 @@ export default function ClubCallsignManager() {
           aprs_fi_api_key: cfg.aprs_fi_api_key === "***",
           brandmeister_api_key: cfg.brandmeister_api_key === "***",
         });
+        // Cache club callsign for QSO form pre-fill
+        if (cfg.club_callsign) {
+          localStorage.setItem("hb9om_club_callsign", cfg.club_callsign);
+        }
       }
     } catch (e) {
       // silent
@@ -67,6 +71,10 @@ export default function ClubCallsignManager() {
         }
       }
       await base44.functions.invoke("manageApiKeys", { action: "setClubCallsign", config: saveConfig });
+      // Cache club callsign for QSO form pre-fill
+      if (config.club_callsign) {
+        localStorage.setItem("hb9om_club_callsign", config.club_callsign);
+      }
       toast({ title: "Gespeichert", description: "Club-Rufzeichen-Konfiguration gespeichert" });
       fetchConfig();
     } catch (e) {

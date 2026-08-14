@@ -18,8 +18,9 @@ export default function AprsFilter({
   filterCountries = [],
   onFilterCountriesChange,
   leftOffsetClass = "left-16",
+  defaultOpen = true,
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const { containerRef } = useDraggablePosition("drag-aprs-filter");
 
   // null or all = no filter (show everything); array = filter by selected types

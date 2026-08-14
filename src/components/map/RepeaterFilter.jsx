@@ -25,8 +25,9 @@ export default function RepeaterFilter({
   onRadiusKmChange,
   userPosition,
   leftOffsetClass = "left-3",
+  defaultOpen = true,
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCountryPanel, setShowCountryPanel] = useState(false);
   const { containerRef } = useDraggablePosition("drag-repeater-filter");
