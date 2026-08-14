@@ -22,6 +22,7 @@ import TotaLayer from "@/components/map/TotaLayer";
 import PrivateNodeLayer from "@/components/map/PrivateNodeLayer";
 import PositionMarker from "@/components/map/PositionMarker";
 import GpsTracker from "@/components/map/GpsTracker";
+import GpsToggle from "@/components/map/GpsToggle";
 import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
 import WmsOverlayLayer from "@/components/map/WmsOverlayLayer";
 import SearchResults from "@/components/map/SearchResults";
@@ -958,7 +959,7 @@ export default function Home() {
               copy[idx] = { ...copy[idx], lat: pos.lat, lng: pos.lng, last_updated: new Date().toISOString() };
               return copy;
             }
-            return [{ ...pos, callsign: localStorage.getItem("hb9om_user_callsign") || "Ich", is_own: true, last_updated: new Date().toISOString() }, ...prev];
+            return [{ ...pos, callsign: localStorage.getItem("hb9om_my_callsign") || "Ich", is_own: true, last_updated: new Date().toISOString() }, ...prev];
           });
         }} />
         <WmsOverlayLayer activeLayers={activeLayers} />
@@ -1050,6 +1051,9 @@ export default function Home() {
         onScaleDown={handleScaleDown}
         baseLayer={baseLayer}
       />
+
+      {/* My GPS Position toggle — floating on map, independent from public GPS */}
+      <GpsToggle />
 
       {/* Position Controls (offline, GPS, center position, offline download) */}
       <MapPositionControls

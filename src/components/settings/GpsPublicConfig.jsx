@@ -29,17 +29,17 @@ export default function GpsPublicConfig() {
     setToggling(true);
     try {
       if (enabled) {
-        // Also enable GPS tracking so the position is continuously updated
-        localStorage.setItem("hb9om_gps_tracking_enabled", "true");
+        // Public GPS is independent from local GPS tracking.
+        // Only set public flag — GpsTracker will track GPS because either toggle is ON.
         localStorage.setItem("hb9om_gps_public_enabled", "true");
         setPublicEnabled(true);
-        window.dispatchEvent(new CustomEvent("gps-tracking-changed"));
+        window.dispatchEvent(new CustomEvent("gps-public-changed"));
 
         // Get current position and broadcast immediately
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
-              const callsign = localStorage.getItem("hb9om_user_callsign") || "Unknown";
+              const callsign = localStorage.getItem("hb9om_my_callsign") || "Unknown";
               const deviceType = localStorage.getItem("hb9om_cov_device") || "mobil";
               const aprsSymbol = localStorage.getItem("hb9om_gps_public_symbol") || "mobile";
               const cmt = localStorage.getItem("hb9om_gps_public_comment") || "";
@@ -108,8 +108,8 @@ export default function GpsPublicConfig() {
         </div>
         <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
           {publicEnabled
-            ? "Eingeschaltet — Ihr Symbol wird anderen Benutzern angezeigt, wenn der APRS-Layer aktiv ist. GPS-Tracking wird automatisch aktiviert."
-            : "Ausgeschaltet — Ihre Position wird nicht übertragen."}
+            ? "Eingeschaltet — Ihr Symbol mit Rufzeichen wird anderen Benutzern angezeigt, wenn der APRS-Layer aktiv ist. Unabhängig vom lokalen GPS-Kreuz auf der Karte."
+            : "Ausgeschaltet — Ihre Position wird nicht übertragen. Der lokale GPS-Schalter auf der Karte bleibt davon unberührt."}
         </p>
       </div>
 

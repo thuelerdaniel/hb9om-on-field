@@ -940,40 +940,29 @@ export default function Settings() {
           </div>
         </section>
 
-        {/* GPS Tracking */}
+        {/* GPS Tracking — toggle is on the map (floating button). Settings keeps interval + public position. */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+          <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-1.5">
             <Crosshair className="w-4 h-4" /> GPS-Tracking
           </h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-sm font-semibold text-gray-900">GPS-Tracking aktiv</label>
-              <p className="text-xs text-gray-500 mt-0.5">Standort auf der Karte anzeigen</p>
+          <p className="text-xs text-gray-500 mb-3">
+            Der Ein/Aus-Schalter für <strong>Meine GPS-Position</strong> (blaues Kreuz) befindet sich als schwebender Button auf der Karte. Hier stellen Sie das Intervall und die öffentliche Freigabe ein.
+          </p>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktualisierungs-Intervall</label>
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {[30, 60, 300, 600, 1800, 3600].map(sec => (
+                <button
+                  key={sec}
+                  onClick={() => handleGpsIntervalChange(sec)}
+                  className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${gpsTrackingInterval === sec ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}
+                >
+                  {sec < 60 ? `${sec}s` : sec < 3600 ? `${sec / 60}min` : `${sec / 3600}h`}
+                </button>
+              ))}
             </div>
-            <button
-              onClick={() => handleToggleGpsTracking(!gpsTrackingEnabled)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${gpsTrackingEnabled ? "bg-gray-900" : "bg-gray-300"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${gpsTrackingEnabled ? "translate-x-6" : ""}`} />
-            </button>
           </div>
-          {gpsTrackingEnabled && (
-            <div className="mt-3">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktualisierungs-Intervall</label>
-              <div className="flex gap-2 mt-1">
-                {[30, 60, 300, 600, 1800, 3600].map(sec => (
-                  <button
-                    key={sec}
-                    onClick={() => handleGpsIntervalChange(sec)}
-                    className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${gpsTrackingInterval === sec ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}
-                  >
-                    {sec < 60 ? `${sec}s` : sec < 3600 ? `${sec / 60}min` : `${sec / 3600}h`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* Erweiterte Optionen: Live GPS-Position (public), Bemerkung, Symbol */}
+          {/* Öffentliche GPS-Position — unabhängig vom lokalen GPS-Toggle */}
           <GpsPublicConfig />
         </section>
         </CollapsibleSection>
