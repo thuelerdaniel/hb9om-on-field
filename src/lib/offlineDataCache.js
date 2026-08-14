@@ -1,6 +1,7 @@
 import { base44 } from "@/api/base44Client";
 import { loadAllRepeaters, loadAllPrivateNodes, loadAllTotaPoints, loadRepeatersByCountries } from "@/lib/paginatedLoader";
 import { getCountryFromSotaCode, getCountryFromPotaRef, getCountryFromWwffCode, getCountryFromWwbotaScheme, getCountryByName, getCountryFromWcaCode, getCountryFromLatLng } from "@/lib/countries";
+import { safeSetItem, safeGetItem, safeRemoveItem, idbSet, idbGet, idbDelete, idbGetKeys, idbClearPrefix } from "@/lib/safeStorage";
 
 const CACHE_KEY = "hb9om_offline_refs";
 const OVERRIDES_KEY = "hb9om_offline_overrides";
@@ -19,70 +20,58 @@ const TYPE_CACHE_KEYS = {
   lighthouse: "hb9om_refs_lighthouse",
 };
 
-export function cacheReferenceData(data) {
+export async function cacheReferenceData(data) {
   try {
-    // Write per-type keys for fast lazy loading
+    // Write per-type keys to IndexedDB (large data) — localStorage is too small (5MB)
     for (const [type, key] of Object.entries(TYPE_CACHE_KEYS)) {
       const refs = data?.[type];
       if (Array.isArray(refs)) {
-        try { localStorage.setItem(key, JSON.stringify(refs)); } catch {}
+        await idbSet(key, refs);
       }
     }
-    // Keep legacy key for backward compat (migrated on next load)
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString());
+    // Small metadata stays in localStorage
+    safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
   } catch (e) {
-    try {
-      localStorage.removeItem(CACHE_KEY);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-      localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString());
-    } catch (e2) {}
+    // Silent — IndexedDB write failed
   }
 }
 
-// Load a single type — merges per-country keys if present, otherwise reads single-key cache
-export function loadCachedReferenceType(type) {
+// Load a single type — merges per-country keys if present, otherwise reads single-key cache.
+// Now async: reads from IndexedDB (large data) instead of localStorage.
+export async function loadCachedReferenceType(type) {
   // Check for per-country keys first (country-filtered download)
   const countries = getCachedCountriesForType(type);
   if (countries.length > 0) {
     const merged = [];
     for (const country of countries) {
-      try {
-        const data = localStorage.getItem(`hb9om_refs_${type}_${country}`);
-        if (data) {
-          const arr = JSON.parse(data);
-          if (Array.isArray(arr)) merged.push(...arr);
-        }
-      } catch {}
+      const arr = await idbGet(`hb9om_refs_${type}_${country}`);
+      if (Array.isArray(arr)) merged.push(...arr);
     }
     return merged.length > 0 ? merged : null;
   }
-  // Fallback to single-key cache
+  // Fallback to single-key cache (IndexedDB)
   const key = TYPE_CACHE_KEYS[type];
   if (!key) return null;
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : null;
-  } catch {
-    return null;
-  }
+  const arr = await idbGet(key);
+  return Array.isArray(arr) ? arr : null;
 }
 
 // Write a single type to its per-type key — allows incremental cache updates
-// as data is fetched without rewriting the entire cache
-export function cacheReferenceType(type, refs) {
+// as data is fetched without rewriting the entire cache.
+// Now uses IndexedDB (large data) instead of localStorage.
+export async function cacheReferenceType(type, refs) {
   const key = TYPE_CACHE_KEYS[type];
   if (!key || !Array.isArray(refs)) return;
-  try { localStorage.setItem(key, JSON.stringify(refs)); } catch {}
+  await idbSet(key, refs);
 }
 
-export function loadCachedReferenceData() {
-  // Use loadCachedReferenceType which handles per-country keys
+export async function loadCachedReferenceData() {
+  // Use loadCachedReferenceType which handles per-country keys (now async, IndexedDB)
   try {
     const result = {};
     let hasAny = false;
     for (const type of Object.keys(TYPE_CACHE_KEYS)) {
-      const refs = loadCachedReferenceType(type);
+      const refs = await loadCachedReferenceType(type);
       if (refs) {
         result[type] = refs;
         hasAny = true;
@@ -91,54 +80,49 @@ export function loadCachedReferenceData() {
     if (hasAny) return result;
   } catch {}
 
-  // Fallback to legacy single-key cache
-  try {
-    const data = localStorage.getItem(CACHE_KEY);
-    return data ? JSON.parse(data) : null;
-  } catch {
-    return null;
-  }
+  // Fallback to legacy single-key cache (localStorage — for backward compat)
+  const data = safeGetItem(CACHE_KEY);
+  return data ? JSON.parse(data) : null;
 }
 
-export function cacheQrzLookups(lookups) {
-  try {
-    localStorage.setItem(QRZ_CACHE_KEY, JSON.stringify(lookups));
-  } catch {}
+export async function cacheQrzLookups(lookups) {
+  await idbSet(QRZ_CACHE_KEY, lookups || []);
 }
 
-export function loadCachedQrzLookups() {
-  try {
-    const data = localStorage.getItem(QRZ_CACHE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
+export async function loadCachedQrzLookups() {
+  const data = await idbGet(QRZ_CACHE_KEY);
+  return Array.isArray(data) ? data : [];
 }
 
 export function cacheOverrides(overrides) {
-  try {
-    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
-  } catch {}
+  safeSetItem(OVERRIDES_KEY, JSON.stringify(overrides));
 }
 
 export function loadCachedOverrides() {
-  try {
-    const data = localStorage.getItem(OVERRIDES_KEY);
-    return data ? JSON.parse(data) : {};
-  } catch {
-    return {};
-  }
+  const data = safeGetItem(OVERRIDES_KEY);
+  return data ? JSON.parse(data) : {};
 }
 
 export function getCachedAt() {
-  return localStorage.getItem(TIMESTAMP_KEY);
+  return safeGetItem(TIMESTAMP_KEY);
 }
 
-export function isOfflineReady() {
-  return !!localStorage.getItem(CACHE_KEY);
+export async function isOfflineReady() {
+  // Check if any reference data exists in IndexedDB
+  for (const key of Object.values(TYPE_CACHE_KEYS)) {
+    const data = await idbGet(key);
+    if (Array.isArray(data) && data.length > 0) return true;
+  }
+  // Check per-country keys
+  for (const type of Object.keys(TYPE_CACHE_KEYS)) {
+    const countries = getCachedCountriesForType(type);
+    if (countries.length > 0) return true;
+  }
+  return false;
 }
 
-// Get total size of all hb9om_ localStorage keys in bytes
+// Get total size of all hb9om_ localStorage keys in bytes (small metadata only —
+// large data is now in IndexedDB)
 export function getLocalCacheSize() {
   let total = 0;
   try {
@@ -153,54 +137,51 @@ export function getLocalCacheSize() {
   return total * 2; // UTF-16: 2 bytes per char
 }
 
-// Get cache stats: size, reference count, last cached date
-export function getLocalCacheStats() {
+// Get cache stats: size, reference count, last cached date.
+// Now async — counts come from IndexedDB.
+export async function getLocalCacheStats() {
   const size = getLocalCacheSize();
   const cachedAt = getCachedAt();
   let count = 0;
-  // Count from per-country keys and per-type keys
+  // Count from per-type keys and per-country keys (IndexedDB)
   for (const type of Object.keys(TYPE_CACHE_KEYS)) {
-    const stats = getTypeStats(type, TYPE_CACHE_KEYS[type]);
+    const stats = await getTypeStatsAsync(type, TYPE_CACHE_KEYS[type]);
     count += stats.count;
   }
   // Count repeaters (per-country or single-key)
-  count += getTypeStats("repeater", "hb9om_refs_repeater").count;
-  // Fallback to legacy cache if per-type keys are empty
-  if (count === 0) {
-    const cache = loadCachedReferenceData();
-    if (cache) {
-      for (const refs of Object.values(cache)) {
-        if (Array.isArray(refs)) count += refs.length;
-      }
-    }
-  }
+  count += (await getTypeStatsAsync("repeater", "hb9om_refs_repeater")).count;
+  // Count TOTA and private nodes
+  count += (await getTypeStatsAsync("tota", "hb9om_refs_tota")).count;
+  count += (await getTypeStatsAsync("private_nodes", "hb9om_refs_private_nodes")).count;
   return { size, count, cachedAt };
 }
 
-// Clear local reference cache (keeps other hb9om_ settings)
-export function clearLocalReferenceCache() {
-  localStorage.removeItem(CACHE_KEY);
-  for (const key of Object.values(TYPE_CACHE_KEYS)) localStorage.removeItem(key);
-  // Clear per-country keys for all reference types and repeaters
+// Clear local reference cache (keeps other hb9om_ settings).
+// Now clears both IndexedDB (large data) and localStorage (small metadata).
+export async function clearLocalReferenceCache() {
+  // Clear IndexedDB large data
+  await idbClearPrefix("hb9om_refs_");
+  await idbDelete(QRZ_CACHE_KEY);
+  // Clear localStorage small metadata
+  safeRemoveItem(CACHE_KEY);
+  safeRemoveItem(OVERRIDES_KEY);
+  safeRemoveItem(QRZ_CACHE_KEY);
+  safeRemoveItem(TIMESTAMP_KEY);
   for (const type of Object.keys(TYPE_CACHE_KEYS)) clearPerCountryKeys(type);
   clearPerCountryKeys("repeater");
-  localStorage.removeItem("hb9om_refs_repeater");
-  localStorage.removeItem("hb9om_refs_private_nodes");
-  localStorage.removeItem("hb9om_refs_tota");
-  localStorage.removeItem(OVERRIDES_KEY);
-  localStorage.removeItem(QRZ_CACHE_KEY);
-  localStorage.removeItem(TIMESTAMP_KEY);
+  clearPerCountryKeys("tota");
+  clearPerCountryKeys("private_nodes");
   // Clear stored server counts
   for (const type of Object.keys(TYPE_CACHE_KEYS)) {
-    localStorage.removeItem(`hb9om_server_count_${type}`);
-    localStorage.removeItem(`hb9om_truncated_${type}`);
+    safeRemoveItem(`hb9om_server_count_${type}`);
+    safeRemoveItem(`hb9om_truncated_${type}`);
   }
-  localStorage.removeItem("hb9om_server_count_repeater");
-  localStorage.removeItem("hb9om_server_count_private_nodes");
-  localStorage.removeItem("hb9om_server_count_tota");
-  localStorage.removeItem("hb9om_server_count_qrz");
-  localStorage.removeItem("hb9om_truncated_repeater");
-  localStorage.removeItem("hb9om_truncated_private_nodes");
+  safeRemoveItem("hb9om_server_count_repeater");
+  safeRemoveItem("hb9om_server_count_private_nodes");
+  safeRemoveItem("hb9om_server_count_tota");
+  safeRemoveItem("hb9om_server_count_qrz");
+  safeRemoveItem("hb9om_truncated_repeater");
+  safeRemoveItem("hb9om_truncated_private_nodes");
 }
 
 export async function cacheFromServer() {
@@ -291,71 +272,11 @@ const PER_TYPE_BUDGET_BYTES = 1.5 * 1024 * 1024; // 1.5MB per type
 // the quota limit that a single large key would reach.
 const PER_COUNTRY_BUDGET_BYTES = 2.5 * 1024 * 1024; // 2.5MB per country
 
-// Try to store data in localStorage — if quota exceeded, try progressively smaller subsets
-function tryStoreRepeater(key, arr) {
-  try {
-    localStorage.setItem(key, JSON.stringify(arr));
-    return { stored: true, count: arr.length };
-  } catch (e) {
-    // Quota exceeded — try with slimmed-down version
-    const slimmed = arr.map(slimRepeater);
-    try {
-      localStorage.setItem(key, JSON.stringify(slimmed));
-      return { stored: true, count: slimmed.length, slimmed: true };
-    } catch (e2) {
-      return { stored: false, count: 0, error: "Speicher voll – " + arr.length + " Relais zu gross für lokalen Speicher" };
-    }
-  }
-}
-
-// Store data with a per-type budget — if data exceeds budget, binary-search for
-// the max subset that fits (sorted nearest-to-Switzerland-first).
-// Always leaves a 100KB buffer for other localStorage keys (timestamp, etc.)
-function storeWithBudget(key, refs, slimmed, budgetBytes) {
-  const jsonStr = JSON.stringify(refs);
-  const sizeBytes = jsonStr.length * 2; // UTF-16
-
-  // Fits within budget — try to store
-  if (sizeBytes <= budgetBytes) {
-    try {
-      localStorage.setItem(key, jsonStr);
-      return { stored: true, count: refs.length, slimmed };
-    } catch (e) {
-      // Even within budget, quota might be full from other keys — fall through to binary search
-    }
-  }
-
-  // Sort nearest-to-Switzerland-first so the binary search keeps the most relevant refs
-  const sorted = refs.slice().sort((a, b) => {
-    const da = Math.abs((a.lat || 0) - 46.8) + Math.abs((a.lng || 0) - 8.2);
-    const db = Math.abs((b.lat || 0) - 46.8) + Math.abs((b.lng || 0) - 8.2);
-    return da - db;
-  });
-
-  // Binary search for max count that fits within budget
-  let lo = 0, hi = sorted.length, fit = 0;
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const subset = sorted.slice(0, mid);
-    const subsetStr = JSON.stringify(subset);
-    if (subsetStr.length * 2 <= budgetBytes) {
-      try {
-        localStorage.removeItem(key);
-        localStorage.setItem(key, subsetStr);
-        fit = mid;
-        lo = mid + 1;
-      } catch {
-        hi = mid - 1;
-      }
-    } else {
-      hi = mid - 1;
-    }
-  }
-
-  if (fit > 0) {
-    return { stored: true, count: fit, slimmed: true, total: refs.length, truncated: true };
-  }
-  return { stored: false, count: 0, error: "Speicher voll – zu gross für lokalen Speicher" };
+// Store data in IndexedDB — no budget needed (IndexedDB has 50MB+ capacity).
+// Async: awaits the IndexedDB write to ensure data is persisted before returning.
+async function storeWithBudget(key, refs, slimmed, budgetBytes) {
+  await idbSet(key, refs);
+  return { stored: true, count: refs.length, slimmed, truncated: false };
 }
 
 // Estimate available localStorage space by directly testing localStorage writes.
@@ -622,9 +543,9 @@ function slimPrivateNode(n) {
   };
 }
 
-// Generic auto-split by country with a custom slimming function
-// Used by TOTA, repeaters, and APRS which have their own slimming logic.
-function autoSplitByCountryGeneric(type, refs, useSlimmed, slimFn) {
+// Generic auto-split by country with a custom slimming function.
+// Now async: stores each country in IndexedDB (no budget/truncation needed).
+async function autoSplitByCountryGeneric(type, refs, useSlimmed, slimFn) {
   const byCountry = {};
   const noCountry = [];
   for (const ref of refs) {
@@ -649,68 +570,44 @@ function autoSplitByCountryGeneric(type, refs, useSlimmed, slimFn) {
 
   // Clear old single-key and per-country keys
   const key = TYPE_CACHE_KEYS[type];
-  if (key) localStorage.removeItem(key);
+  if (key) safeRemoveItem(key);
+  await idbDelete(key);
+  await idbClearPrefix(`hb9om_refs_${type}_`);
   clearPerCountryKeys(type);
 
   let totalStored = 0;
-  let anyTruncated = false;
-  let anySlimmed = useSlimmed;
   const storedCountries = [];
 
   for (const country of sortedCountries) {
     const countryRefs = byCountry[country];
     const countryKey = `hb9om_refs_${type}_${country}`;
-
-    let result = storeWithBudget(countryKey, countryRefs, useSlimmed, PER_COUNTRY_BUDGET_BYTES);
-    if (result.truncated && !useSlimmed) {
-      const slimRefs = countryRefs.map(slimFn);
-      const slimResult = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
-      if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
-    }
-    if (!result.stored && !useSlimmed) {
-      const slimRefs = countryRefs.map(slimFn);
-      result = storeWithBudget(countryKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
-    }
-
+    const result = await storeWithBudget(countryKey, countryRefs, useSlimmed, PER_COUNTRY_BUDGET_BYTES);
     if (result.stored) {
       totalStored += result.count;
-      if (result.truncated) anyTruncated = true;
-      if (result.slimmed) anySlimmed = true;
       storedCountries.push(country);
-    } else {
-      // Quota exceeded — can't store more countries
-      anyTruncated = true;
-      break;
     }
   }
 
   // Store refs with no country in a special "XX" key
   if (noCountry.length > 0) {
     const xxKey = `hb9om_refs_${type}_XX`;
-    let result = storeWithBudget(xxKey, noCountry, useSlimmed, PER_COUNTRY_BUDGET_BYTES);
-    if (!result.stored && !useSlimmed) {
-      const slimRefs = noCountry.map(slimFn);
-      result = storeWithBudget(xxKey, slimRefs, true, PER_COUNTRY_BUDGET_BYTES);
-    }
+    const result = await storeWithBudget(xxKey, noCountry, useSlimmed, PER_COUNTRY_BUDGET_BYTES);
     if (result.stored) {
       totalStored += result.count;
-      if (result.truncated) anyTruncated = true;
-      if (result.slimmed) anySlimmed = true;
       storedCountries.push('XX');
     }
   }
 
   if (storedCountries.length > 0) {
     setCachedCountriesForType(type, storedCountries);
-    // Clear country filter — auto-split means all countries are stored, no user filter
     setOfflineCountryFilter(type, null);
-    return { stored: true, count: totalStored, slimmed: anySlimmed, truncated: anyTruncated };
+    return { stored: true, count: totalStored, slimmed: useSlimmed, truncated: false };
   }
-  return { stored: false, count: 0, error: "Speicher voll – kein Land gespeichert" };
+  return { stored: false, count: 0, error: "Keine Daten gespeichert" };
 }
 
 // Original auto-split for reference types — uses slimReference
-function autoSplitByCountry(type, refs, useSlimmed = false) {
+async function autoSplitByCountry(type, refs, useSlimmed = false) {
   return autoSplitByCountryGeneric(type, refs, useSlimmed, slimReference);
 }
 
@@ -726,38 +623,20 @@ export async function cacheTypeFromServer(type) {
     const key = TYPE_CACHE_KEYS[type];
     if (!key) return { success: false, count: 0, error: "Unbekannter Typ" };
 
-    // Store metadata FIRST (before data, while localStorage quota is still available).
-    // If we store data first and quota is full, metadata can't be saved → UI shows no hints.
+    // Store metadata in localStorage (small)
     storeServerCount(type, allRefs.length);
     storeCountryCounts(type, allRefs);
 
-    // Strategy: try full data → if truncated, auto-split by country → if still fails, slimmed
-    let result = storeWithBudget(key, allRefs, false, PER_TYPE_BUDGET_BYTES);
-
-    if (result.truncated) {
-      // Full data doesn't fit — auto-split by country (full, not slimmed)
-      result = autoSplitByCountry(type, allRefs, false);
-    }
-
-    if (!result.stored) {
-      // Auto-split with full data failed — try slimmed auto-split
-      result = autoSplitByCountry(type, allRefs, true);
-    }
-
-    if (!result.stored) {
-      // Last resort: try slimmed single key
-      const slimRefs = allRefs.map(slimReference);
-      result = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
-    }
+    // Store full data in IndexedDB (no budget/truncation needed — 50MB+ capacity)
+    let result = await storeWithBudget(key, allRefs, false, PER_TYPE_BUDGET_BYTES);
 
     if (!result.stored) {
       return { success: false, count: 0, error: result.error };
     }
 
-    // Store truncated flag and timestamp AFTER data (might fail if quota full — non-critical)
-    storeTruncatedFlag(type, result.truncated || false);
-    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-    return { success: true, count: result.count, slimmed: result.slimmed, total: allRefs.length, truncated: result.truncated || false };
+    storeTruncatedFlag(type, false);
+    safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+    return { success: true, count: result.count, slimmed: false, total: allRefs.length, truncated: false };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
   }
@@ -770,23 +649,14 @@ export async function cacheTotaFromServer() {
     const arr = points || [];
     storeServerCount("tota", arr.length);
     storeCountryCounts("tota", arr);
-    let result = storeWithBudget("hb9om_refs_tota", arr, false, PER_TYPE_BUDGET_BYTES);
-    if (result.truncated) {
-      // Auto-split by country (full, not slimmed)
-      result = autoSplitByCountryGeneric("tota", arr, false, slimTota);
-    }
+    let result = await storeWithBudget("hb9om_refs_tota", arr, false, PER_TYPE_BUDGET_BYTES);
     if (!result.stored) {
-      // Auto-split with slimmed data
-      result = autoSplitByCountryGeneric("tota", arr, true, slimTota);
-    }
-    if (!result.stored) {
-      // Last resort: slimmed single key
-      result = storeWithBudget("hb9om_refs_tota", arr.map(slimTota), true, PER_TYPE_BUDGET_BYTES);
+      result = await autoSplitByCountryGeneric("tota", arr, false, slimTota);
     }
     if (result.stored) {
-      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-      storeTruncatedFlag("tota", result.truncated || false);
-      return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, truncated: result.truncated || false };
+      safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+      storeTruncatedFlag("tota", false);
+      return { success: true, count: result.count, slimmed: false, total: arr.length, truncated: false };
     }
     storeTruncatedFlag("tota", false);
     return { success: false, count: 0, error: result.error };
@@ -795,66 +665,51 @@ export async function cacheTotaFromServer() {
   }
 }
 
-// Load cached TOTA points
-export function loadCachedTota() {
-  // Check for per-country keys first (country-filtered download)
+// Load cached TOTA points (IndexedDB)
+export async function loadCachedTota() {
   const countries = getCachedCountriesForType("tota");
   if (countries.length > 0) {
     const merged = [];
     for (const country of countries) {
-      try {
-        const data = localStorage.getItem(`hb9om_refs_tota_${country}`);
-        if (data) {
-          const arr = JSON.parse(data);
-          if (Array.isArray(arr)) merged.push(...arr);
-        }
-      } catch {}
+      const arr = await idbGet(`hb9om_refs_tota_${country}`);
+      if (Array.isArray(arr)) merged.push(...arr);
     }
-    return merged.length > 0 ? merged : [];
+    return merged;
   }
-  try {
-    const data = localStorage.getItem("hb9om_refs_tota");
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+  const arr = await idbGet("hb9om_refs_tota");
+  return Array.isArray(arr) ? arr : [];
 }
 
 // Download TOTA points filtered by selected countries.
 // Each country is stored in its own localStorage key (hb9om_refs_tota_{country}).
 export async function cacheTotaFromServerByCountries(countryCodes) {
   try {
-    // Server-side country filtering: only load TOTA points for selected countries
-    // instead of loading all 10k+ points into memory then filtering.
-    // This prevents memory/storage issues on mobile devices.
     const arr = await loadTotaPointsByCountries(countryCodes);
 
-    // Clear old data FIRST to free space
-    localStorage.removeItem("hb9om_refs_tota");
+    // Clear old data FIRST (IndexedDB + localStorage)
+    safeRemoveItem("hb9om_refs_tota");
+    await idbDelete("hb9om_refs_tota");
+    await idbClearPrefix("hb9om_refs_tota_");
     clearPerCountryKeys("tota");
-
-    const availableSpace = await estimateAvailableSpace();
-    if (availableSpace < 10240) {
-      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
-    }
-    const dynamicBudget = PER_COUNTRY_BUDGET_BYTES;
 
     storeServerCount("tota", arr.length);
     storeCountryCounts("tota", arr);
 
     // If no countries selected, store all in single key
     if (countryCodes.length === 0) {
-      let result = storeWithBudget("hb9om_refs_tota", arr, false, PER_TYPE_BUDGET_BYTES);
+      const result = await storeWithBudget("hb9om_refs_tota", arr, false, PER_TYPE_BUDGET_BYTES);
       if (result.stored) {
         clearPerCountryKeys("tota");
         setOfflineCountryFilter("tota", countryCodes);
-        try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-        storeTruncatedFlag("tota", result.truncated || false);
-        return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, allTotal: arr.length, truncated: result.truncated || false, countries: 0 };
+        safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+        storeTruncatedFlag("tota", false);
+        return { success: true, count: result.count, slimmed: false, total: arr.length, allTotal: arr.length, truncated: false, countries: 0 };
       }
       storeTruncatedFlag("tota", false);
       return { success: false, count: 0, error: result.error };
     }
 
-    // Group by country (derive from country_code or source)
+    // Group by country
     const byCountry = {};
     for (const t of arr) {
       const iso2 = t.country_code || (t.source === "swiss_csv" ? "CH" : "");
@@ -864,21 +719,16 @@ export async function cacheTotaFromServerByCountries(countryCodes) {
       }
     }
 
-    // Sort countries by size (smallest first)
     const sortedCountries = Object.entries(byCountry).sort((a, b) => a[1].length - b[1].length);
-
     let totalStored = 0, totalFiltered = 0;
-    let anyTruncated = false, anySlimmed = false;
     const storedCountries = [];
 
     for (const [country, refs] of sortedCountries) {
       const countryKey = `hb9om_refs_tota_${country}`;
-      let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
+      const result = await storeWithBudget(countryKey, refs, false, PER_COUNTRY_BUDGET_BYTES);
       if (result.stored) {
         totalStored += result.count;
         totalFiltered += refs.length;
-        if (result.truncated) anyTruncated = true;
-        if (result.slimmed) anySlimmed = true;
         storedCountries.push(country);
       }
     }
@@ -892,12 +742,12 @@ export async function cacheTotaFromServerByCountries(countryCodes) {
 
     setCachedCountriesForType("tota", storedCountries);
     setOfflineCountryFilter("tota", countryCodes);
-    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-    storeTruncatedFlag("tota", anyTruncated);
+    safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+    storeTruncatedFlag("tota", false);
     return {
-      success: true, count: totalStored, slimmed: anySlimmed,
+      success: true, count: totalStored, slimmed: false,
       total: totalFiltered, allTotal: arr.length,
-      truncated: anyTruncated, countries: storedCountries.length
+      truncated: false, countries: storedCountries.length
     };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
@@ -947,21 +797,14 @@ export async function cacheRepeatersFromServer() {
     const arr = repeaters || [];
     storeServerCount("repeater", arr.length);
     storeCountryCounts("repeater", arr);
-    // Try full data first; if truncated, auto-split by country; if still fails, slimmed
-    let result = storeWithBudget("hb9om_refs_repeater", arr, false, PER_TYPE_BUDGET_BYTES);
-    if (result.truncated) {
-      result = autoSplitByCountryGeneric("repeater", arr, false, slimRepeater);
-    }
+    let result = await storeWithBudget("hb9om_refs_repeater", arr, false, PER_TYPE_BUDGET_BYTES);
     if (!result.stored) {
-      result = autoSplitByCountryGeneric("repeater", arr, true, slimRepeater);
-    }
-    if (!result.stored) {
-      result = storeWithBudget("hb9om_refs_repeater", arr.map(slimRepeater), true, PER_TYPE_BUDGET_BYTES);
+      result = await autoSplitByCountryGeneric("repeater", arr, false, slimRepeater);
     }
     if (result.stored) {
-      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-      storeTruncatedFlag("repeater", result.truncated || false);
-      return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, truncated: result.truncated || false };
+      safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+      storeTruncatedFlag("repeater", false);
+      return { success: true, count: result.count, slimmed: false, total: arr.length, truncated: false };
     }
     storeTruncatedFlag("repeater", false);
     return { success: false, count: 0, error: result.error };
@@ -977,21 +820,14 @@ export async function cachePrivateNodesFromServer() {
     const arr = nodes || [];
     storeServerCount("private_nodes", arr.length);
     storeCountryCounts("private_nodes", arr);
-    // Try full data first; if truncated, auto-split by country; if still fails, slimmed
-    let result = storeWithBudget("hb9om_refs_private_nodes", arr, false, PER_TYPE_BUDGET_BYTES);
-    if (result.truncated) {
-      result = autoSplitByCountryGeneric("private_nodes", arr, false, slimPrivateNode);
-    }
+    let result = await storeWithBudget("hb9om_refs_private_nodes", arr, false, PER_TYPE_BUDGET_BYTES);
     if (!result.stored) {
-      result = autoSplitByCountryGeneric("private_nodes", arr, true, slimPrivateNode);
-    }
-    if (!result.stored) {
-      result = storeWithBudget("hb9om_refs_private_nodes", arr.map(slimPrivateNode), true, PER_TYPE_BUDGET_BYTES);
+      result = await autoSplitByCountryGeneric("private_nodes", arr, false, slimPrivateNode);
     }
     if (result.stored) {
-      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-      storeTruncatedFlag("private_nodes", result.truncated || false);
-      return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, truncated: result.truncated || false };
+      safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+      storeTruncatedFlag("private_nodes", false);
+      return { success: true, count: result.count, slimmed: false, total: arr.length, truncated: false };
     }
     storeTruncatedFlag("private_nodes", false);
     return { success: false, count: 0, error: result.error };
@@ -1004,7 +840,7 @@ export async function cachePrivateNodesFromServer() {
 export async function cacheQrzFromServer() {
   try {
     const qrz = await base44.entities.QrzLookup.list("-created_date", 500);
-    cacheQrzLookups(qrz || []);
+    await cacheQrzLookups(qrz || []);
     storeServerCount("qrz", (qrz || []).length);
     return { success: true, count: (qrz || []).length };
   } catch (e) {
@@ -1012,136 +848,103 @@ export async function cacheQrzFromServer() {
   }
 }
 
-// Load cached repeaters — merges per-country keys if present
-export function loadCachedRepeaters() {
+// Load cached repeaters — merges per-country keys if present (IndexedDB)
+export async function loadCachedRepeaters() {
   const countries = getCachedCountriesForType("repeater");
   if (countries.length > 0) {
     const merged = [];
     for (const country of countries) {
-      try {
-        const data = localStorage.getItem(`hb9om_refs_repeater_${country}`);
-        if (data) {
-          const arr = JSON.parse(data);
-          if (Array.isArray(arr)) merged.push(...arr);
-        }
-      } catch {}
+      const arr = await idbGet(`hb9om_refs_repeater_${country}`);
+      if (Array.isArray(arr)) merged.push(...arr);
     }
     return merged;
   }
-  try {
-    const data = localStorage.getItem("hb9om_refs_repeater");
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+  const arr = await idbGet("hb9om_refs_repeater");
+  return Array.isArray(arr) ? arr : [];
 }
 
-// Load cached private nodes — merges per-country keys if present
-export function loadCachedPrivateNodes() {
+// Load cached private nodes — merges per-country keys if present (IndexedDB)
+export async function loadCachedPrivateNodes() {
   const countries = getCachedCountriesForType("private_nodes");
   if (countries.length > 0) {
     const merged = [];
     for (const country of countries) {
-      try {
-        const data = localStorage.getItem(`hb9om_refs_private_nodes_${country}`);
-        if (data) {
-          const arr = JSON.parse(data);
-          if (Array.isArray(arr)) merged.push(...arr);
-        }
-      } catch {}
+      const arr = await idbGet(`hb9om_refs_private_nodes_${country}`);
+      if (Array.isArray(arr)) merged.push(...arr);
     }
     return merged;
   }
-  try {
-    const data = localStorage.getItem("hb9om_refs_private_nodes");
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+  const arr = await idbGet("hb9om_refs_private_nodes");
+  return Array.isArray(arr) ? arr : [];
 }
 
-// Count stats for a type from per-country keys or single-key cache
-function getTypeStats(type, legacyKey) {
+// Count stats for a type from per-country keys or single-key cache (IndexedDB, async)
+async function getTypeStatsAsync(type, legacyKey) {
   const countries = getCachedCountriesForType(type);
   if (countries.length > 0) {
-    let count = 0, size = 0;
+    let count = 0;
     for (const country of countries) {
-      const countryKey = `hb9om_refs_${type}_${country}`;
-      try {
-        const data = localStorage.getItem(countryKey);
-        if (data) {
-          const arr = JSON.parse(data);
-          count += Array.isArray(arr) ? arr.length : 0;
-          size += (countryKey.length + data.length) * 2;
-        }
-      } catch {}
+      const arr = await idbGet(`hb9om_refs_${type}_${country}`);
+      if (Array.isArray(arr)) count += arr.length;
     }
-    return { count, size };
+    return { count, size: 0 };
   }
-  try {
-    const data = localStorage.getItem(legacyKey);
-    if (data) {
-      const arr = JSON.parse(data);
-      return { count: Array.isArray(arr) ? arr.length : 0, size: (legacyKey.length + data.length) * 2 };
-    }
-    return { count: 0, size: 0 };
-  } catch { return { count: 0, size: 0 }; }
+  const arr = await idbGet(legacyKey);
+  return { count: Array.isArray(arr) ? arr.length : 0, size: 0 };
 }
 
-// Get per-type local cache stats (count + size in bytes)
-export function getReferenceTypeStats() {
+// Sync wrapper for backward compat — returns 0 (use async version for real counts)
+function getTypeStats(type, legacyKey) {
+  return { count: 0, size: 0 };
+}
+
+// Get per-type local cache stats (count + size). Now async — reads from IndexedDB.
+export async function getReferenceTypeStats() {
   const stats = {};
-  // Reference types from TYPE_CACHE_KEYS
   for (const [type, key] of Object.entries(TYPE_CACHE_KEYS)) {
-    stats[type] = getTypeStats(type, key);
+    stats[type] = await getTypeStatsAsync(type, key);
   }
-  // Repeaters
-  stats.repeater = getTypeStats("repeater", "hb9om_refs_repeater");
-  // TOTA
-  stats.tota = getTypeStats("tota", "hb9om_refs_tota");
-  // Private nodes — supports per-country keys
-  stats.private_nodes = getTypeStats("private_nodes", "hb9om_refs_private_nodes");
+  stats.repeater = await getTypeStatsAsync("repeater", "hb9om_refs_repeater");
+  stats.tota = await getTypeStatsAsync("tota", "hb9om_refs_tota");
+  stats.private_nodes = await getTypeStatsAsync("private_nodes", "hb9om_refs_private_nodes");
   return stats;
 }
 
-// Clear a single type from local cache (including per-country keys)
-export function clearReferenceType(type) {
+// Clear a single type from local cache (IndexedDB + localStorage metadata)
+export async function clearReferenceType(type) {
   clearPerCountryKeys(type);
   const key = TYPE_CACHE_KEYS[type];
-  if (key) localStorage.removeItem(key);
-  if (type === "repeater") localStorage.removeItem("hb9om_refs_repeater");
-  if (type === "private_nodes") localStorage.removeItem("hb9om_refs_private_nodes");
-  if (type === "tota") localStorage.removeItem("hb9om_refs_tota");
-  if (type === "qrz") localStorage.removeItem(QRZ_CACHE_KEY);
-  localStorage.removeItem(`hb9om_server_count_${type}`);
-  localStorage.removeItem(`hb9om_offline_countries_${type}`);
-  localStorage.removeItem(`hb9om_country_counts_${type}`);
-  localStorage.removeItem(`hb9om_truncated_${type}`);
+  if (key) { safeRemoveItem(key); await idbDelete(key); }
+  await idbClearPrefix(`hb9om_refs_${type}_`);
+  if (type === "repeater") await idbDelete("hb9om_refs_repeater");
+  if (type === "private_nodes") await idbDelete("hb9om_refs_private_nodes");
+  if (type === "tota") await idbDelete("hb9om_refs_tota");
+  if (type === "qrz") await idbDelete(QRZ_CACHE_KEY);
+  safeRemoveItem(`hb9om_server_count_${type}`);
+  safeRemoveItem(`hb9om_offline_countries_${type}`);
+  safeRemoveItem(`hb9om_country_counts_${type}`);
+  safeRemoveItem(`hb9om_truncated_${type}`);
 }
 
 // Store server count for a type (called after successful download)
 export function storeServerCount(type, count) {
-  try {
-    localStorage.setItem(`hb9om_server_count_${type}`, String(count));
-  } catch {}
+  safeSetItem(`hb9om_server_count_${type}`, String(count));
 }
 
 // Get stored server count for a type (from last download)
 export function getStoredServerCount(type) {
-  try {
-    const v = localStorage.getItem(`hb9om_server_count_${type}`);
-    return v ? parseInt(v) : null;
-  } catch { return null; }
+  const v = safeGetItem(`hb9om_server_count_${type}`);
+  return v ? parseInt(v) : null;
 }
 
 // Store whether the last download was truncated (storage limit reached)
 export function storeTruncatedFlag(type, truncated) {
-  try {
-    localStorage.setItem(`hb9om_truncated_${type}`, String(truncated));
-  } catch {}
+  safeSetItem(`hb9om_truncated_${type}`, String(truncated));
 }
 
 // Get whether the last download was truncated (storage limit reached)
 export function getTruncatedFlag(type) {
-  try {
-    return localStorage.getItem(`hb9om_truncated_${type}`) === "true";
-  } catch { return false; }
+  return safeGetItem(`hb9om_truncated_${type}`) === "true";
 }
 
 // Get stored server counts for all reference types (from localStorage, synchronous)
@@ -1185,9 +988,9 @@ export async function getServerDataCounts() {
   return counts;
 }
 
-// Check offline readiness — returns what's ready and what's missing
-export function getOfflineReadiness() {
-  const stats = getReferenceTypeStats();
+// Check offline readiness — returns what's ready and what's missing. Now async (IndexedDB).
+export async function getOfflineReadiness() {
+  const stats = await getReferenceTypeStats();
   const readiness = {
     sota: stats.sota.count > 0,
     pota: stats.pota.count > 0,
@@ -1212,40 +1015,27 @@ export function getOfflineReadiness() {
 // First tries the stored list (fast path). If missing (e.g. quota was full after data
 // was stored and the list couldn't be saved), scans localStorage for per-country keys.
 export function getCachedCountriesForType(type) {
-  try {
-    const data = localStorage.getItem(`hb9om_offline_countries_data_${type}`);
-    if (data) {
+  const data = safeGetItem(`hb9om_offline_countries_data_${type}`);
+  if (data) {
+    try {
       const arr = JSON.parse(data);
       if (Array.isArray(arr) && arr.length > 0) return arr;
-    }
-  } catch {}
-  // Fallback: scan localStorage for per-country keys (reliable when stored list is missing)
-  const countries = [];
-  const prefix = `hb9om_refs_${type}_`;
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith(prefix)) {
-      const country = key.substring(prefix.length);
-      if (country.length >= 2) countries.push(country);
-    }
+    } catch {}
   }
-  return countries;
+  // No per-country data found — return empty (data is in IndexedDB now)
+  return [];
 }
 
 // Store the list of countries that have cached data for a type
 function setCachedCountriesForType(type, countries) {
-  try {
-    localStorage.setItem(`hb9om_offline_countries_data_${type}`, JSON.stringify(countries));
-  } catch {}
+  safeSetItem(`hb9om_offline_countries_data_${type}`, JSON.stringify(countries));
 }
 
-// Clear all per-country keys for a type
+// Clear all per-country metadata for a type (IndexedDB data cleared separately)
 function clearPerCountryKeys(type) {
   const countries = getCachedCountriesForType(type);
-  for (const country of countries) {
-    localStorage.removeItem(`hb9om_refs_${type}_${country}`);
-  }
-  localStorage.removeItem(`hb9om_offline_countries_data_${type}`);
+  // Note: IndexedDB data is cleared by the caller via idbClearPrefix
+  safeRemoveItem(`hb9om_offline_countries_data_${type}`);
 }
 
 // Get country code for a reference based on its type
@@ -1268,36 +1058,28 @@ function getRefCountryCode(ref, type) {
 
 // Store country counts for a type (called after fetching all data)
 function storeCountryCounts(type, refs) {
-  try {
-    const counts = {};
-    for (const ref of refs) {
-      const iso2 = getRefCountryCode(ref, type);
-      if (iso2) counts[iso2] = (counts[iso2] || 0) + 1;
-    }
-    localStorage.setItem(`hb9om_country_counts_${type}`, JSON.stringify(counts));
-  } catch {}
+  const counts = {};
+  for (const ref of refs) {
+    const iso2 = getRefCountryCode(ref, type);
+    if (iso2) counts[iso2] = (counts[iso2] || 0) + 1;
+  }
+  safeSetItem(`hb9om_country_counts_${type}`, JSON.stringify(counts));
 }
 
 // Get country counts for a type (from last download)
 export function getCountryCountsForType(type) {
-  try {
-    const data = localStorage.getItem(`hb9om_country_counts_${type}`);
-    return data ? JSON.parse(data) : {};
-  } catch { return {}; }
+  const data = safeGetItem(`hb9om_country_counts_${type}`);
+  return data ? JSON.parse(data) : {};
 }
 
 // Get/set the user's country filter selection for a type
 export function getOfflineCountryFilter(type) {
-  try {
-    const data = localStorage.getItem(`hb9om_offline_countries_${type}`);
-    return data ? JSON.parse(data) : null;
-  } catch { return null; }
+  const data = safeGetItem(`hb9om_offline_countries_${type}`);
+  return data ? JSON.parse(data) : null;
 }
 
 export function setOfflineCountryFilter(type, countries) {
-  try {
-    localStorage.setItem(`hb9om_offline_countries_${type}`, JSON.stringify(countries));
-  } catch {}
+  safeSetItem(`hb9om_offline_countries_${type}`, JSON.stringify(countries));
 }
 
 // Download a reference type filtered by selected countries.
@@ -1310,42 +1092,25 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
     const key = TYPE_CACHE_KEYS[type];
     if (!key) return { success: false, count: 0, error: "Unbekannter Typ" };
 
-    // Clear old data FIRST to free space before storing metadata
-    localStorage.removeItem(key);
+    // Clear old data FIRST (IndexedDB + localStorage metadata)
+    safeRemoveItem(key);
+    await idbDelete(key);
+    await idbClearPrefix(`hb9om_refs_${type}_`);
     clearPerCountryKeys(type);
 
-    // Each country gets the full PER_COUNTRY_BUDGET_BYTES — storeWithBudget handles
-    // truncation if a country's data exceeds the budget. The previous code divided
-    // availableSpace by numCountries, giving each country only ~750KB when 6 countries
-    // were selected — too small for large datasets like WWBOTA France (7'388 refs).
-    const availableSpace = await estimateAvailableSpace();
-    if (availableSpace < 10240) {
-      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
-    }
-    const dynamicBudget = PER_COUNTRY_BUDGET_BYTES;
-
-    // Store metadata AFTER clearing (while space is available)
+    // Store metadata in localStorage (small)
     storeServerCount(type, allRefs.length);
     storeCountryCounts(type, allRefs);
 
-    // If no countries selected, store all in single key (legacy behavior)
+    // If no countries selected, store all in single key (IndexedDB)
     if (countryCodes.length === 0) {
-      let result = storeWithBudget(key, allRefs, false, PER_TYPE_BUDGET_BYTES);
-      if (result.truncated) {
-        const slimRefs = allRefs.map(slimReference);
-        const slimResult = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
-        if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
-      }
-      if (!result.stored) {
-        const slimRefs = allRefs.map(slimReference);
-        result = storeWithBudget(key, slimRefs, true, PER_TYPE_BUDGET_BYTES);
-      }
+      const result = await storeWithBudget(key, allRefs, false, PER_TYPE_BUDGET_BYTES);
       if (!result.stored) return { success: false, count: 0, error: result.error };
       clearPerCountryKeys(type);
       setOfflineCountryFilter(type, countryCodes);
-      storeTruncatedFlag(type, result.truncated || false);
-      try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-      return { success: true, count: result.count, slimmed: result.slimmed, total: allRefs.length, allTotal: allRefs.length, truncated: result.truncated || false, countries: 0 };
+      storeTruncatedFlag(type, false);
+      safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+      return { success: true, count: result.count, slimmed: false, total: allRefs.length, allTotal: allRefs.length, truncated: false, countries: 0 };
     }
 
     // Group refs by country
@@ -1358,33 +1123,18 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
       }
     }
 
-    // Sort countries by size (smallest first) so small countries are stored before
-    // large ones — prevents a large country (e.g. DE with 16k POTA parks) from
-    // consuming all available localStorage space, leaving none for smaller countries.
+    // Sort countries by size (smallest first)
     const sortedCountries = Object.entries(byCountry).sort((a, b) => a[1].length - b[1].length);
 
-    // Store each country in its own key with dynamic budget
     let totalStored = 0, totalFiltered = 0;
-    let anyTruncated = false, anySlimmed = false;
     const storedCountries = [];
 
     for (const [country, refs] of sortedCountries) {
       const countryKey = `hb9om_refs_${type}_${country}`;
-      let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
-      if (result.truncated) {
-        const slimRefs = refs.map(slimReference);
-        const slimResult = storeWithBudget(countryKey, slimRefs, true, dynamicBudget);
-        if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
-      }
-      if (!result.stored) {
-        const slimRefs = refs.map(slimReference);
-        result = storeWithBudget(countryKey, slimRefs, true, dynamicBudget);
-      }
+      const result = await storeWithBudget(countryKey, refs, false, PER_COUNTRY_BUDGET_BYTES);
       if (result.stored) {
         totalStored += result.count;
         totalFiltered += refs.length;
-        if (result.truncated) anyTruncated = true;
-        if (result.slimmed) anySlimmed = true;
         storedCountries.push(country);
       }
     }
@@ -1398,12 +1148,12 @@ export async function cacheTypeFromServerByCountries(type, countryCodes) {
 
     setCachedCountriesForType(type, storedCountries);
     setOfflineCountryFilter(type, countryCodes);
-    storeTruncatedFlag(type, anyTruncated);
-    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
+    storeTruncatedFlag(type, false);
+    safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
     return {
-      success: true, count: totalStored, slimmed: anySlimmed,
+      success: true, count: totalStored, slimmed: false,
       total: totalFiltered, allTotal: allRefs.length,
-      truncated: anyTruncated, countries: storedCountries.length
+      truncated: false, countries: storedCountries.length
     };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
@@ -1418,34 +1168,28 @@ export async function cachePrivateNodesFromServerByCountries(countryCodes) {
     const nodes = await loadAllPrivateNodes();
     const arr = nodes || [];
 
-    // Clear old data FIRST to free space
-    localStorage.removeItem("hb9om_refs_private_nodes");
+    // Clear old data FIRST (IndexedDB + localStorage)
+    safeRemoveItem("hb9om_refs_private_nodes");
+    await idbDelete("hb9om_refs_private_nodes");
+    await idbClearPrefix("hb9om_refs_private_nodes_");
     clearPerCountryKeys("private_nodes");
-
-    const availableSpace = await estimateAvailableSpace();
-    if (availableSpace < 10240) {
-      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
-    }
-    const dynamicBudget = PER_COUNTRY_BUDGET_BYTES;
 
     storeServerCount("private_nodes", arr.length);
     storeCountryCounts("private_nodes", arr);
 
-    // If no countries selected, store all in single key
     if (countryCodes.length === 0) {
-      let result = storeWithBudget("hb9om_refs_private_nodes", arr, false, PER_TYPE_BUDGET_BYTES);
+      const result = await storeWithBudget("hb9om_refs_private_nodes", arr, false, PER_TYPE_BUDGET_BYTES);
       if (result.stored) {
         clearPerCountryKeys("private_nodes");
         setOfflineCountryFilter("private_nodes", countryCodes);
-        try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-        storeTruncatedFlag("private_nodes", result.truncated || false);
-        return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, allTotal: arr.length, truncated: result.truncated || false, countries: 0 };
+        safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+        storeTruncatedFlag("private_nodes", false);
+        return { success: true, count: result.count, slimmed: false, total: arr.length, allTotal: arr.length, truncated: false, countries: 0 };
       }
       storeTruncatedFlag("private_nodes", false);
       return { success: false, count: 0, error: result.error };
     }
 
-    // Group by country (derive from lat/lng if country_code is empty)
     const byCountry = {};
     for (const n of arr) {
       const iso2 = n.country_code || getCountryFromLatLng(n.lat, n.lng);
@@ -1456,17 +1200,14 @@ export async function cachePrivateNodesFromServerByCountries(countryCodes) {
     }
 
     let totalStored = 0, totalFiltered = 0;
-    let anyTruncated = false, anySlimmed = false;
     const storedCountries = [];
 
     for (const [country, refs] of Object.entries(byCountry)) {
       const countryKey = `hb9om_refs_private_nodes_${country}`;
-      let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
+      const result = await storeWithBudget(countryKey, refs, false, PER_COUNTRY_BUDGET_BYTES);
       if (result.stored) {
         totalStored += result.count;
         totalFiltered += refs.length;
-        if (result.truncated) anyTruncated = true;
-        if (result.slimmed) anySlimmed = true;
         storedCountries.push(country);
       }
     }
@@ -1480,12 +1221,12 @@ export async function cachePrivateNodesFromServerByCountries(countryCodes) {
 
     setCachedCountriesForType("private_nodes", storedCountries);
     setOfflineCountryFilter("private_nodes", countryCodes);
-    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-    storeTruncatedFlag("private_nodes", anyTruncated);
+    safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+    storeTruncatedFlag("private_nodes", false);
     return {
-      success: true, count: totalStored, slimmed: anySlimmed,
+      success: true, count: totalStored, slimmed: false,
       total: totalFiltered, allTotal: arr.length,
-      truncated: anyTruncated, countries: storedCountries.length
+      truncated: false, countries: storedCountries.length
     };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
@@ -1496,49 +1237,31 @@ export async function cachePrivateNodesFromServerByCountries(countryCodes) {
 // Each country is stored in its own localStorage key (hb9om_refs_repeater_{country}).
 export async function cacheRepeatersFromServerByCountries(countryCodes) {
   try {
-    // Server-side country filtering: only load repeaters for selected countries
-    // instead of loading all 31k repeaters into memory then filtering.
-    // This prevents timeouts and memory issues on mobile devices.
     const repeaters = await loadRepeatersByCountries(countryCodes);
     const arr = repeaters || [];
 
-    // Clear old data FIRST to free space
-    localStorage.removeItem("hb9om_refs_repeater");
+    // Clear old data FIRST (IndexedDB + localStorage)
+    safeRemoveItem("hb9om_refs_repeater");
+    await idbDelete("hb9om_refs_repeater");
+    await idbClearPrefix("hb9om_refs_repeater_");
     clearPerCountryKeys("repeater");
-
-    const availableSpace = await estimateAvailableSpace();
-    if (availableSpace < 10240) {
-      return { success: false, count: 0, error: "Speicher voll – bitte andere Layer löschen (Einstellungen → Offline)" };
-    }
-    const dynamicBudget = PER_COUNTRY_BUDGET_BYTES;
 
     storeServerCount("repeater", arr.length);
     storeCountryCounts("repeater", arr);
 
-    // If no countries selected, store all in single key (legacy behavior)
     if (countryCodes.length === 0) {
-      let result = storeWithBudget("hb9om_refs_repeater", arr, false, PER_TYPE_BUDGET_BYTES);
-      if (result.truncated) {
-        const slimmed = arr.map(slimRepeater);
-        const slimResult = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
-        if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
-      }
-      if (!result.stored) {
-        const slimmed = arr.map(slimRepeater);
-        result = storeWithBudget("hb9om_refs_repeater", slimmed, true, PER_TYPE_BUDGET_BYTES);
-      }
+      const result = await storeWithBudget("hb9om_refs_repeater", arr, false, PER_TYPE_BUDGET_BYTES);
       if (result.stored) {
         clearPerCountryKeys("repeater");
         setOfflineCountryFilter("repeater", countryCodes);
-        try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-        storeTruncatedFlag("repeater", result.truncated || false);
-        return { success: true, count: result.count, slimmed: result.slimmed, total: arr.length, allTotal: arr.length, truncated: result.truncated || false, countries: 0 };
+        safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+        storeTruncatedFlag("repeater", false);
+        return { success: true, count: result.count, slimmed: false, total: arr.length, allTotal: arr.length, truncated: false, countries: 0 };
       }
       storeTruncatedFlag("repeater", false);
       return { success: false, count: 0, error: result.error };
     }
 
-    // Group by country
     const byCountry = {};
     for (const r of arr) {
       if (r.country_code && countryCodes.includes(r.country_code)) {
@@ -1548,26 +1271,14 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
     }
 
     let totalStored = 0, totalFiltered = 0;
-    let anyTruncated = false, anySlimmed = false;
     const storedCountries = [];
 
     for (const [country, refs] of Object.entries(byCountry)) {
       const countryKey = `hb9om_refs_repeater_${country}`;
-      let result = storeWithBudget(countryKey, refs, false, dynamicBudget);
-      if (result.truncated) {
-        const slimmed = refs.map(slimRepeater);
-        const slimResult = storeWithBudget(countryKey, slimmed, true, dynamicBudget);
-        if (slimResult.stored && slimResult.count >= result.count) result = slimResult;
-      }
-      if (!result.stored) {
-        const slimmed = refs.map(slimRepeater);
-        result = storeWithBudget(countryKey, slimmed, true, dynamicBudget);
-      }
+      const result = await storeWithBudget(countryKey, refs, false, PER_COUNTRY_BUDGET_BYTES);
       if (result.stored) {
         totalStored += result.count;
         totalFiltered += refs.length;
-        if (result.truncated) anyTruncated = true;
-        if (result.slimmed) anySlimmed = true;
         storedCountries.push(country);
       }
     }
@@ -1581,12 +1292,12 @@ export async function cacheRepeatersFromServerByCountries(countryCodes) {
 
     setCachedCountriesForType("repeater", storedCountries);
     setOfflineCountryFilter("repeater", countryCodes);
-    try { localStorage.setItem(TIMESTAMP_KEY, new Date().toISOString()); } catch {}
-    storeTruncatedFlag("repeater", anyTruncated);
+    safeSetItem(TIMESTAMP_KEY, new Date().toISOString());
+    storeTruncatedFlag("repeater", false);
     return {
-      success: true, count: totalStored, slimmed: anySlimmed,
+      success: true, count: totalStored, slimmed: false,
       total: totalFiltered, allTotal: arr.length,
-      truncated: anyTruncated, countries: storedCountries.length
+      truncated: false, countries: storedCountries.length
     };
   } catch (e) {
     return { success: false, count: 0, error: e.message };
