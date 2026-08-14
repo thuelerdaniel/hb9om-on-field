@@ -946,7 +946,7 @@ export default function Settings() {
             <Crosshair className="w-4 h-4" /> GPS-Tracking
           </h3>
           <p className="text-xs text-gray-500 mb-3">
-            Der Ein/Aus-Schalter für <strong>Meine GPS-Position</strong> (blaues Kreuz) befindet sich als schwebender Button auf der Karte. Hier stellen Sie das Intervall und die öffentliche Freigabe ein.
+            <strong>Meine GPS-Position</strong> (Fadenkreuz) wird ein- und ausgeschaltet über den Button <em>„Auf meine Position zentrieren"</em> (links auf der Karte). Hier stellen Sie das Aktualisierungs-Intervall und die öffentliche Freigabe ein.
           </p>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktualisierungs-Intervall</label>

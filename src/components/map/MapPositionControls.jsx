@@ -11,6 +11,7 @@ export default function MapPositionControls({
   onOpenOfflineDownload,
   onSetPositionViaMap,
   setPositionActive,
+  gpsTrackingActive,
 }) {
   const [gpsLoading, setGpsLoading] = useState(false);
   const { containerRef } = useDraggablePosition("drag-position-controls");
@@ -82,14 +83,18 @@ export default function MapPositionControls({
         </button>
       )}
 
-      {/* Center on saved position */}
+      {/* Center on my position — toggles GPS tracking on/off */}
       {showCenter && (
         <button
           onClick={onCenterPosition}
-          className="w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-          title="Karte auf gespeicherte Position zentrieren"
+          className={`w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border transition-colors ${
+            gpsTrackingActive
+              ? "bg-blue-500 border-blue-600 text-white"
+              : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+          }`}
+          title={gpsTrackingActive ? "GPS-Tracking aktiv — tippen zum Ausschalten" : "Auf meine GPS-Position zentrieren / GPS-Tracking einschalten"}
         >
-          <LocateFixed className="w-5 h-5" />
+          <LocateFixed className={`w-5 h-5 ${gpsTrackingActive ? "animate-pulse" : ""}`} />
         </button>
       )}
 

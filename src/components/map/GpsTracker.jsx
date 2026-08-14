@@ -1,44 +1,38 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Marker, Tooltip } from "react-leaflet";
+import { Marker, Circle, Tooltip, Popup } from "react-leaflet";
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
 import { getAprsSymbolSvg } from "@/lib/aprsSymbols";
 import { useWakeLock } from "@/hooks/useWakeLock";
+import PositionPopupContent from "@/components/map/PositionPopupContent";
 
 // ---------------------------------------------------------------------------
 // Two independent concepts:
-//   • "My GPS Position"   (hb9om_gps_tracking_enabled) — local blue crosshair
-//   • "Public GPS Position" (hb9om_gps_public_enabled) — APRS symbol + broadcast
+//   • "My GPS Position"   (hb9om_gps_tracking_enabled) — local crosshair, no label
+//     Toggle: "center on position" button on the map (left side)
+//     Click marker → full popup with circle, dimensions, GPS coordinates
+//   • "Public GPS Position" (hb9om_gps_public_enabled) — APRS symbol + callsign
+//     Toggle: in Settings (GpsPublicConfig)
+//     Click marker → coordinates only (no circle)
 // GPS tracking (reading coordinates) runs when EITHER is ON.
-// Only ONE marker is rendered at the GPS position:
-//   - APRS symbol with callsign  when public is ON
-//   - Blue crosshair with callsign when public is OFF but local tracking is ON
 // ---------------------------------------------------------------------------
 
-// Blue crosshair icon with callsign label — used for "My GPS Position" (local only)
-let gpsIconCache = new Map();
-function getGpsIcon(callsign) {
-  const cs = callsign || "";
-  const key = `cross-${cs}`;
-  if (gpsIconCache.has(key)) return gpsIconCache.get(key);
-
-  const labelHtml = cs
-    ? `<div style="position:absolute;top:18px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(37,99,235,0.92);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.3);letter-spacing:0.3px;">${cs}</div>`
-    : "";
+// Blue crosshair icon — NO callsign label (per user request)
+let gpsIconCache = null;
+function getGpsIcon() {
+  if (gpsIconCache) return gpsIconCache;
   const html = `
     <div style="position: relative; width: 28px; height: 28px;">
       <div style="position:absolute;top:50%;left:0;width:100%;height:2px;background:#2563eb;transform:translateY(-50%);box-shadow:0 0 4px rgba(37,99,235,0.7);"></div>
       <div style="position:absolute;left:50%;top:0;width:2px;height:100%;background:#2563eb;transform:translateX(-50%);box-shadow:0 0 4px rgba(37,99,235,0.7);"></div>
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:#2563eb;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>
-      ${labelHtml}
     </div>
   `;
-  const icon = L.divIcon({ html, className: "gps-tracker-icon", iconSize: [28, 28], iconAnchor: [14, 14] });
-  gpsIconCache.set(key, icon);
-  return icon;
+  gpsIconCache = L.divIcon({ html, className: "gps-tracker-icon", iconSize: [28, 28], iconAnchor: [14, 14] });
+  return gpsIconCache;
 }
 
-// APRS symbol icon with callsign label — used for "Public GPS Position"
+// APRS symbol icon WITH callsign label — used for "Public GPS Position"
 const aprsIconCache = new Map();
 function getAprsGpsIcon(aprsSymbol, callsign) {
   const symbol = aprsSymbol || "dot";
@@ -61,7 +55,25 @@ function getAprsGpsIcon(aprsSymbol, callsign) {
   return icon;
 }
 
-export default function GpsTracker({ onPublicPositionUpdate }) {
+function latLngToGrid(lat, lng) {
+  const adjLng = lng + 180;
+  const adjLat = lat + 90;
+  const fieldLng = Math.floor(adjLng / 20);
+  const fieldLat = Math.floor(adjLat / 10);
+  const squareLng = Math.floor((adjLng % 20) / 2);
+  const squareLat = Math.floor(adjLat % 10);
+  const subSqLng = Math.floor((adjLng % 20 % 2) * 12);
+  const subSqLat = Math.floor((adjLat % 10 % 1) * 24);
+  return (
+    String.fromCharCode(65 + fieldLng) +
+    String.fromCharCode(65 + fieldLat) +
+    squareLng + squareLat +
+    String.fromCharCode(97 + subSqLng) +
+    String.fromCharCode(97 + subSqLat)
+  );
+}
+
+export default function GpsTracker({ onPublicPositionUpdate, radius, onRadiusChange, onPositionChange }) {
   const [position, setPosition] = useState(null);
   const [currentAprsSymbol, setCurrentAprsSymbol] = useState(
     () => localStorage.getItem("hb9om_gps_public_symbol") || "dot"
@@ -74,9 +86,7 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
 
   const refreshSettings = useCallback(() => {
     settingsRef.current = {
-      // "My GPS Position" — local crosshair indicator (toggle on map)
       gpsEnabled: localStorage.getItem("hb9om_gps_tracking_enabled") !== "false",
-      // "Public GPS Position" — APRS symbol + broadcast (toggle in settings)
       publicEnabled: localStorage.getItem("hb9om_gps_public_enabled") !== "false",
       intervalSec: parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"),
       callsign: localStorage.getItem("hb9om_my_callsign") || "",
@@ -87,7 +97,6 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
     setCurrentAprsSymbol(settingsRef.current.aprsSymbol);
   }, []);
 
-  // Wake Lock — keeps the screen active while GPS tracking is running
   const s = settingsRef.current;
   const wakeLockEnabled = s.gpsEnabled || s.publicEnabled;
   useWakeLock(wakeLockEnabled);
@@ -113,7 +122,6 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
     }).catch(() => {});
   }, [onPublicPositionUpdate]);
 
-  // Main tracking effect — runs when EITHER toggle is ON
   useEffect(() => {
     refreshSettings();
     const cfg = settingsRef.current;
@@ -129,7 +137,6 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      // If public was on, remove the broadcast
       if (cfg.publicEnabled) {
         base44.functions.invoke("managePublicPosition", { action: "remove" }).catch(() => {});
       }
@@ -182,7 +189,6 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
     };
   }, [broadcastPosition, refreshSettings, settingsVersion]);
 
-  // Re-read settings when they change
   useEffect(() => {
     const handleSettingsChange = () => {
       refreshSettings();
@@ -201,23 +207,64 @@ export default function GpsTracker({ onPublicPositionUpdate }) {
   if (!position) return null;
 
   const cfg = settingsRef.current;
-  const callsign = cfg.callsign;
+  const [lat, lng] = position;
 
-  // Public GPS Position takes precedence — shows APRS symbol with callsign.
-  // When public is OFF but local tracking is ON — shows blue crosshair with callsign.
-  const icon = cfg.publicEnabled
-    ? getAprsGpsIcon(currentAprsSymbol, callsign)
-    : getGpsIcon(callsign);
+  // --- Public GPS Position: APRS symbol + callsign, NO circle, simple popup ---
+  if (cfg.publicEnabled) {
+    return (
+      <Marker position={position} icon={getAprsGpsIcon(currentAprsSymbol, cfg.callsign)} zIndexOffset={900}>
+        <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
+          📍 {cfg.callsign || "Mein Standort"} (öffentlich)
+        </Tooltip>
+        <Popup>
+          <div className="text-xs space-y-1 min-w-[160px]">
+            <div className="font-bold text-sm text-gray-900 pb-1 border-b border-gray-100">
+              📡 {cfg.callsign || "Mein Standort"}
+            </div>
+            <div>
+              <span className="text-gray-500">WGS84:</span>{" "}
+              <span className="font-mono font-bold text-gray-900">{lat.toFixed(5)}, {lng.toFixed(5)}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Maidenhead:</span>{" "}
+              <span className="font-mono font-bold text-gray-900">{latLngToGrid(lat, lng)}</span>
+            </div>
+          </div>
+        </Popup>
+      </Marker>
+    );
+  }
 
-  const tooltipText = cfg.publicEnabled
-    ? `📍 ${callsign || "Mein Standort"} (öffentlich)`
-    : `📍 ${callsign || "Mein GPS-Standort"}`;
-
+  // --- My GPS Position: crosshair (no label) + circle + full popup ---
   return (
-    <Marker position={position} icon={icon} zIndexOffset={900}>
-      <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
-        {tooltipText}
-      </Tooltip>
-    </Marker>
+    <>
+      <Circle
+        center={position}
+        radius={radius || 5000}
+        interactive={false}
+        pathOptions={{
+          color: "#2563eb",
+          fillColor: "#2563eb",
+          fillOpacity: 0.08,
+          weight: 1.5,
+          dashArray: "6 4",
+        }}
+      />
+      <Marker position={position} icon={getGpsIcon()} zIndexOffset={900}>
+        <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+          📍 Mein GPS-Standort
+        </Tooltip>
+        <Popup>
+          <PositionPopupContent
+            lat={lat}
+            lng={lng}
+            radius={radius || 5000}
+            onRadiusChange={onRadiusChange}
+            onPositionChange={onPositionChange}
+            title="📍 GPS-Position"
+          />
+        </Popup>
+      </Marker>
+    </>
   );
 }

@@ -22,7 +22,6 @@ import TotaLayer from "@/components/map/TotaLayer";
 import PrivateNodeLayer from "@/components/map/PrivateNodeLayer";
 import PositionMarker from "@/components/map/PositionMarker";
 import GpsTracker from "@/components/map/GpsTracker";
-import GpsToggle from "@/components/map/GpsToggle";
 import WmsFeatureInfo from "@/components/map/WmsFeatureInfo";
 import WmsOverlayLayer from "@/components/map/WmsOverlayLayer";
 import SearchResults from "@/components/map/SearchResults";
@@ -661,16 +660,52 @@ export default function Home() {
     setFixedPosition(pos);
   }, []);
 
-  // Center map on current position (saved or GPS)
+  // GPS tracking enabled state — for button highlighting
+  const [gpsTrackingActive, setGpsTrackingActive] = useState(
+    () => localStorage.getItem("hb9om_gps_tracking_enabled") !== "false"
+  );
+
+  useEffect(() => {
+    const handler = () => {
+      setGpsTrackingActive(localStorage.getItem("hb9om_gps_tracking_enabled") !== "false");
+    };
+    window.addEventListener("gps-tracking-changed", handler);
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener("gps-tracking-changed", handler);
+      window.removeEventListener("storage", handler);
+    };
+  }, []);
+
+  // "Center on my position" button — toggles GPS tracking on/off
   const handleCenterOnPosition = useCallback(() => {
-    const pos = fixedPosition || userPosition;
-    if (pos) {
-      mapRef.current?.flyTo(pos, 13, { duration: 1 });
+    const trackingEnabled = localStorage.getItem("hb9om_gps_tracking_enabled") !== "false";
+    if (trackingEnabled) {
+      // Turn OFF
+      localStorage.setItem("hb9om_gps_tracking_enabled", "false");
+      setGpsTrackingActive(false);
+      window.dispatchEvent(new CustomEvent("gps-tracking-changed"));
     } else {
-      // No position known — center on Switzerland
-      mapRef.current?.flyTo([46.8, 8.2], 8, { duration: 1 });
+      // Turn ON + get GPS position + center map
+      localStorage.setItem("hb9om_gps_tracking_enabled", "true");
+      setGpsTrackingActive(true);
+      window.dispatchEvent(new CustomEvent("gps-tracking-changed"));
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const newPos = [pos.coords.latitude, pos.coords.longitude];
+            setUserPosition(newPos);
+            mapRef.current?.flyTo(newPos, 14, { duration: 1 });
+          },
+          () => {
+            // Fallback — center on Switzerland
+            mapRef.current?.flyTo([46.8, 8.2], 8, { duration: 1 });
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+        );
+      }
     }
-  }, [fixedPosition, userPosition]);
+  }, []);
 
   // Get current GPS position and center map
   const handleGetGps = useCallback((onDone) => {
@@ -944,14 +979,18 @@ export default function Home() {
           />
         )}
         <PositionMarker
-          position={currentPosition}
-          fixed={!!fixedPosition}
+          position={fixedPosition}
+          fixed={true}
           radius={positionRadius}
           onRadiusChange={setPositionRadius}
           onPositionChange={handlePositionChange}
           draggable={dragMode}
         />
-        <GpsTracker onPublicPositionUpdate={(pos) => {
+        <GpsTracker
+          radius={positionRadius}
+          onRadiusChange={setPositionRadius}
+          onPositionChange={handlePositionChange}
+          onPublicPositionUpdate={(pos) => {
           setPublicPositions(prev => {
             const idx = prev.findIndex(p => p.is_own);
             if (idx >= 0) {
@@ -1052,9 +1091,6 @@ export default function Home() {
         baseLayer={baseLayer}
       />
 
-      {/* My GPS Position toggle — floating on map, independent from public GPS */}
-      <GpsToggle />
-
       {/* Position Controls (offline, GPS, center position, offline download) */}
       <MapPositionControls
         onCenterPosition={handleCenterOnPosition}
@@ -1064,6 +1100,7 @@ export default function Home() {
         onOpenOfflineDownload={() => setShowOfflineDialog(true)}
         onSetPositionViaMap={() => setMapClickForPosition(true)}
         setPositionActive={mapClickForPosition}
+        gpsTrackingActive={gpsTrackingActive}
       />
 
       {/* Drag-Mode Toggle (Marker verschieben für Positionskorrektur) — only if filter tool enabled */}
