@@ -383,11 +383,11 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
       <div
         ref={panelRef}
         className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-        style={{ touchAction: "none" }}
       >
         {/* Header — drag handle */}
         <div
           onPointerDown={handleHeaderPointerDown}
+          style={{ touchAction: "none" }}
           className="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-5 py-3 flex items-center justify-between rounded-t-2xl z-10 cursor-grab active:cursor-grabbing select-none"
           title="Zum Verschieben ziehen"
         >

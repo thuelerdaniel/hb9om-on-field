@@ -27,6 +27,8 @@ export function useMapData(activeLayers) {
   const timeoutRef = useRef(null);
   // Track which datasets have been loaded from server to avoid duplicate fetches
   const loadedRef = useRef({ privateNodes: false, adminLinks: false });
+  // Track previous active layers to detect removals vs additions
+  const prevLayersRef = useRef(activeLayers);
 
   // Load offline cache on mount — async (IndexedDB reads).
   // Shows cached data instantly if available, before server data loads.
@@ -99,6 +101,11 @@ export function useMapData(activeLayers) {
     const needRepeaters = activeLayers.includes("repeater");
     const needPrivateNodes = activeLayers.includes("aprs") || activeLayers.includes("brandmeister");
 
+    // Detect whether a NEW layer was added (vs only removals)
+    const prev = prevLayersRef.current;
+    const hasNewLayer = activeLayers.some(l => !prev.includes(l));
+    prevLayersRef.current = activeLayers;
+
     // Clear private nodes when neither APRS nor BrandMeister is active
     if (!needPrivateNodes) {
       setPrivateNodes([]);
@@ -118,9 +125,13 @@ export function useMapData(activeLayers) {
       return;
     }
 
-    // Show loading indicator — ViewportDataLoader sets false on first viewport data
-    setLoading(true);
-    setLoadingMessage("Daten werden geladen…");
+    // Only show loading indicator when a NEW layer was added.
+    // Turning OFF a layer should not show the loading spinner —
+    // the ViewportDataLoader will silently refetch the remaining layers.
+    if (hasNewLayer) {
+      setLoading(true);
+      setLoadingMessage("Daten werden geladen…");
+    }
 
     const tasks = [];
 

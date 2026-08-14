@@ -136,7 +136,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
     : COUNTRIES;
 
   return (
-    <div ref={containerRef} className="absolute top-16 right-3 z-[1005]" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+    <div ref={containerRef} className="absolute top-16 right-3 z-[10003]" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-white shadow-lg rounded-lg p-2.5 hover:bg-gray-50 transition-colors border border-gray-200"
