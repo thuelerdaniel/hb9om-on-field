@@ -27,8 +27,9 @@ export default async function(req: any): Promise<Response> {
 
     // --- Stats-only mode: return global coverage statistics without calculating ---
     if (statsOnly) {
-      // Fetch repeaters WITH coordinates only — those without coords can't be calculated.
-      const withCoordRepeaters = await base44.asServiceRole.entities.Repeater.filter({ lat: { $ne: null } }, '-created_date', 500);
+      // Fetch ALL repeaters WITH coordinates — those without coords can't be calculated.
+      // Use 50000 limit to exceed the default 5000 cap and capture all ~2500+ repeaters.
+      const withCoordRepeaters = await base44.asServiceRole.entities.Repeater.filter({ lat: { $ne: null } }, '-created_date', 50000);
       // Also fetch total count from ReferenceData for the "total" display
       let totalRepeaters = 0;
       try {
