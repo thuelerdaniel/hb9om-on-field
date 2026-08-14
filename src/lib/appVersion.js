@@ -8,24 +8,23 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.85";
+export const APP_VERSION = "0.87";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608132237";
+export const APP_BUILD = "202608141240";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
-  "Terrain-Abdeckung: SRTM 30m Höhendaten, LOS & Link-Budget für Relais und eigene Position",
-  "Meine Abdeckung: GPS/QTH/Karte → asymmetrisches Polygon mit 36 Radialen",
-  "Relais-Abdeckung: Weltweite Stats mit %-Angabe und Fortschrittsbalken",
-  "Admin: Einzelne Relais-Abdeckung direkt im Popup berechnen",
-  "Admin: Cron-Job-View für Abdeckungs-Berechnung mit inkrementeller Konfiguration",
-  "Performance: Relais-Layer automatisch auf CircleMarker bei >500 Stationen",
-  "Popup: 'Noch nicht berechnet' Hinweis wenn keine Abdeckung vorhanden",
-  "Positionskorrektur: Position-Marker auf Karte dragbar im Verschiebe-Modus",
+  "Meine Abdeckung: Dialog-Fenster frei verschiebbar (Header ziehen)",
+  "Meine Abdeckung: Antennenhöhe mit Slider + Zahleneingabe anpassbar",
+  "Meine Abdeckung: Verlauf mit einzelnen Berechnungen — speichern, laden, einzeln löschen",
+  "Meine Abdeckung: Neu berechnen mit Abfrage wie viele alte Berechnungen behalten werden",
+  "Öffentliche Position: GPS-Standort für alle Benutzer sichtbar teilen",
+  "Öffentliche Position: Refresh gemäss GPS-Intervall-Einstellung in den Settings",
+  "Karte: Öffentliche Positionen aller Benutzer mit Rufzeichen-Popup",
 ];
 
 // Data sources reference — used by Help page and menu.

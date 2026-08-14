@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Marker, Tooltip } from "react-leaflet";
 import L from "leaflet";
+import { base44 } from "@/api/base44Client";
 
 let gpsIcon = null;
 function getGpsIcon() {
@@ -17,14 +18,16 @@ function getGpsIcon() {
   return gpsIcon;
 }
 
-export default function GpsTracker() {
+export default function GpsTracker({ onPublicPositionUpdate }) {
   const [position, setPosition] = useState(null);
   const intervalRef = useRef(null);
+  const lastBroadcastRef = useRef(0);
 
   useEffect(() => {
     const startTracking = () => {
       const enabled = localStorage.getItem("hb9om_gps_tracking_enabled") === "true";
       const intervalSec = parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60");
+      const publicEnabled = localStorage.getItem("hb9om_gps_public_enabled") === "true";
 
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -33,13 +36,41 @@ export default function GpsTracker() {
 
       if (!enabled) {
         setPosition(null);
+        // If public mode was on, remove our public position
+        if (publicEnabled) {
+          base44.functions.invoke("managePublicPosition", { action: "remove" }).catch(() => {});
+        }
         return;
       }
 
       const fetchPosition = () => {
         if (!navigator.geolocation) return;
         navigator.geolocation.getCurrentPosition(
-          (pos) => setPosition([pos.coords.latitude, pos.coords.longitude]),
+          (pos) => {
+            const newPos = [pos.coords.latitude, pos.coords.longitude];
+            setPosition(newPos);
+
+            // Broadcast to public position if enabled — but at most once per 30s
+            if (publicEnabled) {
+              const now = Date.now();
+              if (now - lastBroadcastRef.current > 30000) {
+                lastBroadcastRef.current = now;
+                const callsign = localStorage.getItem("hb9om_user_callsign") || "";
+                const deviceType = localStorage.getItem("hb9om_cov_device") || "mobil";
+                base44.functions.invoke("managePublicPosition", {
+                  action: "set",
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                  callsign,
+                  device_type: deviceType,
+                }).then(res => {
+                  if (onPublicPositionUpdate && res?.id) {
+                    onPublicPositionUpdate({ id: res.id, lat: pos.coords.latitude, lng: pos.coords.longitude, is_own: true });
+                  }
+                }).catch(() => {});
+              }
+            }
+          },
           () => {},
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
         );
@@ -51,12 +82,14 @@ export default function GpsTracker() {
 
     startTracking();
     window.addEventListener("gps-tracking-changed", startTracking);
+    window.addEventListener("gps-public-changed", startTracking);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       window.removeEventListener("gps-tracking-changed", startTracking);
+      window.removeEventListener("gps-public-changed", startTracking);
     };
-  }, []);
+  }, [onPublicPositionUpdate]);
 
   if (!position) return null;
 

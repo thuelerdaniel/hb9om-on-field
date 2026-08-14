@@ -1,0 +1,59 @@
+{
+  "name": "PublicPosition",
+  "type": "object",
+  "properties": {
+    "callsign": {
+      "type": "string",
+      "description": "Rufzeichen des Benutzers"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "device_type": {
+      "type": "string",
+      "enum": [
+        "mobil",
+        "fix",
+        "portabel"
+      ],
+      "default": "mobil",
+      "description": "Geraeteart"
+    },
+    "label": {
+      "type": "string",
+      "description": "Optionale Bezeichnung der Position"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Aktualisierung der Position"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob die Position aktuell aktiv (sichtbar) ist"
+    }
+  },
+  "required": [
+    "callsign",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": true,
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

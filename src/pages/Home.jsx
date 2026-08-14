@@ -40,6 +40,7 @@ import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialo
 import RepeaterCorrectionDialog from "@/components/map/RepeaterCorrectionDialog";
 import UserCoverageDialog from "@/components/map/UserCoverageDialog";
 import UserCoverageLayer from "@/components/map/UserCoverageLayer";
+import PublicPositionLayer from "@/components/map/PublicPositionLayer";
 
 // Filters
 import RepeaterFilter from "@/components/map/RepeaterFilter";
@@ -236,6 +237,23 @@ export default function Home() {
   const [userCoverageDevice, setUserCoverageDevice] = useState("mobil");
   const [mapClickForCoverage, setMapClickForCoverage] = useState(false);
   const [mapClickForPosition, setMapClickForPosition] = useState(false);
+
+  // Public positions — shared GPS positions visible to all users
+  const [publicPositions, setPublicPositions] = useState([]);
+
+  // Load public positions periodically (every 60s) and on mount
+  useEffect(() => {
+    const loadPublicPositions = async () => {
+      try {
+        const res = await base44.functions.invoke("managePublicPosition", { action: "list" });
+        const data = res?.data || res;
+        if (data?.positions) setPublicPositions(data.positions);
+      } catch {}
+    };
+    loadPublicPositions();
+    const interval = setInterval(loadPublicPositions, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Donation popup trigger — increments on layer menu open/close to trigger check
   const [donationTriggerKey, setDonationTriggerKey] = useState(0);
@@ -871,7 +889,17 @@ export default function Home() {
           onPositionChange={handlePositionChange}
           draggable={dragMode}
         />
-        <GpsTracker />
+        <GpsTracker onPublicPositionUpdate={(pos) => {
+          setPublicPositions(prev => {
+            const idx = prev.findIndex(p => p.is_own);
+            if (idx >= 0) {
+              const copy = [...prev];
+              copy[idx] = { ...copy[idx], lat: pos.lat, lng: pos.lng, last_updated: new Date().toISOString() };
+              return copy;
+            }
+            return [{ ...pos, callsign: localStorage.getItem("hb9om_user_callsign") || "Ich", is_own: true, last_updated: new Date().toISOString() }, ...prev];
+          });
+        }} />
         <WmsOverlayLayer activeLayers={activeLayers} />
         <WmsFeatureInfo
           activeLayers={activeLayers}
@@ -886,6 +914,11 @@ export default function Home() {
             position={userCoveragePosition}
             deviceType={userCoverageDevice}
           />
+        )}
+
+        {/* Public positions — shared GPS positions visible to all users */}
+        {publicPositions.length > 0 && (
+          <PublicPositionLayer positions={publicPositions} />
         )}
       </MapContainer>
       </MapErrorBoundary>

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { X, MapPin, Car, Home, Radio, Loader2, Satellite, Crosshair, Sun, Sunrise, Moon } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { X, MapPin, Car, Home, Radio, Loader2, Satellite, Crosshair, Sun, Sunrise, Moon, Save, Trash2, RefreshCw, History, Eye, EyeOff, ChevronDown, ChevronUp, Navigation } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useToast } from "@/components/ui/use-toast";
 
 const DEVICE_TYPES = [
   { value: "mobil", label: "Mobil", icon: Car, defaultPower: 50, defaultHeight: 1.7 },
@@ -33,14 +34,12 @@ const VHF_BANDS = [
 const ALL_BANDS = [...KW_BANDS, ...VHF_BANDS];
 
 const MODES = ["FM", "DMR", "D-STAR", "Fusion", "SSB", "CW", "AM", "FT8"];
-
 const HF_MODES = ["SSB", "CW", "AM", "FT8"];
 
 function isHFBand(band) {
   return KW_BANDS.some(b => b.value === band);
 }
 
-// Compute solar elevation (simplified)
 function getSolarElevation(lat, lng) {
   const now = new Date();
   const rad = Math.PI / 180;
@@ -54,9 +53,23 @@ function getSolarElevation(lat, lng) {
   return elev * 180 / Math.PI;
 }
 
+// --- Coverage history (localStorage) ---
+const HISTORY_KEY = "hb9om_coverage_history";
+const MAX_HISTORY = 20;
 
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveHistory(items) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, MAX_HISTORY))); } catch {}
+}
 
 export default function UserCoverageDialog({ onClose, onCoverageResult, mapCenter, onMapClickMode, externalPosition }) {
+  const { toast } = useToast();
   const [deviceType, setDeviceType] = useState(() => localStorage.getItem("hb9om_cov_device") || "mobil");
   const [powerWatts, setPowerWatts] = useState(() => {
     const saved = localStorage.getItem("hb9om_cov_power");
@@ -87,6 +100,51 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
   const [qthLocator, setQthLocator] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [history, setHistory] = useState(() => loadHistory());
+  const [showHistory, setShowHistory] = useState(false);
+  const [lastResult, setLastResult] = useState(null);
+  const [publicEnabled, setPublicEnabled] = useState(() => localStorage.getItem("hb9om_gps_public_enabled") === "true");
+  const [publicLoading, setPublicLoading] = useState(false);
+
+  // --- Dragging ---
+  const panelRef = useRef(null);
+  const dragState = useRef({ dragging: false, offsetX: 0, offsetY: 0 });
+
+  const handleHeaderPointerDown = useCallback((e) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    dragState.current = {
+      dragging: true,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+    };
+    panel.style.position = "fixed";
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    panel.style.margin = "0";
+    panel.style.transform = "none";
+    e.preventDefault();
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragState.current.dragging) return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const newLeft = Math.max(8, Math.min(window.innerWidth - panel.offsetWidth - 8, e.clientX - dragState.current.offsetX));
+      const newTop = Math.max(8, Math.min(window.innerHeight - 40, e.clientY - dragState.current.offsetY));
+      panel.style.left = `${newLeft}px`;
+      panel.style.top = `${newTop}px`;
+    };
+    const onUp = () => { dragState.current.dragging = false; };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []);
 
   const isHF = isHFBand(band);
   const nvisAvailable = isHF && frequency >= 3 && frequency <= 10;
@@ -100,13 +158,11 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     if (externalPosition) setPosition(externalPosition);
   }, [externalPosition]);
 
-  // Adjust defaults when switching to/from KW bands
   const handleBandChange = (newBand) => {
     setBand(newBand);
     const b = ALL_BANDS.find(b => b.value === newBand);
     if (b) setFrequency(b.freq);
     const newIsHF = isHFBand(newBand);
-    // Adjust power for KW
     if (newIsHF) {
       if (deviceType === "portabel" && powerWatts > 10) setPowerWatts(10);
       else if ((deviceType === "mobil" || deviceType === "fix") && powerWatts < 50) setPowerWatts(100);
@@ -122,13 +178,17 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     setDeviceType(val);
     const dev = DEVICE_TYPES.find(d => d.value === val);
     if (dev) {
-      // Adjust power based on band type
       if (isHF) {
         setPowerWatts(dev.value === "portabel" ? 10 : 100);
       } else {
         setPowerWatts(dev.defaultPower);
       }
-      setAntennaHeight(dev.defaultHeight);
+      // Only set default height if user hasn't manually changed it OR NVIS is active
+      if (nvisMode) {
+        setAntennaHeight(2);
+      } else {
+        setAntennaHeight(dev.defaultHeight);
+      }
     }
     localStorage.setItem("hb9om_cov_device", val);
   };
@@ -136,7 +196,7 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
   const handleNvisToggle = (val) => {
     setNvisMode(val);
     if (val) {
-      setAntennaHeight(2); // NVIS: low antenna
+      setAntennaHeight(2);
     } else {
       const dev = DEVICE_TYPES.find(d => d.value === deviceType);
       if (dev) setAntennaHeight(dev.defaultHeight);
@@ -171,7 +231,6 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     setError(null);
   };
 
-  // Compute MUF/LUF estimate for display
   const ionoInfo = useMemo(() => {
     if (!isHF || !position) return null;
     const lat = position[0], lng = position[1];
@@ -196,10 +255,49 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     return { muf: muf.toFixed(1), luf: luf.toFixed(1), foF2: foF2.toFixed(1), timeOfDay, bandClosed, elevDeg: elevDeg.toFixed(1) };
   }, [isHF, position, solarActivity, frequency]);
 
+  // --- Save result to history ---
+  const saveToHistory = useCallback((result) => {
+    const item = {
+      id: `cov-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      position: result._position,
+      device: result._device,
+      band,
+      frequency,
+      mode,
+      power: powerWatts,
+      height: antennaHeight,
+      coverage: {
+        avg_range_km: result.avg_range_km,
+        max_range_km: result.max_range_km,
+        min_range_km: result.min_range_km,
+        max_direction: result.max_direction,
+        min_direction: result.min_direction,
+        is_hf: result.is_hf,
+        polygon: result.polygon,
+        mode_polygons: result.mode_polygons,
+        skip_zone: result.skip_zone,
+        elevation_m: result.elevation_m,
+        los_km: result.los_km,
+        diffraction_km: result.diffraction_km,
+        troposcatter_km: result.troposcatter_km,
+        terrain_blocked_count: result.terrain_blocked_count,
+        muf_mhz: result.muf_mhz,
+        luf_mhz: result.luf_mhz,
+        time_of_day: result.time_of_day,
+      },
+    };
+    const newHistory = [item, ...history];
+    saveHistory(newHistory);
+    setHistory(newHistory);
+    return item;
+  }, [history, band, frequency, mode, powerWatts, antennaHeight]);
+
   const handleCalculate = async () => {
     if (!position) { setError("Bitte Position setzen (GPS, QTH-Locator oder Karte)"); return; }
     setLoading(true);
     setError(null);
+    setLastResult(null);
     try {
       const res = await base44.functions.invoke("calculateUserCoverage", {
         lat: position[0], lng: position[1],
@@ -209,14 +307,18 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
       });
       const data = res?.data || res;
       if (data?.error) throw new Error(data.error);
-      onCoverageResult({ ...data, _position: position, _device: deviceType });
+      const result = { ...data, _position: position, _device: deviceType };
+      setLastResult(result);
+      onCoverageResult(result);
       localStorage.setItem("hb9om_cov_power", String(powerWatts));
       localStorage.setItem("hb9om_cov_band", band);
       localStorage.setItem("hb9om_cov_freq", String(frequency));
       localStorage.setItem("hb9om_cov_mode", mode);
       localStorage.setItem("hb9om_cov_height", String(antennaHeight));
       localStorage.setItem("hb9om_cov_solar", String(solarActivity));
-      onClose();
+      // Save to history
+      saveToHistory(result);
+      toast({ title: "Abdeckung berechnet", description: `${result.avg_range_km || 0} km Ø Reichweite` });
     } catch (e) {
       setError(e.message || "Fehler bei der Berechnung");
     } finally {
@@ -224,10 +326,120 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     }
   };
 
+  // --- Delete a history item ---
+  const handleDeleteHistory = (id) => {
+    const newHistory = history.filter(h => h.id !== id);
+    saveHistory(newHistory);
+    setHistory(newHistory);
+    // If the deleted item is the current result, clear it
+    if (lastResult && history.length > 0 && history[0]?.id === id) {
+      setLastResult(null);
+    }
+    toast({ title: "Berechnung gelöscht" });
+  };
+
+  // --- Load a history item as current result ---
+  const handleLoadHistory = (item) => {
+    setLastResult({ ...item.coverage, _position: item.position, _device: item.device });
+    onCoverageResult({ ...item.coverage, _position: item.position, _device: item.device });
+    setPosition(item.position);
+    setDeviceType(item.device);
+    setBand(item.band);
+    setFrequency(item.frequency);
+    setMode(item.mode);
+    setPowerWatts(item.power);
+    setAntennaHeight(item.height);
+    setShowHistory(false);
+  };
+
+  // --- Clear all history ---
+  const handleClearHistory = () => {
+    saveHistory([]);
+    setHistory([]);
+    toast({ title: "Verlauf geleert" });
+  };
+
+  // --- Recalculate with history retention prompt ---
+  const handleRecalculate = () => {
+    // Ask how many previous calculations to keep
+    const keepStr = window.prompt(
+      `Wie viele der ${history.length} vorgängigen Berechnungen behalten?\n\n(0 = alle löschen, ${history.length} = alle behalten, oder eine Zahl dazwischen)`,
+      String(Math.min(history.length, 5))
+    );
+    if (keepStr === null) return; // cancelled
+    const keep = parseInt(keepStr);
+    if (isNaN(keep) || keep < 0 || keep > history.length) {
+      toast({ title: "Ungültige Eingabe", variant: "destructive" });
+      return;
+    }
+    // Keep only the last N items (most recent)
+    const kept = history.slice(0, keep);
+    saveHistory(kept);
+    setHistory(kept);
+    // Now run calculation
+    handleCalculate();
+  };
+
+  // --- Public position toggle ---
+  const handlePublicToggle = async () => {
+    const newVal = !publicEnabled;
+    setPublicLoading(true);
+    try {
+      if (newVal) {
+        // Enable public mode — need GPS position
+        if (!position) {
+          // Try to get GPS first
+          if (navigator.geolocation) {
+            await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  setPosition([pos.coords.latitude, pos.coords.longitude]);
+                  resolve();
+                },
+                () => reject(new Error("GPS nicht verfügbar")),
+                { enableHighAccuracy: true, timeout: 10000 }
+              );
+            });
+          }
+        }
+        const callsign = localStorage.getItem("hb9om_user_callsign") || "Unknown";
+        await base44.functions.invoke("managePublicPosition", {
+          action: "set",
+          lat: position[0], lng: position[1],
+          callsign,
+          device_type: deviceType,
+        });
+        localStorage.setItem("hb9om_gps_public_enabled", "true");
+        setPublicEnabled(true);
+        window.dispatchEvent(new Event("gps-public-changed"));
+        toast({ title: "Position öffentlich", description: "Alle Benutzer sehen nun Ihren Standort" });
+      } else {
+        await base44.functions.invoke("managePublicPosition", { action: "remove" });
+        localStorage.setItem("hb9om_gps_public_enabled", "false");
+        setPublicEnabled(false);
+        window.dispatchEvent(new Event("gps-public-changed"));
+        toast({ title: "Position privat", description: "Standort nicht mehr öffentlich" });
+      }
+    } catch (e) {
+      toast({ title: "Fehler", description: e.message, variant: "destructive" });
+    } finally {
+      setPublicLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-5 py-3 flex items-center justify-between rounded-t-2xl z-10">
+      <div
+        ref={panelRef}
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        style={{ touchAction: "none" }}
+      >
+        {/* Header — drag handle */}
+        <div
+          onPointerDown={handleHeaderPointerDown}
+          className="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-5 py-3 flex items-center justify-between rounded-t-2xl z-10 cursor-grab active:cursor-grabbing select-none"
+          title="Zum Verschieben ziehen"
+        >
           <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Radio className="w-4 h-4 text-orange-500" /> Meine Abdeckung berechnen
             {isHF && <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded font-mono">KW</span>}
@@ -255,6 +467,33 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
               <button onClick={handleQthLookup} className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200">OK</button>
             </div>
             {position && <p className="text-[10px] text-gray-500 mt-1">{position[0].toFixed(5)}, {position[1].toFixed(5)}</p>}
+          </div>
+
+          {/* Public position toggle */}
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {publicEnabled ? <Eye className="w-4 h-4 text-indigo-600" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
+                <div>
+                  <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Position öffentlich teilen</span>
+                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-0.5">
+                    {publicEnabled ? "Alle Benutzer sehen Ihren Standort" : "Nur Sie sehen Ihre Position"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handlePublicToggle}
+                disabled={publicLoading}
+                className={`relative w-10 h-5 rounded-full transition-colors ${publicEnabled ? "bg-indigo-500" : "bg-gray-300 dark:bg-slate-600"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${publicEnabled ? "left-5" : "left-0.5"}`} />
+              </button>
+            </div>
+            {publicEnabled && (
+              <p className="text-[9px] text-indigo-500 dark:text-indigo-400 mt-1.5 flex items-center gap-1">
+                <Navigation className="w-2.5 h-2.5" /> Refresh gemäss GPS-Einstellung in den Settings
+              </p>
+            )}
           </div>
 
           {/* KW: Tageszeit & MUF Anzeige */}
@@ -325,7 +564,7 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
             </div>
           </div>
 
-          {/* Modus & Antennenhöhe */}
+          {/* Modus & Antennenhöhe — height now has slider + number input */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">Modus</label>
@@ -335,9 +574,29 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">Antennenhöhe (m)</label>
-              <input type="number" step="0.1" value={antennaHeight} onChange={e => setAntennaHeight(parseFloat(e.target.value) || 1.5)}
-                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-lg" />
+              <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5 block">
+                Antennenhöhe: <span className="text-orange-600 font-bold">{antennaHeight.toFixed(1)} m</span>
+              </label>
+              <input
+                type="range"
+                min="0.5"
+                max="50"
+                step="0.1"
+                value={antennaHeight}
+                onChange={e => setAntennaHeight(parseFloat(e.target.value))}
+                className="w-full accent-orange-500"
+              />
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={antennaHeight}
+                onChange={e => {
+                  const v = parseFloat(e.target.value);
+                  if (!isNaN(v) && v > 0) setAntennaHeight(v);
+                }}
+                className="w-full px-2 py-1 mt-1 text-xs border border-gray-200 dark:border-slate-700 rounded-lg font-mono"
+              />
             </div>
           </div>
 
@@ -372,11 +631,118 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
 
           {error && <div className="p-2.5 bg-red-50 dark:bg-red-900/20 rounded-lg text-xs text-red-700 dark:text-red-300">{error}</div>}
 
-          <button onClick={handleCalculate} disabled={loading || !position}
-            className="w-full px-4 py-3 text-sm font-bold text-white bg-orange-500 rounded-xl hover:bg-orange-600 disabled:opacity-40 flex items-center justify-center gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Satellite className="w-4 h-4" />}
-            {loading ? "Berechnet (SRTM-Daten)..." : "Abdeckung berechnen"}
-          </button>
+          {/* Result panel — shown after calculation */}
+          {lastResult && !loading && (
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-green-700 dark:text-green-300 flex items-center gap-1.5">
+                  <Satellite className="w-3.5 h-3.5" /> Berechnung fertig
+                </span>
+                <span className="text-[10px] text-green-600 dark:text-green-400 font-mono">
+                  {new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center mb-2">
+                <div className="bg-white dark:bg-slate-800 rounded p-1.5">
+                  <div className="text-[9px] text-gray-400 uppercase">Ø Reichweite</div>
+                  <div className="text-sm font-bold text-green-700 dark:text-green-300">{lastResult.avg_range_km || 0} km</div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded p-1.5">
+                  <div className="text-[9px] text-gray-400 uppercase">Max</div>
+                  <div className="text-sm font-bold text-gray-700 dark:text-slate-300">{lastResult.max_range_km || 0} km</div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded p-1.5">
+                  <div className="text-[9px] text-gray-400 uppercase">Min</div>
+                  <div className="text-sm font-bold text-gray-700 dark:text-slate-300">{lastResult.min_range_km || 0} km</div>
+                </div>
+              </div>
+              {lastResult.elevation_m != null && (
+                <div className="text-[10px] text-gray-500 dark:text-slate-400 text-center">
+                  Standorthöhe: {Math.round(lastResult.elevation_m)} m ü.M.
+                </div>
+              )}
+              {/* Action buttons */}
+              <div className="flex gap-1.5 mt-2">
+                <button
+                  onClick={() => { onCoverageResult(lastResult); onClose(); }}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+                >
+                  <Save className="w-3 h-3" /> Auf Karte zeigen
+                </button>
+                <button
+                  onClick={handleRecalculate}
+                  disabled={loading}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium text-orange-700 border border-orange-300 rounded-lg hover:bg-orange-50"
+                >
+                  <RefreshCw className="w-3 h-3" /> Neu berechnen
+                </button>
+                <button
+                  onClick={() => { setLastResult(null); onCoverageResult(null); }}
+                  className="flex items-center justify-center px-2 py-1.5 text-[11px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                  title="Löschen"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* History — collapsible */}
+          {history.length > 0 && (
+            <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+              >
+                <span className="flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5" /> Verlauf ({history.length})
+                </span>
+                {showHistory ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+              {showHistory && (
+                <div className="border-t border-gray-200 dark:border-slate-700 max-h-48 overflow-y-auto">
+                  {history.map(item => (
+                    <div key={item.id} className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-slate-700 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-700">
+                      <button
+                        onClick={() => handleLoadHistory(item)}
+                        className="flex-1 text-left"
+                      >
+                        <div className="text-[11px] font-medium text-gray-700 dark:text-slate-300">
+                          {item.band} · {item.mode} · {item.power}W · {item.height}m
+                        </div>
+                        <div className="text-[9px] text-gray-400">
+                          {new Date(item.timestamp).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}
+                          {item.coverage?.avg_range_km != null && ` · Ø ${item.coverage.avg_range_km} km`}
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteHistory(item.id)}
+                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        title="Löschen"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={handleClearHistory}
+                    className="w-full px-3 py-2 text-[10px] text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border-t border-gray-200 dark:border-slate-700"
+                  >
+                    Alle löschen
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Calculate button — hidden when result is shown */}
+          {!lastResult && (
+            <button onClick={handleCalculate} disabled={loading || !position}
+              className="w-full px-4 py-3 text-sm font-bold text-white bg-orange-500 rounded-xl hover:bg-orange-600 disabled:opacity-40 flex items-center justify-center gap-2">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Satellite className="w-4 h-4" />}
+              {loading ? "Berechnet (SRTM-Daten)..." : "Abdeckung berechnen"}
+            </button>
+          )}
           <p className="text-[10px] text-gray-400 text-center">
             {isHF
               ? "KW-Modell: Bodenwelle + Raumwelle (MUF/LUF) + NVIS. Dauer ca. 5-15 Sek."

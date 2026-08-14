@@ -7,6 +7,19 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.87",
+    title: "Abdeckungs-Dialog verschiebbar, Verlauf & Öffentliche Position",
+    changes: [
+      "Abdeckungs-Dialog: Fenster frei verschiebbar — Header ziehen zum Neu positionieren",
+      "Antennenhöhe: Slider + Zahleneingabe für präzise Anpassung der Antennenhöhe",
+      "Berechnungs-Verlauf: Mehrere Berechnungen werden gespeichert — einzeln ladbar und löschbar",
+      "Neu berechnen: Abfrage wie viele der vorgängigen Berechnungen behalten werden sollen",
+      "Öffentliche Position: GPS-Standort als öffentlich markieren — alle Benutzer sehen die Position auf der Karte",
+      "Öffentliche Position: Automatischer Refresh gemäss GPS-Intervall-Einstellung in den Settings",
+      "Karte: Öffentliche Positionen aller Benutzer mit Rufzeichen-Popup und Zeitstempel",
+    ],
+  },
+  {
     version: "0.86",
     title: "Passwort-Sicherheit, Demo-Beschränkungen & Konfigurations-Status",
     changes: [
