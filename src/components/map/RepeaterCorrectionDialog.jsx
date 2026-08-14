@@ -11,12 +11,16 @@ const FIELD_OPTIONS = [
   { value: "location_name", label: "Standort-Name" },
   { value: "lat_lng", label: "Koordinaten (Lat, Lng)" },
   { value: "status", label: "Betriebsstatus" },
-  { value: "modes", label: "Modi (kommasepariert)" },
+  { value: "modes", label: "Modulationsarten (alle angeben)" },
+  { value: "primary_mode", label: "Hauptmodulationsart" },
   { value: "band", label: "Band" },
   { value: "country", label: "Land" },
   { value: "web_url", label: "Web-URL" },
+  { value: "elevation_m", label: "Standorthöhe (m ü.M.)" },
   { value: "other", label: "Sonstiges" },
 ];
+
+const MODE_OPTIONS = ["FM", "Fusion", "DMR", "D-STAR", "P-25", "NXDN", "M17", "EchoLink"];
 
 export default function RepeaterCorrectionDialog({ repeater, onClose }) {
   const [fieldName, setFieldName] = useState("other");
@@ -36,7 +40,9 @@ export default function RepeaterCorrectionDialog({ repeater, onClose }) {
     if (field === "lat_lng") return r.lat != null && r.lng != null ? `${r.lat}, ${r.lng}` : "";
     if (field === "status") return r.status || "";
     if (field === "modes") return (r.modes || []).join(", ");
+    if (field === "primary_mode") return r.primary_mode || "";
     if (field === "band") return r.band || "";
+    if (field === "elevation_m") return r.elevation_m != null ? `${r.elevation_m} m` : "";
     if (field === "country") return r.country || "";
     if (field === "web_url") return r.web_url || "";
     return "";
@@ -112,20 +118,59 @@ export default function RepeaterCorrectionDialog({ repeater, onClose }) {
             </div>
           )}
 
-          {fieldName !== "other" && (
+          {fieldName === "modes" ? (
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Modulationsarten (alle aktivieren)</label>
+              <div className="flex flex-wrap gap-1.5">
+                {MODE_OPTIONS.map(m => {
+                  const selected = correctedValue.split(",").map(s => s.trim()).includes(m);
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        const current = correctedValue.split(",").map(s => s.trim()).filter(s => s);
+                        const next = selected ? current.filter(s => s !== m) : [...current, m];
+                        setCorrectedValue(next.join(", "));
+                      }}
+                      className={`px-2 py-1 text-xs rounded border transition-colors ${
+                        selected
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-blue-400"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Alle unterstützten Modi aktivieren — bestehende + fehlende. Wird für Filter und Abdeckungsberechnung verwendet.</p>
+            </div>
+          ) : fieldName === "primary_mode" ? (
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Hauptmodulationsart</label>
+              <MobileSelect
+                value={correctedValue}
+                onValueChange={setCorrectedValue}
+                triggerClassName="w-full text-xs"
+                options={MODE_OPTIONS.map(m => ({ value: m, label: m }))}
+              />
+              <p className="text-[10px] text-gray-400 mt-0.5">Bestimmt Farbe auf Karte und Empfindlichkeit bei Abdeckungsberechnung.</p>
+            </div>
+          ) : fieldName !== "other" && (
             <div>
               <label className="text-xs font-bold text-gray-700 block mb-1">Korrekter Wert</label>
               <input
                 value={correctedValue}
                 onChange={(e) => setCorrectedValue(e.target.value)}
-                placeholder={fieldName === "lat_lng" ? "47.1234, 8.5678" : "Neuer Wert..."}
+                placeholder={fieldName === "lat_lng" ? "47.1234, 8.5678" : fieldName === "elevation_m" ? "z.B. 2502" : "Neuer Wert..."}
                 className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded font-mono"
               />
               {fieldName === "lat_lng" && (
                 <p className="text-[10px] text-gray-400 mt-0.5">Format: Breitengrad, Längengrad (z.B. 47.3769, 8.5417)</p>
               )}
-              {fieldName === "modes" && (
-                <p className="text-[10px] text-gray-400 mt-0.5">Mehrere Modi mit Komma trennen (z.B. FM, DMR, Fusion)</p>
+              {fieldName === "elevation_m" && (
+                <p className="text-[10px] text-gray-400 mt-0.5">Standorthöhe in Metern ü.M. — wichtig für genaue Abdeckungsberechnung.</p>
               )}
             </div>
           )}

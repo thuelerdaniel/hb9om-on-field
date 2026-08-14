@@ -91,7 +91,10 @@ export default async function(req: any): Promise<Response> {
       const f_MHz = repeater.frequency;
       const mode = repeater.primary_mode || (repeater.modes?.[0] || 'FM');
       const params = buildRepeaterParams(f_MHz, mode);
-      const bandMaxRange = maxRangeOverride || params.params.max_range_terrain_km;
+      // Use max_range_flat_km (not max_range_terrain_km) as the cap — the actual
+      // terrain LOS and link budget will naturally limit the range. For mountain-top
+      // repeaters like Säntis (2502m), LOS extends well beyond the terrain-limited cap.
+      const bandMaxRange = maxRangeOverride || params.params.max_range_flat_km;
 
       const result = await calculateCoverage(
         { lat: repeater.lat, lng: repeater.lng, elevation_m: repeater.elevation_m },
@@ -160,7 +163,7 @@ export default async function(req: any): Promise<Response> {
         const f_MHz = r.frequency;
         const mode = r.primary_mode || (r.modes?.[0] || 'FM');
         const params = buildRepeaterParams(f_MHz, mode);
-        const bandMaxRange = params.params.max_range_terrain_km;
+        const bandMaxRange = params.params.max_range_flat_km;
 
         const result = await calculateCoverage(
           { lat: r.lat, lng: r.lng, elevation_m: r.elevation_m },

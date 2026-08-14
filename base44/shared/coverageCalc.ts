@@ -874,7 +874,8 @@ export function buildUserParams(
 export function buildRepeaterParams(f_MHz: number, mode: string, power_watts?: number): CoverageParams {
   const band = getBandFromFrequency(f_MHz);
   const bp = BAND_PARAMS[band];
-  const p_watts = power_watts || 25;
+  // 50W is typical for VHF/UHF repeaters (was 25W — too low, underestimated coverage)
+  const p_watts = power_watts || 50;
   return {
     f_MHz, band, mode,
     P_TX_dbw: wattsToDbw(p_watts),

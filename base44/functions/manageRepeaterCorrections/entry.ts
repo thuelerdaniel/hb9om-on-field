@@ -81,6 +81,11 @@ export default async function(req) {
               }
             } else if (fieldName === 'modes') {
               updateData.modes = val.split(',').map((s: string) => s.trim()).filter(Boolean);
+            } else if (fieldName === 'primary_mode') {
+              updateData.primary_mode = val;
+            } else if (fieldName === 'elevation_m') {
+              const elev = parseFloat(val);
+              if (!isNaN(elev)) updateData.elevation_m = elev;
             }
 
             if (Object.keys(updateData).length > 0) {

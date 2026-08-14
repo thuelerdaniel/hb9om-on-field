@@ -20,9 +20,11 @@
         "lat_lng",
         "status",
         "modes",
+        "primary_mode",
         "band",
         "country",
         "web_url",
+        "elevation_m",
         "other"
       ],
       "default": "other",
