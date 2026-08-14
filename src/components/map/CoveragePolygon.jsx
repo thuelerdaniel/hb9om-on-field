@@ -13,7 +13,44 @@ import { Polygon, Circle, useMap } from "react-leaflet";
 
 let gradientCounter = 0;
 
-export default function CoveragePolygon({ positions, color, fillOpacity = 0.15, weight = 1.5, strokeOpacity = 0.4 }) {
+function createGradient(svg, gradientId, color, maxOpacity) {
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    svg.insertBefore(defs, svg.firstChild);
+  }
+
+  // Remove old gradient with same ID (re-render)
+  const oldGrad = defs.querySelector(`#${gradientId}`);
+  if (oldGrad) oldGrad.remove();
+
+  const gradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
+  gradient.setAttribute("id", gradientId);
+  gradient.setAttribute("cx", "50%");
+  gradient.setAttribute("cy", "50%");
+  gradient.setAttribute("r", "50%");
+  gradient.setAttribute("gradientUnits", "objectBoundingBox");
+
+  const stops = [
+    { offset: "0%", opacity: maxOpacity },
+    { offset: "40%", opacity: maxOpacity * 0.85 },
+    { offset: "75%", opacity: maxOpacity * 0.4 },
+    { offset: "100%", opacity: 0 },
+  ];
+
+  for (const s of stops) {
+    const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+    stop.setAttribute("offset", s.offset);
+    stop.setAttribute("stop-color", color);
+    stop.setAttribute("stop-opacity", String(s.opacity));
+    gradient.appendChild(stop);
+  }
+
+  defs.appendChild(gradient);
+  return gradient;
+}
+
+export default function CoveragePolygon({ positions, color, fillOpacity = 0.15, weight = 1.5, strokeOpacity = 0.4, renderer }) {
   const polygonRef = useRef(null);
   const gradientId = useMemo(() => `coverage-grad-${++gradientCounter}`, []);
 
@@ -21,91 +58,48 @@ export default function CoveragePolygon({ positions, color, fillOpacity = 0.15, 
     const polygon = polygonRef.current;
     if (!polygon) return;
 
-    // Get the SVG path element from the Leaflet polygon
-    const getPath = () => {
-      const el = polygon.getElement?.() || polygon._path;
-      return el;
-    };
+    let cancelled = false;
 
-    let path = getPath();
-    if (!path) {
-      // Retry once after a short delay — the path may not be rendered yet
-      const timer = setTimeout(() => {
-        path = getPath();
-        if (path) applyGradient(path);
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-    applyGradient(path);
-
-    function applyGradient(path) {
+    const applyGradient = (path) => {
+      if (cancelled) return;
       const svg = path.closest("svg");
       if (!svg) return;
 
-      // Find or create <defs> in the SVG container
-      let defs = svg.querySelector("defs");
-      if (!defs) {
-        defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-        svg.insertBefore(defs, svg.firstChild);
-      }
-
-      // Remove old gradient if it exists (re-render)
-      const oldGrad = defs.querySelector(`#${gradientId}`);
-      if (oldGrad) oldGrad.remove();
-
-      // Create radial gradient: full color at center → transparent at edge
-      const gradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
-      gradient.setAttribute("id", gradientId);
-      gradient.setAttribute("cx", "50%");
-      gradient.setAttribute("cy", "50%");
-      gradient.setAttribute("r", "50%");
-      // Use objectBoundingBox so the gradient stretches with the polygon
-      gradient.setAttribute("gradientUnits", "objectBoundingBox");
-
       const maxOpacity = Math.min(fillOpacity, 0.35);
+      createGradient(svg, gradientId, color, maxOpacity);
 
-      const stop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-      stop1.setAttribute("offset", "0%");
-      stop1.setAttribute("stop-color", color);
-      stop1.setAttribute("stop-opacity", String(maxOpacity));
-
-      const stop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-      stop2.setAttribute("offset", "40%");
-      stop2.setAttribute("stop-color", color);
-      stop2.setAttribute("stop-opacity", String(maxOpacity * 0.85));
-
-      const stop3 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-      stop3.setAttribute("offset", "75%");
-      stop3.setAttribute("stop-color", color);
-      stop3.setAttribute("stop-opacity", String(maxOpacity * 0.4));
-
-      const stop4 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-      stop4.setAttribute("offset", "100%");
-      stop4.setAttribute("stop-color", color);
-      stop4.setAttribute("stop-opacity", "0");
-
-      gradient.appendChild(stop1);
-      gradient.appendChild(stop2);
-      gradient.appendChild(stop3);
-      gradient.appendChild(stop4);
-      defs.appendChild(gradient);
-
-      // Apply the gradient as the fill
       path.setAttribute("fill", `url(#${gradientId})`);
-      // Also set fill-opacity to 1 since the gradient handles transparency
       path.setAttribute("fill-opacity", "1");
+    };
 
-      return () => {
-        const g = defs.querySelector(`#${gradientId}`);
-        if (g) g.remove();
-      };
-    }
-  }, [color, fillOpacity, gradientId, positions]);
+    // Try to get the path immediately, then retry with rAF + timeout
+    const tryApply = (attempts = 0) => {
+      if (cancelled) return;
+      const path = polygon.getElement?.() || polygon._path;
+      if (path) {
+        applyGradient(path);
+      } else if (attempts < 10) {
+        requestAnimationFrame(() => setTimeout(() => tryApply(attempts + 1), 20));
+      }
+    };
+
+    tryApply();
+
+    return () => {
+      cancelled = true;
+      // Clean up the gradient from <defs> when the component unmounts
+      const path = polygon.getElement?.() || polygon._path;
+      const svg = path?.closest("svg");
+      const g = svg?.querySelector(`#${gradientId}`);
+      if (g) g.remove();
+    };
+  }, [color, fillOpacity, gradientId]); // NOT positions — gradient is objectBoundingBox-relative
 
   return (
     <Polygon
       ref={polygonRef}
       positions={positions}
+      renderer={renderer}
       pathOptions={{
         color: color,
         weight: weight,
@@ -118,7 +112,7 @@ export default function CoveragePolygon({ positions, color, fillOpacity = 0.15, 
 }
 
 // CoverageCircle — same gradient effect for circle-based coverage (non-terrain)
-export function CoverageCircle({ center, radiusKm, color, fillOpacity = 0.15, weight = 1, strokeOpacity = 0.3 }) {
+export function CoverageCircle({ center, radiusKm, color, fillOpacity = 0.15, weight = 1, strokeOpacity = 0.3, renderer }) {
   const circleRef = useRef(null);
   const gradientId = useMemo(() => `coverage-grad-${++gradientCounter}`, []);
 
@@ -126,79 +120,47 @@ export function CoverageCircle({ center, radiusKm, color, fillOpacity = 0.15, we
     const circle = circleRef.current;
     if (!circle) return;
 
-    let path = circle.getElement?.() || circle._path;
-    if (!path) {
-      const timer = setTimeout(() => {
-        path = circle.getElement?.() || circle._path;
-        if (path) applyGradient(path);
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-    applyGradient(path);
+    let cancelled = false;
 
-    function applyGradient(path) {
+    const applyGradient = (path) => {
+      if (cancelled) return;
       const svg = path.closest("svg");
       if (!svg) return;
 
-      let defs = svg.querySelector("defs");
-      if (!defs) {
-        defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-        svg.insertBefore(defs, svg.firstChild);
-      }
-
-      const oldGrad = defs.querySelector(`#${gradientId}`);
-      if (oldGrad) oldGrad.remove();
-
-      const gradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
-      gradient.setAttribute("id", gradientId);
-      gradient.setAttribute("cx", "50%");
-      gradient.setAttribute("cy", "50%");
-      gradient.setAttribute("r", "50%");
-      gradient.setAttribute("gradientUnits", "objectBoundingBox");
-
       const maxOpacity = Math.min(fillOpacity, 0.35);
-
-      const stop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-      stop1.setAttribute("offset", "0%");
-      stop1.setAttribute("stop-color", color);
-      stop1.setAttribute("stop-opacity", String(maxOpacity));
-
-      const stop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-      stop2.setAttribute("offset", "40%");
-      stop2.setAttribute("stop-color", color);
-      stop2.setAttribute("stop-opacity", String(maxOpacity * 0.85));
-
-      const stop3 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-      stop3.setAttribute("offset", "75%");
-      stop3.setAttribute("stop-color", color);
-      stop3.setAttribute("stop-opacity", String(maxOpacity * 0.4));
-
-      const stop4 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-      stop4.setAttribute("offset", "100%");
-      stop4.setAttribute("stop-color", color);
-      stop4.setAttribute("stop-opacity", "0");
-
-      gradient.appendChild(stop1);
-      gradient.appendChild(stop2);
-      gradient.appendChild(stop3);
-      gradient.appendChild(stop4);
-      defs.appendChild(gradient);
+      createGradient(svg, gradientId, color, maxOpacity);
 
       path.setAttribute("fill", `url(#${gradientId})`);
       path.setAttribute("fill-opacity", "1");
+    };
 
-      return () => {
-        const g = defs.querySelector(`#${gradientId}`);
-        if (g) g.remove();
-      };
-    }
-  }, [color, fillOpacity, gradientId, center, radiusKm]);
+    const tryApply = (attempts = 0) => {
+      if (cancelled) return;
+      const path = circle.getElement?.() || circle._path;
+      if (path) {
+        applyGradient(path);
+      } else if (attempts < 10) {
+        requestAnimationFrame(() => setTimeout(() => tryApply(attempts + 1), 20));
+      }
+    };
+
+    tryApply();
+
+    return () => {
+      cancelled = true;
+      const path = circle.getElement?.() || circle._path;
+      const svg = path?.closest("svg");
+      const g = svg?.querySelector(`#${gradientId}`);
+      if (g) g.remove();
+    };
+  }, [color, fillOpacity, gradientId]); // NOT center/radiusKm — gradient is objectBoundingBox-relative
 
   return (
     <Circle
       ref={circleRef}
       center={center}
       radius={radiusKm * 1000}
+      renderer={renderer}
       pathOptions={{
         color: color,
         weight: weight,

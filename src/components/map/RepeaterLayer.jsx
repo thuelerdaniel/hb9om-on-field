@@ -407,6 +407,10 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
   // Dedicated SVG renderer for link lines — enables CSS animations (canvas renderer can't animate)
   const linkRenderer = useMemo(() => L.svg({ pane: 'overlayPane' }), []);
 
+  // Dedicated SVG renderer for coverage polygons — enables radial gradient fills
+  // (canvas renderer doesn't support SVG gradients, and the map uses preferCanvas=true)
+  const coverageRenderer = useMemo(() => L.svg({ pane: 'overlayPane' }), []);
+
   // Animated link line: white halo + colored flowing dashes on SVG renderer.
   // Uses ref to add the CSS animation class (pathOptions.className is unreliable in react-leaflet).
   const AnimatedLinkLine = ({ positions, color, lineStyle }) => {
@@ -519,6 +523,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
               fillOpacity={fillOpacity}
               weight={1.2}
               strokeOpacity={0.35}
+              renderer={coverageRenderer}
             />
           );
         }
@@ -535,6 +540,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
             fillOpacity={fillOpacity}
             weight={refinementPct >= 50 ? 0.8 : 0.5}
             strokeOpacity={0.25 + (refinementPct / 100) * 0.25}
+            renderer={coverageRenderer}
           />
         );
       })}

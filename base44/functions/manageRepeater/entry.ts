@@ -1,9 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { calculateCoverage, buildRepeaterParams } from '../../shared/coverageCalc.ts';
 
 // Admin-only function to manage individual repeater records.
 // Actions:
 // - setWebUrl: Set or update the web_url for a repeater (admin can supplement found links)
-// - triggerCoverage: Mark a single repeater for coverage recalculation
+// - setCoords: Admin manually sets/overrides coordinates for a repeater
+// - triggerCoverage: Calculate terrain-LOS coverage for a single repeater directly
+//   (uses shared module — NOT functions.invoke — to avoid 524 gateway timeout)
 
 export default async function(req: any): Promise<Response> {
   try {
@@ -36,7 +39,6 @@ export default async function(req: any): Promise<Response> {
     }
 
     if (action === 'setCoords') {
-      // Admin manually sets/overrides coordinates for a repeater with missing or imprecise position
       const lat = parseFloat(body?.lat);
       const lng = parseFloat(body?.lng);
       if (isNaN(lat) || isNaN(lng)) {
@@ -51,14 +53,65 @@ export default async function(req: any): Promise<Response> {
     }
 
     if (action === 'triggerCoverage') {
-      // Mark single repeater for recalculation
-      await base44.asServiceRole.entities.Repeater.update(repeaterId, { needs_recalc: true });
-      // Trigger coverage calculation for this specific repeater
-      const result = await base44.asServiceRole.functions.invoke('calculateRepeaterCoverage', {
-        repeater_id: repeaterId,
-        force: true,
+      // Load the repeater record
+      const repeater = await base44.asServiceRole.entities.Repeater.get(repeaterId);
+      if (!repeater) {
+        return Response.json({ error: 'Repeater nicht gefunden' }, { status: 404 });
+      }
+      if (repeater.lat == null || repeater.lng == null) {
+        return Response.json({ error: 'Repeater hat keine Koordinaten — Abdeckung nicht moeglich' }, { status: 400 });
+      }
+
+      // Clear old coverage data BEFORE calculating new one
+      await base44.asServiceRole.entities.Repeater.update(repeaterId, {
+        coverage_polygon: null,
+        coverage_radius_km: null,
+        needs_recalc: true,
       });
-      return Response.json({ success: true, result: result?.data || result });
+
+      // Build propagation parameters from frequency and mode
+      const f_MHz = repeater.frequency;
+      const mode = repeater.primary_mode || (repeater.modes?.[0] || 'FM');
+      const params = buildRepeaterParams(f_MHz, mode);
+      const bandMaxRange = params.params.max_range_flat_km;
+
+      // Run coverage calculation directly (shared module — no functions.invoke HTTP call)
+      const result = await calculateCoverage(
+        { lat: repeater.lat, lng: repeater.lng, elevation_m: repeater.elevation_m },
+        params,
+        { radials: 36, max_range_km: bandMaxRange }
+      );
+
+      // Save the calculated coverage to the database
+      const refinementPct = result.coverage_source === 'terrain_los' ? 100 : 30;
+      await base44.asServiceRole.entities.Repeater.update(repeaterId, {
+        coverage_radius_km: result.avg_range_km,
+        coverage_source: result.coverage_source,
+        coverage_polygon: result.polygon,
+        coverage_refinement_pct: refinementPct,
+        coverage_updated: new Date().toISOString(),
+        elevation_m: result.elevation_m,
+        terrain_factor: result.terrain_factor,
+        needs_recalc: false,
+      });
+
+      return Response.json({
+        success: true,
+        result: {
+          repeater_id: repeaterId,
+          coverage_radius_km: result.avg_range_km,
+          coverage_source: result.coverage_source,
+          coverage_refinement_pct: refinementPct,
+          elevation_m: result.elevation_m,
+          terrain_factor: result.terrain_factor,
+          polygon: result.polygon,
+          radials: result.radials.length,
+          max_direction: result.max_direction,
+          min_direction: result.min_direction,
+          terrain_blocked: result.terrain_blocked_count,
+          power_limited: result.power_limited_count,
+        },
+      });
     }
 
     return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
