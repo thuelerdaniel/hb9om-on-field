@@ -10,7 +10,7 @@ import { base44 } from "@/api/base44Client";
 const DEBOUNCE_MS = 350;
 const MAX_PER_TYPE = 3000;
 const REQUEST_TIMEOUT_MS = 10000;
-const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater"];
+const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "aprs", "brandmeister"];
 
 export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline, reloadTrigger }) {
   const map = useMap();
@@ -88,6 +88,13 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
     moveend: handleMapChange,
     zoomend: handleMapChange,
   });
+
+  // Reset fetched bounds when active layers change — ensures new layers get fetched
+  // even if the map hasn't moved (e.g. toggling APRS on without panning)
+  useEffect(() => {
+    fetchedBoundsRef.current = null;
+    isFirstLoadRef.current = true;
+  }, [activeLayers]);
 
   // Load on mount and when active layers change
   useEffect(() => {

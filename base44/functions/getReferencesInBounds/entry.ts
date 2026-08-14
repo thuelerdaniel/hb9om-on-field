@@ -14,7 +14,7 @@ const typeCache: Record<string, { refs: any[]; time: number }> = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Types stored as individual point entities (not in ReferenceData.references)
-const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'Repeater'; normalize: (r: any) => any }> = {
+const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'Repeater' | 'PrivateNode'; normalize: (r: any) => any; sourceFilter?: (r: any) => boolean }> = {
   sota: {
     entity: 'SotaPoint',
     normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng })
@@ -49,6 +49,22 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
     entity: 'Repeater',
     normalize: (r) => r
   },
+  aprs: {
+    entity: 'PrivateNode',
+    normalize: (r) => r,
+    sourceFilter: (r: any) => {
+      const src = (r.source || '').toLowerCase();
+      return src.includes('aprs') || !src.includes('brandmeister');
+    },
+  },
+  brandmeister: {
+    entity: 'PrivateNode',
+    normalize: (r) => r,
+    sourceFilter: (r: any) => {
+      const src = (r.source || '').toLowerCase();
+      return src.includes('brandmeister');
+    },
+  },
 };
 
 async function loadReferenceData(base44, type: string): Promise<any[]> {
@@ -68,16 +84,22 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
   if (POINT_TYPES[type]) {
     const ptConfig = POINT_TYPES[type];
     if (bounds) {
-      const points = await loadPointsInBounds(base44, ptConfig.entity, bounds);
+      let points = await loadPointsInBounds(base44, ptConfig.entity, bounds);
+      if (ptConfig.sourceFilter) {
+        points = points.filter(ptConfig.sourceFilter);
+      }
       if (points.length > 0) return points.map(ptConfig.normalize);
-      // Fallback: load from ReferenceData (pre-migration data) — not for repeaters
-      if (type !== 'repeater') return loadReferenceData(base44, type);
+      // Fallback: load from ReferenceData (pre-migration data) — not for repeaters/private nodes
+      if (type !== 'repeater' && type !== 'aprs' && type !== 'brandmeister') return loadReferenceData(base44, type);
       return [];
     }
     // No bounds — load all (used by offline cache downloads)
-    const points = await loadAllPoints(base44, ptConfig.entity);
+    let points = await loadAllPoints(base44, ptConfig.entity as any);
+    if (ptConfig.sourceFilter) {
+      points = points.filter(ptConfig.sourceFilter);
+    }
     if (points.length > 0) return points.map(ptConfig.normalize);
-    if (type !== 'repeater') return loadReferenceData(base44, type);
+    if (type !== 'repeater' && type !== 'aprs' && type !== 'brandmeister') return loadReferenceData(base44, type);
     return [];
   }
 

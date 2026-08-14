@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
-import { loadAllPrivateNodes, loadAllTotaPoints } from "@/lib/paginatedLoader";
+import { loadAllTotaPoints } from "@/lib/paginatedLoader";
 
 // Loads map data with viewport-based loading for reference types AND repeaters.
 // Reference types (SOTA, POTA, WWFF, WWBOTA, Castles, Lighthouses, IOTA) and repeaters
@@ -57,11 +57,21 @@ export function useMapData(activeLayers) {
     if (Array.isArray(references.repeater)) {
       setRepeaters(references.repeater.filter(r => r.lat != null && r.lng != null));
     }
+    // Handle private nodes (APRS + BrandMeister) — viewport-based, replace on each fetch
+    const aprsRefs = Array.isArray(references.aprs) ? references.aprs : null;
+    const bmRefs = Array.isArray(references.brandmeister) ? references.brandmeister : null;
+    if (aprsRefs || bmRefs) {
+      const merged = [
+        ...(aprsRefs || []),
+        ...(bmRefs || []),
+      ].filter(r => r.lat != null && r.lng != null);
+      setPrivateNodes(merged);
+    }
     // Handle reference types (SOTA, POTA, etc.)
     setData(prev => {
       const next = { ...prev };
       for (const [type, refs] of Object.entries(references)) {
-        if (type === 'repeater') continue;
+        if (type === 'repeater' || type === 'aprs' || type === 'brandmeister') continue;
         if (Array.isArray(refs)) {
           next[type] = refs.filter(r => r.lat != null && r.lng != null);
         }
@@ -75,14 +85,29 @@ export function useMapData(activeLayers) {
   }, []);
 
   // Server loading — gated by activeLayers. Only loads data for layers the user has enabled.
-  // Repeaters and reference types are loaded viewport-based by ViewportDataLoader.
-  // This hook loads private nodes (APRS/BrandMeister, smaller dataset) and admin links.
+  // Repeaters, reference types, AND private nodes (APRS/BrandMeister) are all loaded
+  // viewport-based by ViewportDataLoader → getReferencesInBounds.
+  // This hook only loads admin links (when repeater layer is active) and clears data
+  // when layers are turned off.
   useEffect(() => {
     let active = true;
     cancelRef.current = false;
 
     const needRepeaters = activeLayers.includes("repeater");
     const needPrivateNodes = activeLayers.includes("aprs") || activeLayers.includes("brandmeister");
+
+    // Clear private nodes when neither APRS nor BrandMeister is active
+    if (!needPrivateNodes) {
+      setPrivateNodes([]);
+      loadedRef.current.privateNodes = false;
+    }
+
+    // Clear repeaters when repeater layer is not active
+    if (!needRepeaters) {
+      setRepeaters([]);
+      loadedRef.current.adminLinks = false;
+      setAdminLinks([]);
+    }
 
     // No data layers active — ensure loading indicator is off
     if (!needRepeaters && !needPrivateNodes) {
@@ -95,24 +120,6 @@ export function useMapData(activeLayers) {
     setLoadingMessage("Daten werden geladen…");
 
     const tasks = [];
-
-    // Private nodes (APRS + BrandMeister) — load all (smaller dataset)
-    // Repeaters are loaded viewport-based via ViewportDataLoader → getReferencesInBounds
-    if (needPrivateNodes && !loadedRef.current.privateNodes) {
-      loadedRef.current.privateNodes = true;
-      setLoadingMessage("APRS-Nodes werden geladen…");
-      tasks.push((async () => {
-        try {
-          await loadAllPrivateNodes({
-            onBatch: (batch, total) => {
-              if (cancelRef.current) return;
-              setPrivateNodes(prev => [...prev, ...batch]);
-              setLoadingMessage(`APRS-Nodes werden geladen… (${total})`);
-            },
-          });
-        } catch (e) { /* silent */ }
-      })());
-    }
 
     // Fetch admin-managed repeater links — only needed when repeater layer is active
     if (needRepeaters && !loadedRef.current.adminLinks) {
@@ -132,13 +139,14 @@ export function useMapData(activeLayers) {
 
     if (tasks.length > 0) {
       Promise.all(tasks).then(() => {
-        // For private-nodes-only (no repeater layer), stop loading immediately
-        if (!needRepeaters && active && !cancelRef.current) {
+        if (active && !cancelRef.current) {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          setLoading(false);
+          // Don't stop loading for repeater-only — ViewportDataLoader handles it
+          if (!needRepeaters) setLoading(false);
         }
-        // For repeater layer active, loading is stopped by onViewportData or timeout
       });
+    } else {
+      // No admin tasks — loading will be stopped by ViewportDataLoader
     }
 
     return () => {

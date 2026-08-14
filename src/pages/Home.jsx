@@ -677,6 +677,22 @@ export default function Home() {
     };
   }, []);
 
+  // Memoized callback for public position updates from GpsTracker
+  // MUST be stable (useCallback) — if it changes every render, GpsTracker's
+  // broadcastPosition useCallback changes, which re-runs the GPS watch effect
+  // on every render, clearing the watch before it can get a position.
+  const handlePublicPositionUpdate = useCallback((pos) => {
+    setPublicPositions(prev => {
+      const idx = prev.findIndex(p => p.is_own);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], lat: pos.lat, lng: pos.lng, last_updated: new Date().toISOString() };
+        return copy;
+      }
+      return [{ ...pos, callsign: localStorage.getItem("hb9om_my_callsign") || "Ich", is_own: true, last_updated: new Date().toISOString() }, ...prev];
+    });
+  }, []);
+
   // "Center on my position" button — toggles GPS tracking on/off
   const handleCenterOnPosition = useCallback(() => {
     const trackingEnabled = localStorage.getItem("hb9om_gps_tracking_enabled") !== "false";
@@ -990,17 +1006,7 @@ export default function Home() {
           radius={positionRadius}
           onRadiusChange={setPositionRadius}
           onPositionChange={handlePositionChange}
-          onPublicPositionUpdate={(pos) => {
-          setPublicPositions(prev => {
-            const idx = prev.findIndex(p => p.is_own);
-            if (idx >= 0) {
-              const copy = [...prev];
-              copy[idx] = { ...copy[idx], lat: pos.lat, lng: pos.lng, last_updated: new Date().toISOString() };
-              return copy;
-            }
-            return [{ ...pos, callsign: localStorage.getItem("hb9om_my_callsign") || "Ich", is_own: true, last_updated: new Date().toISOString() }, ...prev];
-          });
-        }} />
+          onPublicPositionUpdate={handlePublicPositionUpdate} />
         <WmsOverlayLayer activeLayers={activeLayers} />
         <WmsFeatureInfo
           activeLayers={activeLayers}
