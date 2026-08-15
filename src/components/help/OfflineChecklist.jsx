@@ -81,13 +81,30 @@ export default function OfflineChecklist() {
       return saved ? JSON.parse(saved) : {};
     } catch { return {}; }
   });
-  const [readiness, setReadiness] = useState(() => getOfflineReadiness());
-  const [stats, setStats] = useState(() => getLocalCacheStats());
+  // getOfflineReadiness and getLocalCacheStats are async (IndexedDB) —
+  // initialize with safe defaults and load in useEffect to avoid
+  // .toLocaleString() on undefined while the Promise is pending.
+  const [readiness, setReadiness] = useState({
+    sota: false, pota: false, hbff: false, wwbota: false,
+    castle: false, iota: false, lighthouse: false,
+    repeater: false, private_nodes: false, tota: false,
+    allRefs: false, mapTiles: false,
+  });
+  const [stats, setStats] = useState({ size: 0, count: 0, cachedAt: null });
   const [offlineAreas, setOfflineAreas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Lade Offline-Bereiche und aktualisiere Readiness
   useEffect(() => {
+    const refresh = async () => {
+      try {
+        const [r, s] = await Promise.all([getOfflineReadiness(), getLocalCacheStats()]);
+        setReadiness(r || {});
+        setStats(s || { size: 0, count: 0, cachedAt: null });
+      } catch { /* silent */ }
+    };
+    refresh();
+
     getOfflineAreas().then(areas => {
       setOfflineAreas(areas || []);
       setReadiness(prev => ({ ...prev, mapTiles: (areas && areas.length > 0) }));
@@ -95,10 +112,7 @@ export default function OfflineChecklist() {
     }).catch(() => setLoading(false));
 
     // Aktualisiere Stats periodisch (falls in anderen Tab Daten geladen werden)
-    const interval = setInterval(() => {
-      setReadiness(getOfflineReadiness());
-      setStats(getLocalCacheStats());
-    }, 5000);
+    const interval = setInterval(refresh, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -159,7 +173,7 @@ export default function OfflineChecklist() {
           <HardDrive className="w-3.5 h-3.5" /> Lokaler Speicher
         </span>
         <span className="font-semibold text-gray-900">
-          {formatSize(stats.size)} · {stats.count.toLocaleString("de-CH")} Referenzen
+          {formatSize(stats.size ?? 0)} · {(stats.count ?? 0).toLocaleString("de-CH")} Referenzen
         </span>
       </div>
 
