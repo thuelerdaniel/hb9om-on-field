@@ -171,8 +171,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [isClubstation, setIsClubstation] = useState(editEntry?.is_clubstation ?? (safeGetItem(PERSIST_KEYS.isClubstation) === "true"));
   const [clubCallsign, setClubCallsign] = useState(editEntry?.club_callsign || (safeGetItem(PERSIST_KEYS.clubCallsign) || safeGetItem("hb9om_club_callsign") || ""));
   const [clubOperatorCallsign, setClubOperatorCallsign] = useState(editEntry?.club_operator_callsign || (safeGetItem(PERSIST_KEYS.clubOperatorCallsign) || safeGetItem("hb9om_my_callsign") || ""));
-  const [clubOperatorName, setClubOperatorName] = useState(editEntry?.club_operator_name || (safeGetItem(PERSIST_KEYS.clubOperatorName) || ""));
-  const [showClubPopup, setShowClubPopup] = useState(false);
+  const [clubOperatorName, setClubOperatorName] = useState(editEntry?.club_operator_name || safeGetItem("hb9om_club_operator_name") || "");
 
   const [refType, setRefType] = useState(editEntry?.my_reference_type || (activeLayers?.find(l => ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"].includes(l)) || safeGetItem(PERSIST_KEYS.refType) || "custom"));
   const [refCode, setRefCode] = useState(editEntry?.my_reference || (safeGetItem(PERSIST_KEYS.refCode) || ""));
@@ -606,16 +605,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     }
   };
 
-  const handleClubPopupConfirm = () => {
-    if (!clubCallsign || clubCallsign.length < 3) return;
-    setShowClubPopup(false);
-  };
-
-  const handleClubPopupClose = () => {
-    if (!clubCallsign) setIsClubstation(false);
-    setShowClubPopup(false);
-  };
-
   return (
     <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-3 pb-20">
       <div
@@ -778,13 +767,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
             <input
               type="checkbox"
               checked={isClubstation}
-              onChange={e => {
-                const checked = e.target.checked;
-                setIsClubstation(checked);
-                if (checked && !clubCallsign) {
-                  setShowClubPopup(true);
-                }
-              }}
+              onChange={e => setIsClubstation(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500"
             />
             <span className="text-sm text-gray-700 flex items-center gap-1.5">
@@ -792,39 +775,41 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
             </span>
           </label>
 
-          {/* Clubstation summary (when active and popup closed) */}
-          {isClubstation && clubCallsign && !showClubPopup && (
-            <div className="p-3 bg-blue-50 rounded-lg flex items-center justify-between">
-              <div className="text-xs space-y-0.5">
-                <p className="font-mono font-bold text-gray-900">{clubCallsign.toUpperCase()}</p>
-                {clubOperatorCallsign && <p className="text-gray-600">Operator: {clubOperatorCallsign.toUpperCase()}{clubOperatorName && ` · ${clubOperatorName}`}</p>}
+          {/* Read-only Praefix-Anzeige — Werte aus Einstellungen, gilt für beide Calls */}
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Globe className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                <div className="text-xs min-w-0">
+                  <span className="text-gray-500 dark:text-slate-400">Funke aus: </span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">
+                    {myCountryCode
+                      ? `${(CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.flag || "")} ${CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.name || ""} (${CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.prefix || ""})`
+                      : `${HOME_COUNTRY.flag} ${HOME_COUNTRY.name}`}
+                  </span>
+                  <span className="text-gray-400 ml-1">· {myLicenseClass === "full" ? "Full" : "Novice"}</span>
+                </div>
               </div>
-              <button
-                onClick={() => setShowClubPopup(true)}
-                className="p-1.5 hover:bg-white rounded-lg text-blue-600"
-                title="Bearbeiten"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
+              <Link to="/settings" onClick={onClose} className="text-xs text-blue-600 hover:underline flex-shrink-0 font-medium">
+                → Ändern
+              </Link>
             </div>
-          )}
-
-          {/* Read-only Praefix-Anzeige — Werte aus Einstellungen */}
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Globe className="w-4 h-4 text-blue-500 flex-shrink-0" />
-              <div className="text-xs min-w-0">
-                <span className="text-gray-500 dark:text-slate-400">Funke aus: </span>
-                <span className="font-medium text-gray-900 dark:text-slate-100">
-                  {myCountryCode
-                    ? `${(CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.flag || "")} ${CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.name || ""} (${CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.prefix || ""}${safeGetItem("hb9om_my_callsign") || ""})`
-                    : `${HOME_COUNTRY.flag} ${HOME_COUNTRY.name} (${safeGetItem("hb9om_my_callsign") || ""})`}
+            <div className="mt-2 space-y-0.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Personal:</span>
+                <span className="font-mono font-bold text-gray-900 dark:text-slate-100">
+                  {`${myCountryCode ? (CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.prefix || "") : ""}${safeGetItem("hb9om_my_callsign") || ""}${mySuffix || ""}`}
                 </span>
               </div>
+              {isClubstation && clubCallsign && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Club:</span>
+                  <span className="font-mono font-bold text-gray-900 dark:text-slate-100">
+                    {`${myCountryCode ? (CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.prefix || "") : ""}${clubCallsign.toUpperCase()}${mySuffix || ""}`}
+                  </span>
+                </div>
+              )}
             </div>
-            <Link to="/settings" onClick={onClose} className="text-xs text-blue-600 hover:underline flex-shrink-0 font-medium">
-              → Ändern
-            </Link>
           </div>
 
           {/* Standort / Referenz */}
@@ -1012,75 +997,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         </div>
       </div>
 
-      {/* Clubstation Popup */}
-      {showClubPopup && (
-        <div className="fixed inset-0 z-[10002] bg-black/50 flex items-center justify-center p-4 pb-20" onClick={handleClubPopupClose}>
-          <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm max-h-[calc(100vh-6rem)] overflow-y-auto ${highContrast ? 'hc-mode' : ''}`} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Building className="w-4 h-4 text-blue-600" />
-                </div>
-                <h3 className="font-bold text-gray-900 text-sm">Clubstation</h3>
-              </div>
-              <button onClick={handleClubPopupClose} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
-            </div>
-            <div className="p-5 space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <Building className="w-3 h-3" /> Rufzeichen der Clubstation *
-                </label>
-                <input
-                  type="text"
-                  value={clubCallsign}
-                  onChange={e => setClubCallsign(e.target.value.toUpperCase().trim())}
-                  onKeyDown={e => e.key === "Enter" && clubCallsign.length >= 3 && handleClubPopupConfirm()}
-                  placeholder="z.B. HB9OM"
-                  autoFocus
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <User className="w-3 h-3" /> Operator (persönliches Rufzeichen)
-                </label>
-                <input
-                  type="text"
-                  value={clubOperatorCallsign}
-                  onChange={e => setClubOperatorCallsign(e.target.value)}
-                  placeholder="z.B. HB9ABC"
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase">Name Operator</label>
-                <input
-                  type="text"
-                  value={clubOperatorName}
-                  onChange={e => setClubOperatorName(e.target.value)}
-                  placeholder="Name des Operators"
-                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
-              </div>
-              <p className="text-[10px] text-gray-400">Das Clubstations-Rufzeichen wird für jeden QSO-Eintrag gespeichert.</p>
-            </div>
-            <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={handleClubPopupClose} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
-                Abbrechen
-              </button>
-              <button
-                onClick={handleClubPopupConfirm}
-                disabled={!clubCallsign || clubCallsign.length < 3}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40"
-              >
-                Bestätigen
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

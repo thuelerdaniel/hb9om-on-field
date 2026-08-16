@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Radio, Check, AlertTriangle, Info, ChevronDown } from "lucide-react";
+import { Radio, Check, AlertTriangle, Info, ChevronDown, Building } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { CEPT_COUNTRIES, HOME_COUNTRY } from "@/lib/ceptCountries";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
@@ -25,6 +25,8 @@ export default function MyStationSection() {
   const [licenseClass, setLicenseClass] = useState("full");
   const [countryCode, setCountryCode] = useState("");
   const [suffix, setSuffix] = useState("/P");
+  const [clubCallsign, setClubCallsign] = useState("");
+  const [clubOperatorName, setClubOperatorName] = useState("");
   const [countryOpen, setCountryOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [saved, setSaved] = useState(false);
@@ -34,6 +36,18 @@ export default function MyStationSection() {
     setLicenseClass(safeGetItem("hb9om_my_license_class") || "full");
     setCountryCode(safeGetItem("hb9om_my_operating_country") || "");
     setSuffix(safeGetItem("hb9om_my_suffix") || "/P");
+    setClubCallsign((safeGetItem("hb9om_club_callsign") || "").toUpperCase());
+    setClubOperatorName(safeGetItem("hb9om_club_operator_name") || "");
+    // Club-Call aus Backend laden (admin-set global default)
+    base44.functions.invoke("manageApiKeys", { action: "getClubCallsign" })
+      .then(res => {
+        const cc = res.data?.config?.club_callsign;
+        if (cc) {
+          safeSetItem("hb9om_club_callsign", cc);
+          setClubCallsign(prev => prev || cc.toUpperCase());
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const saveSetting = async (key, value) => {
@@ -82,9 +96,23 @@ export default function MyStationSection() {
     showSaved();
   };
 
+  const handleClubCallsignChange = (val) => {
+    const upper = val.toUpperCase().trim();
+    setClubCallsign(upper);
+    saveSetting("hb9om_club_callsign", upper);
+    showSaved();
+  };
+
+  const handleClubOperatorNameChange = (val) => {
+    setClubOperatorName(val);
+    saveSetting("hb9om_club_operator_name", val);
+    showSaved();
+  };
+
   const selected = countryCode ? CEPT_COUNTRIES.find(c => c.code === countryCode) : null;
   const prefix = selected && selected.code !== HOME_COUNTRY.code ? selected.prefix : "";
   const previewCall = `${prefix}${myCallsign || "HB9XYZ"}${suffix || ""}`;
+  const clubPreviewCall = clubCallsign ? `${prefix}${clubCallsign}${suffix || ""}` : "";
   const isNonCept = selected?.non_cept;
   const isNoviceBlocked = selected && licenseClass === "novice" && !selected.cept_novice && !selected.non_cept;
 
@@ -262,9 +290,65 @@ export default function MyStationSection() {
         </p>
       </div>
 
+      {/* Club-Call Sektion — Präfix/Land geteilt mit Personal-Call */}
+      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+        <h3 className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <Building className="w-3.5 h-3.5 text-blue-500" /> Club-Call (optional)
+        </h3>
+
+        <div className="space-y-2">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Club-Rufzeichen</label>
+            <input
+              type="text"
+              value={clubCallsign}
+              onChange={e => handleClubCallsignChange(e.target.value)}
+              placeholder="z.B. HB9OM"
+              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono uppercase"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Club-Operator-Name (wer funkt)</label>
+            <input
+              type="text"
+              value={clubOperatorName}
+              onChange={e => handleClubOperatorNameChange(e.target.value)}
+              placeholder="z.B. Daniel"
+              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+          </div>
+        </div>
+
+        {clubCallsign ? (
+          <div className="mt-2 p-2.5 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+            <label className="text-[10px] text-gray-500 uppercase font-semibold">Club-Call Vorschau</label>
+            <p className="text-base font-mono font-bold text-gray-900 dark:text-slate-100">{clubPreviewCall}</p>
+            <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
+              <Info className="w-3 h-3" /> Präfix und Land gelten für beide Calls (Personal + Club)
+            </p>
+          </div>
+        ) : (
+          <p className="text-[10px] text-gray-400 mt-2">Kein Club-Call konfiguriert — wird im Log-Formular ausgeblendet.</p>
+        )}
+      </div>
+
+      {/* Gesamtvorschau */}
+      <div className="mt-3 p-3 bg-gray-50 dark:bg-slate-900 rounded-lg space-y-1">
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-gray-500">Personal:</span>
+          <span className="font-mono font-bold text-gray-900 dark:text-slate-100">{previewCall}</span>
+        </div>
+        {clubPreviewCall && (
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-gray-500">Club:</span>
+            <span className="font-mono font-bold text-gray-900 dark:text-slate-100">{clubPreviewCall}</span>
+          </div>
+        )}
+      </div>
+
       <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-2 leading-relaxed flex items-start gap-1">
         <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />
-        <span>Diese Einstellungen gelten für alle QSO-Logs. Beim Auslandsbetrieb: Land hier ändern. CEPT-Regeln: max 3 Monate pro Gastland.</span>
+        <span>Präfix und Land gelten für beide Calls (Personal + Club). Beim Auslandsbetrieb: Land hier ändern. CEPT-Regeln: max 3 Monate pro Gastland.</span>
       </p>
     </section>
   );
