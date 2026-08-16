@@ -6,6 +6,7 @@ import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check,
 import MobileSelect from "@/components/ui/MobileSelect";
 import CountryPrefixSelect from "@/components/log/CountryPrefixSelect";
 import { CEPT_COUNTRIES } from "@/lib/ceptCountries";
+import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -109,18 +110,18 @@ function bandToCenterFreq(band) {
 
 export default function LogEntryForm({ mapCenter, myPosition, allMarkers, activeLayers, onClose, onSaved, editEntry }) {
   const isEditing = !!editEntry;
-  const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || localStorage.getItem("hb9om_force_offline") === "true");
+  const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || safeGetItem("hb9om_force_offline") === "true");
   const [justSaved, setJustSaved] = useState(false);
-  const [highContrast, setHighContrast] = useState(localStorage.getItem("hb9om_hc_mode") === "true");
+  const [highContrast, setHighContrast] = useState(safeGetItem("hb9om_hc_mode") === "true");
 
   const toggleHighContrast = () => {
     const newVal = !highContrast;
     setHighContrast(newVal);
-    localStorage.setItem("hb9om_hc_mode", String(newVal));
+    safeSetItem("hb9om_hc_mode", String(newVal));
   };
 
   const [callsign, setCallsign] = useState(editEntry?.callsign || "");
-  const [callsignSuffix, setCallsignSuffix] = useState(editEntry?.callsign_suffix ?? (localStorage.getItem(PERSIST_KEYS.callsignSuffix) || ""));
+  const [callsignSuffix, setCallsignSuffix] = useState(editEntry?.callsign_suffix ?? (safeGetItem(PERSIST_KEYS.callsignSuffix) || ""));
   const [qrzLoading, setQrzLoading] = useState(false);
   const [qrzError, setQrzError] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -138,13 +139,13 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [qsoDate, setQsoDate] = useState(editEntry?.qso_date || today);
   const [timeStart, setTimeStart] = useState(editEntry?.time_start || nowUTC);
   const [timeEnd, setTimeEnd] = useState(editEntry?.time_end || "");
-  const [frequency, setFrequency] = useState(editEntry ? String(editEntry.frequency || "") : (localStorage.getItem(PERSIST_KEYS.frequency) || ""));
-  const [band, setBand] = useState(editEntry?.band || (localStorage.getItem(PERSIST_KEYS.band) || "2m"));
-  const [mode, setMode] = useState(editEntry?.mode || (localStorage.getItem(PERSIST_KEYS.mode) || "FM"));
-  const [rstSent, setRstSent] = useState(editEntry?.rst_sent || (localStorage.getItem(PERSIST_KEYS.rstSent) || "59"));
-  const [rstReceived, setRstReceived] = useState(editEntry?.rst_received || (localStorage.getItem(PERSIST_KEYS.rstReceived) || "59"));
-  const [power, setPower] = useState(editEntry?.power != null ? String(editEntry.power) : (localStorage.getItem(PERSIST_KEYS.power) || ""));
-  const [notes, setNotes] = useState(editEntry?.notes ?? (localStorage.getItem(PERSIST_KEYS.notes) || ""));
+  const [frequency, setFrequency] = useState(editEntry ? String(editEntry.frequency || "") : (safeGetItem(PERSIST_KEYS.frequency) || ""));
+  const [band, setBand] = useState(editEntry?.band || (safeGetItem(PERSIST_KEYS.band) || "2m"));
+  const [mode, setMode] = useState(editEntry?.mode || (safeGetItem(PERSIST_KEYS.mode) || "FM"));
+  const [rstSent, setRstSent] = useState(editEntry?.rst_sent || (safeGetItem(PERSIST_KEYS.rstSent) || "59"));
+  const [rstReceived, setRstReceived] = useState(editEntry?.rst_received || (safeGetItem(PERSIST_KEYS.rstReceived) || "59"));
+  const [power, setPower] = useState(editEntry?.power != null ? String(editEntry.power) : (safeGetItem(PERSIST_KEYS.power) || ""));
+  const [notes, setNotes] = useState(editEntry?.notes ?? (safeGetItem(PERSIST_KEYS.notes) || ""));
   const [saving, setSaving] = useState(false);
 
   const handleFrequencyChange = (val) => {
@@ -163,19 +164,19 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     }
   };
 
-  const [isClubstation, setIsClubstation] = useState(editEntry?.is_clubstation ?? (localStorage.getItem(PERSIST_KEYS.isClubstation) === "true"));
-  const [clubCallsign, setClubCallsign] = useState(editEntry?.club_callsign || (localStorage.getItem(PERSIST_KEYS.clubCallsign) || localStorage.getItem("hb9om_club_callsign") || ""));
-  const [clubOperatorCallsign, setClubOperatorCallsign] = useState(editEntry?.club_operator_callsign || (localStorage.getItem(PERSIST_KEYS.clubOperatorCallsign) || localStorage.getItem("hb9om_my_callsign") || ""));
-  const [clubOperatorName, setClubOperatorName] = useState(editEntry?.club_operator_name || (localStorage.getItem(PERSIST_KEYS.clubOperatorName) || ""));
+  const [isClubstation, setIsClubstation] = useState(editEntry?.is_clubstation ?? (safeGetItem(PERSIST_KEYS.isClubstation) === "true"));
+  const [clubCallsign, setClubCallsign] = useState(editEntry?.club_callsign || (safeGetItem(PERSIST_KEYS.clubCallsign) || safeGetItem("hb9om_club_callsign") || ""));
+  const [clubOperatorCallsign, setClubOperatorCallsign] = useState(editEntry?.club_operator_callsign || (safeGetItem(PERSIST_KEYS.clubOperatorCallsign) || safeGetItem("hb9om_my_callsign") || ""));
+  const [clubOperatorName, setClubOperatorName] = useState(editEntry?.club_operator_name || (safeGetItem(PERSIST_KEYS.clubOperatorName) || ""));
   const [showClubPopup, setShowClubPopup] = useState(false);
 
-  const [refType, setRefType] = useState(editEntry?.my_reference_type || (activeLayers?.find(l => ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"].includes(l)) || localStorage.getItem(PERSIST_KEYS.refType) || "custom"));
-  const [refCode, setRefCode] = useState(editEntry?.my_reference || (localStorage.getItem(PERSIST_KEYS.refCode) || ""));
-  const [refName, setRefName] = useState(editEntry?.my_reference_name || (localStorage.getItem(PERSIST_KEYS.refName) || ""));
-  const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (localStorage.getItem(PERSIST_KEYS.mySuffix) || ""));
-  const [myGrid, setMyGrid] = useState(editEntry?.my_grid || (localStorage.getItem(PERSIST_KEYS.myGrid) || ""));
-  const [myCountryCode, setMyCountryCode] = useState(editEntry?.my_country_prefix || (localStorage.getItem(PERSIST_KEYS.myCountryCode) || ""));
-  const [myLicenseClass, setMyLicenseClass] = useState(editEntry?.my_license_class || (localStorage.getItem(PERSIST_KEYS.myLicenseClass) || "full"));
+  const [refType, setRefType] = useState(editEntry?.my_reference_type || (activeLayers?.find(l => ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"].includes(l)) || safeGetItem(PERSIST_KEYS.refType) || "custom"));
+  const [refCode, setRefCode] = useState(editEntry?.my_reference || (safeGetItem(PERSIST_KEYS.refCode) || ""));
+  const [refName, setRefName] = useState(editEntry?.my_reference_name || (safeGetItem(PERSIST_KEYS.refName) || ""));
+  const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (safeGetItem(PERSIST_KEYS.mySuffix) || ""));
+  const [myGrid, setMyGrid] = useState(editEntry?.my_grid || (safeGetItem(PERSIST_KEYS.myGrid) || ""));
+  const [myCountryCode, setMyCountryCode] = useState(editEntry?.my_country_prefix || (safeGetItem(PERSIST_KEYS.myCountryCode) || ""));
+  const [myLicenseClass, setMyLicenseClass] = useState(editEntry?.my_license_class || (safeGetItem(PERSIST_KEYS.myLicenseClass) || "full"));
   const [showRefDropdown, setShowRefDropdown] = useState(false);
   const [showRefCodeDropdown, setShowRefCodeDropdown] = useState(false);
   const [showRefNameDropdown, setShowRefNameDropdown] = useState(false);
@@ -241,7 +242,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   // Pre-fill club callsign from settings (cached by ClubCallsignManager)
   useEffect(() => {
     if (isEditing) return;
-    const cachedClubCall = localStorage.getItem("hb9om_club_callsign");
+    const cachedClubCall = safeGetItem("hb9om_club_callsign");
     if (cachedClubCall && !clubCallsign) {
       setClubCallsign(cachedClubCall);
     }
@@ -250,7 +251,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
       .then(res => {
         const cc = res.data?.config?.club_callsign;
         if (cc) {
-          localStorage.setItem("hb9om_club_callsign", cc);
+          safeSetItem("hb9om_club_callsign", cc);
           setClubCallsign(prev => prev || cc);
         }
       })
@@ -265,7 +266,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
 
   const handleQRZLookup = async () => {
     if (qrzInFlightRef.current) return;
-    const qrzEnabled = localStorage.getItem("hb9om_qrz_enabled") !== "false";
+    const qrzEnabled = safeGetItem("hb9om_qrz_enabled") !== "false";
     if (!qrzEnabled) return;
     if (!callsign || callsign.length < 3) return;
     if (isOffline) return;
@@ -505,25 +506,25 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   }, [refNameMatches, serverRefNameMatches, debouncedRefName]);
 
   const persistFormValues = () => {
-    localStorage.setItem(PERSIST_KEYS.frequency, frequency);
-    localStorage.setItem(PERSIST_KEYS.band, band);
-    localStorage.setItem(PERSIST_KEYS.mode, mode);
-    localStorage.setItem(PERSIST_KEYS.rstSent, rstSent);
-    localStorage.setItem(PERSIST_KEYS.rstReceived, rstReceived);
-    localStorage.setItem(PERSIST_KEYS.power, power);
-    localStorage.setItem(PERSIST_KEYS.refType, refType);
-    localStorage.setItem(PERSIST_KEYS.refCode, refCode);
-    localStorage.setItem(PERSIST_KEYS.refName, refName);
-    localStorage.setItem(PERSIST_KEYS.callsignSuffix, callsignSuffix);
-    localStorage.setItem(PERSIST_KEYS.mySuffix, mySuffix);
-    localStorage.setItem(PERSIST_KEYS.isClubstation, isClubstation ? "true" : "false");
-    localStorage.setItem(PERSIST_KEYS.clubCallsign, clubCallsign);
-    localStorage.setItem(PERSIST_KEYS.clubOperatorCallsign, clubOperatorCallsign);
-    localStorage.setItem(PERSIST_KEYS.clubOperatorName, clubOperatorName);
-    localStorage.setItem(PERSIST_KEYS.myGrid, myGrid);
-    localStorage.setItem(PERSIST_KEYS.notes, notes);
-    localStorage.setItem(PERSIST_KEYS.myCountryCode, myCountryCode);
-    localStorage.setItem(PERSIST_KEYS.myLicenseClass, myLicenseClass);
+    safeSetItem(PERSIST_KEYS.frequency, frequency);
+    safeSetItem(PERSIST_KEYS.band, band);
+    safeSetItem(PERSIST_KEYS.mode, mode);
+    safeSetItem(PERSIST_KEYS.rstSent, rstSent);
+    safeSetItem(PERSIST_KEYS.rstReceived, rstReceived);
+    safeSetItem(PERSIST_KEYS.power, power);
+    safeSetItem(PERSIST_KEYS.refType, refType);
+    safeSetItem(PERSIST_KEYS.refCode, refCode);
+    safeSetItem(PERSIST_KEYS.refName, refName);
+    safeSetItem(PERSIST_KEYS.callsignSuffix, callsignSuffix);
+    safeSetItem(PERSIST_KEYS.mySuffix, mySuffix);
+    safeSetItem(PERSIST_KEYS.isClubstation, isClubstation ? "true" : "false");
+    safeSetItem(PERSIST_KEYS.clubCallsign, clubCallsign);
+    safeSetItem(PERSIST_KEYS.clubOperatorCallsign, clubOperatorCallsign);
+    safeSetItem(PERSIST_KEYS.clubOperatorName, clubOperatorName);
+    safeSetItem(PERSIST_KEYS.myGrid, myGrid);
+    safeSetItem(PERSIST_KEYS.notes, notes);
+    safeSetItem(PERSIST_KEYS.myCountryCode, myCountryCode);
+    safeSetItem(PERSIST_KEYS.myLicenseClass, myLicenseClass);
   };
 
   const handleSave = async () => {
@@ -576,18 +577,18 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         autoCloudBackup();
         // Reset for next QSO but keep persistent values (freq, band, mode, etc.)
         setCallsign("");
-        setCallsignSuffix(localStorage.getItem(PERSIST_KEYS.callsignSuffix) || "");
+        setCallsignSuffix(safeGetItem(PERSIST_KEYS.callsignSuffix) || "");
         setOperator({ name: "", address: "", country: "", grid: "", email: "" });
         setQrzError("");
         setSaveError("");
-        setNotes(localStorage.getItem(PERSIST_KEYS.notes) || "");
+        setNotes(safeGetItem(PERSIST_KEYS.notes) || "");
         const now = new Date();
         setQsoDate(now.toISOString().slice(0, 10));
         setTimeStart(now.toISOString().slice(11, 16));
         setTimeEnd("");
-        setRstSent(localStorage.getItem(PERSIST_KEYS.rstSent) || "59");
-        setRstReceived(localStorage.getItem(PERSIST_KEYS.rstReceived) || "59");
-        setPower(localStorage.getItem(PERSIST_KEYS.power) || "");
+        setRstSent(safeGetItem(PERSIST_KEYS.rstSent) || "59");
+        setRstReceived(safeGetItem(PERSIST_KEYS.rstReceived) || "59");
+        setPower(safeGetItem(PERSIST_KEYS.power) || "");
         setJustSaved(true);
         setTimeout(() => setJustSaved(false), 2500);
       }
@@ -806,7 +807,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
             <CountryPrefixSelect
               value={myCountryCode}
               onChange={(code) => setMyCountryCode(code || "")}
-              myCallsign={isClubstation ? clubCallsign : (localStorage.getItem("hb9om_my_callsign") || "")}
+              myCallsign={isClubstation ? clubCallsign : (safeGetItem("hb9om_my_callsign") || "")}
               licenseClass={myLicenseClass}
               onLicenseClassChange={setMyLicenseClass}
             />

@@ -3,6 +3,14 @@ import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
 import { base44 } from '@/api/base44Client'
+import { cleanupLargeLocalStorageData } from '@/lib/safeStorage'
+
+// Remove large legacy data from localStorage that should be in IndexedDB.
+// Runs once at app start — prevents QuotaExceededError on Android (5MB localStorage limit).
+// Large reference data (SOTA, POTA, repeaters) is stored in IndexedDB (50MB+ capacity).
+try {
+  cleanupLargeLocalStorageData();
+} catch {}
 
 // Global error handler — reports crashes to admins who opted in
 const reportedErrors = new Set();

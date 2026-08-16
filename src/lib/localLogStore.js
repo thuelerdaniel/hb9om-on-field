@@ -1,11 +1,12 @@
 import { base44 } from "@/api/base44Client";
+import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 
 const CACHE_KEY = "hb9om_log_cache";
 const LAST_SYNC_KEY = "hb9om_log_last_sync";
 
 export function loadLocal() {
   try {
-    const data = localStorage.getItem(CACHE_KEY);
+    const data = safeGetItem(CACHE_KEY);
     return data ? JSON.parse(data) : [];
   } catch {
     return [];
@@ -13,9 +14,9 @@ export function loadLocal() {
 }
 
 export function saveLocal(entries) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
-  } catch {}
+  // safeSetItem catches QuotaExceededError and runs cleanupLargeLocalStorageData()
+  // automatically — prevents the cyclic quota error that was crashing the app.
+  safeSetItem(CACHE_KEY, JSON.stringify(entries));
 }
 
 export function getLastSync() {
@@ -30,7 +31,7 @@ export function getPendingCount() {
 
 function isOnline() {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
-  if (typeof localStorage !== "undefined" && localStorage.getItem("hb9om_force_offline") === "true") return false;
+  if (typeof localStorage !== "undefined" && safeGetItem("hb9om_force_offline") === "true") return false;
   return true;
 }
 
@@ -87,7 +88,7 @@ export async function syncFromServer() {
 
       const merged = [...filteredServerData, ...localKept];
       saveLocal(merged);
-      localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+      safeSetItem(LAST_SYNC_KEY, new Date().toISOString());
       return merged;
     }
   } catch {}
@@ -334,7 +335,7 @@ export async function syncPending() {
   }
 
   saveLocal(survivors);
-  localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+  safeSetItem(LAST_SYNC_KEY, new Date().toISOString());
   return { synced, remaining };
 }
 

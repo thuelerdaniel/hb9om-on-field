@@ -162,6 +162,31 @@ export function safeGetItem(key) {
   }
 }
 
+// Safe JSON set with size check. Serializes, checks size, uses safeSetItem.
+// Returns true on success, false if too large or quota exceeded.
+export function safeSetJSON(key, value, maxSizeBytes = 50000) {
+  try {
+    const serialized = JSON.stringify(value);
+    if (serialized.length > maxSizeBytes) {
+      console.warn(`[safeStorage] ${key} too large: ${(serialized.length / 1024).toFixed(1)} KB (max ${(maxSizeBytes / 1024).toFixed(0)} KB) — not saved`);
+      return false;
+    }
+    return safeSetItem(key, serialized);
+  } catch {
+    return false;
+  }
+}
+
+// Safe JSON get — parses JSON, never throws
+export function safeGetJSON(key, fallback = null) {
+  try {
+    const raw = safeGetItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // Safe remove — never throws
 export function safeRemoveItem(key) {
   try {

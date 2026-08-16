@@ -51,6 +51,9 @@ import LighthouseFilter from "@/components/map/LighthouseFilter";
 import LighthouseLayer from "@/components/map/LighthouseLayer";
 import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
 
+// Safe storage wrappers (prevent QuotaExceededError crashes)
+import { safeSetJSON, safeSetItem, safeGetItem, safeRemoveItem, cleanupLargeLocalStorageData } from "@/lib/safeStorage";
+
 // Other components
 import BottomNavigation from "@/components/BottomNavigation";
 import FirstTimeSetup from "@/components/FirstTimeSetup";
@@ -176,11 +179,11 @@ function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale, onMapClic
   useMapEvents({
     zoomend: () => {
       const c = map.getCenter();
-      localStorage.setItem("hb9om_map_state", JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
+      safeSetItem("hb9om_map_state", JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
     },
     moveend: () => {
       const c = map.getCenter();
-      localStorage.setItem("hb9om_map_state", JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
+      safeSetItem("hb9om_map_state", JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
     },
     click: (e) => { if (onMapClickRef.current) onMapClickRef.current(e.latlng); },
   });
@@ -198,7 +201,7 @@ export default function Home() {
 
   // Map state — activeLayers must be declared BEFORE useMapData (which needs it)
   const [activeLayers, setActiveLayers] = useState(() => {
-    const saved = localStorage.getItem("hb9om_active_layers");
+    const saved = safeGetItem("hb9om_active_layers");
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -209,20 +212,20 @@ export default function Home() {
 
   // Data loading — gated by activeLayers (only loads data for enabled layers)
   const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData } = useMapData(activeLayers);
-  const [baseLayer, setBaseLayer] = useState(() => localStorage.getItem("hb9om_base_layer") || "osm");
+  const [baseLayer, setBaseLayer] = useState(() => safeGetItem("hb9om_base_layer") || "osm");
   const [lockedScale, setLockedScale] = useState(() => {
-    const saved = localStorage.getItem("hb9om_locked_scale");
+    const saved = safeGetItem("hb9om_locked_scale");
     return saved ? parseInt(saved) : null;
   });
   const [mapOpacity, setMapOpacity] = useState(() => {
-    const saved = localStorage.getItem("hb9om_map_opacity");
+    const saved = safeGetItem("hb9om_map_opacity");
     return saved ? parseFloat(saved) : 1;
   });
   const [activeContinents, setActiveContinents] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("hb9om_active_continents")) || []; } catch { return []; }
+    try { return JSON.parse(safeGetItem("hb9om_active_continents")) || []; } catch { return []; }
   });
   const [activeCountries, setActiveCountries] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("hb9om_active_countries")) || []; } catch { return []; }
+    try { return JSON.parse(safeGetItem("hb9om_active_countries")) || []; } catch { return []; }
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -235,9 +238,9 @@ export default function Home() {
   const [positionRadius, setPositionRadius] = useState(5000);
 
   // UI mode state
-  const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("hb9om_performance_mode") === "true");
-  const [dragMode, setDragMode] = useState(() => localStorage.getItem("hb9om_drag_mode") === "true");
-  const [foxMode, setFoxMode] = useState(() => localStorage.getItem("hb9om_fox_mode") || "fox");
+  const [performanceMode, setPerformanceMode] = useState(() => safeGetItem("hb9om_performance_mode") === "true");
+  const [dragMode, setDragMode] = useState(() => safeGetItem("hb9om_drag_mode") === "true");
+  const [foxMode, setFoxMode] = useState(() => safeGetItem("hb9om_fox_mode") || "fox");
   const [showLogForm, setShowLogForm] = useState(false);
   const [editLogEntry, setEditLogEntry] = useState(null);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
@@ -248,13 +251,13 @@ export default function Home() {
   const COVERAGE_STORAGE_KEY = "hb9om_user_coverage_current";
   const [showUserCoverageDialog, setShowUserCoverageDialog] = useState(false);
   const [userCoverage, setUserCoverage] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem(COVERAGE_STORAGE_KEY)); return s?.coverage || null; } catch { return null; }
+    try { const s = JSON.parse(safeGetItem(COVERAGE_STORAGE_KEY)); return s?.coverage || null; } catch { return null; }
   });
   const [userCoveragePosition, setUserCoveragePosition] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem(COVERAGE_STORAGE_KEY)); return s?.position || null; } catch { return null; }
+    try { const s = JSON.parse(safeGetItem(COVERAGE_STORAGE_KEY)); return s?.position || null; } catch { return null; }
   });
   const [userCoverageDevice, setUserCoverageDevice] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem(COVERAGE_STORAGE_KEY)); return s?.device || "mobil"; } catch { return "mobil"; }
+    try { const s = JSON.parse(safeGetItem(COVERAGE_STORAGE_KEY)); return s?.device || "mobil"; } catch { return "mobil"; }
   });
   const [mapClickForCoverage, setMapClickForCoverage] = useState(false);
   const [mapClickForPosition, setMapClickForPosition] = useState(false);
@@ -263,13 +266,13 @@ export default function Home() {
   // even before coverage is calculated, so the marker survives page reloads.
   useEffect(() => {
     if (userCoveragePosition) {
-      localStorage.setItem(COVERAGE_STORAGE_KEY, JSON.stringify({
+      safeSetItem(COVERAGE_STORAGE_KEY, JSON.stringify({
         coverage: userCoverage,
         position: userCoveragePosition,
         device: userCoverageDevice,
       }));
     } else {
-      localStorage.removeItem(COVERAGE_STORAGE_KEY);
+      safeRemoveItem(COVERAGE_STORAGE_KEY);
     }
   }, [userCoverage, userCoveragePosition, userCoverageDevice]);
 
@@ -294,7 +297,7 @@ export default function Home() {
   const [donationTriggerKey, setDonationTriggerKey] = useState(0);
 
   // Setup complete — triggers ViewportDataLoader reload when FirstTimeSetup closes
-  const [setupComplete, setSetupComplete] = useState(() => localStorage.getItem("hb9om_setup_complete") === "true");
+  const [setupComplete, setSetupComplete] = useState(() => safeGetItem("hb9om_setup_complete") === "true");
 
   // Splash & changelog
   const [showSplash, setShowSplash] = useState(() => {
@@ -326,7 +329,7 @@ export default function Home() {
 
   // Restore saved filter state (point 13)
   const savedFilterState = (() => {
-    try { return JSON.parse(localStorage.getItem("hb9om_filter_state")) || {}; } catch { return {}; }
+    try { return JSON.parse(safeGetItem("hb9om_filter_state")) || {}; } catch { return {}; }
   })();
 
   // Repeater filters
@@ -342,7 +345,7 @@ export default function Home() {
   const [totaFilterTypes, setTotaFilterTypes] = useState(savedFilterState.totaFilterTypes ?? null);
   const [totaSearchQuery, setTotaSearchQuery] = useState(savedFilterState.totaSearchQuery || "");
   const [totaFilterCountries, setTotaFilterCountries] = useState(savedFilterState.totaFilterCountries || []);
-  const [showChTota, setShowChTota] = useState(() => localStorage.getItem("hb9om_show_ch_tota") === "true");
+  const [showChTota, setShowChTota] = useState(() => safeGetItem("hb9om_show_ch_tota") === "true");
   const [totaViewportCount, setTotaViewportCount] = useState({ visible: 0, total: 0 });
 
   // APRS filters
@@ -364,7 +367,10 @@ export default function Home() {
   // ILLW status — loaded from Lighthouse entity, keyed by ILLW number
   const [illwStatus, setIllwStatus] = useState({});
 
-  // Save filter state to localStorage (point 13: remember filter settings)
+  // Save filter state to localStorage — debounced + size-limited + safeSetJSON.
+  // Debounce (500ms) prevents rapid writes on every filter keystroke.
+  // safeSetJSON checks size (< 10KB) and uses safeSetItem which catches quota errors.
+  const filterStateSaveRef = useRef(null);
   useEffect(() => {
     const filterState = {
       repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries,
@@ -375,7 +381,11 @@ export default function Home() {
       lighthouseSearchQuery, lighthouseFilterCountries,
       onlyIllwActive, illwYear,
     };
-    localStorage.setItem("hb9om_filter_state", JSON.stringify(filterState));
+    if (filterStateSaveRef.current) clearTimeout(filterStateSaveRef.current);
+    filterStateSaveRef.current = setTimeout(() => {
+      safeSetJSON("hb9om_filter_state", filterState, 10240);
+    }, 500);
+    return () => { if (filterStateSaveRef.current) clearTimeout(filterStateSaveRef.current); };
   }, [repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries,
       showRepeaterLinks, showRepeaterCoverage, showOnlyLinked, repeaterRadiusKm,
       totaFilterTypes, totaSearchQuery, totaFilterCountries,
@@ -428,45 +438,45 @@ export default function Home() {
 
   // Save active layers to localStorage
   useEffect(() => {
-    localStorage.setItem("hb9om_active_layers", JSON.stringify(activeLayers));
+    safeSetItem("hb9om_active_layers", JSON.stringify(activeLayers));
   }, [activeLayers]);
 
   // Save base layer to localStorage
   useEffect(() => {
-    localStorage.setItem("hb9om_base_layer", baseLayer);
+    safeSetItem("hb9om_base_layer", baseLayer);
   }, [baseLayer]);
 
   // Save performance mode
   useEffect(() => {
-    localStorage.setItem("hb9om_performance_mode", String(performanceMode));
+    safeSetItem("hb9om_performance_mode", String(performanceMode));
   }, [performanceMode]);
 
   // Save map opacity, drag mode, fox mode, continents/countries, locked scale
   useEffect(() => {
-    localStorage.setItem("hb9om_map_opacity", String(mapOpacity));
+    safeSetItem("hb9om_map_opacity", String(mapOpacity));
   }, [mapOpacity]);
 
   useEffect(() => {
-    localStorage.setItem("hb9om_drag_mode", String(dragMode));
+    safeSetItem("hb9om_drag_mode", String(dragMode));
   }, [dragMode]);
 
   useEffect(() => {
-    localStorage.setItem("hb9om_fox_mode", foxMode);
+    safeSetItem("hb9om_fox_mode", foxMode);
   }, [foxMode]);
 
   useEffect(() => {
-    localStorage.setItem("hb9om_active_continents", JSON.stringify(activeContinents));
+    safeSetItem("hb9om_active_continents", JSON.stringify(activeContinents));
   }, [activeContinents]);
 
   useEffect(() => {
-    localStorage.setItem("hb9om_active_countries", JSON.stringify(activeCountries));
+    safeSetItem("hb9om_active_countries", JSON.stringify(activeCountries));
   }, [activeCountries]);
 
   useEffect(() => {
     if (lockedScale != null) {
-      localStorage.setItem("hb9om_locked_scale", String(lockedScale));
+      safeSetItem("hb9om_locked_scale", String(lockedScale));
     } else {
-      localStorage.removeItem("hb9om_locked_scale");
+      safeRemoveItem("hb9om_locked_scale");
     }
   }, [lockedScale]);
 
@@ -752,12 +762,12 @@ export default function Home() {
 
   // GPS tracking enabled state — for button highlighting
   const [gpsTrackingActive, setGpsTrackingActive] = useState(
-    () => localStorage.getItem("hb9om_gps_tracking_enabled") !== "false"
+    () => safeGetItem("hb9om_gps_tracking_enabled") !== "false"
   );
 
   useEffect(() => {
     const handler = () => {
-      setGpsTrackingActive(localStorage.getItem("hb9om_gps_tracking_enabled") !== "false");
+      setGpsTrackingActive(safeGetItem("hb9om_gps_tracking_enabled") !== "false");
     };
     window.addEventListener("gps-tracking-changed", handler);
     window.addEventListener("storage", handler);
@@ -779,21 +789,21 @@ export default function Home() {
         copy[idx] = { ...copy[idx], lat: pos.lat, lng: pos.lng, last_updated: new Date().toISOString() };
         return copy;
       }
-      return [{ ...pos, callsign: localStorage.getItem("hb9om_my_callsign") || "Ich", is_own: true, last_updated: new Date().toISOString() }, ...prev];
+      return [{ ...pos, callsign: safeGetItem("hb9om_my_callsign") || "Ich", is_own: true, last_updated: new Date().toISOString() }, ...prev];
     });
   }, []);
 
   // "Center on my position" button — toggles GPS tracking on/off
   const handleCenterOnPosition = useCallback(() => {
-    const trackingEnabled = localStorage.getItem("hb9om_gps_tracking_enabled") !== "false";
+    const trackingEnabled = safeGetItem("hb9om_gps_tracking_enabled") !== "false";
     if (trackingEnabled) {
       // Turn OFF
-      localStorage.setItem("hb9om_gps_tracking_enabled", "false");
+      safeSetItem("hb9om_gps_tracking_enabled", "false");
       setGpsTrackingActive(false);
       window.dispatchEvent(new CustomEvent("gps-tracking-changed"));
     } else {
       // Turn ON + get GPS position + center map
-      localStorage.setItem("hb9om_gps_tracking_enabled", "true");
+      safeSetItem("hb9om_gps_tracking_enabled", "true");
       setGpsTrackingActive(true);
       window.dispatchEvent(new CustomEvent("gps-tracking-changed"));
       if (navigator.geolocation) {
@@ -832,11 +842,11 @@ export default function Home() {
   }, []);
 
   // Toggle offline mode
-  const [forceOffline, setForceOffline] = useState(() => localStorage.getItem("hb9om_force_offline") === "true");
+  const [forceOffline, setForceOffline] = useState(() => safeGetItem("hb9om_force_offline") === "true");
   const toggleOffline = useCallback(() => {
     const newVal = !forceOffline;
     setForceOffline(newVal);
-    localStorage.setItem("hb9om_force_offline", String(newVal));
+    safeSetItem("hb9om_force_offline", String(newVal));
     window.dispatchEvent(new Event("offline-mode-changed"));
   }, [forceOffline]);
 
@@ -989,8 +999,8 @@ export default function Home() {
       {/* Map — wrapped in error boundary to prevent white-screen crashes */}
       <MapErrorBoundary>
       <MapContainer
-        center={(() => { try { const s = JSON.parse(localStorage.getItem("hb9om_map_state")); return s ? [s.lat, s.lng] : [46.8, 8.2]; } catch { return [46.8, 8.2]; } })()}
-        zoom={(() => { try { const s = JSON.parse(localStorage.getItem("hb9om_map_state")); return s?.zoom || 8; } catch { return 8; } })()}
+        center={(() => { try { const s = JSON.parse(safeGetItem("hb9om_map_state")); return s ? [s.lat, s.lng] : [46.8, 8.2]; } catch { return [46.8, 8.2]; } })()}
+        zoom={(() => { try { const s = JSON.parse(safeGetItem("hb9om_map_state")); return s?.zoom || 8; } catch { return 8; } })()}
         className="w-full h-full"
         zoomControl={false}
         preferCanvas={true}
@@ -1298,7 +1308,7 @@ export default function Home() {
               showChTota={showChTota}
               onShowChTotaChange={(val) => {
                 setShowChTota(val);
-                localStorage.setItem("hb9om_show_ch_tota", String(val));
+                safeSetItem("hb9om_show_ch_tota", String(val));
               }}
               leftOffsetClass={btn.offset}
             />
@@ -1404,7 +1414,7 @@ export default function Home() {
       {showPerfSuggestion && !performanceMode && (
         <PerformanceSuggestionPopup
           onActivate={() => { setPerformanceMode(true); setShowPerfSuggestion(false); }}
-          onDontAskAgain={() => { setShowPerfSuggestion(false); localStorage.setItem("hb9om_perf_suggestion_dismissed", "true"); }}
+          onDontAskAgain={() => { setShowPerfSuggestion(false); safeSetItem("hb9om_perf_suggestion_dismissed", "true"); }}
           onClose={() => setShowPerfSuggestion(false)}
         />
       )}
