@@ -38,9 +38,6 @@ export default function ReferenceSearchInput({ refType, allMarkers, mapCenter, m
     debounceRef.current = setTimeout(async () => {
       if (lastQueryRef.current === query) return;
       lastQueryRef.current = query;
-      setLoading(true);
-      setShowDropdown(true);
-
       const q = query.toLowerCase();
 
       // 1. Lokale Suche (instant — aus geladenen Markern)
@@ -57,20 +54,39 @@ export default function ReferenceSearchInput({ refType, allMarkers, mapCenter, m
         localResults = localResults.slice(0, 20);
       }
 
-      // 2. Server-Suche (weltweit — auch Referenzen die nicht im Viewport geladen sind)
-      let serverResults = [];
+      // Lokale Ergebnisse SOFORT anzeigen (ohne Spinner)
+      if (localResults.length > 0) {
+        setResults(localResults);
+        setShowDropdown(true);
+        setLoading(false);
+      } else {
+        // Keine lokalen Ergebnisse → Spinner anzeigen während Server-Suche
+        setLoading(true);
+        setShowDropdown(true);
+      }
+
+      // 2. Server-Suche (weltweit) mit 8s Timeout
       if (!isOffline) {
         try {
           const center = myPosition
             ? { lat: myPosition[0], lng: myPosition[1] }
             : (mapCenter ? { lat: mapCenter[0], lng: mapCenter[1] } : null);
           const typesFilter = refType && refType !== "custom" && refType !== "generell" ? [refType] : null;
-          const res = await base44.functions.invoke("searchReferences", {
+
+          const serverPromise = base44.functions.invoke("searchReferences", {
             query,
             types: typesFilter,
             center,
           });
-          if (res.data?.references) {
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 8000)
+          );
+
+          const res = await Promise.race([serverPromise, timeoutPromise]);
+
+          let serverResults = [];
+          if (res?.data?.references) {
             for (const [type, refs] of Object.entries(res.data.references)) {
               for (const r of (refs || [])) {
                 serverResults.push({
@@ -84,18 +100,24 @@ export default function ReferenceSearchInput({ refType, allMarkers, mapCenter, m
               }
             }
           }
-        } catch {}
+
+          // 3. Merge: local + server (dedup by code)
+          const localCodes = new Set(localResults.map(m => (m.code || m.reference || "").toLowerCase()));
+          const serverOnly = serverResults.filter(m => {
+            const code = (m.code || m.reference || "").toLowerCase();
+            const name = (m.name || "").toLowerCase();
+            return (code.includes(q) || name.includes(q)) && !localCodes.has(code);
+          });
+          const merged = [...localResults, ...serverOnly].slice(0, 30);
+          setResults(merged);
+        } catch {
+          // Timeout oder Fehler — behalte lokale Ergebnisse
+          if (localResults.length === 0) {
+            setResults([]);
+          }
+        }
       }
 
-      // 3. Merge: local + server (dedup by code)
-      const localCodes = new Set(localResults.map(m => (m.code || m.reference || "").toLowerCase()));
-      const serverOnly = serverResults.filter(m => {
-        const code = (m.code || m.reference || "").toLowerCase();
-        const name = (m.name || "").toLowerCase();
-        return (code.includes(q) || name.includes(q)) && !localCodes.has(code);
-      });
-      const merged = [...localResults, ...serverOnly].slice(0, 30);
-      setResults(merged);
       setLoading(false);
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };

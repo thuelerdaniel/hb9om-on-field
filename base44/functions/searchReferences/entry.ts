@@ -1,20 +1,17 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { loadAllPoints } from '../../shared/pointUpsert.ts';
 
-// Searches ALL cached references (worldwide, not bounds-limited) by code or name.
-// Used by the QSO Log Form autocomplete to find references that are not yet loaded
-// in the current map viewport — e.g. user types "DL/AL-001" while the map shows
-// only Switzerland. This returns the matching reference so the form can display it.
+// Searches cached references (worldwide) by code or name.
+// Used by the QSO Log Form autocomplete.
 //
-// Returns up to 50 matches per type, prioritized by distance to the optional center.
-
-const typeCache: Record<string, { refs: any[]; time: number }> = {};
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+// Strategy:
+// 1. Try database-level $regex filter (instant if supported by SDK)
+// 2. Fall back to paginated scan with early termination (slower but bounded)
+// 3. Deduplicate by code to avoid double entries
+// 4. Time limit per type to prevent UI hangs
 
 const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota'];
 
-// Types stored as individual point entities (not in ReferenceData.references)
-const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint'; normalize: (r: any) => any }> = {
+const POINT_TYPES: Record<string, { entity: string; normalize: (r: any) => any }> = {
   sota: {
     entity: 'SotaPoint',
     normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng })
@@ -33,77 +30,13 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
   },
 };
 
-async function loadType(base44, type: string): Promise<any[]> {
-  const cached = typeCache[type];
-  if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
+// Types stored in ReferenceData.references array (small datasets — safe to load fully)
+const REFERENCE_DATA_TYPES = ['wwbota', 'castle', 'iota', 'lighthouse'];
 
-  let refs: any[];
-
-  if (POINT_TYPES[type]) {
-    // Load from individual point entity (SotaPoint, PotaPoint, WwffPoint)
-    const ptConfig = POINT_TYPES[type];
-    const points = await loadAllPoints(base44, ptConfig.entity);
-    refs = points.map(ptConfig.normalize);
-  } else {
-    // Load from ReferenceData.references array (wwbota, castle, iota, lighthouse)
-    const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
-    if (!records || records.length === 0) return [];
-    refs = [];
-    for (const rec of records) {
-      if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
-    }
-  }
-
-  typeCache[type] = { refs, time: Date.now() };
-  return refs;
-}
-
-// Load repeaters from the Repeater entity (separate from ReferenceData).
-// Normalizes to the same shape: { code, name, lat, lng, ... }.
-let repeaterCache: { refs: any[]; time: number } | null = null;
-
-async function loadRepeaters(base44): Promise<any[]> {
-  if (repeaterCache && Date.now() - repeaterCache.time < CACHE_TTL) return repeaterCache.refs;
-  const repeaters = await base44.asServiceRole.entities.Repeater.list('-created_date', 10000);
-  const refs = (repeaters || [])
-    .filter(r => r.lat != null && r.lng != null)
-    .map(r => ({
-      code: r.callsign,
-      reference: r.callsign,
-      name: `${r.callsign} ${r.frequency != null ? r.frequency.toFixed(4) + ' MHz' : ''}`.trim() + (r.location_name ? ` · ${r.location_name}` : ''),
-      lat: r.lat,
-      lng: r.lng,
-      frequency: r.frequency,
-      location_name: r.location_name,
-      country: r.country,
-      country_code: r.country_code,
-      primary_mode: r.primary_mode,
-    }));
-  repeaterCache = { refs, time: Date.now() };
-  return refs;
-}
-
-// Load APRS stations from the AprsStation entity.
-// Normalizes callsign → code for consistent search result shape.
-let aprsCache: { refs: any[]; time: number } | null = null;
-
-async function loadAprsStations(base44): Promise<any[]> {
-  if (aprsCache && Date.now() - aprsCache.time < CACHE_TTL) return aprsCache.refs;
-  const stations = await base44.asServiceRole.entities.AprsStation.list('-created_date', 10000);
-  const refs = (stations || [])
-    .filter(r => r.lat != null && r.lng != null)
-    .map(r => ({
-      code: r.callsign,
-      reference: r.callsign,
-      name: r.callsign + (r.symbol_description ? ` · ${r.symbol_description}` : ''),
-      lat: r.lat,
-      lng: r.lng,
-      station_type: r.station_type,
-      symbol: r.symbol,
-    }));
-  aprsCache = { refs, time: Date.now() };
-  return refs;
-}
+const MAX_PER_TYPE = 20;
+const PAGE_SIZE = 5000;
+const MAX_PAGES = 8; // 8 * 5000 = 40k records max scan per type
+const TIME_LIMIT_MS = 10000; // 10 seconds max per type
 
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -113,8 +46,234 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const MAX_PER_TYPE = 50;
-const MIN_QUERY_LENGTH = 2;
+function dedupAndSort(matches: any[], center: any): any[] {
+  const seen = new Set<string>();
+  const deduped: any[] = [];
+  for (const m of matches) {
+    const code = (m.code || m.reference || '').toLowerCase();
+    if (code && !seen.has(code)) {
+      seen.add(code);
+      deduped.push({
+        ...m,
+        _distance: center && m.lat != null && m.lng != null
+          ? haversine(center.lat, center.lng, m.lat, m.lng)
+          : null,
+      });
+    }
+  }
+  if (center) {
+    deduped.sort((a, b) => (a._distance ?? 9999) - (b._distance ?? 9999));
+  }
+  return deduped.slice(0, MAX_PER_TYPE).map(({ _distance, ...r }) => r);
+}
+
+// Try database-level regex filter (instant if supported).
+// Returns null if regex is not supported (error), or [] if supported but no matches.
+// A short timeout prevents the call from blocking the paginated fallback.
+async function searchWithRegex(base44: any, entityName: string, q: string): Promise<any[] | null> {
+  try {
+    const filterPromise = base44.asServiceRole.entities[entityName].filter({
+      $or: [
+        { code: { $regex: q, $options: 'i' } },
+        { name: { $regex: q, $options: 'i' } },
+      ],
+    }, '-created_date', 100);
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('regex_timeout')), 5000)
+    );
+
+    const results = await Promise.race([filterPromise, timeoutPromise]);
+    return results || [];
+  } catch {
+    // Regex not supported or timed out — return null to signal fallback needed
+    return null;
+  }
+}
+
+// Range-based code search: uses database-level $gte/$lte on the code field.
+// Instant for code prefix queries (e.g., "HB/AG" matches "HB/AG-001").
+async function searchByCodePrefix(base44: any, entityName: string, q: string): Promise<any[]> {
+  try {
+    const prefix = q.toUpperCase();
+    const endPrefix = prefix + '\uf8ff';
+    const results = await base44.asServiceRole.entities[entityName].filter({
+      code: { $gte: prefix, $lte: endPrefix },
+    }, 'code', 100);
+    return results || [];
+  } catch {
+    return [];
+  }
+}
+
+// Paginated scan sorted by code — matching codes are adjacent, enabling early termination.
+async function searchPointTypePaginated(base44: any, type: string, q: string, center: any): Promise<any[]> {
+  const ptConfig = POINT_TYPES[type];
+  if (!ptConfig) return [];
+
+  const matches: any[] = [];
+  const startTime = Date.now();
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    if (matches.length >= MAX_PER_TYPE || Date.now() - startTime > TIME_LIMIT_MS) break;
+
+    let points: any[];
+    try {
+      points = await base44.asServiceRole.entities[ptConfig.entity].list('code', PAGE_SIZE, page * PAGE_SIZE);
+    } catch {
+      break;
+    }
+
+    if (!points || points.length === 0) break;
+
+    for (const r of points) {
+      const normalized = ptConfig.normalize(r);
+      const code = (normalized.code || '').toLowerCase();
+      const name = (normalized.name || '').toLowerCase();
+      if (code.includes(q) || name.includes(q)) {
+        matches.push(normalized);
+        if (matches.length >= MAX_PER_TYPE * 2) break;
+      }
+    }
+
+    // Early termination: if last code on page is past the query, stop scanning
+    if (points.length > 0 && matches.length > 0) {
+      const lastCode = (ptConfig.normalize(points[points.length - 1]).code || '').toLowerCase();
+      if (lastCode > q && !lastCode.includes(q)) break;
+    }
+
+    if (points.length < PAGE_SIZE) break;
+  }
+
+  return dedupAndSort(matches, center);
+}
+
+async function searchPointType(base44: any, type: string, q: string, center: any): Promise<any[]> {
+  const ptConfig = POINT_TYPES[type];
+  if (!ptConfig) return [];
+
+  // 1. Try range-based code prefix search (instant, database-level)
+  const codeResults = await searchByCodePrefix(base44, ptConfig.entity, q);
+  if (codeResults.length > 0) {
+    const normalized = codeResults.map(ptConfig.normalize);
+    return dedupAndSort(normalized, center);
+  }
+
+  // 2. Fall back to paginated scan (for name matches or if code search fails)
+  return searchPointTypePaginated(base44, type, q, center);
+}
+
+// Search ReferenceData types (small datasets — safe to load fully from ReferenceData)
+async function searchReferenceDataType(base44: any, type: string, q: string, center: any): Promise<any[]> {
+  try {
+    const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
+    if (!records || records.length === 0) return [];
+
+    const matches: any[] = [];
+    for (const rec of records) {
+      if (Array.isArray(rec.references)) {
+        for (const ref of rec.references) {
+          const code = (ref.code || ref.reference || '').toLowerCase();
+          const name = (ref.name || '').toLowerCase();
+          if (code.includes(q) || name.includes(q)) {
+            matches.push({ ...ref, code: ref.code || ref.reference, reference: ref.reference || ref.code });
+          }
+        }
+      }
+    }
+    return dedupAndSort(matches, center);
+  } catch {
+    return [];
+  }
+}
+
+// Search repeaters (separate entity, moderate dataset)
+async function searchRepeaters(base44: any, q: string, center: any): Promise<any[]> {
+  try {
+    // Try regex first
+    const regexResults = await searchWithRegex(base44, 'Repeater', q);
+    let repeaters: any[];
+    let usedRegex = false;
+    
+    if (regexResults !== null && regexResults.length > 0) {
+      repeaters = regexResults;
+      usedRegex = true;
+    } else {
+      // Fall back to limited list
+      repeaters = await base44.asServiceRole.entities.Repeater.list('-created_date', 5000);
+    }
+
+    const matches = (repeaters || [])
+      .filter(r => r.lat != null && r.lng != null)
+      .map(r => ({
+        code: r.callsign,
+        reference: r.callsign,
+        name: `${r.callsign} ${r.frequency != null ? r.frequency.toFixed(4) + ' MHz' : ''}`.trim() + (r.location_name ? ` · ${r.location_name}` : ''),
+        lat: r.lat,
+        lng: r.lng,
+        frequency: r.frequency,
+        location_name: r.location_name,
+        country: r.country,
+        country_code: r.country_code,
+        primary_mode: r.primary_mode,
+      }));
+
+    // If we used the fallback list, filter by query
+    if (!usedRegex) {
+      const filtered = matches.filter(m => {
+        const code = (m.code || '').toLowerCase();
+        const name = (m.name || '').toLowerCase();
+        return code.includes(q) || name.includes(q);
+      });
+      return dedupAndSort(filtered, center);
+    }
+
+    return dedupAndSort(matches, center);
+  } catch {
+    return [];
+  }
+}
+
+// Search APRS stations (separate entity)
+async function searchAprsStations(base44: any, q: string, center: any): Promise<any[]> {
+  try {
+    const regexResults = await searchWithRegex(base44, 'AprsStation', q);
+    let stations: any[];
+    let usedRegex = false;
+
+    if (regexResults !== null && regexResults.length > 0) {
+      stations = regexResults;
+      usedRegex = true;
+    } else {
+      stations = await base44.asServiceRole.entities.AprsStation.list('-created_date', 5000);
+    }
+
+    const matches = (stations || [])
+      .filter(r => r.lat != null && r.lng != null)
+      .map(r => ({
+        code: r.callsign,
+        reference: r.callsign,
+        name: r.callsign + (r.symbol_description ? ` · ${r.symbol_description}` : ''),
+        lat: r.lat,
+        lng: r.lng,
+        station_type: r.station_type,
+        symbol: r.symbol,
+      }));
+
+    if (!usedRegex) {
+      const filtered = matches.filter(m => {
+        const code = (m.code || '').toLowerCase();
+        const name = (m.name || '').toLowerCase();
+        return code.includes(q) || name.includes(q);
+      });
+      return dedupAndSort(filtered, center);
+    }
+
+    return dedupAndSort(matches, center);
+  } catch {
+    return [];
+  }
+}
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -124,52 +283,35 @@ export default async function(req: Request): Promise<Response> {
 
     const body = await req.json();
     const { query, types, center } = body || {};
+    console.log(`[searchReferences] query="${query}" types=${JSON.stringify(types)} hasCenter=${!!center}`);
 
-    if (!query || typeof query !== 'string' || query.length < MIN_QUERY_LENGTH) {
+    if (!query || typeof query !== 'string' || query.length < 2) {
       return Response.json({ references: {}, count: 0 });
     }
 
     const q = query.toLowerCase().trim();
+    const hasCenter = center && typeof center.lat === 'number' && typeof center.lng === 'number';
+    const searchCenter = hasCenter ? center : null;
+
     const allTypes = Array.isArray(types) && types.length > 0
       ? types
       : [...REFERENCE_TYPES, 'repeater', 'aprs'];
 
-    const hasCenter = center && typeof center.lat === 'number' && typeof center.lng === 'number';
-
     // Search each type in parallel
     const results = await Promise.all(
-      allTypes.map(async (type) => {
+      allTypes.map(async (type: string) => {
         try {
-          // Repeater and APRS are separate entities, not in ReferenceData
-          const refs = type === 'repeater'
-            ? await loadRepeaters(base44)
-            : type === 'aprs'
-            ? await loadAprsStations(base44)
-            : await loadType(base44, type);
-          if (!refs || refs.length === 0) return { type, matches: [] };
-
-          // Collect ALL matches — do NOT break early, otherwise closer references
-          // at the end of the array are missed before the distance sort.
-          const matches: any[] = [];
-          for (const ref of refs) {
-            const code = (ref.code || ref.reference || '').toLowerCase();
-            const name = (ref.name || '').toLowerCase();
-            if (code.includes(q) || name.includes(q)) {
-              matches.push({
-                ...ref,
-                _distance: hasCenter && ref.lat != null && ref.lng != null
-                  ? haversine(center.lat, center.lng, ref.lat, ref.lng)
-                  : null
-              });
-            }
+          let matches: any[] = [];
+          if (type === 'repeater') {
+            matches = await searchRepeaters(base44, q, searchCenter);
+          } else if (type === 'aprs') {
+            matches = await searchAprsStations(base44, q, searchCenter);
+          } else if (POINT_TYPES[type]) {
+            matches = await searchPointType(base44, type, q, searchCenter);
+          } else if (REFERENCE_DATA_TYPES.includes(type)) {
+            matches = await searchReferenceDataType(base44, type, q, searchCenter);
           }
-
-          // Sort by distance if center provided, otherwise keep original order
-          if (hasCenter) {
-            matches.sort((a, b) => (a._distance ?? 9999) - (b._distance ?? 9999));
-          }
-
-          return { type, matches: matches.slice(0, MAX_PER_TYPE).map(({ _distance, ...r }) => r) };
+          return { type, matches };
         } catch {
           return { type, matches: [] };
         }
@@ -179,9 +321,8 @@ export default async function(req: Request): Promise<Response> {
     const references: Record<string, any[]> = {};
     let count = 0;
     for (const r of results) {
-      const { type, matches } = r as any;
-      references[type] = matches;
-      count += matches.length;
+      references[r.type] = r.matches;
+      count += r.matches.length;
     }
 
     return Response.json({ references, count });
