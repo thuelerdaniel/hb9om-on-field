@@ -136,6 +136,8 @@
         "iota",
         "lighthouse",
         "repeater",
+        "tota",
+        "aprs",
         "swiss_protected",
         "generell",
         "custom"
@@ -153,10 +155,12 @@
         "/P",
         "/M",
         "/AM",
-        "/MM"
+        "/MM",
+        "/QRP",
+        "/A"
       ],
       "default": "",
-      "description": "Mein Suffix (/P, /M, /AM, /MM)"
+      "description": "Mein Suffix (/P, /M, /AM, /MM, /QRP, /A)"
     },
     "my_country_prefix": {
       "type": "string",

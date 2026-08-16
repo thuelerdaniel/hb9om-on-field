@@ -17,6 +17,7 @@ import PasswordInput from "@/components/settings/PasswordInput";
 import CollapsibleSection from "@/components/settings/CollapsibleSection";
 import ConfigCompletenessBar from "@/components/settings/ConfigCompletenessBar";
 import GpsPublicConfig from "@/components/settings/GpsPublicConfig";
+import MyStationSection from "@/components/settings/MyStationSection";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
 const AdminPanel = lazy(() => import("@/components/settings/AdminPanel"));
@@ -447,6 +448,9 @@ export default function Settings() {
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24">
         <ThemeToggle />
+
+        {/* MEINE STATION / LIZENZ — ganz oben (Praefix, Lizenzklasse, Suffix) */}
+        <MyStationSection />
 
         {/* Config Completeness Bar (point 10) */}
         <ConfigCompletenessBar items={configItems} />

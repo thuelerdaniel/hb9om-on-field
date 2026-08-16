@@ -11,10 +11,10 @@ import { loadAllPoints } from '../../shared/pointUpsert.ts';
 const typeCache: Record<string, { refs: any[]; time: number }> = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
-const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse'];
+const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota'];
 
 // Types stored as individual point entities (not in ReferenceData.references)
-const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint'; normalize: (r: any) => any }> = {
+const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint'; normalize: (r: any) => any }> = {
   sota: {
     entity: 'SotaPoint',
     normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng })
@@ -26,6 +26,10 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
   hbff: {
     entity: 'WwffPoint',
     normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link })
+  },
+  tota: {
+    entity: 'TotaPoint',
+    normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, type: r.type, subtype: r.subtype })
   },
 };
 
@@ -79,6 +83,28 @@ async function loadRepeaters(base44): Promise<any[]> {
   return refs;
 }
 
+// Load APRS stations from the AprsStation entity.
+// Normalizes callsign → code for consistent search result shape.
+let aprsCache: { refs: any[]; time: number } | null = null;
+
+async function loadAprsStations(base44): Promise<any[]> {
+  if (aprsCache && Date.now() - aprsCache.time < CACHE_TTL) return aprsCache.refs;
+  const stations = await base44.asServiceRole.entities.AprsStation.list('-created_date', 10000);
+  const refs = (stations || [])
+    .filter(r => r.lat != null && r.lng != null)
+    .map(r => ({
+      code: r.callsign,
+      reference: r.callsign,
+      name: r.callsign + (r.symbol_description ? ` · ${r.symbol_description}` : ''),
+      lat: r.lat,
+      lng: r.lng,
+      station_type: r.station_type,
+      symbol: r.symbol,
+    }));
+  aprsCache = { refs, time: Date.now() };
+  return refs;
+}
+
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -106,7 +132,7 @@ export default async function(req: Request): Promise<Response> {
     const q = query.toLowerCase().trim();
     const allTypes = Array.isArray(types) && types.length > 0
       ? types
-      : [...REFERENCE_TYPES, 'repeater'];
+      : [...REFERENCE_TYPES, 'repeater', 'aprs'];
 
     const hasCenter = center && typeof center.lat === 'number' && typeof center.lng === 'number';
 
@@ -114,9 +140,11 @@ export default async function(req: Request): Promise<Response> {
     const results = await Promise.all(
       allTypes.map(async (type) => {
         try {
-          // Repeater is a separate entity, not in ReferenceData
+          // Repeater and APRS are separate entities, not in ReferenceData
           const refs = type === 'repeater'
             ? await loadRepeaters(base44)
+            : type === 'aprs'
+            ? await loadAprsStations(base44)
             : await loadType(base44, type);
           if (!refs || refs.length === 0) return { type, matches: [] };
 

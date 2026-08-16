@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { createEntry, updateEntry } from "@/lib/localLogStore";
 import { autoCloudBackup } from "@/lib/dataBackup";
-import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock, Sun } from "lucide-react";
+import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock, Sun, Globe } from "lucide-react";
 import MobileSelect from "@/components/ui/MobileSelect";
-import CountryPrefixSelect from "@/components/log/CountryPrefixSelect";
-import { CEPT_COUNTRIES } from "@/lib/ceptCountries";
+import ReferenceSearchInput from "@/components/log/ReferenceSearchInput";
+import { CEPT_COUNTRIES, HOME_COUNTRY } from "@/lib/ceptCountries";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 
 function haversine(lat1, lon1, lat2, lon2) {
@@ -32,6 +33,8 @@ const SUFFIXES = [
   { value: "/M", label: "/M" },
   { value: "/AM", label: "/AM" },
   { value: "/MM", label: "/MM" },
+  { value: "/QRP", label: "/QRP" },
+  { value: "/A", label: "/A" },
 ];
 
 const REF_TYPES = [
@@ -43,6 +46,7 @@ const REF_TYPES = [
   { value: "iota", label: "IOTA" },
   { value: "lighthouse", label: "Leuchtturm" },
   { value: "repeater", label: "Relais" },
+  { value: "tota", label: "TOTA" },
   { value: "aprs", label: "APRS-Station" },
   { value: "swiss_protected", label: "Bundesinventar" },
   { value: "generell", label: "Generell (nur Locator)" },
@@ -173,10 +177,12 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [refType, setRefType] = useState(editEntry?.my_reference_type || (activeLayers?.find(l => ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"].includes(l)) || safeGetItem(PERSIST_KEYS.refType) || "custom"));
   const [refCode, setRefCode] = useState(editEntry?.my_reference || (safeGetItem(PERSIST_KEYS.refCode) || ""));
   const [refName, setRefName] = useState(editEntry?.my_reference_name || (safeGetItem(PERSIST_KEYS.refName) || ""));
-  const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (safeGetItem(PERSIST_KEYS.mySuffix) || ""));
+  // Lizenz/Kland/Suffix kommen aus den Einstellungen (nicht mehr pro-QSO wählbar)
+  const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (safeGetItem(PERSIST_KEYS.mySuffix) || safeGetItem("hb9om_my_suffix") || "/P"));
   const [myGrid, setMyGrid] = useState(editEntry?.my_grid || (safeGetItem(PERSIST_KEYS.myGrid) || ""));
-  const [myCountryCode, setMyCountryCode] = useState(editEntry?.my_country_prefix || (safeGetItem(PERSIST_KEYS.myCountryCode) || ""));
-  const [myLicenseClass, setMyLicenseClass] = useState(editEntry?.my_license_class || (safeGetItem(PERSIST_KEYS.myLicenseClass) || "full"));
+  const [myCountryCode, setMyCountryCode] = useState(editEntry?.my_country_prefix || safeGetItem("hb9om_my_operating_country") || "");
+  const [myLicenseClass, setMyLicenseClass] = useState(editEntry?.my_license_class || safeGetItem("hb9om_my_license_class") || "full");
+  const [refCoords, setRefCoords] = useState(null);
   const [showRefDropdown, setShowRefDropdown] = useState(false);
   const [showRefCodeDropdown, setShowRefCodeDropdown] = useState(false);
   const [showRefNameDropdown, setShowRefNameDropdown] = useState(false);
@@ -331,16 +337,18 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     setRefType(r.layerType || "custom");
     setRefCode(r.code || r.reference || "");
     setRefName(r.name || "");
+    setRefCoords(r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : null);
     setShowRefDropdown(false);
     setShowRefCodeDropdown(false);
     setShowRefNameDropdown(false);
   };
 
-  // Clear refCode and refName when reference type changes — user is starting a new reference selection
+  // Clear refCode, refName and coords when reference type changes
   const handleRefTypeChange = (newType) => {
     setRefType(newType);
     setRefCode("");
     setRefName("");
+    setRefCoords(null);
     setShowRefCodeDropdown(false);
     setShowRefNameDropdown(false);
   };
@@ -523,8 +531,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     safeSetItem(PERSIST_KEYS.clubOperatorName, clubOperatorName);
     safeSetItem(PERSIST_KEYS.myGrid, myGrid);
     safeSetItem(PERSIST_KEYS.notes, notes);
-    safeSetItem(PERSIST_KEYS.myCountryCode, myCountryCode);
-    safeSetItem(PERSIST_KEYS.myLicenseClass, myLicenseClass);
+    // Lizenz/Kland kommen aus Einstellungen — nicht mehr pro-QSO persistieren
   };
 
   const handleSave = async () => {
@@ -802,15 +809,22 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
             </div>
           )}
 
-          {/* CEPT Laender-Praefix — Ich funke aus */}
-          <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl">
-            <CountryPrefixSelect
-              value={myCountryCode}
-              onChange={(code) => setMyCountryCode(code || "")}
-              myCallsign={isClubstation ? clubCallsign : (safeGetItem("hb9om_my_callsign") || "")}
-              licenseClass={myLicenseClass}
-              onLicenseClassChange={setMyLicenseClass}
-            />
+          {/* Read-only Praefix-Anzeige — Werte aus Einstellungen */}
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Globe className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              <div className="text-xs min-w-0">
+                <span className="text-gray-500 dark:text-slate-400">Funke aus: </span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">
+                  {myCountryCode
+                    ? `${(CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.flag || "")} ${CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.name || ""} (${CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.prefix || ""}${safeGetItem("hb9om_my_callsign") || ""})`
+                    : `${HOME_COUNTRY.flag} ${HOME_COUNTRY.name} (${safeGetItem("hb9om_my_callsign") || ""})`}
+                </span>
+              </div>
+            </div>
+            <Link to="/settings" onClick={onClose} className="text-xs text-blue-600 hover:underline flex-shrink-0 font-medium">
+              → Ändern
+            </Link>
           </div>
 
           {/* Standort / Referenz */}
@@ -860,6 +874,18 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                 options={SUFFIXES.map(s => ({ value: s.value, label: s.value || "Suffix" }))}
               />
             </div>
+
+            {/* Dediziertes Such-Eingabefeld mit Autovervollstaendigung */}
+            {refType !== "generell" && refType !== "custom" && (
+              <ReferenceSearchInput
+                refType={refType}
+                allMarkers={allMarkers}
+                mapCenter={mapCenter}
+                myPosition={myPosition}
+                onSelect={selectRef}
+                isOffline={isOffline}
+              />
+            )}
 
             {refType === "generell" ? (
               <div className="mt-2">
@@ -938,6 +964,18 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                     </div>
                   )}
                 </div>
+                {/* Koordinaten-Anzeige bei ausgewaehlter Referenz */}
+                {refCoords && (
+                  <div className="mt-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-950/30 rounded-lg text-xs text-green-700 dark:text-green-300 flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                    <span>📍 {refCoords.lat.toFixed(4)}, {refCoords.lng.toFixed(4)}</span>
+                    {refCoords.lat != null && refCoords.lng != null && (
+                      <span className="text-[10px] text-green-600 dark:text-green-400 ml-1">
+                        (Locator: {latLngToGrid(refCoords.lat, refCoords.lng)})
+                      </span>
+                    )}
+                  </div>
+                )}
               </>
             )}
             {mapCenter && (
