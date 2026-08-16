@@ -183,8 +183,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [myLicenseClass, setMyLicenseClass] = useState(editEntry?.my_license_class || safeGetItem("hb9om_my_license_class") || "full");
   const [refCoords, setRefCoords] = useState(null);
   const [showRefDropdown, setShowRefDropdown] = useState(false);
-  const [showRefCodeDropdown, setShowRefCodeDropdown] = useState(false);
-  const [showRefNameDropdown, setShowRefNameDropdown] = useState(false);
   const wakeLockRef = useRef(null);
   const qrzInFlightRef = useRef(false);
 
@@ -338,8 +336,6 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     setRefName(r.name || "");
     setRefCoords(r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : null);
     setShowRefDropdown(false);
-    setShowRefCodeDropdown(false);
-    setShowRefNameDropdown(false);
   };
 
   // Clear refCode, refName and coords when reference type changes
@@ -348,169 +344,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     setRefCode("");
     setRefName("");
     setRefCoords(null);
-    setShowRefCodeDropdown(false);
-    setShowRefNameDropdown(false);
   };
-
-  // Debounced search terms — prevents filtering 180k+ markers on every keystroke
-  const [debouncedRefCode, setDebouncedRefCode] = useState("");
-  const [debouncedRefName, setDebouncedRefName] = useState("");
-  const refCodeDebounceRef = useRef(null);
-  const refNameDebounceRef = useRef(null);
-
-  useEffect(() => {
-    if (refCodeDebounceRef.current) clearTimeout(refCodeDebounceRef.current);
-    refCodeDebounceRef.current = setTimeout(() => setDebouncedRefCode(refCode), 180);
-    return () => { if (refCodeDebounceRef.current) clearTimeout(refCodeDebounceRef.current); };
-  }, [refCode]);
-
-  useEffect(() => {
-    if (refNameDebounceRef.current) clearTimeout(refNameDebounceRef.current);
-    refNameDebounceRef.current = setTimeout(() => setDebouncedRefName(refName), 180);
-    return () => { if (refNameDebounceRef.current) clearTimeout(refNameDebounceRef.current); };
-  }, [refName]);
-
-  // Inline autocomplete for refCode — filter ALL available markers by code, narrowed to selected refType
-  const refCodeMatches = useMemo(() => {
-    if (!debouncedRefCode || debouncedRefCode.length < 2) return [];
-    const q = debouncedRefCode.toLowerCase();
-    let result = allMarkers.filter(m => {
-      const code = (m.code || m.reference || "").toLowerCase();
-      return code.includes(q);
-    });
-    if (refType && refType !== "custom" && refType !== "generell") {
-      result = result.filter(m => m.layerType === refType);
-    }
-    return result.slice(0, 50);
-  }, [debouncedRefCode, allMarkers, refType]);
-
-  // Inline autocomplete for refName — filter ALL available markers by name, narrowed to selected refType
-  const refNameMatches = useMemo(() => {
-    if (!debouncedRefName || debouncedRefName.length < 2) return [];
-    const q = debouncedRefName.toLowerCase();
-    let result = allMarkers.filter(m => {
-      const name = (m.name || "").toLowerCase();
-      return name.includes(q);
-    });
-    if (refType && refType !== "custom" && refType !== "generell") {
-      result = result.filter(m => m.layerType === refType);
-    }
-    return result.slice(0, 50);
-  }, [debouncedRefName, allMarkers, refType]);
-
-  // Server-side search: finds references NOT yet loaded in allMarkers (worldwide, not bounds-limited).
-  // Two INDEPENDENT searches (code + name) — each field gets its own results, so typing in one
-  // field is never shadowed by a longer value in the other.
-  const flattenServerRefs = (references) => {
-    const colorMap = {
-      sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
-      castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12", repeater: "#3b82f6"
-    };
-    const labelMap = {
-      sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
-      castle: "Burg/Schloss", iota: "IOTA", lighthouse: "Leuchtturm", repeater: "Relais"
-    };
-    const matches = [];
-    for (const [type, refs] of Object.entries(references || {})) {
-      for (const r of (refs || [])) {
-        matches.push({
-          ...r,
-          code: r.code || r.reference,
-          reference: r.reference || r.code,
-          layerType: type,
-          color: colorMap[type] || "#888",
-          layerLabel: labelMap[type] || type
-        });
-      }
-    }
-    return matches;
-  };
-
-  const runServerSearch = useCallback(async (query, typesFilter, center) => {
-    const res = await base44.functions.invoke("searchReferences", {
-      query,
-      types: typesFilter,
-      center
-    });
-    return res.data?.references ? flattenServerRefs(res.data.references).slice(0, 50) : [];
-  }, []);
-
-  // --- Server search for refCode ---
-  const [serverRefCodeMatches, setServerRefCodeMatches] = useState([]);
-  const serverCodeSearchRef = useRef(null);
-  const lastServerCodeQueryRef = useRef("");
-
-  useEffect(() => {
-    if (!debouncedRefCode || debouncedRefCode.length < 2) {
-      setServerRefCodeMatches([]);
-      lastServerCodeQueryRef.current = "";
-      return;
-    }
-    if (isOffline) return;
-    if (serverCodeSearchRef.current) clearTimeout(serverCodeSearchRef.current);
-    serverCodeSearchRef.current = setTimeout(async () => {
-      if (lastServerCodeQueryRef.current === debouncedRefCode) return;
-      lastServerCodeQueryRef.current = debouncedRefCode;
-      try {
-        const center = positionCenter ? { lat: positionCenter[0], lng: positionCenter[1] } : (mapCenter ? { lat: mapCenter[0], lng: mapCenter[1] } : null);
-        const typesFilter = refType && refType !== "custom" && refType !== "generell" ? [refType] : null;
-        const matches = await runServerSearch(debouncedRefCode, typesFilter, center);
-        setServerRefCodeMatches(matches);
-      } catch (e) { /* silent */ }
-    }, 400);
-    return () => { if (serverCodeSearchRef.current) clearTimeout(serverCodeSearchRef.current); };
-  }, [debouncedRefCode, refType, positionCenter, mapCenter, isOffline, runServerSearch]);
-
-  // --- Server search for refName ---
-  const [serverRefNameMatches, setServerRefNameMatches] = useState([]);
-  const serverNameSearchRef = useRef(null);
-  const lastServerNameQueryRef = useRef("");
-
-  useEffect(() => {
-    if (!debouncedRefName || debouncedRefName.length < 2) {
-      setServerRefNameMatches([]);
-      lastServerNameQueryRef.current = "";
-      return;
-    }
-    if (isOffline) return;
-    if (serverNameSearchRef.current) clearTimeout(serverNameSearchRef.current);
-    serverNameSearchRef.current = setTimeout(async () => {
-      if (lastServerNameQueryRef.current === debouncedRefName) return;
-      lastServerNameQueryRef.current = debouncedRefName;
-      try {
-        const center = positionCenter ? { lat: positionCenter[0], lng: positionCenter[1] } : (mapCenter ? { lat: mapCenter[0], lng: mapCenter[1] } : null);
-        const typesFilter = refType && refType !== "custom" && refType !== "generell" ? [refType] : null;
-        const matches = await runServerSearch(debouncedRefName, typesFilter, center);
-        setServerRefNameMatches(matches);
-      } catch (e) { /* silent */ }
-    }, 400);
-    return () => { if (serverNameSearchRef.current) clearTimeout(serverNameSearchRef.current); };
-  }, [debouncedRefName, refType, positionCenter, mapCenter, isOffline, runServerSearch]);
-
-  // Merge local + server matches for refCode (dedup by code, server fills gaps not in allMarkers)
-  const mergedRefCodeMatches = useMemo(() => {
-    const local = refCodeMatches;
-    if (serverRefCodeMatches.length === 0) return local;
-    const localCodes = new Set(local.map(m => (m.code || m.reference || "").toLowerCase()));
-    const serverOnly = serverRefCodeMatches.filter(m => {
-      const code = (m.code || m.reference || "").toLowerCase();
-      return code.includes(debouncedRefCode.toLowerCase()) && !localCodes.has(code);
-    });
-    return [...local, ...serverOnly].slice(0, 50);
-  }, [refCodeMatches, serverRefCodeMatches, debouncedRefCode]);
-
-  // Merge local + server matches for refName (dedup by code, server fills gaps not in allMarkers)
-  const mergedRefNameMatches = useMemo(() => {
-    const local = refNameMatches;
-    if (serverRefNameMatches.length === 0) return local;
-    const localCodes = new Set(local.map(m => (m.code || m.reference || "").toLowerCase()));
-    const q = debouncedRefName.toLowerCase();
-    const serverOnly = serverRefNameMatches.filter(m => {
-      const name = (m.name || "").toLowerCase();
-      return name.includes(q) && !localCodes.has((m.code || m.reference || "").toLowerCase());
-    });
-    return [...local, ...serverOnly].slice(0, 50);
-  }, [refNameMatches, serverRefNameMatches, debouncedRefName]);
 
   const persistFormValues = () => {
     safeSetItem(PERSIST_KEYS.frequency, frequency);
@@ -887,67 +721,27 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
               </div>
             ) : (
               <>
-                {/* refCode with inline autocomplete dropdown */}
-                <div className="relative mt-2">
+                {/* refCode — wird durch Suche ausgefüllt, manuell editierbar */}
+                <div className="mt-2">
+                  <label className="text-xs font-semibold text-gray-500 uppercase">Referenz-Code</label>
                   <input
                     type="text"
                     value={refCode}
-                    onChange={e => {
-                      setRefCode(e.target.value);
-                      setShowRefCodeDropdown(e.target.value.length >= 2);
-                    }}
-                    onFocus={() => refCode.length >= 2 && setShowRefCodeDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowRefCodeDropdown(false), 200)}
-                    placeholder="Referenz-Code (z.B. HB/AG-001)"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    onChange={e => setRefCode(e.target.value)}
+                    placeholder="z.B. HB/AG-001"
+                    className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
-                  {showRefCodeDropdown && mergedRefCodeMatches.length > 0 && (
-                    <div className="mt-1 max-h-60 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
-                      {mergedRefCodeMatches.map((r, i) => (
-                        <button
-                          key={i}
-                          onMouseDown={(e) => { e.preventDefault(); selectRef(r); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left text-xs"
-                        >
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.color }} />
-                          <span className="font-mono font-semibold text-gray-900">{r.code || r.reference}</span>
-                          <span className="flex-1 truncate text-gray-500">{r.name}</span>
-                          <span className="text-gray-400 capitalize">{r.layerLabel || r.layerType}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
-                {/* refName with inline autocomplete dropdown */}
-                <div className="relative mt-2">
+                {/* refName — wird durch Suche ausgefüllt, manuell editierbar */}
+                <div className="mt-2">
+                  <label className="text-xs font-semibold text-gray-500 uppercase">Referenz-Name</label>
                   <input
                     type="text"
                     value={refName}
-                    onChange={e => {
-                      setRefName(e.target.value);
-                      setShowRefNameDropdown(e.target.value.length >= 2);
-                    }}
-                    onFocus={() => refName.length >= 2 && setShowRefNameDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowRefNameDropdown(false), 200)}
+                    onChange={e => setRefName(e.target.value)}
                     placeholder="Name der Referenz"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
-                  {showRefNameDropdown && mergedRefNameMatches.length > 0 && (
-                    <div className="mt-1 max-h-60 overflow-y-auto bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-50">
-                      {mergedRefNameMatches.map((r, i) => (
-                        <button
-                          key={i}
-                          onMouseDown={(e) => { e.preventDefault(); selectRef(r); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left text-xs"
-                        >
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.color }} />
-                          <span className="font-mono font-semibold text-gray-900">{r.code || r.reference}</span>
-                          <span className="flex-1 truncate text-gray-500">{r.name}</span>
-                          <span className="text-gray-400 capitalize">{r.layerLabel || r.layerType}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 {/* Koordinaten-Anzeige bei ausgewaehlter Referenz */}
                 {refCoords && (
