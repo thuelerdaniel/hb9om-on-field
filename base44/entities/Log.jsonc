@@ -158,6 +158,22 @@
       "default": "",
       "description": "Mein Suffix (/P, /M, /AM, /MM)"
     },
+    "my_country_prefix": {
+      "type": "string",
+      "description": "Laendercode des Gastlandes (z.B. DE, FR) wenn im Ausland gefunkt wird \u2014 CEPT-Praefix"
+    },
+    "my_country_name": {
+      "type": "string",
+      "description": "Name des Gastlandes (z.B. Deutschland)"
+    },
+    "my_license_class": {
+      "type": "string",
+      "enum": [
+        "full",
+        "novice"
+      ],
+      "description": "Lizenzklasse bei Auslandsbetrieb (Full/Novice)"
+    },
     "my_grid": {
       "type": "string",
       "description": "Mein Maidenhead Locator (bei Generell)"

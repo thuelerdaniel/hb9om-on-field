@@ -4,6 +4,8 @@ import { createEntry, updateEntry } from "@/lib/localLogStore";
 import { autoCloudBackup } from "@/lib/dataBackup";
 import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock, Sun } from "lucide-react";
 import MobileSelect from "@/components/ui/MobileSelect";
+import CountryPrefixSelect from "@/components/log/CountryPrefixSelect";
+import { CEPT_COUNTRIES } from "@/lib/ceptCountries";
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -40,6 +42,7 @@ const REF_TYPES = [
   { value: "iota", label: "IOTA" },
   { value: "lighthouse", label: "Leuchtturm" },
   { value: "repeater", label: "Relais" },
+  { value: "aprs", label: "APRS-Station" },
   { value: "swiss_protected", label: "Bundesinventar" },
   { value: "generell", label: "Generell (nur Locator)" },
   { value: "custom", label: "Eigene Referenz" },
@@ -66,6 +69,8 @@ const PERSIST_KEYS = {
   clubOperatorName: "hb9om_last_club_op_name",
   myGrid: "hb9om_last_my_grid",
   notes: "hb9om_last_notes",
+  myCountryCode: "hb9om_last_my_country",
+  myLicenseClass: "hb9om_last_my_license",
 };
 
 // Band <-> Frequency mapping (IARU Region 1)
@@ -169,6 +174,8 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   const [refName, setRefName] = useState(editEntry?.my_reference_name || (localStorage.getItem(PERSIST_KEYS.refName) || ""));
   const [mySuffix, setMySuffix] = useState(editEntry?.my_suffix ?? (localStorage.getItem(PERSIST_KEYS.mySuffix) || ""));
   const [myGrid, setMyGrid] = useState(editEntry?.my_grid || (localStorage.getItem(PERSIST_KEYS.myGrid) || ""));
+  const [myCountryCode, setMyCountryCode] = useState(editEntry?.my_country_prefix || (localStorage.getItem(PERSIST_KEYS.myCountryCode) || ""));
+  const [myLicenseClass, setMyLicenseClass] = useState(editEntry?.my_license_class || (localStorage.getItem(PERSIST_KEYS.myLicenseClass) || "full"));
   const [showRefDropdown, setShowRefDropdown] = useState(false);
   const [showRefCodeDropdown, setShowRefCodeDropdown] = useState(false);
   const [showRefNameDropdown, setShowRefNameDropdown] = useState(false);
@@ -515,6 +522,8 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     localStorage.setItem(PERSIST_KEYS.clubOperatorName, clubOperatorName);
     localStorage.setItem(PERSIST_KEYS.myGrid, myGrid);
     localStorage.setItem(PERSIST_KEYS.notes, notes);
+    localStorage.setItem(PERSIST_KEYS.myCountryCode, myCountryCode);
+    localStorage.setItem(PERSIST_KEYS.myLicenseClass, myLicenseClass);
   };
 
   const handleSave = async () => {
@@ -547,6 +556,9 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         my_reference_type: refType,
         my_reference_name: refType === "generell" ? "" : refName,
         my_suffix: mySuffix,
+        my_country_prefix: myCountryCode || "",
+        my_country_name: myCountryCode ? (CEPT_COUNTRIES.find(c => c.code === myCountryCode)?.name || "") : "",
+        my_license_class: myCountryCode ? myLicenseClass : "",
         my_grid: refType === "generell" ? myGrid : "",
         notes,
         status: editEntry?.status || "active"
@@ -788,6 +800,17 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
               </button>
             </div>
           )}
+
+          {/* CEPT Laender-Praefix — Ich funke aus */}
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl">
+            <CountryPrefixSelect
+              value={myCountryCode}
+              onChange={(code) => setMyCountryCode(code || "")}
+              myCallsign={isClubstation ? clubCallsign : (localStorage.getItem("hb9om_my_callsign") || "")}
+              licenseClass={myLicenseClass}
+              onLicenseClassChange={setMyLicenseClass}
+            />
+          </div>
 
           {/* Standort / Referenz */}
           <div className="p-4 bg-gray-50 dark:bg-slate-900 rounded-xl">

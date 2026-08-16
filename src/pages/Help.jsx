@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell, RadioTower, Signal, Network, Database } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell, RadioTower, Signal, Network, Database, Globe } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
@@ -12,6 +12,15 @@ import { base44 } from "@/api/base44Client";
 import { resetChangelog } from "@/components/map/VersionChangelogPopup";
 import { useToast } from "@/components/ui/use-toast";
 import { APP_VERSION, APP_BUILD, DATA_SOURCES } from "@/lib/appVersion";
+import { CEPT_COUNTRIES, CEPT_LINKS } from "@/lib/ceptCountries";
+
+// CEPT-Laenderliste fuer die Hilfe-Tabelle
+const CEPT_COUNTRIES_LIST = CEPT_COUNTRIES.map(c => ({
+  icon: Globe,
+  color: c.non_cept ? "#ef4444" : c.cept_novice ? "#f59e0b" : "#0ea5e9",
+  name: `${c.flag} ${c.name}`,
+  desc: `Präfix: ${c.prefix || "—"} · ${c.cept_full ? "Full ✓" : "Full ✗"} · ${c.cept_novice ? "Nov ✓" : "Nov ✗"}${c.non_cept ? " · Gastlizenz" : ""}${c.notes ? " · " + c.notes : ""}`,
+}));
 
 const SECTIONS = [
   {
@@ -536,6 +545,46 @@ const SECTIONS = [
         title: "Benutzerverwaltung (Admin)",
         body: "Administratoren sehen in den Einstellungen einen Bereich «Benutzerverwaltung». Darüber können alle angemeldeten Benutzer eingesehen, Passwörter zurückgesetzt, Rollen geändert (Admin/User) und Benutzer gelöscht werden. Neue Admins müssen sich einmal ab- und wieder anmelden, falls ihre Rolle kürzlich geändert wurde.",
         example: "Admin → Einstellungen → Benutzerverwaltung → Benutzer zum Admin befördern."
+      }
+    ]
+  },
+  {
+    id: "ausland",
+    icon: Globe,
+    title: "Im Ausland funken (CEPT)",
+    color: "#0ea5e9",
+    description: "CEPT-Länderpräfixe, Full vs. Novice Lizenz und Gastlizenzen für Nicht-CEPT-Länder.",
+    items: [
+      {
+        title: "CEPT-Regeln: Mit welcher Lizenz im Ausland funken?",
+        body: "Mit einer CEPT-Lizenz (Full License / HAREC) dürfen Sie in allen CEPT-Ländern für bis zu 3 Monate funken. Setzen Sie das Präfix des Gastlandes vor Ihren Call. Beispiel: HB9XYZ besucht Deutschland → DL/HB9XYZ. Beispiel: HB9XYZ besucht Frankreich → F/HB9XYZ. Beispiel: HB9XYZ besucht Italien → I/HB9XYZ. Die CEPT-Voll-Lizenz gilt in allen CEPT-Ländern (Liste siehe unten). Maximal 3 Monate Aufenthalt pro Gastland.",
+        example: "HB9XYZ besucht Österreich → OE/HB9XYZ · HB9XYZ besucht Italien → I/HB9XYZ · HB9XYZ besucht Spanien → EA/HB9XYZ"
+      },
+      {
+        title: "Novice-Lizenz (ECC/REC/05(06))",
+        body: "Mit einer CEPT Novice-Lizenz (in der Schweiz HB3) können Sie in bestimmten Ländern funken. Nicht alle CEPT-Länder akzeptieren die Novice-Lizenz. Beispiel: HB3XYZ besucht Deutschland → DL/HB3XYZ (Novice akzeptiert). Beispiel: HB3XYZ besucht Frankreich → NICHT möglich (Frankreich akzeptiert keine Novice). Die Novice-Lizenz hat geringere Privilegien (weniger Bänder, weniger Leistung). Im Logbuch-Formular können Sie unter «Ich funke aus» zwischen Full und Novice Lizenz umschalten — nur Novice-akzeptierende Länder werden dann angezeigt.",
+        example: "DL/HB3XYZ (Novice, Deutschland ✓) · F/HB3XYZ (Novice, Frankreich ✗ — nicht akzeptiert) · OE/HB3XYZ (Novice, Österreich ✓)"
+      },
+      {
+        title: "Nicht-CEPT-Länder (Gastlizenz erforderlich)",
+        body: "Für Länder ausserhalb des CEPT-Abkommens benötigen Sie eine Gastlizenz, die Sie vor der Reise beantragen müssen. Beispiele: USA (W/ oder K/ + Distrikt + / + Heim-Call), Australien (VK/ + Heim-Call), Neuseeland (ZL/ + Heim-Call), Südafrika (ZS/ + Heim-Call), Kanada (VE/ + Heim-Call), Japan (JA/ + Heim-Call). Im Logbuch-Formular erscheint bei Auswahl eines Nicht-CEPT-Landes eine Warnung mit Hinweis auf die Gastlizenz.",
+        example: "USA: W/HB9XYZ (Gastlizenz erforderlich) · Australien: VK/HB9XYZ · Japan: JA/HB9XYZ"
+      },
+      {
+        title: "Länderpräfix im Logbuch-Formular",
+        body: "Im QSO-Formular finden Sie den Bereich «Ich funke aus» mit einer Länderauswahl. Standard ist «Schweiz (kein Präfix)». Wählen Sie ein anderes Land aus, wird das Präfix automatisch vor Ihren Call gesetzt und eine Vorschau angezeigt (z.B. «DL/HB9XYZ (Full License, Deutschland)»). Umschalten zwischen Full License und Novice über die Toggle-Buttons. Bei Novice werden nur Länder angezeigt, die Novice akzeptieren. Bei Nicht-CEPT-Ländern erscheint eine Warnung. Das ausgewählte Land und die Lizenzklasse werden im QSO-Eintrag gespeichert.",
+        example: "Logbuch → «Ich funke aus» → «🇩🇪 Deutschland» wählen → Toggle «Full License» → Vorschau: DL/HB9XYZ (Full License, Deutschland)"
+      },
+      {
+        title: "CEPT-Ländertabelle (alle Länder)",
+        body: "Die folgende Tabelle zeigt alle unterstützten Länder mit Präfix, Flagge und CEPT-Status. Full = CEPT T/R 61-01 (Voll-Lizenz), Nov = CEPT ECC/REC/05(06) (Novice). Gast = Nicht-CEPT (Gastlizenz erforderlich).",
+        list: CEPT_COUNTRIES_LIST
+      },
+      {
+        title: "Wichtige Hinweise vor der Reise",
+        body: "Vor der Reise: lokale Bestimmungen prüfen! Bandpläne und Leistungen können abweichen. Maximal 3 Monate Aufenthalt unter CEPT pro Gastland. Für Nicht-CEPT-Länder: Gastlizenz frühzeitig beantragen (teils Wochen Bearbeitungszeit). Prüfen Sie, ob Ihre Lizenzklasse (Full/Novice) im Gastland akzeptiert wird. Die CEPT-Regeln gelten nur für Amateurfunk — andere Lizenzen (z.B. CB) sind davon nicht betroffen.",
+        example: "Vor Reise nach Frankreich: Full License ✓, Novice ✗ → als HB3-Inhaber Gastlizenz beantragen oder nur als Full operieren.",
+        links: CEPT_LINKS
       }
     ]
   },
