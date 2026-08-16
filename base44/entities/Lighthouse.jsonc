@@ -1,0 +1,74 @@
+{
+  "name": "Lighthouse",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name des Leuchtturms"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "country": {
+      "type": "string",
+      "description": "Land"
+    },
+    "country_code": {
+      "type": "string",
+      "description": "Laendercode (z.B. CH, DE, US)"
+    },
+    "continent": {
+      "type": "string",
+      "description": "Kontinent"
+    },
+    "illw_number": {
+      "type": "string",
+      "description": "Offizielle ILLW-Nummer (z.B. CH0001, DE0064)"
+    },
+    "illw_active": {
+      "type": "boolean",
+      "default": false,
+      "description": "true = nimmt am aktuellen ILLW teil (rot markiert)"
+    },
+    "illw_year_active": {
+      "type": "number",
+      "description": "Jahr der letzten ILLW-Anmeldung (z.B. 2026)"
+    },
+    "illw_callsign": {
+      "type": "string",
+      "description": "Rufzeichen der Station am Leuchtturm (komma-separiert bei mehreren)"
+    },
+    "illw_country": {
+      "type": "string",
+      "description": "Land des Leuchtturms (ILLW-Bezeichnung)"
+    },
+    "dxcc": {
+      "type": "string",
+      "description": "DXCC-Bezeichnung"
+    },
+    "source": {
+      "type": "string",
+      "description": "Datenquelle"
+    },
+    "link": {
+      "type": "string",
+      "description": "Web-Link"
+    }
+  },
+  "required": [
+    "name",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

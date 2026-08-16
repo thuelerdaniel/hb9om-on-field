@@ -48,6 +48,8 @@ import TotaFilter from "@/components/map/TotaFilter";
 import AprsFilter from "@/components/map/AprsFilter";
 import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
 import LighthouseFilter from "@/components/map/LighthouseFilter";
+import LighthouseLayer from "@/components/map/LighthouseLayer";
+import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
 
 // Other components
 import BottomNavigation from "@/components/BottomNavigation";
@@ -97,7 +99,7 @@ const LAYER_LABELS = {
 // Build a unified markers array from all reference types (search uses ALL loaded data, not just active layers)
 function buildMarkers(data, activeLayers) {
   const markers = [];
-  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"]) {
+  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota"]) {
     if (activeLayers && !activeLayers.includes(type)) continue;
     const refs = data[type] || [];
     for (const ref of refs) {
@@ -356,6 +358,11 @@ export default function Home() {
   // Lighthouse filters
   const [lighthouseSearchQuery, setLighthouseSearchQuery] = useState(savedFilterState.lighthouseSearchQuery || "");
   const [lighthouseFilterCountries, setLighthouseFilterCountries] = useState(savedFilterState.lighthouseFilterCountries || []);
+  const [onlyIllwActive, setOnlyIllwActive] = useState(savedFilterState.onlyIllwActive || false);
+  const [illwYear, setIllwYear] = useState(savedFilterState.illwYear || null);
+
+  // ILLW status — loaded from Lighthouse entity, keyed by ILLW number
+  const [illwStatus, setIllwStatus] = useState({});
 
   // Save filter state to localStorage (point 13: remember filter settings)
   useEffect(() => {
@@ -366,6 +373,7 @@ export default function Home() {
       aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
       bmFilterTypes, bmSearchQuery, bmFilterCountries,
       lighthouseSearchQuery, lighthouseFilterCountries,
+      onlyIllwActive, illwYear,
     };
     localStorage.setItem("hb9om_filter_state", JSON.stringify(filterState));
   }, [repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries,
@@ -373,7 +381,8 @@ export default function Home() {
       totaFilterTypes, totaSearchQuery, totaFilterCountries,
       aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
       bmFilterTypes, bmSearchQuery, bmFilterCountries,
-      lighthouseSearchQuery, lighthouseFilterCountries]);
+      lighthouseSearchQuery, lighthouseFilterCountries,
+      onlyIllwActive, illwYear]);
 
   // Map ref
   const mapRef = useRef(null);
@@ -387,6 +396,27 @@ export default function Home() {
         setIsAdmin(me?.role === "admin");
         // Sync feature flags from User entity (User entity wins)
         syncFeaturesFromUser();
+      } catch {}
+    })();
+  }, []);
+
+  // Load ILLW status from Lighthouse entity — creates a map of ILLW number → status
+  useEffect(() => {
+    (async () => {
+      try {
+        const lighthouses = await base44.entities.Lighthouse.list("-updated_date", 2000);
+        const statusMap = {};
+        for (const l of (lighthouses || [])) {
+          if (l.illw_number) {
+            statusMap[l.illw_number] = {
+              illw_active: l.illw_active,
+              illw_year_active: l.illw_year_active,
+              illw_callsign: l.illw_callsign,
+              illw_number: l.illw_number,
+            };
+          }
+        }
+        setIllwStatus(statusMap);
       } catch {}
     })();
   }, []);
@@ -462,8 +492,25 @@ export default function Home() {
 
   // Filter lighthouse data by lighthouse-specific search + country filter
   const lighthouseCount = useMemo(() => (data.lighthouse || []).length, [data.lighthouse]);
+  const illwActiveCount = useMemo(() => {
+    return Object.values(illwStatus).filter(s => {
+      if (!s.illw_active) return false;
+      if (illwYear && s.illw_year_active !== illwYear) return false;
+      return true;
+    }).length;
+  }, [illwStatus, illwYear]);
   const filteredLighthouses = useMemo(() => {
     let lighthouses = data.lighthouse || [];
+    if (onlyIllwActive) {
+      lighthouses = lighthouses.filter(l => {
+        const illwNo = l.code || l.illw_number;
+        if (!illwNo) return false;
+        const status = illwStatus[illwNo];
+        if (!status?.illw_active) return false;
+        if (illwYear && status.illw_year_active !== illwYear) return false;
+        return true;
+      });
+    }
     if (lighthouseSearchQuery) {
       const q = lighthouseSearchQuery.toLowerCase();
       lighthouses = lighthouses.filter(l =>
@@ -476,7 +523,7 @@ export default function Home() {
       lighthouses = lighthouses.filter(l => lighthouseFilterCountries.includes(l.country_code));
     }
     return lighthouses;
-  }, [data.lighthouse, lighthouseSearchQuery, lighthouseFilterCountries]);
+  }, [data.lighthouse, onlyIllwActive, illwYear, lighthouseSearchQuery, lighthouseFilterCountries, illwStatus]);
 
   // Data with filtered lighthouses for map display (QSO form uses unfiltered)
   const mapData = useMemo(() => ({ ...data, lighthouse: filteredLighthouses }), [data, filteredLighthouses]);
@@ -484,7 +531,22 @@ export default function Home() {
   // Build unified markers array for MapMarkers
   const allMarkers = useMemo(() => buildMarkers(mapData, activeLayers), [mapData, activeLayers]);
   // All loaded markers regardless of active layers — used by QSO form for reference selection
-  const allMarkersUnfiltered = useMemo(() => buildMarkers(data, null), [data]);
+  const allMarkersUnfiltered = useMemo(() => {
+    const markers = buildMarkers(data, null);
+    // Add lighthouses separately (rendered by LighthouseLayer, but needed for QSO form)
+    for (const ref of (data.lighthouse || [])) {
+      if (ref.lat == null || ref.lng == null) continue;
+      markers.push({
+        ...ref,
+        code: ref.code || ref.reference,
+        reference: ref.reference || ref.code,
+        layerType: "lighthouse",
+        layerLabel: LAYER_LABELS.lighthouse,
+        color: LAYER_COLORS.lighthouse,
+      });
+    }
+    return markers;
+  }, [data]);
 
   // Search across ALL loaded data (not just active layers) — matches code, name, layerType, layerLabel
   const searchCandidates = useMemo(() => buildSearchCandidates(data, repeaters), [data, repeaters]);
@@ -975,6 +1037,17 @@ export default function Home() {
           userPosition={currentPosition}
           onViewportLimitChange={setViewportLimit}
         />
+        {activeLayers.includes("lighthouse") && (
+          <LighthouseLayer
+            lighthouses={data.lighthouse || []}
+            illwStatus={illwStatus}
+            performanceMode={performanceMode}
+            searchQuery={lighthouseSearchQuery}
+            filterCountries={lighthouseFilterCountries}
+            onlyIllwActive={onlyIllwActive}
+            illwYear={illwYear}
+          />
+        )}
         {activeLayers.includes("repeater") && (
           <RepeaterLayer
             repeaters={repeaters}
@@ -1082,6 +1155,21 @@ export default function Home() {
         sidebarOpen={menuDrawerOpen}
         showSearch={features.tools.search !== false}
       />
+      {/* ILLW Weekend Banner — shows during ILLW weekend or 30 days before */}
+      {activeLayers.includes("lighthouse") && (
+        <IllwWeekendBanner
+          activeCount={illwActiveCount}
+          onZoomToActive={() => {
+            const activeLh = (data.lighthouse || []).find(l => {
+              const status = illwStatus[l.code || l.illw_number];
+              return status?.illw_active;
+            });
+            if (activeLh) {
+              mapRef.current?.flyTo([activeLh.lat, activeLh.lng], 10, { duration: 1 });
+            }
+          }}
+        />
+      )}
 
       {/* Map Menu Drawer */}
       <MapMenuDrawer
@@ -1262,6 +1350,11 @@ export default function Home() {
               filterCountries={lighthouseFilterCountries}
               onFilterCountriesChange={setLighthouseFilterCountries}
               leftOffsetClass={btn.offset}
+              onlyIllwActive={onlyIllwActive}
+              onOnlyIllwActiveChange={setOnlyIllwActive}
+              illwYear={illwYear}
+              onIllwYearChange={setIllwYear}
+              illwActiveCount={illwActiveCount}
             />
           );
         }

@@ -26,6 +26,7 @@ import ApiKeyManager from "@/components/admin/ApiKeyManager";
 import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import JsonRepeaterImport from "@/components/admin/JsonRepeaterImport";
 import CoverageScheduleManager from "@/components/admin/CoverageScheduleManager";
+import IllwAdminSection from "@/components/admin/IllwAdminSection";
 import MobileSelect from "@/components/ui/MobileSelect";
 
 const TYPE_LABELS = {
@@ -597,6 +598,11 @@ export default function AdminPanel({
 
         {/* Unmatched Lighthouses — admin can manually add/refine coordinates */}
         <UnmatchedLighthouses />
+
+        {/* ILLW-Verwaltung — sync entrants, manage active status */}
+        <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
+          <IllwAdminSection />
+        </section>
 
         {/* Unmatched Repeaters — admin can manually add/refine coordinates */}
         <UnmatchedRepeaters />
