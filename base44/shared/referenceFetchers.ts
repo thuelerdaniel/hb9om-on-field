@@ -366,6 +366,13 @@ export async function fetchLighthouseData(regionId?: string): Promise<any[]> {
     if (!seen.has(key)) allLighthouses.push(sl);
   }
 
+  // Enrich all entries with country_code (derived from country name if missing)
+  for (const l of allLighthouses) {
+    if (!l.country_code) {
+      l.country_code = l.country?.length === 2 ? l.country : countryNameToCode(l.country || '');
+    }
+  }
+
   return allLighthouses;
 }
 
@@ -483,6 +490,56 @@ function isDuped(geo: any, deduped: any[]): boolean {
     const dlng = Math.abs(d.lng - geo.lng);
     return dlat < 0.005 && dlng < 0.005 && d.name === geo.name;
   });
+}
+
+// --- Country name to ISO 2-letter code lookup ---
+// Used for ILLW lighthouses which only have country names, not codes.
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  'united states': 'US', 'usa': 'US', 'alaska': 'US', 'hawaii': 'US',
+  'canada': 'CA', 'australia': 'AU', 'new zealand': 'NZ',
+  'germany': 'DE', 'france': 'FR', 'spain': 'ES', 'portugal': 'PT',
+  'italy': 'IT', 'switzerland': 'CH', 'austria': 'AT', 'netherlands': 'NL',
+  'belgium': 'BE', 'luxembourg': 'LU', 'denmark': 'DK', 'sweden': 'SE',
+  'norway': 'NO', 'finland': 'FI', 'iceland': 'IS', 'ireland': 'IE',
+  'united kingdom': 'GB', 'uk': 'GB', 'wales': 'GB', 'scotland': 'GB',
+  'england': 'GB', 'poland': 'PL', 'czech republic': 'CZ', 'czechia': 'CZ',
+  'slovakia': 'SK', 'hungary': 'HU', 'romania': 'RO', 'bulgaria': 'BG',
+  'greece': 'GR', 'turkey': 'TR', 'russia': 'RU', 'ukraine': 'UA',
+  'belarus': 'BY', 'lithuania': 'LT', 'latvia': 'LV', 'estonia': 'EE',
+  'croatia': 'HR', 'slovenia': 'SI', 'serbia': 'RS', 'bosnia': 'BA',
+  'montenegro': 'ME', 'albania': 'AL', 'macedonia': 'MK', 'moldova': 'MD',
+  'japan': 'JP', 'china': 'CN', 'south korea': 'KR', 'north korea': 'KP',
+  'taiwan': 'TW', 'philippines': 'PH', 'indonesia': 'ID', 'malaysia': 'MY',
+  'singapore': 'SG', 'thailand': 'TH', 'vietnam': 'VN', 'india': 'IN',
+  'pakistan': 'PK', 'bangladesh': 'BD', 'sri lanka': 'LK', 'iran': 'IR',
+  'iraq': 'IQ', 'israel': 'IL', 'jordan': 'JO', 'lebanon': 'LB',
+  'syria': 'SY', 'saudi arabia': 'SA', 'yemen': 'YE', 'oman': 'OM',
+  'uae': 'AE', 'qatar': 'QA', 'kuwait': 'KW', 'bahrain': 'BH',
+  'egypt': 'EG', 'libya': 'LY', 'tunisia': 'TN', 'algeria': 'DZ',
+  'morocco': 'MA', 'south africa': 'ZA', 'nigeria': 'NG', 'kenya': 'KE',
+  'ethiopia': 'ET', 'tanzania': 'TZ', 'madagascar': 'MG', 'ghana': 'GH',
+  'senegal': 'SN', 'ivory coast': 'CI', 'cameroon': 'CM', 'angola': 'AO',
+  'mozambique': 'MZ', 'zimbabwe': 'ZW', 'namibia': 'NA', 'botswana': 'BW',
+  'brazil': 'BR', 'argentina': 'AR', 'chile': 'CL', 'uruguay': 'UY',
+  'paraguay': 'PY', 'bolivia': 'BO', 'peru': 'PE', 'colombia': 'CO',
+  'venezuela': 'VE', 'ecuador': 'EC', 'guyana': 'GY', 'suriname': 'SR',
+  'mexico': 'MX', 'cuba': 'CU', 'jamaica': 'JM', 'haiti': 'HT',
+  'dominican republic': 'DO', 'puerto rico': 'PR', 'bahamas': 'BS',
+  'barbados': 'BB', 'trinidad': 'TT', 'grenada': 'GD', 'dominica': 'DM',
+  'saint lucia': 'LC', 'antigua': 'AG', 'saint kitts': 'KN',
+  'iceland': 'IS', 'greenland': 'GL', 'faroe islands': 'FO',
+  'estonia': 'EE', 'latvia': 'LV', 'lithuania': 'LT',
+};
+
+function countryNameToCode(name: string): string {
+  if (!name) return '';
+  const lower = name.toLowerCase().trim();
+  // Direct lookup
+  if (COUNTRY_NAME_TO_CODE[lower]) return COUNTRY_NAME_TO_CODE[lower];
+  // Try first word
+  const firstWord = lower.split(/[\s,]/)[0];
+  if (COUNTRY_NAME_TO_CODE[firstWord]) return COUNTRY_NAME_TO_CODE[firstWord];
+  return '';
 }
 
 // --- IOTA worldwide fetcher (all island groups from iota-world.org) ---

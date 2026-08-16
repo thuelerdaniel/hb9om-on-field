@@ -47,6 +47,7 @@ import RepeaterFilter from "@/components/map/RepeaterFilter";
 import TotaFilter from "@/components/map/TotaFilter";
 import AprsFilter from "@/components/map/AprsFilter";
 import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
+import LighthouseFilter from "@/components/map/LighthouseFilter";
 
 // Other components
 import BottomNavigation from "@/components/BottomNavigation";
@@ -352,6 +353,10 @@ export default function Home() {
   const [bmSearchQuery, setBmSearchQuery] = useState(savedFilterState.bmSearchQuery || "");
   const [bmFilterCountries, setBmFilterCountries] = useState(savedFilterState.bmFilterCountries || []);
 
+  // Lighthouse filters
+  const [lighthouseSearchQuery, setLighthouseSearchQuery] = useState(savedFilterState.lighthouseSearchQuery || "");
+  const [lighthouseFilterCountries, setLighthouseFilterCountries] = useState(savedFilterState.lighthouseFilterCountries || []);
+
   // Save filter state to localStorage (point 13: remember filter settings)
   useEffect(() => {
     const filterState = {
@@ -360,13 +365,15 @@ export default function Home() {
       totaFilterTypes, totaSearchQuery, totaFilterCountries,
       aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
       bmFilterTypes, bmSearchQuery, bmFilterCountries,
+      lighthouseSearchQuery, lighthouseFilterCountries,
     };
     localStorage.setItem("hb9om_filter_state", JSON.stringify(filterState));
   }, [repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries,
       showRepeaterLinks, showRepeaterCoverage, showOnlyLinked, repeaterRadiusKm,
       totaFilterTypes, totaSearchQuery, totaFilterCountries,
       aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
-      bmFilterTypes, bmSearchQuery, bmFilterCountries]);
+      bmFilterTypes, bmSearchQuery, bmFilterCountries,
+      lighthouseSearchQuery, lighthouseFilterCountries]);
 
   // Map ref
   const mapRef = useRef(null);
@@ -453,8 +460,29 @@ export default function Home() {
     );
   }, []);
 
+  // Filter lighthouse data by lighthouse-specific search + country filter
+  const lighthouseCount = useMemo(() => (data.lighthouse || []).length, [data.lighthouse]);
+  const filteredLighthouses = useMemo(() => {
+    let lighthouses = data.lighthouse || [];
+    if (lighthouseSearchQuery) {
+      const q = lighthouseSearchQuery.toLowerCase();
+      lighthouses = lighthouses.filter(l =>
+        (l.code || "").toLowerCase().includes(q) ||
+        (l.name || "").toLowerCase().includes(q) ||
+        (l.country || "").toLowerCase().includes(q)
+      );
+    }
+    if (lighthouseFilterCountries.length > 0) {
+      lighthouses = lighthouses.filter(l => lighthouseFilterCountries.includes(l.country_code));
+    }
+    return lighthouses;
+  }, [data.lighthouse, lighthouseSearchQuery, lighthouseFilterCountries]);
+
+  // Data with filtered lighthouses for map display (QSO form uses unfiltered)
+  const mapData = useMemo(() => ({ ...data, lighthouse: filteredLighthouses }), [data, filteredLighthouses]);
+
   // Build unified markers array for MapMarkers
-  const allMarkers = useMemo(() => buildMarkers(data, activeLayers), [data, activeLayers]);
+  const allMarkers = useMemo(() => buildMarkers(mapData, activeLayers), [mapData, activeLayers]);
   // All loaded markers regardless of active layers — used by QSO form for reference selection
   const allMarkersUnfiltered = useMemo(() => buildMarkers(data, null), [data]);
 
@@ -792,6 +820,17 @@ export default function Home() {
     return Object.values(counts).sort((a, b) => b.count - a.count);
   }, [bmNodes]);
 
+  // Build lighthouse country list
+  const lighthouseCountries = useMemo(() => {
+    const counts = {};
+    for (const l of (data.lighthouse || [])) {
+      const cc = l.country_code || "?";
+      counts[cc] = counts[cc] || { code: cc, name: l.country || cc, count: 0 };
+      counts[cc].count++;
+    }
+    return Object.values(counts).sort((a, b) => b.count - a.count);
+  }, [data.lighthouse]);
+
   // Build TOTA country list
   const totaCountries = useMemo(() => {
     const counts = {};
@@ -855,12 +894,15 @@ export default function Home() {
   const filterButtons = useMemo(() => {
     const buttons = [];
     let offsetIdx = 0;
-    const offsets = ["left-3", "left-16", "left-28", "left-40", "left-52"];
+    const offsets = ["left-3", "left-16", "left-28", "left-40", "left-52", "left-64"];
     if (activeLayers.includes("repeater")) {
       buttons.push({ type: "repeater", offset: offsets[offsetIdx++] });
     }
     if (activeLayers.includes("tota")) {
       buttons.push({ type: "tota", offset: offsets[offsetIdx++] });
+    }
+    if (activeLayers.includes("lighthouse")) {
+      buttons.push({ type: "lighthouse", offset: offsets[offsetIdx++] });
     }
     if (activeLayers.includes("aprs")) {
       buttons.push({ type: "aprs", offset: offsets[offsetIdx++] });
@@ -1204,6 +1246,21 @@ export default function Home() {
               countries={bmCountries}
               filterCountries={bmFilterCountries}
               onFilterCountriesChange={setBmFilterCountries}
+              leftOffsetClass={btn.offset}
+            />
+          );
+        }
+        if (btn.type === "lighthouse") {
+          return (
+            <LighthouseFilter
+              key="lighthouse-filter"
+              searchQuery={lighthouseSearchQuery}
+              onSearchQueryChange={setLighthouseSearchQuery}
+              pointCount={lighthouseCount}
+              visibleCount={filteredLighthouses.length}
+              points={data.lighthouse || []}
+              filterCountries={lighthouseFilterCountries}
+              onFilterCountriesChange={setLighthouseFilterCountries}
               leftOffsetClass={btn.offset}
             />
           );
