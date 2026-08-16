@@ -83,7 +83,7 @@ const SCALE_TO_ZOOM = { 10000: 14, 25000: 12, 50000: 10, 100000: 8 };
 // Layer colors for marker building
 const LAYER_COLORS = {
   sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
-  castle: "#e67e22", iota: "#3498db", lighthouse: "#f39c12",
+  castle: "#e67e22", iota: "#3498db",   lighthouse: "#dc2626",
 };
 
 // Layer labels for search matching

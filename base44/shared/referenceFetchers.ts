@@ -5,6 +5,7 @@ import { fetchSotaSummits } from './sotaFetcher.ts';
 import { fetchPotaParks } from './potaFetcher.ts';
 import { fetchRepeaterData } from './repeaterScraper.ts';
 import { IOTA_EMBEDDED_DATA } from './iotaData.ts';
+import { fetchIllwLighthouses } from './illwFetcher.ts';
 
 // --- HBFF KMZ extraction helpers ---
 async function extractKmlFromKmz(buffer: ArrayBuffer): Promise<string | null> {
@@ -290,84 +291,79 @@ const SWISS_LIGHTHOUSES = [
   { code: 'SWI-006', name: 'Rorschach Hafen Leuchtturm', lat: 47.4794, lng: 9.4946, country: 'CH', link: 'https://wlol.arlhs.com/lighthouse/SWI6.html' },
 ];
 
-// Fetch lighthouses from OSM Overpass API for a specific region or all regions.
-// regionId: one of LIGHTHOUSE_REGIONS[].id, or 'all' / undefined for all regions.
-// When fetching a single region, returns only lighthouses in that region's bbox.
-// Swiss curated lighthouses are always included (they're in the eu_central bbox).
+// Fetch lighthouses — ILLW official list (wllw.org) as primary source.
+// The ILLW list is the only OFFICIAL list of lighthouses/lightships used by
+// the International Lighthouse/Lightship Weekend. Parses 3 HTML pages and
+// extracts coordinates from Google Maps links in the "Map" column.
+// Fallback: Wikidata SPARQL (Q39715) if ILLW fetch fails or returns too few.
+// Curated Swiss ARLHS WLOL lighthouses are always included.
 export async function fetchLighthouseData(regionId?: string): Promise<any[]> {
-  const regions = regionId && regionId !== 'all'
-    ? LIGHTHOUSE_REGIONS.filter(r => r.id === regionId)
-    : LIGHTHOUSE_REGIONS;
-
   const allLighthouses: any[] = [];
   const seen = new Set<string>();
 
-  // Wikidata SPARQL — primary source (Overpass API is blocked from backend environment).
-  // Fetches ALL worldwide lighthouses (Q39715), including those WITHOUT coordinates.
-  // Lighthouses without coordinates are included so admins can georeference them.
-  const sparqlQuery = `SELECT ?item ?itemLabel ?coord ?countryLabel WHERE {
-    ?item wdt:P31 wd:Q39715 .
-    OPTIONAL { ?item wdt:P625 ?coord . }
-    OPTIONAL { ?item wdt:P17 ?country . }
-    SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en,fr,it,es,pt,ru,ja,zh" . }
-  } LIMIT 20000`;
-  // Retry Wikidata SPARQL with exponential backoff (3 attempts: 5s, 10s, 20s).
-  // Wikidata frequently returns 500/429 under load — retry prevents regional fetch failures.
-  const wdLighthouses: any[] = [];
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 45000);
-      const resp = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparqlQuery)}`, {
-        headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' },
-        signal: controller.signal
-      });
-      clearTimeout(timer);
-      if (resp.ok) {
-        const data = await resp.json();
-        for (const b of (data.results?.bindings || [])) {
-          const coordMatch = (b.coord?.value || '').match(/Point\(([\d.-]+)\s+([\d.-]+)\)/);
-          const lat = coordMatch ? parseFloat(coordMatch[2]) : null;
-          const lng = coordMatch ? parseFloat(coordMatch[1]) : null;
-          const name = b.itemLabel?.value || `Lighthouse`;
-          let regionId = '';
-          if (lat != null && lng != null) {
-            for (const r of LIGHTHOUSE_REGIONS) {
-              const [s, w, n, e] = r.bbox;
-              if (lat >= s && lat <= n && lng >= w && lng <= e) { regionId = r.id; break; }
+  // --- ILLW primary source (wllw.org) ---
+  try {
+    const illwLighthouses = await fetchIllwLighthouses();
+    if (illwLighthouses.length > 50) {
+      for (const l of illwLighthouses) {
+        const key = l.code || `${l.lat.toFixed(3)},${l.lng.toFixed(3)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        allLighthouses.push(l);
+      }
+    }
+  } catch { /* fall through to Wikidata */ }
+
+  // --- Wikidata fallback (only if ILLW returned too few results) ---
+  if (allLighthouses.length < 50) {
+    const sparqlQuery = `SELECT ?item ?itemLabel ?coord ?countryLabel WHERE {
+      ?item wdt:P31 wd:Q39715 .
+      OPTIONAL { ?item wdt:P625 ?coord . }
+      OPTIONAL { ?item wdt:P17 ?country . }
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en,fr,it,es,pt,ru,ja,zh" . }
+    } LIMIT 20000`;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 45000);
+        const resp = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparqlQuery)}`, {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' },
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        if (resp.ok) {
+          const data = await resp.json();
+          for (const b of (data.results?.bindings || [])) {
+            const coordMatch = (b.coord?.value || '').match(/Point\(([\d.-]+)\s+([\d.-]+)\)/);
+            const lat = coordMatch ? parseFloat(coordMatch[2]) : null;
+            const lng = coordMatch ? parseFloat(coordMatch[1]) : null;
+            const name = b.itemLabel?.value || `Lighthouse`;
+            const itemKey = b.item?.value || '';
+            if (itemKey && seen.has(itemKey)) continue;
+            if (itemKey) seen.add(itemKey);
+            if (lat != null && lng != null) {
+              allLighthouses.push({
+                code: `WD-LH-${allLighthouses.length + 1}`,
+                name, lat, lng,
+                country: b.countryLabel?.value || '',
+                link: itemKey ? `https://www.wikidata.org/wiki/${itemKey.split('/').pop()}` : 'https://www.wikidata.org/',
+                source: 'Wikidata',
+              });
             }
           }
-          if (regions.length === 1 && lat != null && lng != null && regionId !== regions[0].id) continue;
-          const itemKey = b.item?.value || '';
-          if (itemKey && seen.has(itemKey)) continue;
-          if (itemKey) seen.add(itemKey);
-          wdLighthouses.push({
-            code: `WD-LH-${wdLighthouses.length + 1}`,
-            name, lat, lng,
-            country: b.countryLabel?.value || '',
-            link: itemKey ? `https://www.wikidata.org/wiki/${itemKey.split('/').pop()}` : 'https://www.wikidata.org/',
-            region: regionId || 'unknown',
-            needs_georef: lat == null || lng == null,
-          });
+          break;
         }
-        break; // Success — no more retries needed
+        if (attempt < 2) await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
+      } catch {
+        if (attempt < 2) await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
       }
-      // 429 or 5xx — wait and retry
-      if (attempt < 2) await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
-    } catch {
-      if (attempt < 2) await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
     }
   }
-  allLighthouses.push(...wdLighthouses);
 
-  // Add curated Swiss lighthouses (always included, even for single-region fetches
-  // that cover Switzerland, i.e. eu_central)
-  const includeSwiss = !regionId || regionId === 'all' || regionId === 'eu_central';
-  if (includeSwiss) {
-    for (const sl of SWISS_LIGHTHOUSES) {
-      const key = `${sl.lat.toFixed(3)},${sl.lng.toFixed(3)}`;
-      if (!seen.has(key)) allLighthouses.push(sl);
-    }
+  // --- Curated Swiss lighthouses (always included) ---
+  for (const sl of SWISS_LIGHTHOUSES) {
+    const key = `${sl.lat.toFixed(3)},${sl.lng.toFixed(3)}`;
+    if (!seen.has(key)) allLighthouses.push(sl);
   }
 
   return allLighthouses;
@@ -587,7 +583,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   hbff: 'Flora-Fauna (WWFF)',
   wwbota: 'WWBOTA (Weltweit)',
   castle: 'Burgen/Schlösser (Weltweit)',
-  lighthouse: 'Leuchttürme',
+  lighthouse: 'Leuchttürme (ILLW wllw.org)',
   iota: 'IOTA (Weltweit)',
   repeater: 'Relais (RepeaterBook)',
 };

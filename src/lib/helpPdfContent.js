@@ -11,6 +11,7 @@ export const LINKS = {
   tota: "https://wwtota.com/seznam/?lang=de",
   iota: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html",
   arlhs: "https://wlol.arlhs.com/",
+  illw: "https://wllw.org/index.php/en/",
   geoAdmin: "https://map.geo.admin.ch/",
   bafu: "https://www.bafu.admin.ch/bafu/de/home/themen/biodiversitaet/infospezialist/biodiversitaet--daten--und-instrumente.html",
   bakom: "https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html",
@@ -55,7 +56,7 @@ export const MARKER_SYMBOLS = [
   { icon: "castle", shape: "castle", color: "#e67e22", name: "WCA/COTA", desc: "Burgen und Schlösser – Karte: Burg mit Zinnen" },
   { icon: "radioTower", shape: "tota", color: "#f97316", name: "TOTA", desc: "Towers on the Air – Aussichtstürme und Antennen weltweit (wwtota.com), in der Schweiz getrennt nach Antennen und Türmen – Karte: Aussichtsturm mit Antenne" },
   { icon: "diamond", shape: "iota", color: "#3498db", name: "IOTA", desc: "Inseln – Karte: Raute mit Welle" },
-  { icon: "anchor", shape: "lighthouse", color: "#f39c12", name: "WLOTA/ARLHS", desc: "Leuchttürme – Karte: Leuchtturm mit Licht" },
+  { icon: "anchor", shape: "lighthouse", color: "#dc2626", name: "WLOTA/ILLW", desc: "Leuchttürme – offizielle ILLW-Liste (wllw.org), rot eingefärbt – Karte: Leuchtturm mit Licht" },
   { icon: "hexagon", shape: "swiss_protected", color: "#16a085", name: "BLN – Natur Zonen (nur in CH)", desc: "Bundesinventare / Naturzonen – Karte: Sechseck mit Blatt" },
   { icon: "zap", shape: "hazards", color: "#dc2626", name: "Gefahren & Störquellen (nur in CH)", desc: "Hochspannungsleitungen, Mobilfunkantennen, Richtfunk, Radio/TV-Sender – Karte: Blitz" },
   { icon: "radioTower", shape: "repeater", color: "#3b82f6", name: "Amateurfunk-Relais", desc: "FM, C4FM, DMR, D-STAR Relais mit permanenten Verlinkungen, Radius-Filter und Notstrom-Info – Karte: Turm mit Blitzsymbol, farbig nach Modulation" },
@@ -316,7 +317,8 @@ export const SECTIONS = [
           { label: "WCA/COTA – Burgen und Schlösser", url: LINKS.wca },
           { label: "TOTA – Türme und Antennen", url: "https://wwtota.com/seznam/?lang=de" },
           { label: "IOTA – Inseln", url: LINKS.iota },
-          { label: "WLOTA/ARLHS – Leuchttürme", url: LINKS.arlhs },
+          { label: "WLOTA/ILLW – Leuchttürme (wllw.org)", url: LINKS.illw },
+          { label: "ARLHS WLOL – Leuchtturm-Verzeichnis", url: LINKS.arlhs },
           { label: "BLN – Natur Zonen (nur in CH)", url: LINKS.bafu },
           { label: "Gefahren & Störquellen (nur in CH)", url: LINKS.geoAdmin }
         ]

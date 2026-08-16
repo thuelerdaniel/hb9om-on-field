@@ -59,10 +59,10 @@ const LAYER_GROUPS = [
   },
   {
     id: "lighthouse",
-    label: "WLOTA/ARLHS – Leuchttürme",
+    label: "WLOTA – Leuchttürme (ILLW)",
     icon: Anchor,
-    color: "#f39c12",
-    description: "Leuchtturm-Referenzen"
+    color: "#dc2626",
+    description: "Leuchtturm-Referenzen — offizielle ILLW-Liste (wllw.org)"
   },
   {
     id: "swiss_protected",

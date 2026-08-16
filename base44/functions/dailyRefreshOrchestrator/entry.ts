@@ -13,7 +13,9 @@ const SOURCES = [
   { source: 'hbff', label: 'WWFF', function_name: 'refreshDataSource', function_payload: { source: 'hbff', scheduled: true }, order: 3 },
   { source: 'wwbota', label: 'WWBOTA', function_name: 'refreshDataSource', function_payload: { source: 'wwbota', scheduled: true }, order: 4 },
   { source: 'castle', label: 'Burgen/Schlösser', function_name: 'refreshDataSource', function_payload: { source: 'castle', scheduled: true }, order: 5 },
-  // Lighthouse: individual regions (sequential scraping to avoid Overpass timeouts)
+  // Lighthouse: ILLW official list (wllw.org) — single worldwide fetch.
+  // The ILLW list is the only OFFICIAL list of lighthouses/lightships, parsed
+  // from 3 HTML pages with coordinates extracted from Google Maps links.
   ...LIGHTHOUSE_REGIONS.map((r, i) => ({
     source: `lighthouse_${r.id}`,
     label: r.label,
@@ -21,6 +23,7 @@ const SOURCES = [
     function_payload: { region: r.id, scheduled: true },
     order: 60 + i,
   })),
+  { source: 'lighthouse_illw', label: 'Leuchttürme (ILLW wllw.org)', function_name: 'fetchLighthouses', function_payload: { region: 'all', scheduled: true }, order: 59 },
   { source: 'iota', label: 'IOTA', function_name: 'fetchIOTA', function_payload: { scheduled: true }, order: 7 },
   { source: 'aprs', label: 'APRS.fi', function_name: 'fetchAprsFi', function_payload: { scheduled: true }, order: 8 },
   // Repeater: individual regions (sequential scraping to avoid platform timeouts)

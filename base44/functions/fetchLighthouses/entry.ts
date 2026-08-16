@@ -37,11 +37,11 @@ Deno.serve(async (req) => {
     if (region === 'all') {
       // Full worldwide fetch — replace all data
       finalLighthouses = newLighthouses;
-      source = 'OSM Overpass (worldwide, 15 regions) + ARLHS WLOL (Swiss verified)';
+      source = 'ILLW official list (wllw.org) + ARLHS WLOL (Swiss verified)';
     } else {
       // Single region — merge with existing data
       const regionLabel = LIGHTHOUSE_REGIONS.find(r => r.id === region)?.label || region;
-      source = `OSM Overpass (${regionLabel}) + ARLHS WLOL (Swiss verified)`;
+      source = `ILLW (wllw.org) + ARLHS WLOL (Swiss verified)`;
 
       if (existing && existing.length > 0) {
         // Remove old entries from this region, keep entries from other regions
