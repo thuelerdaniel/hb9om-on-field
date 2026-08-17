@@ -967,18 +967,19 @@ export default function Home() {
         String(r.frequency || "").includes(q)
       );
     }
-    // Radius filter from user position
-    if (repeaterRadiusKm > 0 && currentPosition) {
+    // Radius filter from user position (use raw vars — currentPosition not yet defined here)
+    const pos = fixedPosition || userPosition;
+    if (repeaterRadiusKm > 0 && pos) {
       result = result.filter(r => {
         const R = 6371;
-        const dLat = (r.lat - currentPosition[0]) * Math.PI / 180;
-        const dLng = (r.lng - currentPosition[1]) * Math.PI / 180;
-        const a = Math.sin(dLat / 2) ** 2 + Math.cos(currentPosition[0] * Math.PI / 180) * Math.cos(r.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        const dLat = (r.lat - pos[0]) * Math.PI / 180;
+        const dLng = (r.lng - pos[1]) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(pos[0] * Math.PI / 180) * Math.cos(r.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= repeaterRadiusKm;
       });
     }
     return result;
-  }, [repeaters, repeaterFilterModes, repeaterExclusiveModes, repeaterFilterCountries, repeaterSearchQuery, activeContinents, activeCountries, repeaterRadiusKm, currentPosition]);
+  }, [repeaters, repeaterFilterModes, repeaterExclusiveModes, repeaterFilterCountries, repeaterSearchQuery, activeContinents, activeCountries, repeaterRadiusKm, fixedPosition, userPosition]);
 
   const visibleRepeaterCount = filteredRepeatersForExport.length;
 
