@@ -54,6 +54,8 @@ import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
 
 // Safe storage wrappers (prevent QuotaExceededError crashes)
 import { safeSetJSON, safeSetItem, safeGetItem, safeRemoveItem, cleanupLargeLocalStorageData } from "@/lib/safeStorage";
+import { isInContinents } from "@/lib/continents";
+import { isInCountries } from "@/lib/countries";
 
 // Other components
 import BottomNavigation from "@/components/BottomNavigation";
@@ -932,10 +934,18 @@ export default function Home() {
     return counts;
   }, [repeaters]);
 
-  // Filtered repeaters for display count + PDF export
+  // Filtered repeaters for display count + PDF export — must match RepeaterLayer filtering
   const filteredRepeatersForExport = useMemo(() => {
     let result = repeaters.filter(r => r.lat != null && r.lng != null);
-    if (repeaterFilterCountries.length > 0) {
+    // Per-layer country filter overrides global continent/country filter (same logic as RepeaterLayer)
+    if (repeaterFilterCountries.length === 0) {
+      if (activeContinents.length > 0) {
+        result = result.filter(r => isInContinents(r.lat, r.lng, activeContinents));
+      }
+      if (activeCountries.length > 0) {
+        result = result.filter(r => isInCountries({ ...r, layerType: 'repeater' }, activeCountries));
+      }
+    } else {
       result = result.filter(r => repeaterFilterCountries.includes(r.country_code));
     }
     if (repeaterFilterModes.length === 0) return [];
@@ -953,11 +963,22 @@ export default function Home() {
       result = result.filter(r =>
         (r.callsign || "").toLowerCase().includes(q) ||
         (r.location_name || "").toLowerCase().includes(q) ||
+        (r.country || "").toLowerCase().includes(q) ||
         String(r.frequency || "").includes(q)
       );
     }
+    // Radius filter from user position
+    if (repeaterRadiusKm > 0 && currentPosition) {
+      result = result.filter(r => {
+        const R = 6371;
+        const dLat = (r.lat - currentPosition[0]) * Math.PI / 180;
+        const dLng = (r.lng - currentPosition[1]) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(currentPosition[0] * Math.PI / 180) * Math.cos(r.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= repeaterRadiusKm;
+      });
+    }
     return result;
-  }, [repeaters, repeaterFilterModes, repeaterExclusiveModes, repeaterFilterCountries, repeaterSearchQuery]);
+  }, [repeaters, repeaterFilterModes, repeaterExclusiveModes, repeaterFilterCountries, repeaterSearchQuery, activeContinents, activeCountries, repeaterRadiusKm, currentPosition]);
 
   const visibleRepeaterCount = filteredRepeatersForExport.length;
 
