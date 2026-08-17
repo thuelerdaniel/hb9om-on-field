@@ -1,11 +1,15 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLink, Check, SlidersHorizontal } from "lucide-react";
+import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLink, Check, SlidersHorizontal, Download } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 export default function RepeaterFilter({
+  exclusiveModes,
+  onExclusiveModesChange,
+  modeCounts,
+  onExportPdf,
   filterModes,
   onFilterModesChange,
   searchQuery,
@@ -154,13 +158,27 @@ export default function RepeaterFilter({
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Modulationsart</h4>
-              <button
-                onClick={() => onFilterModesChange(allOn ? [] : [...FILTER_MODES])}
-                className="text-[10px] text-blue-600 hover:underline"
-              >
-                {allOn ? "Keine" : "Alle"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onExclusiveModesChange?.(!exclusiveModes)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${exclusiveModes ? "bg-purple-500 text-white" : "text-purple-600 hover:bg-purple-50"}`}
+                  title="Nur-Modus: zeigt nur Relais die ausschließlich die gewählten Modi haben"
+                >
+                  Nur
+                </button>
+                <button
+                  onClick={() => onFilterModesChange(allOn ? [] : [...FILTER_MODES])}
+                  className="text-[10px] text-blue-600 hover:underline"
+                >
+                  {allOn ? "Keine" : "Alle"}
+                </button>
+              </div>
             </div>
+            {exclusiveModes && (
+              <p className="text-[10px] text-purple-600 mb-1.5 font-medium">
+                Nur-Modus: Relais mit zusätzlichen Modi werden ausgeblendet
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-1">
               {FILTER_MODES.map(mode => {
                 const isActive = filterModes.includes(mode);
@@ -178,9 +196,12 @@ export default function RepeaterFilter({
                       className={`w-3 h-3 flex-shrink-0 border-2 border-white shadow ${isFeature ? "rounded-sm" : "rounded-full"}`}
                       style={{ backgroundColor: color }}
                     />
-                    <span className={`truncate ${isActive ? "text-gray-900 font-medium" : "text-gray-500"}`}>
+                    <span className={`flex-1 truncate ${isActive ? "text-gray-900 font-medium" : "text-gray-500"}`}>
                       {MODE_LABELS[mode]}
                     </span>
+                    {modeCounts && modeCounts[mode] != null && (
+                      <span className="text-[9px] text-gray-400 flex-shrink-0">{modeCounts[mode]}</span>
+                    )}
                   </button>
                 );
               })}
@@ -200,6 +221,14 @@ export default function RepeaterFilter({
                 <span className="text-blue-600 font-medium">{selectedCountries.length} Länder</span>
               )}
             </div>
+            <button
+              onClick={onExportPdf}
+              disabled={!onExportPdf || visibleCount === 0}
+              className="w-full mt-2 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              PDF herunterladen ({visibleCount})
+            </button>
           </div>
 
           {/* Advanced toggle */}

@@ -4,6 +4,7 @@ import { MapContainer, useMap, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
 import { FILTER_MODES } from "@/lib/repeaterModes";
+import { exportRepeatersPdf } from "@/lib/repeaterPdfExport";
 import { shouldShowHeavyLoadDialog, getRememberedDecision } from "@/components/map/HeavyLoadConfirmDialog";
 import { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed } from "@/components/map/VersionChangelogPopup";
 
@@ -340,6 +341,7 @@ export default function Home() {
   const [showRepeaterCoverage, setShowRepeaterCoverage] = useState(savedFilterState.showRepeaterCoverage || false);
   const [showOnlyLinked, setShowOnlyLinked] = useState(savedFilterState.showOnlyLinked || false);
   const [repeaterRadiusKm, setRepeaterRadiusKm] = useState(savedFilterState.repeaterRadiusKm || 0);
+  const [repeaterExclusiveModes, setRepeaterExclusiveModes] = useState(savedFilterState.repeaterExclusiveModes || false);
 
   // TOTA filters
   const [totaFilterTypes, setTotaFilterTypes] = useState(savedFilterState.totaFilterTypes ?? null);
@@ -375,6 +377,7 @@ export default function Home() {
     const filterState = {
       repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries,
       showRepeaterLinks, showRepeaterCoverage, showOnlyLinked, repeaterRadiusKm,
+      repeaterExclusiveModes,
       totaFilterTypes, totaSearchQuery, totaFilterCountries,
       aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
       bmFilterTypes, bmSearchQuery, bmFilterCountries,
@@ -388,6 +391,7 @@ export default function Home() {
     return () => { if (filterStateSaveRef.current) clearTimeout(filterStateSaveRef.current); };
   }, [repeaterFilterModes, repeaterSearchQuery, repeaterFilterCountries,
       showRepeaterLinks, showRepeaterCoverage, showOnlyLinked, repeaterRadiusKm,
+      repeaterExclusiveModes,
       totaFilterTypes, totaSearchQuery, totaFilterCountries,
       aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
       bmFilterTypes, bmSearchQuery, bmFilterCountries,
@@ -914,17 +918,48 @@ export default function Home() {
     return Object.values(counts).sort((a, b) => b.count - a.count);
   }, [data.tota]);
 
-  // Filtered repeater count for display
-  const visibleRepeaterCount = useMemo(() => {
-    let count = repeaters.filter(r => r.lat != null && r.lng != null);
+  // Mode counts — how many repeaters support each mode (for filter display)
+  const repeaterModeCounts = useMemo(() => {
+    const counts = {};
+    for (const mode of FILTER_MODES) counts[mode] = 0;
+    for (const r of repeaters) {
+      if (r.lat == null || r.lng == null) continue;
+      const modes = r.modes || [];
+      for (const mode of FILTER_MODES) {
+        if (modes.includes(mode)) counts[mode]++;
+      }
+    }
+    return counts;
+  }, [repeaters]);
+
+  // Filtered repeaters for display count + PDF export
+  const filteredRepeatersForExport = useMemo(() => {
+    let result = repeaters.filter(r => r.lat != null && r.lng != null);
     if (repeaterFilterCountries.length > 0) {
-      count = count.filter(r => repeaterFilterCountries.includes(r.country_code));
+      result = result.filter(r => repeaterFilterCountries.includes(r.country_code));
     }
-    if (repeaterFilterModes.length > 0) {
-      count = count.filter(r => repeaterFilterModes.some(m => r.modes?.includes(m)));
+    if (repeaterFilterModes.length === 0) return [];
+    if (repeaterExclusiveModes) {
+      result = result.filter(r => {
+        const modes = r.modes || [];
+        if (modes.length === 0) return r.primary_mode && repeaterFilterModes.includes(r.primary_mode);
+        return modes.every(m => repeaterFilterModes.includes(m));
+      });
+    } else {
+      result = result.filter(r => repeaterFilterModes.some(m => r.modes?.includes(m)));
     }
-    return count.length;
-  }, [repeaters, repeaterFilterCountries, repeaterFilterModes]);
+    if (repeaterSearchQuery.length >= 2) {
+      const q = repeaterSearchQuery.toLowerCase();
+      result = result.filter(r =>
+        (r.callsign || "").toLowerCase().includes(q) ||
+        (r.location_name || "").toLowerCase().includes(q) ||
+        String(r.frequency || "").includes(q)
+      );
+    }
+    return result;
+  }, [repeaters, repeaterFilterModes, repeaterExclusiveModes, repeaterFilterCountries, repeaterSearchQuery]);
+
+  const visibleRepeaterCount = filteredRepeatersForExport.length;
 
   // Visible TOTA count
   const visibleTotaCount = totaViewportCount.visible;
@@ -1062,6 +1097,7 @@ export default function Home() {
           <RepeaterLayer
             repeaters={repeaters}
             filterModes={repeaterFilterModes}
+            exclusiveModes={repeaterExclusiveModes}
             searchQuery={repeaterSearchQuery}
             showLinks={showRepeaterLinks}
             showCoverage={showRepeaterCoverage}
@@ -1273,6 +1309,16 @@ export default function Home() {
               key="repeater-filter"
               filterModes={repeaterFilterModes}
               onFilterModesChange={setRepeaterFilterModes}
+              exclusiveModes={repeaterExclusiveModes}
+              onExclusiveModesChange={setRepeaterExclusiveModes}
+              modeCounts={repeaterModeCounts}
+              onExportPdf={() => exportRepeatersPdf(filteredRepeatersForExport, {
+                modes: repeaterFilterModes,
+                exclusive: repeaterExclusiveModes,
+                countries: repeaterFilterCountries,
+                search: repeaterSearchQuery,
+                radiusKm: repeaterRadiusKm,
+              })}
               searchQuery={repeaterSearchQuery}
               onSearchQueryChange={setRepeaterSearchQuery}
               showLinks={showRepeaterLinks}

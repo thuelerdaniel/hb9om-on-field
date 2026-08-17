@@ -61,7 +61,7 @@ const LINE_DASH_ARRAYS = {
   dotted: "3 6",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
+function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
   const map = useMap();
 
   // Build a map of linkKey → Set of sources ('repeaterbook', 'uska', 'admin').
@@ -124,7 +124,17 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
     if (!filterModes || filterModes.length === 0) {
       return [];
     }
-    result = result.filter(r => filterModes.some(m => repeaterMatchesMode(r, m)));
+    if (exclusiveModes) {
+      result = result.filter(r => {
+        const modes = r.modes || [];
+        if (modes.length === 0) {
+          return r.primary_mode && filterModes.includes(r.primary_mode);
+        }
+        return modes.every(m => filterModes.includes(m));
+      });
+    } else {
+      result = result.filter(r => filterModes.some(m => repeaterMatchesMode(r, m)));
+    }
     if (searchQuery && searchQuery.length >= 2) {
       const q = searchQuery.toLowerCase();
       result = result.filter(r =>
@@ -192,7 +202,7 @@ function RepeaterLayerInner({ repeaters, filterModes, searchQuery, showLinks, sh
       result = result.filter(r => linkedIds.has(r.id));
     }
     return result;
-  }, [repeaters, filterModes, searchQuery, filterCountries, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks, isLinkDisplayable]);
+  }, [repeaters, filterModes, exclusiveModes, searchQuery, filterCountries, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks, isLinkDisplayable]);
 
   // Build callsign→repeaters map from ALL repeaters (not just filtered) so link lines
   // connect to targets even when the target is filtered out by mode/country/etc.
@@ -610,6 +620,7 @@ function arePropsEqual(prev, next) {
   return (
     prev.repeaters === next.repeaters &&
     prev.filterModes === next.filterModes &&
+    prev.exclusiveModes === next.exclusiveModes &&
     prev.searchQuery === next.searchQuery &&
     prev.showLinks === next.showLinks &&
     prev.showCoverage === next.showCoverage &&

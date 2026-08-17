@@ -12,6 +12,9 @@ export const MODE_COLORS = {
   "WIRES-X": "#f59e0b", // amber (feature, not primary)
   AllStar: "#8b5cf6",   // violet (feature)
   IRLP: "#0ea5e9",      // sky (feature)
+  AX25: "#0d9488",    // teal (Packet Radio)
+  ATV: "#e11d48",      // rose (Amateur TV)
+  TETRA: "#4338ca",    // indigo-dark (TETRA)
   Other: "#6b7280",     // gray
 };
 
@@ -27,13 +30,27 @@ export const MODE_LABELS = {
   "WIRES-X": "WIRES-X",
   AllStar: "AllStar",
   IRLP: "IRLP",
+  AX25: "AX25/Packet",
+  ATV: "ATV",
+  TETRA: "TETRA",
   Other: "Weitere",
 };
 
 // All modes that can be filtered.
 // FEATURE_MODES are filtered by checking the modes array (not primary_mode).
 export const FEATURE_MODES = ["EchoLink", "AllStar", "IRLP", "WIRES-X"];
-export const FILTER_MODES = ["FM", "Fusion", "DMR", "D-STAR", "P-25", "NXDN", "M17", "EchoLink"];
+export const FILTER_MODES = ["FM", "Fusion", "DMR", "D-STAR", "P-25", "NXDN", "M17", "EchoLink", "WIRES-X", "AllStar", "AX25", "ATV", "TETRA"];
+
+// Exclusive mode filter: repeater's modes must be a SUBSET of selectedModes.
+// "Nur DMR" → only repeaters that have DMR and nothing else.
+export function repeaterMatchesModeExclusive(repeater, selectedModes) {
+  if (!selectedModes || selectedModes.length === 0) return false;
+  const modes = repeater.modes || [];
+  if (modes.length > 0) {
+    return modes.every(m => selectedModes.includes(m));
+  }
+  return repeater.primary_mode && selectedModes.includes(repeater.primary_mode);
+}
 
 // Returns true if a repeater supports a given filter mode.
 // ALL modes (primary and feature) are checked against the modes array — a repeater
