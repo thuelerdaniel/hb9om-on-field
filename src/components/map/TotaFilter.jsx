@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { RadioTower, Signal, ChevronDown, X, Search, Info } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
+import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 
 const TOTA_TYPES = [
   { id: "tower", label: "Türme / Aussichtstürme", icon: RadioTower, color: "#f97316" },
@@ -26,13 +27,13 @@ export default function TotaFilter({
   defaultOpen = true,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
-    const saved = localStorage.getItem("hb9om_filter_open_tota");
+    const saved = safeGetItem("hb9om_filter_open_tota");
     if (saved !== null) return saved === "true";
     return defaultOpen;
   });
   const { containerRef } = useDraggablePosition("drag-tota-filter");
 
-  useEffect(() => { localStorage.setItem("hb9om_filter_open_tota", String(isOpen)); }, [isOpen]);
+  useEffect(() => { safeSetItem("hb9om_filter_open_tota", String(isOpen)); }, [isOpen]);
 
   const allOn = !filterTypes || filterTypes.length === TOTA_TYPE_IDS.length;
   const noneOn = filterTypes && filterTypes.length === 0;

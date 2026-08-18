@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Network, Search, ChevronDown, X, Hash, Radio, Zap } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
+import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 
 // BrandMeister DMR node types — simpler than APRS since BrandMeister is a DMR network
 // (repeaters and hotspots), not a positioning system with diverse station types.
@@ -27,13 +28,13 @@ export default function BrandMeisterFilter({
   defaultOpen = true,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
-    const saved = localStorage.getItem("hb9om_filter_open_brandmeister");
+    const saved = safeGetItem("hb9om_filter_open_brandmeister");
     if (saved !== null) return saved === "true";
     return defaultOpen;
   });
   const { containerRef } = useDraggablePosition("drag-bm-filter");
 
-  useEffect(() => { localStorage.setItem("hb9om_filter_open_brandmeister", String(isOpen)); }, [isOpen]);
+  useEffect(() => { safeSetItem("hb9om_filter_open_brandmeister", String(isOpen)); }, [isOpen]);
 
   // null or all = no filter (show everything); array = filter by selected types
   const allOn = !filterTypes || filterTypes.length === BM_TYPE_IDS.length;

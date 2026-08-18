@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Anchor, ChevronDown, X, Search, Info, Radio } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
+import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 
 export default function LighthouseFilter({
   searchQuery,
@@ -21,14 +22,14 @@ export default function LighthouseFilter({
   illwActiveCount = 0,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
-    const saved = localStorage.getItem("hb9om_filter_open_lighthouse");
+    const saved = safeGetItem("hb9om_filter_open_lighthouse");
     if (saved !== null) return saved === "true";
     return defaultOpen;
   });
   const { containerRef } = useDraggablePosition("drag-lighthouse-filter");
 
   useEffect(() => {
-    localStorage.setItem("hb9om_filter_open_lighthouse", String(isOpen));
+    safeSetItem("hb9om_filter_open_lighthouse", String(isOpen));
   }, [isOpen]);
 
   // Build country list from lighthouse points

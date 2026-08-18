@@ -116,6 +116,7 @@ const LARGE_DATA_KEY_PREFIXES = [
   "hb9om_refs_",          // per-type and per-country reference data
   "hb9om_offline_refs",  // legacy combined cache
   "hb9om_offline_qrz",   // QRZ lookups
+  "hb9om_log_cache",     // local QSO log cache (can grow large)
 ];
 
 // Keys that are small metadata and should be kept in localStorage.
@@ -127,14 +128,75 @@ const SMALL_METADATA_PREFIXES = [
   "hb9om_offline_countries",
 ];
 
+// Essential UI-state keys that must survive cleanup (small, critical for UX).
+const ESSENTIAL_KEYS = new Set([
+  "hb9om_filter_state",
+  "hb9om_map_state",
+  "hb9om_active_layers",
+  "hb9om_base_layer",
+  "hb9om_my_callsign",
+  "hb9om_setup_complete",
+  "hb9om_performance_mode",
+]);
+
+// Threshold: values larger than this are considered "too large" for localStorage.
+const MAX_SAFE_VALUE_BYTES = 2 * 1024 * 1024; // 2 MB
+
+// Extract only the essential UI filter fields from a full filter state object.
+// Used as a fallback when the full filter state is too large to store.
+// NEVER includes data arrays (repeaters, SOTA points, etc.) — only UI selection state.
+export function extractMinimalFilterState(fullState) {
+  if (!fullState || typeof fullState !== "object") return {};
+  return {
+    repeaterFilterModes: Array.isArray(fullState.repeaterFilterModes) ? fullState.repeaterFilterModes : [],
+    repeaterSearchQuery: fullState.repeaterSearchQuery || "",
+    repeaterFilterCountries: Array.isArray(fullState.repeaterFilterCountries) ? fullState.repeaterFilterCountries : [],
+    showRepeaterLinks: !!fullState.showRepeaterLinks,
+    showRepeaterCoverage: !!fullState.showRepeaterCoverage,
+    showOnlyLinked: !!fullState.showOnlyLinked,
+    repeaterRadiusKm: fullState.repeaterRadiusKm || 0,
+    repeaterExclusiveModes: !!fullState.repeaterExclusiveModes,
+    totaFilterTypes: fullState.totaFilterTypes ?? null,
+    totaSearchQuery: fullState.totaSearchQuery || "",
+    totaFilterCountries: Array.isArray(fullState.totaFilterCountries) ? fullState.totaFilterCountries : [],
+    aprsFilterTypes: fullState.aprsFilterTypes ?? null,
+    aprsSearchQuery: fullState.aprsSearchQuery || "",
+    aprsFilterCountries: Array.isArray(fullState.aprsFilterCountries) ? fullState.aprsFilterCountries : [],
+    bmFilterTypes: fullState.bmFilterTypes ?? null,
+    bmSearchQuery: fullState.bmSearchQuery || "",
+    bmFilterCountries: Array.isArray(fullState.bmFilterCountries) ? fullState.bmFilterCountries : [],
+    lighthouseSearchQuery: fullState.lighthouseSearchQuery || "",
+    lighthouseFilterCountries: Array.isArray(fullState.lighthouseFilterCountries) ? fullState.lighthouseFilterCountries : [],
+    onlyIllwActive: !!fullState.onlyIllwActive,
+    illwYear: fullState.illwYear || null,
+    timestamp: Date.now(),
+  };
+}
+
 // Check if a key stores large data (should be in IndexedDB, not localStorage)
 function isLargeDataKey(key) {
   return LARGE_DATA_KEY_PREFIXES.some(p => key.startsWith(p));
 }
 
 // Try to set a localStorage item. If QuotaExceededError, run cleanup and retry.
-// Returns true on success, false on failure (app never crashes).
+// For the filter_state key, falls back to a minimal extracted version if the
+// full value is too large. NEVER crashes the app.
+// Returns true on success, false on failure.
 export function safeSetItem(key, value) {
+  // Pre-check: if the value is a string and exceeds the safe threshold, and this
+  // is the filter_state key, extract minimal state before attempting the write.
+  if (key === "hb9om_filter_state" && typeof value === "string" && value.length > MAX_SAFE_VALUE_BYTES) {
+    try {
+      const parsed = JSON.parse(value);
+      const minimal = extractMinimalFilterState(parsed);
+      value = JSON.stringify(minimal);
+      console.warn("[safeStorage] filter_state too large, saved minimal version only");
+    } catch {
+      // If parsing fails, save an empty filter state rather than crashing
+      value = JSON.stringify(extractMinimalFilterState({}));
+    }
+  }
+
   try {
     localStorage.setItem(key, value);
     return true;
@@ -145,7 +207,22 @@ export function safeSetItem(key, value) {
       try {
         localStorage.setItem(key, value);
         return true;
-      } catch {
+      } catch (e2) {
+        // Still failing — for filter_state, try minimal version as last resort
+        if (key === "hb9om_filter_state") {
+          try {
+            const minimal = extractMinimalFilterState(
+              typeof value === "string" ? JSON.parse(value) : {}
+            );
+            localStorage.setItem(key, JSON.stringify(minimal));
+            console.warn("[safeStorage] filter_state saved as minimal fallback after quota error");
+            return true;
+          } catch {
+            console.warn("[safeStorage] Storage quota exceeded even after cleanup, skipping save");
+            return false;
+          }
+        }
+        console.warn("[safeStorage] Storage quota exceeded even after cleanup, skipping save");
         return false;
       }
     }
@@ -163,11 +240,22 @@ export function safeGetItem(key) {
 }
 
 // Safe JSON set with size check. Serializes, checks size, uses safeSetItem.
+// For filter_state, falls back to minimal extraction if the full state exceeds
+// the size limit or if quota is exceeded.
 // Returns true on success, false if too large or quota exceeded.
 export function safeSetJSON(key, value, maxSizeBytes = 50000) {
   try {
     const serialized = JSON.stringify(value);
     if (serialized.length > maxSizeBytes) {
+      // For filter_state, try saving a minimal version instead of skipping entirely
+      if (key === "hb9om_filter_state") {
+        const minimal = extractMinimalFilterState(value);
+        const minimalSerialized = JSON.stringify(minimal);
+        if (minimalSerialized.length <= maxSizeBytes) {
+          console.warn(`[safeStorage] ${key} too large (${(serialized.length / 1024).toFixed(1)} KB), saved minimal version`);
+          return safeSetItem(key, minimalSerialized);
+        }
+      }
       console.warn(`[safeStorage] ${key} too large: ${(serialized.length / 1024).toFixed(1)} KB (max ${(maxSizeBytes / 1024).toFixed(0)} KB) — not saved`);
       return false;
     }
@@ -219,6 +307,29 @@ export function cleanupLargeLocalStorageData() {
         freed += (key.length + value.length) * 2;
         keysToRemove.push(key);
       }
+    }
+    for (const key of keysToRemove) {
+      try { localStorage.removeItem(key); } catch {}
+    }
+  } catch {}
+  return freed;
+}
+
+// Aggressive cleanup: remove ALL non-essential hb9om_ keys from localStorage.
+// Essential keys (filter_state, map_state, active_layers, etc.) are preserved.
+// Used as a last-resort when QuotaExceededError persists after cleanupLargeLocalStorageData.
+// Returns the number of bytes freed.
+export function cleanupOldStorage() {
+  let freed = 0;
+  try {
+    const keysToRemove = [];
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith("hb9om_")) continue;
+      if (ESSENTIAL_KEYS.has(key)) continue;
+      const value = localStorage.getItem(key) || "";
+      freed += (key.length + value.length) * 2;
+      keysToRemove.push(key);
     }
     for (const key of keysToRemove) {
       try { localStorage.removeItem(key); } catch {}

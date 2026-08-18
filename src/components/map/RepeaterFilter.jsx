@@ -4,6 +4,7 @@ import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/rep
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
+import { safeSetItem } from "@/lib/safeStorage";
 
 export default function RepeaterFilter({
   exclusiveModes,
@@ -40,7 +41,7 @@ export default function RepeaterFilter({
   const [showCountryPanel, setShowCountryPanel] = useState(false);
   const { containerRef } = useDraggablePosition("drag-repeater-filter");
 
-  useEffect(() => { localStorage.setItem("hb9om_filter_open_repeater", String(isOpen)); }, [isOpen]);
+  useEffect(() => { safeSetItem("hb9om_filter_open_repeater", String(isOpen)); }, [isOpen]);
 
   const toggleMode = (mode) => {
     if (filterModes.includes(mode)) {

@@ -4,6 +4,7 @@ import { NODE_TYPE_LABELS, NODE_COLORS } from "@/components/map/PrivateNodeLayer
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
+import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 
 const ALL_TYPES = Object.keys(NODE_TYPE_LABELS);
 
@@ -21,13 +22,13 @@ export default function AprsFilter({
   defaultOpen = true,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
-    const saved = localStorage.getItem("hb9om_filter_open_aprs");
+    const saved = safeGetItem("hb9om_filter_open_aprs");
     if (saved !== null) return saved === "true";
     return defaultOpen;
   });
   const { containerRef } = useDraggablePosition("drag-aprs-filter");
 
-  useEffect(() => { localStorage.setItem("hb9om_filter_open_aprs", String(isOpen)); }, [isOpen]);
+  useEffect(() => { safeSetItem("hb9om_filter_open_aprs", String(isOpen)); }, [isOpen]);
 
   // null or all = no filter (show everything); array = filter by selected types
   const allOn = !filterTypes || filterTypes.length === ALL_TYPES.length;

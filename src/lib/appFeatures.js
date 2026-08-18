@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { safeSetItem } from "@/lib/safeStorage";
 
 // Map: Feature-Key → LayerControl Group-ID (null = nur Sync-Quelle, kein Karten-Layer)
 export const LAYER_KEY_MAP = {
@@ -124,7 +125,7 @@ export function loadFeatures() {
 let saveTimer = null;
 
 export function saveFeatures(features) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(features));
+  safeSetItem(STORAGE_KEY, JSON.stringify(features));
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: features }));
   // Debounce User-Entity save (500ms)
   if (saveTimer) clearTimeout(saveTimer);
@@ -151,7 +152,7 @@ export async function syncFeaturesFromUser() {
         offline: { ...DEFAULT_FEATURES.offline, ...me.app_features.offline },
         advanced: { ...DEFAULT_FEATURES.advanced, ...me.app_features.advanced },
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      safeSetItem(STORAGE_KEY, JSON.stringify(merged));
       window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: merged }));
       return merged;
     }
