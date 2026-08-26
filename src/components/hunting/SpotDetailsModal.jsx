@@ -121,13 +121,19 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             Quelle: {spot?.source || '—'} · Spotter: {spot?.spotter || '—'}
           </div>
 
-          {/* Comments */}
-          {spot?.comments?.length > 0 && (
-            <div className="bg-background rounded-lg p-2 border border-border">
-              <div className="text-[9px] text-muted-foreground uppercase mb-1">Kommentare</div>
-              {spot.comments.map((c, i) => <div key={i} className="text-xs text-foreground">{c}</div>)}
-            </div>
-          )}
+          {/* Comments — DxSpot: array, ActivitySpot: string */}
+          {(() => {
+            const commentList = Array.isArray(spot?.comments)
+              ? spot.comments
+              : (spot?.comments ? [spot.comments] : []);
+            if (commentList.length === 0) return null;
+            return (
+              <div className="bg-background rounded-lg p-2 border border-border">
+                <div className="text-[9px] text-muted-foreground uppercase mb-1">Kommentare</div>
+                {commentList.map((c, i) => <div key={i} className="text-xs text-foreground">{c}</div>)}
+              </div>
+            );
+          })()}
 
           {/* QRZ Info */}
           {qrzLoading && <div className="text-xs text-muted-foreground">QRZ-Lookup…</div>}
