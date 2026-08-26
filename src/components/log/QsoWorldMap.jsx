@@ -5,6 +5,16 @@ import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
 
 // 2D Weltkarte mit Leaflet — zeigt alle QSO-Positionen als Punkte mit Linien zur eigenen Position.
 
+function MapResize() {
+  const map = useMap();
+  useEffect(() => {
+    // invalidateSize muss beim Mount immer laufen — auch wenn keine bounds vorhanden
+    const timer = setTimeout(() => map.invalidateSize(), 100);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+}
+
 function AutoFit({ bounds }) {
   const map = useMap();
   const done = useRef(false);
@@ -50,16 +60,19 @@ export default function QsoWorldMap({ entries }) {
       center={[20, 0]}
       zoom={2}
       className="w-full h-full"
+      zoomControl={true}
       scrollWheelZoom={true}
       touchZoom={true}
+      doubleClickZoom={true}
       dragging={true}
       minZoom={2}
       maxZoom={10}
       zoomSnap={1}
       zoomDelta={1}
       worldCopyJump={true}
-      style={{ background: '#0a1929' }}
+      style={{ height: '100%', width: '100%', background: '#0a1929' }}
     >
+      <MapResize />
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
       {qsoData.lines.map((line, i) => (
         <Polyline key={`line-${i}`} positions={[[line.from.lat, line.from.lon], [line.to.lat, line.to.lon]]} pathOptions={{ color: '#00e5ff', weight: 1, opacity: 0.3 }} />
