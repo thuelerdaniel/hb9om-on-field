@@ -1199,6 +1199,170 @@ export const SECTIONS = [
         tip: "Tipp: Admins koennen die weltweite Aktualisierung im Admin-Panel ausloesen."
       }
     ]
+  },
+  {
+    title: "HUNTING (DX-SPOTS & FUCHSJAGD)",
+    shortTitle: "Hunting",
+    color: [255, 152, 0],
+    letter: "H",
+    description: "Die Hunting-Seite zeigt Live DX-Spots, ein Propagation-Dashboard, Fox Hunting mit Peilung und Triangulation sowie direktes QSO-Logging im dunklen SHACK-SERVER-Stil.",
+    items: [
+      {
+        title: "Hunting-Seite oeffnen",
+        body: "Auf der Karte oben in der Mitte finden Sie den Fox/Hunting-Schalter (orange hervorgehoben). Tippen Sie auf Hunting, um die Hunting-Seite zu oeffnen. Die Seite zeigt DX-Spots, Propagation, Fox Hunting und QSO-Logging im dunklen SHACK-SERVER-Stil.",
+        steps: [
+          { icon: "crosshair", text: "Fox/Hunting-Schalter oben Mitte auf der Karte" },
+          { icon: "crosshair", text: "Hunting tippen → Hunting-Seite oeffnet sich" },
+          { icon: "radio", text: "Seite zeigt Command Strip, Propagation, Fox Hunt, Live Spots" }
+        ],
+        tip: "Tipp: Der Schalter ist orange umrandet und immer sichtbar oben in der Mitte der Karte."
+      },
+      {
+        title: "Command Strip (Uebersicht)",
+        body: "Oben auf der Hunting-Seite sehen Sie vier Kaestchen: 1) DX Opportunity — der weiteste DX-Spot mit Rufzeichen und Distanz. 2) Best Band — das aktuell beste Band laut Propagation. 3) Station Ready — Ihr Rufzeichen und Locator. 4) Opportunities — Anzahl Spots und bereits gearbeitete Stationen.",
+        steps: [
+          { icon: "crosshair", text: "DX Opportunity: weitester Spot mit Call und Distanz" },
+          { icon: "barChart3", text: "Best Band: aktuell bestes Band (z.B. 30m Excellent)" },
+          { icon: "user", text: "Station Ready: Ihr Rufzeichen und Locator" },
+          { icon: "bell", text: "Opportunities: Anzahl Spots und gearbeitete Stationen" }
+        ]
+      },
+      {
+        title: "Propagation Bar (Ausbreitungsbedingungen)",
+        body: "Die Propagation Bar zeigt Solar Flux, A-Index, K-Index, MUF und einen SVG-Balken-Graph fuer alle Bander (80m bis 6m). Die Balken sind farbcodiert: gruen = Excellent, gelb = Good, orange = Fair, rot = Poor. Die Daten stammen von NOAA SWPC und werden alle 5 Minuten automatisch aktualisiert.",
+        steps: [
+          { icon: "sun", text: "Solar Flux (F10.7) von NOAA SWPC" },
+          { icon: "barChart3", text: "Balken-Graph: 80m bis 6m, farbig nach Score" },
+          { icon: "clock", text: "Auto-Refresh alle 5 Minuten" },
+          { icon: "radio", text: "Best Band wird automatisch berechnet" }
+        ],
+        tip: "Tipp: Solar Flux 101, K-Index 2 → 30m zeigt gruenen Balken (Excellent), 10m zeigt roten Balken (Poor)."
+      },
+      {
+        title: "Fox Hunting (Fuchsjagd starten)",
+        body: "Tippen Sie auf den grossen gruenen Button FOX HUNTING, um das Fox-Hunt-Modal zu oeffnen. Dort erfassen Sie Peilungen: Peilrichtung (Azimuth 0-360 Grad) per Slider, Feldstaerke (S1-S9) per Slider, optionale Frequenz und Notiz. Beim Speichern wird die geschaetzte Distanz aus der Feldstaerke berechnet (S9=1km, S8=2km, S7=5km, S6=10km, S5=20km, S4=50km, S3=100km, S2=200km, S1=500km) und ein Ziel-Punkt auf der Karte markiert.",
+        steps: [
+          { icon: "crosshair", text: "Grossen gruenen FOX HUNTING Button tippen" },
+          { icon: "navigation", text: "Peilrichtung (Azimuth 0-360 Grad) per Slider einstellen" },
+          { icon: "signal", text: "Feldstaerke (S1-S9) per Slider einstellen" },
+          { icon: "pencil", text: "Optionale Frequenz und Notiz eingeben" },
+          { icon: "save", text: "Peilung speichern → Ziel-Punkt wird berechnet" }
+        ],
+        tip: "Tipp: S9 = 1 km, S7 = 5 km, S5 = 20 km, S1 = 500 km geschaetzte Distanz."
+      },
+      {
+        title: "Fox Hunting: GPS-Position",
+        body: "Die Fox-Hunt-Peilungen verwenden Ihre aktuelle GPS-Position als Standort (QTH), nicht den festen Station-Locator. So werden Peilungen und die Triangulation korrekt von Ihrem aktuellen Standort im Feld berechnet. Wenn keine GPS-Position verfuegbar ist, wird der Station-Locator (z.B. JN36FL) als Fallback verwendet. Im Modal sehen Sie oben, welche Position verwendet wird.",
+        steps: [
+          { icon: "locateFixed", text: "GPS-Position wird beim Oeffnen der Hunting-Seite abgerufen" },
+          { icon: "mapPin", text: "Peilungen starten von GPS-Position (falls verfuegbar)" },
+          { icon: "mapPin", text: "Fallback: Station-Locator JN36FL" },
+          { icon: "eye", text: "Modal zeigt oben: GPS oder Station als Positionsquelle" }
+        ],
+        tip: "Tipp: Im Feld mit GPS → Peilungen von Ihrer GPS-Position. Ohne GPS → Peilungen vom Station-Locator."
+      },
+      {
+        title: "Fox Hunting: Karte & Triangulation",
+        body: "Tippen Sie im Fox-Hunt-Modal auf Karte, um eine Leaflet-Karte mit QTH-Marker, Peillinien (gruen gestrichelt) und einem Fuchs-Marker am Schnittpunkt aller Peilungen zu sehen. Bei mehreren Peilungen von verschiedenen Positionen wird der Fuchs-Standort durch Triangulation geschaetzt. Die Karte zoomt automatisch, um alle Peilungen zu zeigen.",
+        steps: [
+          { icon: "mapPin", text: "Karte-Button im Fox-Hunt-Modal tippen" },
+          { icon: "mapPin", text: "QTH-Marker (Haus) + Peillinien (gruen gestrichelt)" },
+          { icon: "crosshair", text: "Fuchs-Marker am Schnittpunkt aller Peilungen" },
+          { icon: "mapPin", text: "Karte zoomt automatisch auf alle Peilungen" }
+        ],
+        tip: "Tipp: 3 Peilungen aus verschiedenen Richtungen → Fuchs-Marker am Schnittpunkt → Karte zoomt automatisch."
+      },
+      {
+        title: "Fox Hunting: Verlauf",
+        body: "Tippen Sie auf Verlauf, um alle gespeicherten Peilungen als Liste zu sehen. Jede Peilung zeigt Feldstaerke, Azimuth, optionale Frequenz und Notiz, sowie die Uhrzeit. Peilungen koennen einzeln geloescht werden.",
+        steps: [
+          { icon: "clock", text: "Verlauf-Button im Fox-Hunt-Modal tippen" },
+          { icon: "list", text: "Alle Peilungen als Liste mit S-Wert, Azimuth, Notiz" },
+          { icon: "trash2", text: "Muellheimer-Icon zum Loeschen einzelner Peilungen" }
+        ]
+      },
+      {
+        title: "Live Spot Activity (DX-Spots)",
+        body: "Die Live Spot Activity Tabelle zeigt die aktuellsten DX-Spots (max. 50) mit Filtern: Suche, Band, Mode, Land, Quelle und Confidence. Auf dem Handy werden nur die wichtigsten Spalten angezeigt (Call, Freq, Mode, Age, Actions) — weitere Spalten erscheinen auf groesseren Bildschirmen. Die Spots werden alle 30 Sekunden automatisch aktualisiert.",
+        steps: [
+          { icon: "search", text: "Suche nach Call oder Land eingeben" },
+          { icon: "filter", text: "Filter: Band, Mode, Quelle, Confidence" },
+          { icon: "list", text: "Tabelle zeigt Call, Freq, Mode, Age, Actions (mobile)" },
+          { icon: "clock", text: "Auto-Refresh alle 30 Sekunden" }
+        ],
+        tip: "Tipp: Auf dem Handy werden nur 5 Spalten angezeigt (Call, Freq, Mode, Age, Actions) — kein horizontales Scrollen noetig."
+      },
+      {
+        title: "Worked-Status (farbiger Punkt)",
+        body: "Jeder Spot hat einen farbigen Punkt vor dem Rufzeichen: gruen = Station auf diesem Band bereits gearbeitet, blau = Land auf diesem Band gearbeitet, gelb = Station gearbeitet (anderes Band), grau = neue Station. Der Worked-Status wird aus Ihrem Logbuch extrahiert.",
+        steps: [
+          { icon: "check", text: "Gruen: Station auf diesem Band gearbeitet" },
+          { icon: "globe", text: "Blau: Land auf diesem Band gearbeitet" },
+          { icon: "user", text: "Gelb: Station auf anderem Band gearbeitet" },
+          { icon: "radio", text: "Grau: neue Station (noch nicht gearbeitet)" }
+        ]
+      },
+      {
+        title: "Spot Details",
+        body: "Tippen Sie auf das Augen-Icon in der Tabelle, um die Spot-Details zu sehen: Rufzeichen, Frequenz, Band, Mode, Distanz, Azimuth, Locator, Confidence, Kommentare und Quelle. Die Detailansicht zeigt auch eine Leaflet-Karte mit QTH und DX-Marker sowie eine Peillinie. Bei SOTA/POTA-Aktivitaeten wird ein Badge angezeigt.",
+        steps: [
+          { icon: "eye", text: "Augen-Icon in der Spot-Tabelle tippen" },
+          { icon: "list", text: "Details: Call, Freq, Band, Mode, Distanz, Azimuth" },
+          { icon: "mapPin", text: "Leaflet-Karte mit QTH + DX-Marker + Peillinie" },
+          { icon: "pencil", text: "QSO loggen-Button zum direkten Loggen aus dem Spot" }
+        ]
+      },
+      {
+        title: "QSO loggen (prominenter Button)",
+        body: "Der grosse gruene Button QSO loggen unten rechts auf der Hunting-Seite oeffnet das QSO-Logbuch-Formular. Alternativ koennen Sie das Stift-Icon in der Spot-Tabelle tippen, um ein QSO direkt aus einem Spot vorzufuellen. Das Formular fuellt automatisch Rufzeichen, Frequenz, Band und Mode aus dem Spot. QRZ-Lookup liefert den Operator-Namen. Clubstation-Modus und SOTA/POTA-Referenzen werden unterstuetzt.",
+        steps: [
+          { icon: "plus", text: "Grossen gruene QSO loggen Button unten rechts tippen" },
+          { icon: "pencil", text: "Rufzeichen, Frequenz, Band, Mode eingeben" },
+          { icon: "search", text: "QRZ-Lookup fuellt Operator-Name automatisch" },
+          { icon: "building", text: "Clubstation-Modus optional aktivierbar" },
+          { icon: "save", text: "Speichern → QSO wird im Logbuch gespeichert" }
+        ],
+        tip: "Tipp: Aus einem Spot: Stift-Icon in der Tabelle tippen → Formular ist vorausgefuellt."
+      },
+      {
+        title: "Priority DX (Top 5)",
+        body: "Die Priority DX Sektion zeigt die 5 weitesten DX-Spots nach Distanz sortiert: Flagge, Rufzeichen, Frequenz + Mode, Distanz + Azimuth. Tippen Sie auf einen Eintrag, um die Spot-Details zu oeffnen.",
+        steps: [
+          { icon: "crosshair", text: "Priority DX Sektion zeigt Top 5 nach Distanz" },
+          { icon: "globe", text: "Flagge + Rufzeichen + Freq/Mode + Distanz/Az" },
+          { icon: "eye", text: "Eintrag tippen → Spot-Details oeffnen" }
+        ]
+      },
+      {
+        title: "QRZ-Lookup",
+        body: "Tippen Sie auf ein Rufzeichen in der Spot-Tabelle, um einen QRZ-Lookup durchzufuehren. Das Modal zeigt Name, Adresse, Land, Grid-Locator und E-Mail des Operators (von QRZ.com). Die Daten werden zwischengespeichert fuer schnellere zukuenftige Abfragen.",
+        steps: [
+          { icon: "search", text: "Rufzeichen in der Spot-Tabelle tippen" },
+          { icon: "user", text: "QRZ-Lookup zeigt Name, Adresse, Land, Grid" },
+          { icon: "mail", text: "E-Mail wird angezeigt (falls verfuegbar)" }
+        ]
+      },
+      {
+        title: "Datenquellen & Automation",
+        body: "DX-Spots stammen von dxc.jo30.de (DXCluster, primaer) oder DX Summit (Fallback). Propagation-Daten stammen von NOAA SWPC (Solar Flux F10.7, planetaerer K-Index). Eine Automation ruft alle 5 Minuten automatisch neue Spots und Propagation-Daten ab. Distanz und Azimuth werden aus dem Station-Locator (JN36FL) und dem DX-Locator berechnet. Confidence: Basis 50, +20 Spotter, +10 Locator, +10 Land, +10 Aktivitaet (max 100).",
+        steps: [
+          { icon: "radio", text: "DX-Spots von dxc.jo30.de (primaer) oder DX Summit (Fallback)" },
+          { icon: "sun", text: "Propagation von NOAA SWPC (Solar Flux, K-Index)" },
+          { icon: "clock", text: "Automation alle 5 Minuten: Spots + Propagation" },
+          { icon: "navigation", text: "Distanz/Azimuth aus Station-Locator + DX-Locator" }
+        ],
+        tip: "Tipp: DX Summit war zeitweise nicht erreichbar — jo30.de wird als zuverlaessige Primaerquelle verwendet."
+      },
+      {
+        title: "Station-Info konfigurieren",
+        body: "Die Station-Info (Rufzeichen, Name, Club, Locator) wird in der AppSetting station_info gespeichert. Standard: Station HB9OM, Rufzeichen HB3YNF, Name Dani, Locator JN36FL. Der Locator wird fuer Distanz- und Azimuth-Berechnungen der DX-Spots verwendet (Fallback, wenn keine GPS-Position verfuegbar).",
+        steps: [
+          { icon: "settings", text: "AppSetting station_info speichert Stationsdaten" },
+          { icon: "mapPin", text: "Locator JN36FL fuer Distanz/Azimuth (Fallback)" },
+          { icon: "locateFixed", text: "GPS-Position hat Vorrang vor Station-Locator" }
+        ]
+      }
+    ]
   }
 ];
 

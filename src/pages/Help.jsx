@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell, RadioTower, Signal, Network, Database, Globe } from "lucide-react";
+import { ArrowLeft, MapPin, Radio, BookOpen, Settings as SettingsIcon, HelpCircle, Search, Layers, Plus, Download, Archive, Pencil, Building, ChevronDown, ChevronUp, ExternalLink, Mountain, Trees, Castle, Anchor, Navigation, Filter, Wifi, LocateFixed, Coffee, Zap, Lightbulb, FileText, Loader2, Diamond, Hexagon, Cloud, AlertTriangle, Shield, Bell, RadioTower, Signal, Network, Database, Globe, Crosshair } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
@@ -630,6 +630,90 @@ const SECTIONS = [
         title: "Maidenhead-Locator",
         body: "Der Maidenhead-Locator (Grid) ist ein geografisches Koordinatensystem für Amateurfunk. 4 Stellen (z.B. JN36) geben ein Gebiet von ca. 100×100 km an, 6 Stellen (z.B. JN36af) ca. 5×5 km. Bei generellen Standorten ohne Referenz reicht der 4-stellige Locator.",
         example: "Standort Zürich: JN36 – genauer: JN36af"
+      }
+    ]
+  },
+  {
+    id: "hunting",
+    icon: Crosshair,
+    title: "Hunting (DX-Spots & Fuchsjagd)",
+    color: "#ff9800",
+    description: "Live DX-Spots, Propagation-Dashboard, Fox Hunting mit Peilung und Triangulation, QSO-Logging.",
+    items: [
+      {
+        title: "Hunting-Seite öffnen",
+        body: "Auf der Karte oben in der Mitte finden Sie den Fox/Hunting-Schalter (orange hervorgehoben). Tippen Sie auf «Hunting», um die Hunting-Seite zu öffnen. Die Seite zeigt DX-Spots, Propagation, Fox Hunting und QSO-Logging im dunklen SHACK-SERVER-Stil.",
+        example: "Karte → Fox/Hunting-Schalter oben Mitte → «Hunting» tippen → Hunting-Seite öffnet sich."
+      },
+      {
+        title: "Command Strip (Übersicht)",
+        body: "Oben auf der Hunting-Seite sehen Sie vier Kästchen: 1) DX Opportunity — der weiteste DX-Spot mit Rufzeichen und Distanz. 2) Best Band — das aktuell beste Band laut Propagation. 3) Station Ready — Ihr Rufzeichen und Locator. 4) Opportunities — Anzahl Spots und bereits gearbeitete Stationen.",
+        example: "Command Strip zeigt «W3GTR — 8500 km» als DX-Opportunity und «30m — Excellent» als Best Band."
+      },
+      {
+        title: "Propagation Bar (Ausbreitungsbedingungen)",
+        body: "Die Propagation Bar zeigt Solar Flux, A-Index, K-Index, MUF und einen SVG-Balken-Graph für alle Bänder (80m bis 6m). Die Balken sind farbcodiert: grün = Excellent, gelb = Good, orange = Fair, rot = Poor. Die Daten stammen von NOAA SWPC und werden alle 5 Minuten automatisch aktualisiert.",
+        example: "Solar Flux 101, K-Index 2 → 30m zeigt grünen Balken (Excellent), 10m zeigt roten Balken (Poor)."
+      },
+      {
+        title: "Fox Hunting (Fuchsjagd)",
+        body: "Tippen Sie auf den grossen grünen Button «FOX HUNTING — Fuchsjagd starten», um das Fox-Hunt-Modal zu öffnen. Dort erfassen Sie Peilungen: Peilrichtung (Azimuth 0-360°) per Slider, Feldstärke (S1-S9) per Slider, optionale Frequenz und Notiz. Beim Speichern wird die geschätzte Distanz aus der Feldstärke berechnet (S9=1km, S8=2km, S7=5km, S6=10km, S5=20km, S4=50km, S3=100km, S2=200km, S1=500km) und ein Ziel-Punkt auf der Karte markiert.",
+        example: "Azimuth 45° + S7 → Peilung gespeichert → geschätzte Distanz 5 km → Ziel-Punkt 5 km nordöstlich auf der Karte."
+      },
+      {
+        title: "Fox Hunting: GPS-Position",
+        body: "Die Fox-Hunt-Peilungen verwenden Ihre aktuelle GPS-Position als Standort (QTH), nicht den festen Station-Locator. So werden Peilungen und die Triangulation korrekt von Ihrem aktuellen Standort im Feld berechnet. Wenn keine GPS-Position verfügbar ist, wird der Station-Locator (z.B. JN36FL) als Fallback verwendet. Im Modal sehen Sie oben, welche Position verwendet wird (📍 GPS oder 🏠 Station).",
+        example: "Im Feld mit GPS → Peilungen starten von Ihrer GPS-Position → ohne GPS → Peilungen starten vom Station-Locator JN36FL."
+      },
+      {
+        title: "Fox Hunting: Karte & Triangulation",
+        body: "Tippen Sie im Fox-Hunt-Modal auf «Karte», um eine Leaflet-Karte mit QTH-Marker (🏠), Peillinien (grün gestrichelt) und einem 🦊-Marker am Schnittpunkt aller Peilungen zu sehen. Bei mehreren Peilungen von verschiedenen Positionen wird der Fuchs-Standort durch Triangulation (Durchschnitt der Endpunkte) geschätzt. Die Karte zoomt automatisch, um alle Peilungen zu zeigen.",
+        example: "3 Peilungen aus verschiedenen Richtungen → 🦊-Marker erscheint am Schnittpunkt → Karte zoomt automatisch."
+      },
+      {
+        title: "Fox Hunting: Verlauf",
+        body: "Tippen Sie auf «Verlauf», um alle gespeicherten Peilungen als Liste zu sehen. Jede Peilung zeigt Feldstärke, Azimuth, optionale Frequenz und Notiz, sowie die Uhrzeit. Peilungen können einzeln gelöscht werden. Der Verlauf bleibt erhalten, bis Peilungen gelöscht werden.",
+        example: "Verlauf (3) → Peilung von 14:32 mit S7 und 45° → Mülleimer-Icon zum Löschen."
+      },
+      {
+        title: "Live Spot Activity (DX-Spots)",
+        body: "Die Live Spot Activity Tabelle zeigt die aktuellsten DX-Spots (max. 50) mit Filtern: Suche, Band, Mode, Land, Quelle und Confidence. Auf dem Handy werden nur die wichtigsten Spalten angezeigt (Call, Freq, Mode, Age, Actions) — weitere Spalten (Comment, Dist, Az, Source, Score) erscheinen auf grösseren Bildschirmen. Die Spots werden alle 30 Sekunden automatisch aktualisiert.",
+        example: "Filter «20m» + «FT8» → nur 20m FT8-Spots werden angezeigt → Auto-Refresh alle 30s."
+      },
+      {
+        title: "Worked-Status (farbiger Punkt)",
+        body: "Jeder Spot hat einen farbigen Punkt vor dem Rufzeichen: grün = Station auf diesem Band bereits gearbeitet, blau = Land auf diesem Band gearbeitet, gelb = Station gearbeitet (anderes Band), grau = neue Station. Der Worked-Status wird aus Ihrem Logbuch extrahiert.",
+        example: "Grüner Punkt vor DL1LDZ → Sie haben DL1LDZ bereits auf 20m gearbeitet."
+      },
+      {
+        title: "Spot Details",
+        body: "Tippen Sie auf das Augen-Icon in der Tabelle, um die Spot-Details zu sehen: Rufzeichen, Frequenz, Band, Mode, Distanz, Azimuth, Locator, Confidence, Kommentare und Quelle. Die Detailansicht zeigt auch eine Leaflet-Karte mit QTH und DX-Marker sowie eine Peillinie. Bei SOTA/POTA-Aktivitäten wird ein Badge angezeigt.",
+        example: "Augen-Icon → Spot Details mit 5W1SA, 12m CW, Karte mit Peillinie nach Samoa."
+      },
+      {
+        title: "QSO loggen (prominent)",
+        body: "Der grosse grüne Button «QSO loggen» unten rechts auf der Hunting-Seite öffnet das QSO-Logbuch-Formular. Alternativ können Sie das Stift-Icon in der Spot-Tabelle tippen, um ein QSO direkt aus einem Spot vorzufüllen. Das Formular füllt automatisch Rufzeichen, Frequenz, Band und Mode aus dem Spot. QRZ-Lookup liefert den Operator-Namen. Clubstation-Modus und SOTA/POTA-Referenzen werden unterstützt.",
+        example: "Grüner «QSO loggen» Button → leeres Formular → oder Stift-Icon in Spot-Tabelle → vorausgefülltes Formular."
+      },
+      {
+        title: "Priority DX (Top 5)",
+        body: "Die Priority DX Sektion zeigt die 5 weitesten DX-Spots nach Distanz sortiert: Flagge, Rufzeichen, Frequenz + Mode, Distanz + Azimuth. Tippen Sie auf einen Eintrag, um die Spot-Details zu öffnen.",
+        example: "Priority DX zeigt W3GTR (8500 km), JA1ABC (9500 km), … → W3GTR tippen → Details öffnen."
+      },
+      {
+        title: "QRZ-Lookup",
+        body: "Tippen Sie auf ein Rufzeichen in der Spot-Tabelle, um einen QRZ-Lookup durchzuführen. Das Modal zeigt Name, Adresse, Land, Grid-Locator und E-Mail des Operators (von QRZ.com). Die Daten werden in der QrzLookup-Entity zwischengespeichert für schnellere zukünftige Abfragen.",
+        example: "Rufzeichen DL1LDZ tippen → QRZ-Lookup zeigt Name, Adresse und Grid."
+      },
+      {
+        title: "Datenquellen & Automation",
+        body: "DX-Spots stammen von dxc.jo30.de (DXCluster, primär) oder DX Summit (Fallback). Propagation-Daten stammen von NOAA SWPC (Solar Flux F10.7, planetarer K-Index). Eine Automation ruft alle 5 Minuten automatisch neue Spots und Propagation-Daten ab. Distanz und Azimuth werden aus dem Station-Locator (JN36FL) und dem DX-Locator berechnet. Confidence: Basis 50, +20 Spotter, +10 Locator, +10 Land, +10 Aktivität (max 100).",
+        example: "Automation läuft alle 5 Min → 50 neue Spots von jo30.de → Distanz/Azimuth aus JN36FL berechnet → in Datenbank gespeichert."
+      },
+      {
+        title: "Station-Info konfigurieren",
+        body: "Die Station-Info (Rufzeichen, Name, Club, Locator) wird in der AppSetting «station_info» gespeichert. Standard: Station HB9OM, Rufzeichen HB3YNF, Name Dani, Locator JN36FL. Der Locator wird für Distanz- und Azimuth-Berechnungen der DX-Spots verwendet (Fallback, wenn keine GPS-Position verfügbar).",
+        example: "AppSetting station_info = {station:'HB9OM', callsign:'HB3YNF', name:'Dani', locator:'JN36FL'}."
       }
     ]
   }

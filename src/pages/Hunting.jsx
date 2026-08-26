@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Crosshair } from "lucide-react";
+import { Crosshair, Plus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import CommandStrip from "@/components/hunting/CommandStrip";
 import PropagationBar from "@/components/hunting/PropagationBar";
@@ -26,6 +26,18 @@ export default function Hunting() {
   const [spotDetails, setSpotDetails] = useState(null);
   const [qsoSpot, setQsoSpot] = useState(null);
   const [qrzCall, setQrzCall] = useState(null);
+  const [gpsPosition, setGpsPosition] = useState(null);
+  const [showBlankQso, setShowBlankQso] = useState(false);
+
+  // GPS-Position für Fox Hunting laden
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setGpsPosition([pos.coords.latitude, pos.coords.longitude]),
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  }, []);
 
   // Station Info aus AppSetting laden
   useEffect(() => {
@@ -108,7 +120,7 @@ export default function Hunting() {
 
       {/* 3.3 Fox Hunt Modal */}
       {showFoxHunt && (
-        <FoxHuntModal stationInfo={stationInfo} onClose={() => setShowFoxHunt(false)} />
+        <FoxHuntModal stationInfo={stationInfo} gpsPosition={gpsPosition} onClose={() => setShowFoxHunt(false)} />
       )}
 
       {/* 3.5 Spot Details Modal */}
@@ -121,15 +133,26 @@ export default function Hunting() {
         />
       )}
 
-      {/* 3.6 QSO Log Modal */}
-      {qsoSpot && (
-        <QsoLogModal spot={qsoSpot} onClose={() => setQsoSpot(null)} />
+      {/* 3.6 QSO Log Modal — aus Spot oder leer (blankQso) */}
+      {(qsoSpot || showBlankQso) && (
+        <QsoLogModal spot={qsoSpot} onClose={() => { setQsoSpot(null); setShowBlankQso(false); }} />
       )}
 
       {/* QRZ Lookup Modal */}
       {qrzCall && (
         <QrzLookupModal callsign={qrzCall} onClose={() => setQrzCall(null)} />
       )}
+
+      {/* Prominenter QSO-Loggen Button — gross, grün, immer sichtbar */}
+      <button
+        onClick={() => setShowBlankQso(true)}
+        className="fixed right-4 z-[1000] h-14 px-6 rounded-full bg-[#8cff00] text-black shadow-2xl shadow-[#8cff00]/40 flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 80px)" }}
+        title="Neues QSO loggen"
+      >
+        <Plus className="w-6 h-6" />
+        <span className="font-bold text-sm whitespace-nowrap">QSO loggen</span>
+      </button>
 
       {/* Bottom Navigation */}
       <BottomNavigation />

@@ -42,7 +42,7 @@ function AutoFit({ positions }) {
   return null;
 }
 
-export default function FoxHuntModal({ stationInfo, onClose }) {
+export default function FoxHuntModal({ stationInfo, gpsPosition, onClose }) {
   const [azimuth, setAzimuth] = useState(0);
   const [signal, setSignal] = useState(5);
   const [frequency, setFrequency] = useState('');
@@ -52,7 +52,10 @@ export default function FoxHuntModal({ stationInfo, onClose }) {
   const [showMap, setShowMap] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const stationPos = stationInfo?.locator ? maidenheadToLatLon(stationInfo.locator) : { lat: 46.5, lon: 6.5 };
+  const stationPos = gpsPosition
+    ? { lat: gpsPosition[0], lon: gpsPosition[1] }
+    : (stationInfo?.locator ? maidenheadToLatLon(stationInfo.locator) : { lat: 46.5, lon: 6.5 });
+  const posSourceLabel = gpsPosition ? 'GPS' : 'Station';
 
   const loadBearings = useCallback(async () => {
     try {
@@ -117,6 +120,11 @@ export default function FoxHuntModal({ stationInfo, onClose }) {
             🦊 Fox Hunting
           </h3>
           <button onClick={onClose} className="text-[#9aa7b0] hover:text-white"><X className="w-5 h-5" /></button>
+        </div>
+
+        {/* Position Source Label */}
+        <div className="px-4 pt-2 text-[9px] text-[#9aa7b0] flex items-center gap-1">
+          {gpsPosition ? '📍 GPS-Position' : '🏠 Station-Locator'} — {stationPos.lat.toFixed(4)}°, {stationPos.lon.toFixed(4)}°
         </div>
 
         {/* Body */}

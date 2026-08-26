@@ -141,8 +141,8 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
 
       {/* Filter Bar */}
       <div className="px-3 py-2 border-b border-[#1d3442] space-y-2">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap gap-2">
+          <div className="relative flex-1 min-w-[120px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#9aa7b0]" />
             <input
               type="text"
@@ -159,7 +159,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
             {MODES.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           <input
             type="text"
             value={countryFilter}
@@ -186,7 +186,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
       </div>
 
       {/* Table */}
-      <div className="max-h-[45vh] overflow-y-auto">
+      <div className="max-h-[45vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
           <div className="p-6 text-center text-sm text-[#9aa7b0] flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin" /> Spots werden geladen…
@@ -200,12 +200,12 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
                 <th className="px-2 py-1.5 text-left cursor-pointer hover:text-white" onClick={() => toggleSort('call')}>Call <SortIcon col="call" /></th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white" onClick={() => toggleSort('freq')}>Freq <SortIcon col="freq" /></th>
                 <th className="px-2 py-1.5 text-left">Mode</th>
-                <th className="px-2 py-1.5 text-left">Comment</th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white" onClick={() => toggleSort('dist')}>Dist <SortIcon col="dist" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white" onClick={() => toggleSort('az')}>Az <SortIcon col="az" /></th>
-                <th className="px-2 py-1.5 text-left">Source</th>
+                <th className="px-2 py-1.5 text-left hidden md:table-cell">Comment</th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white hidden md:table-cell" onClick={() => toggleSort('dist')}>Dist <SortIcon col="dist" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white hidden md:table-cell" onClick={() => toggleSort('az')}>Az <SortIcon col="az" /></th>
+                <th className="px-2 py-1.5 text-left hidden md:table-cell">Source</th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white" onClick={() => toggleSort('age')}>Age <SortIcon col="age" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white" onClick={() => toggleSort('score')}>Score <SortIcon col="score" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white hidden md:table-cell" onClick={() => toggleSort('score')}>Score <SortIcon col="score" /></th>
                 <th className="px-2 py-1.5 text-center">Actions</th>
               </tr>
             </thead>
@@ -228,14 +228,14 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-[#9aa7b0]">{formatFreq(spot.frequency)}</td>
                     <td className="px-2 py-1.5 text-[#00e5ff]">{spot.mode || '—'}</td>
-                    <td className="px-2 py-1.5 text-[#9aa7b0] truncate max-w-[80px]">{comment || '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-[#9aa7b0]">{spot.distance > 0 ? `${spot.distance}` : '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-[#9aa7b0]">{spot.azimuth > 0 ? `${spot.azimuth}°` : '—'}</td>
-                    <td className="px-2 py-1.5 text-[9px] text-[#9aa7b0] truncate max-w-[60px]">{spot.source || '—'}</td>
+                    <td className="px-2 py-1.5 text-[#9aa7b0] truncate max-w-[80px] hidden md:table-cell">{comment || '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[#9aa7b0] hidden md:table-cell">{spot.distance > 0 ? `${spot.distance}` : '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-[#9aa7b0] hidden md:table-cell">{spot.azimuth > 0 ? `${spot.azimuth}°` : '—'}</td>
+                    <td className="px-2 py-1.5 text-[9px] text-[#9aa7b0] truncate max-w-[60px] hidden md:table-cell">{spot.source || '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono" style={{ color: ageColor(spot.age_seconds) }}>
                       {spot.age_seconds != null ? `${spot.age_seconds}s` : '—'}
                     </td>
-                    <td className="px-2 py-1.5 text-right font-mono text-white">{spot.confidence || '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-white hidden md:table-cell">{spot.confidence || '—'}</td>
                     <td className="px-2 py-1.5">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => onSpotDetails?.(spot)} className="text-[#9aa7b0] hover:text-[#00e5ff]" title="Details">
