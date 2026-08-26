@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { MapPin, Navigation, Clock, Radio, X, Eye } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -16,14 +16,37 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+// Station-Marker (blau) — eigene Position
+const stationIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:18px;height:18px;border-radius:50%;background:#00e5ff;border:3px solid #0d1720;box-shadow:0 0 6px #00e5ff;"></div>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+// DX-Marker (grün) — gespotete Station
+const dxIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:18px;height:18px;border-radius:50%;background:#8cff00;border:3px solid #0d1720;box-shadow:0 0 6px #8cff00;"></div>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+// AutoFit läuft nur EINMAL beim Mount — danach nicht mehr, damit User pan/zoom frei nutzen kann
 function AutoFit({ positions }) {
   const map = useMap();
+  const done = useRef(false);
   useEffect(() => {
+    if (done.current) return;
+    // invalidateSize: Modal-Container hat beim ersten Render oft falsche Grösse
+    map.invalidateSize();
     if (positions.length >= 2) {
       const bounds = L.latLngBounds(positions.map(p => [p[0], p[1]]));
-      map.fitBounds(bounds, { padding: [40, 40] });
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+      done.current = true;
     } else if (positions.length === 1) {
       map.setView(positions[0], 10);
+      done.current = true;
     }
   }, [positions, map]);
   return null;
@@ -55,9 +78,12 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
     dxPos = maidenheadToLatLon(spot.locator || spot.grid6);
   }
 
-  const positions = [];
-  if (stationPos) positions.push([stationPos.lat, stationPos.lon]);
-  if (dxPos) positions.push([dxPos.lat, dxPos.lon]);
+  const positions = useMemo(() => {
+    const arr = [];
+    if (stationPos) arr.push([stationPos.lat, stationPos.lon]);
+    if (dxPos) arr.push([dxPos.lat, dxPos.lon]);
+    return arr;
+  }, [stationPos?.lat, stationPos?.lon, dxPos?.lat, dxPos?.lon]);
 
   useEffect(() => {
     if (!spot?.call) return;
@@ -165,8 +191,8 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
                 style={{ background: '#0d1720' }}
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
-                {stationPos && <Marker position={[stationPos.lat, stationPos.lon]} />}
-                {dxPos && <Marker position={[dxPos.lat, dxPos.lon]} />}
+                {stationPos && <Marker position={[stationPos.lat, stationPos.lon]} icon={stationIcon} />}
+                {dxPos && <Marker position={[dxPos.lat, dxPos.lon]} icon={dxIcon} />}
                 {positions.length === 2 && (
                   <Polyline positions={positions} pathOptions={{ color: '#00e5ff', dashArray: '5,5' }} />
                 )}

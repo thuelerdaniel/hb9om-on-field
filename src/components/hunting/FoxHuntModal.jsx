@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { X, Save, MapPin, History, Trash2, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -33,11 +33,14 @@ const qthIcon = L.divIcon({
 
 function AutoFit({ positions }) {
   const map = useMap();
+  const done = useRef(false);
   useEffect(() => {
-    if (positions.length === 0) return;
-    if (positions.length === 1) { map.setView(positions[0], 12); return; }
+    if (done.current || positions.length === 0) return;
+    map.invalidateSize();
+    if (positions.length === 1) { map.setView(positions[0], 12); done.current = true; return; }
     const bounds = L.latLngBounds(positions);
-    map.fitBounds(bounds, { padding: [30, 30] });
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
+    done.current = true;
   }, [positions, map]);
   return null;
 }
