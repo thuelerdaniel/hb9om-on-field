@@ -194,6 +194,7 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
           ) : positions.length > 0 ? (
             <div className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
               <MapContainer
+                key="spot-details-map"
                 center={positions[0]}
                 zoom={8}
                 className="w-full h-full"

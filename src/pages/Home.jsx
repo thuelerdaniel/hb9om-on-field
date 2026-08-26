@@ -1056,6 +1056,7 @@ export default function Home() {
       {/* Map — wrapped in error boundary to prevent white-screen crashes */}
       <MapErrorBoundary>
       <MapContainer
+        key="home-main-map"
         center={(() => { try { const s = JSON.parse(safeGetItem("hb9om_map_state")); return s ? [s.lat, s.lng] : [46.8, 8.2]; } catch { return [46.8, 8.2]; } })()}
         zoom={(() => { try { const s = JSON.parse(safeGetItem("hb9om_map_state")); return s?.zoom || 8; } catch { return 8; } })()}
         className="w-full h-full"

@@ -57,6 +57,7 @@ export default function QsoWorldMap({ entries }) {
 
   return (
     <MapContainer
+      key="qso-world-map"
       center={[20, 0]}
       zoom={2}
       className="w-full h-full"

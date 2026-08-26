@@ -222,6 +222,7 @@ export default function FoxHuntModal({ stationInfo, gpsPosition, onClose }) {
           {showMap && (
             <div className="rounded-lg overflow-hidden border border-[#1d3442]" style={{ height: 250 }}>
               <MapContainer
+                key="fox-hunt-map"
                 center={[stationPos.lat, stationPos.lon]}
                 zoom={12}
                 className="w-full h-full"
