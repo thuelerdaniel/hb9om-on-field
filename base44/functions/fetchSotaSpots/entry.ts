@@ -61,7 +61,9 @@ export default async function(req: Request): Promise<Response> {
         signal: AbortSignal.timeout(8000),
       });
       if (resp.ok) {
-        sotaSpots = await resp.json();
+        const raw = await resp.json();
+        // FIX 6: DEPRECATED-Einträge herausfiltern
+        sotaSpots = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED' && s.activatorCallsign !== 'DEPRECATED') : [];
       } else {
         apiError = `HTTP ${resp.status}`;
       }
@@ -79,6 +81,24 @@ export default async function(req: Request): Promise<Response> {
       });
     }
 
+    // FIX 2: SotaPoint-Koordinaten für Referenzen ohne Locator vorab laden
+    const refsNeedingCoords = new Set<string>();
+    for (const s of sotaSpots) {
+      const comments = s.comments || s.comment || '';
+      const locator = extractLocator(comments);
+      const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';
+      if (!locator && ref) refsNeedingCoords.add(ref);
+    }
+    const sotaCoordMap = new Map<string, { lat: number; lon: number }>();
+    for (const ref of refsNeedingCoords) {
+      try {
+        const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
+        if (points && points.length > 0 && points[0].lat != null) {
+          sotaCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
+        }
+      } catch {}
+    }
+
     // In ActivitySpot speichern
     const records = sotaSpots
       .filter((s: any) => s.activatorCallsign && s.frequency)
@@ -89,7 +109,7 @@ export default async function(req: Request): Promise<Response> {
         const spotTime = s.timeStamp ? new Date(s.timeStamp) : new Date();
         const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
 
-        // Koordinaten aus Locator im Kommentar
+        // Koordinaten: Locator → SotaPoint-Fallback
         let lat: number | undefined;
         let lon: number | undefined;
         let grid6: string | undefined;
@@ -98,6 +118,14 @@ export default async function(req: Request): Promise<Response> {
         if (locator) {
           const pos = maidenheadToLatLon(locator);
           if (pos) { lat = pos.lat; lon = pos.lon; grid6 = locator; }
+        }
+        // FIX 2: SotaPoint-Fallback falls kein Locator
+        if (lat == null || lon == null) {
+          const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';
+          if (ref) {
+            const fallback = sotaCoordMap.get(ref);
+            if (fallback) { lat = fallback.lat; lon = fallback.lon; }
+          }
         }
 
         let distance: number | null = null;

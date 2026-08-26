@@ -59,16 +59,40 @@ export default async function(req: Request): Promise<Response> {
       return Response.json({ success: true, fetched: 0, saved: 0, message: 'Keine POTA-Spots verfügbar' });
     }
 
+    // FIX 3: PotaPoint-Koordinaten für Referenzen ohne API-Koordinaten vorab laden
+    const refsNeedingCoords = new Set<string>();
+    for (const s of potaSpots) {
+      const lat = Number(s.latitude);
+      const lon = Number(s.longitude);
+      if ((isNaN(lat) || isNaN(lon)) && s.reference) refsNeedingCoords.add(s.reference);
+    }
+    const potaCoordMap = new Map<string, { lat: number; lon: number }>();
+    for (const ref of refsNeedingCoords) {
+      try {
+        const points = await base44.asServiceRole.entities.PotaPoint.filter({ code: ref });
+        if (points && points.length > 0 && points[0].lat != null) {
+          potaCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
+        }
+      } catch {}
+    }
+
     // In ActivitySpot speichern
     const records = potaSpots
       .filter((s: any) => s.activator && s.frequency)
       .map((s: any) => {
-        const frequency = Number(s.frequency) / 1000; // POTA API gibt Hz zurück → kHz
+        // FIX 1: POTA API gibt Frequenz als kHz-String zurück (z.B. "14044.0") — keine Konvertierung nötig
+        const frequency = Number(s.frequency);
         const band = deriveBand(frequency);
         const spotTime = s.spotTime ? new Date(s.spotTime) : new Date();
         const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
-        const lat = Number(s.latitude);
-        const lon = Number(s.longitude);
+        let lat = Number(s.latitude);
+        let lon = Number(s.longitude);
+
+        // FIX 3: PotaPoint-Fallback falls API keine Koordinaten liefert
+        if ((isNaN(lat) || isNaN(lon)) && s.reference) {
+          const fallback = potaCoordMap.get(s.reference);
+          if (fallback) { lat = fallback.lat; lon = fallback.lon; }
+        }
 
         let distance: number | null = null;
         let azimuth: number | null = null;
@@ -88,6 +112,7 @@ export default async function(req: Request): Promise<Response> {
           mode: s.mode || 'SSB',
           latitude: !isNaN(lat) ? lat : undefined,
           longitude: !isNaN(lon) ? lon : undefined,
+          grid6: s.grid6 || undefined,
           comments: s.comments || s.comment || '',
           spotter: s.spotter || '',
           source: 'POTA API',

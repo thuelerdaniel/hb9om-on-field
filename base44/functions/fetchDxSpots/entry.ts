@@ -29,6 +29,23 @@ function normalizeMode(apiMode: string, submode: string): string {
   return apiMode || 'Unknown';
 }
 
+// FIX 5: Verbesserte Aktivitätserkennung aus Kommentaren
+function detectActivity(comments: string[]): string {
+  if (!comments || !comments.length) return '';
+  const text = comments.join(' ').toUpperCase();
+  if (text.includes('SOTA')) return 'SOTA';
+  if (text.includes('POTA')) return 'POTA';
+  if (text.includes('WWFF') || text.includes('WCA')) return 'WWFF';
+  if (text.includes('IOTA')) return 'IOTA';
+  // SOTA Summit-Code Pattern: z.B. W7Y/TT-161, G/SP-001, OE/ST-003
+  const sotaPattern = /\b([A-Z0-9]{1,4}\/[A-Z]{2}-\d{3})\b/;
+  if (sotaPattern.test(text)) return 'SOTA';
+  // POTA Reference Pattern: 2 Buchstaben-Bindestrich-Zahl, z.B. US-1948, DE-0018
+  const potaPattern = /\b([A-Z]{2}-\d{1,5})\b/;
+  if (potaPattern.test(text) && !text.includes('DXCC')) return 'POTA';
+  return '';
+}
+
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -133,13 +150,12 @@ export default async function(req: Request): Promise<Response> {
       else if (dxccSpotted.iota_ref) { activity = 'IOTA'; activityRef = String(dxccSpotted.iota_ref); }
       else if (dxccSpotted.wwff_ref) { activity = 'WWFF'; activityRef = String(dxccSpotted.wwff_ref); }
       else {
-        const msgUpper = message.toUpperCase();
-        if (msgUpper.includes('SOTA')) activity = 'SOTA';
-        else if (msgUpper.includes('POTA')) activity = 'POTA';
+        // FIX 5: Verbesserte Aktivitätserkennung via detectActivity
+        activity = detectActivity(comments);
       }
 
+      // FIX 4: Nur Locator-basierte Koordinaten verwenden — keine DXCC-Center-Koordinaten
       let dxPos: { lat: number; lon: number } | null = locator ? maidenheadToLatLon(locator) : null;
-      if (!dxPos && dxLat && dxLng) dxPos = { lat: dxLat, lon: dxLng };
 
       let distance = 0, azimuth = 0, finalLat = 0, finalLng = 0;
       if (dxPos) {
