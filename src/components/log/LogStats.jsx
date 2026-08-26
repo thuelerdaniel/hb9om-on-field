@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { BarChart3, Radio, MapPin, Globe, Building, Calendar, TrendingUp } from "lucide-react";
+import QsoMapView from "./QsoMapView";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
@@ -98,6 +99,9 @@ export default function LogStats({ entries }) {
           <p className="text-[10px] text-gray-500">Clubstations-QSOs</p>
         </div>
       </div>
+
+      {/* QSO World Map / Globe */}
+      <QsoMapView entries={entries} />
 
       {/* By Band */}
       <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">

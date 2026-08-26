@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { MapPin, Navigation, Clock, Radio, X, Eye } from "lucide-react";
+import { MapPin, Navigation, Clock, Radio, X, Eye, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
@@ -68,15 +68,22 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
     ? { lat: gpsPos.lat, lon: gpsPos.lng }
     : (stationInfo?.locator ? maidenheadToLatLon(stationInfo.locator) : null);
 
-  // DX-Position: ActivitySpot hat latitude/longitude, DxSpot hat lat/lng
+  // DX-Position: Fallback-Reihenfolge: spot.lat/lng → spot.locator/grid6 → QRZ grid
+  // Erst nach QRZ-Lookup ist die finale Position bekannt — Karte wird entsprechend verzögert gerendert
   const dxLat = spot?.latitude ?? spot?.lat;
   const dxLng = spot?.longitude ?? spot?.lng;
-  let dxPos = null;
-  if (dxLat != null && dxLng != null) {
-    dxPos = { lat: dxLat, lon: dxLng };
-  } else if (spot?.locator || spot?.grid6) {
-    dxPos = maidenheadToLatLon(spot.locator || spot.grid6);
-  }
+  const dxPos = useMemo(() => {
+    if (dxLat != null && dxLng != null) return { lat: dxLat, lon: dxLng, source: 'Cluster' };
+    if (spot?.locator || spot?.grid6) {
+      const p = maidenheadToLatLon(spot.locator || spot.grid6);
+      return p ? { ...p, source: 'Locator' } : null;
+    }
+    if (qrzData?.grid) {
+      const p = maidenheadToLatLon(qrzData.grid);
+      return p ? { ...p, source: 'QRZ' } : null;
+    }
+    return null;
+  }, [dxLat, dxLng, spot?.locator, spot?.grid6, qrzData]);
 
   const positions = useMemo(() => {
     const arr = [];
@@ -172,8 +179,19 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             </div>
           )}
 
-          {/* Leaflet Map */}
-          {positions.length > 0 && (
+          {/* Coordinate source indicator */}
+          {dxPos?.source && (
+            <div className="text-[9px] text-muted-foreground">
+              DX-Koordinaten aus: {dxPos.source}
+            </div>
+          )}
+
+          {/* Leaflet Map — erst nach QRZ-Lookup rendern, damit alle Koordinaten-Quellen genutzt werden */}
+          {qrzLoading ? (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-8 bg-background rounded-lg border border-border">
+              <Loader2 className="w-3 h-3 animate-spin" /> Koordinaten werden ermittelt…
+            </div>
+          ) : positions.length > 0 ? (
             <div className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
               <MapContainer
                 center={positions[0]}
@@ -198,6 +216,10 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
                 )}
                 <AutoFit positions={positions} />
               </MapContainer>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center text-xs text-muted-foreground py-8 bg-background rounded-lg border border-border">
+              Keine Koordinaten für diese Station verfügbar
             </div>
           )}
 
