@@ -6,8 +6,13 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    let body: any = {};
+    try { body = await req.json(); } catch {}
+
+    if (body.scheduled !== true) {
+      const user = await base44.auth.me();
+      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const latest = await base44.entities.Propagation.list('-updated', 1);
 

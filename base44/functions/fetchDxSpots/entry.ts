@@ -1,9 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { deriveBand } from "../../shared/bandDerivation.ts";
+import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts";
 
-// Lade aktuelle DX-Spots von DX Summit, normalisiere und speichere in DxSpot Entity.
-// Lösche Spots älter als 1 Stunde vor dem Speichern neuer Spots.
-// Lade max 50 Spots, gib die neuesten 20 zurück.
+// Lade DX-Spots von jo30.de DXCluster (primär) oder DX Summit (Fallback).
+// Berechne Distanz, Azimuth und Confidence aus Station-Locator (JN36FL oder AppSetting).
+// Speichere max 50 Spots, lösche Spots älter als 1 Stunde.
+
+const DEFAULT_LOCATOR = 'JN36FL';
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -11,18 +14,27 @@ export default async function(req: Request): Promise<Response> {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    // Scheduled runs have no user context — skip auth. Manual runs require login.
     if (body.scheduled !== true) {
       const user = await base44.auth.me();
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // DX-Cluster Spots laden — primär dxc.jo30.de (REST/JSON Cache), Fallback DX Summit
-    let spots = [];
-    let apiWarning = null;
+    // Station-Locator aus AppSetting laden, Fallback JN36FL
+    let stationLocator = DEFAULT_LOCATOR;
+    try {
+      const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'station_info' });
+      if (settings && settings.length > 0) {
+        const info = JSON.parse(settings[0].value || '{}');
+        if (info.locator) stationLocator = info.locator.toUpperCase();
+      }
+    } catch {}
+    const stationPos = maidenheadToLatLon(stationLocator) || { lat: 46.5, lon: 6.5 };
+
+    // DX-Cluster Spots laden — primär dxc.jo30.de, Fallback DX Summit
+    let spots: any[] = [];
+    let apiWarning: string | null = null;
     let source = 'DXCluster (jo30.de)';
 
-    // Primär: dxc.jo30.de/dxcache/spots (rollierender Cache, ~1000 Spots)
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
@@ -41,7 +53,6 @@ export default async function(req: Request): Promise<Response> {
       apiWarning = 'jo30.de API nicht erreichbar';
     }
 
-    // Fallback: DX Summit API
     if (spots.length === 0) {
       try {
         const controller = new AbortController();
@@ -63,7 +74,6 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
-    // Max 50 Spots verarbeiten
     const toProcess = spots.slice(0, 50);
 
     // Alte Spots löschen (> 1 Stunde)
@@ -72,28 +82,22 @@ export default async function(req: Request): Promise<Response> {
       await base44.asServiceRole.entities.DxSpot.deleteMany({
         spot_time: { $lt: oneHourAgo },
       });
-    } catch (e) {
-      // Falls deleteMany mit Datumsfilter nicht unterstützt wird, ignoriere
-    }
+    } catch {}
 
     const now = Date.now();
     const normalized = [];
     for (const s of toProcess) {
-      // jo30.de Felder: spotted (call), spotter, frequency (kHz), when (ISO), add.mode
-      // DX Summit Felder: call, spotter, frequency (kHz), time, mode
       const freqKHz = Number(s.frequency || s.freq || 0);
       const call = s.spotted || s.call || s.dxcallsign;
       if (!freqKHz || !call) continue;
 
-      // Zeit parsen — jo30.de liefert ISO-String in "when", DX Summit Unix-Sekunden oder ISO in "time"
+      // Zeit parsen
       let spotTime: Date;
       if (s.when) {
         spotTime = new Date(s.when);
       } else if (s.time) {
         const t = Number(s.time);
-        spotTime = !isNaN(t) && t > 1e9
-          ? new Date(t * 1000)
-          : new Date(s.time);
+        spotTime = !isNaN(t) && t > 1e9 ? new Date(t * 1000) : new Date(s.time);
       } else if (s.spotted_at) {
         spotTime = new Date(s.spotted_at);
       } else {
@@ -101,17 +105,61 @@ export default async function(req: Request): Promise<Response> {
       }
 
       const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
+      const message = s.message || s.comment || s.info || '';
+      const comments = message ? [message] : [];
+
+      // Locator aus Kommentar extrahieren (z.B. "JN47QM" oder "locator JN47QM")
+      let locator = '';
+      const locMatch = message.match(/\b([A-R]{2}\d{2}[A-X]{2})\b/i);
+      if (locMatch) locator = locMatch[1].toUpperCase();
+
+      // Activity aus Kommentar erkennen
+      let activity = '';
+      const msgUpper = message.toUpperCase();
+      if (msgUpper.includes('SOTA')) activity = 'SOTA';
+      else if (msgUpper.includes('POTA')) activity = 'POTA';
+
+      // Country/Code aus add-Objekt oder Feld
+      const country = s.country || s.dxcc || s.add?.country || '';
+      const countryCode = s.countryCode || s.add?.countryCode || s.dxcc_cc || '';
+
+      // Distanz + Azimuth berechnen (nur wenn Locator vorhanden)
+      let distance = 0;
+      let azimuth = 0;
+      if (locator) {
+        const dxPos = maidenheadToLatLon(locator);
+        if (dxPos) {
+          distance = haversine(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
+          azimuth = bearing(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
+        }
+      }
+
+      // Confidence: Basis 50, +20 spotter, +10 locator, +10 country, +10 activity. Max 100.
+      let confidence = 50;
+      if (s.spotter || s.spotted_by) confidence += 20;
+      if (locator) confidence += 10;
+      if (country) confidence += 10;
+      if (activity) confidence += 10;
+      confidence = Math.min(100, confidence);
 
       normalized.push({
         call: String(call).toUpperCase().trim(),
         frequency: freqKHz,
         band: deriveBand(freqKHz),
         mode: s.add?.mode || s.mode || s.mod || 'Unknown',
-        country: s.country || s.dxcc || '',
-        source: source,
+        country,
+        countryCode,
+        source,
+        sources: [source],
         spotter: s.spotter || s.spotted_by || '',
-        spot_time: spotTime.toISOString(),
         age_seconds: ageSeconds,
+        spot_time: spotTime.toISOString(),
+        confidence,
+        distance,
+        azimuth,
+        locator,
+        comments,
+        activity,
         is_active: true,
       });
     }
@@ -125,14 +173,12 @@ export default async function(req: Request): Promise<Response> {
       return true;
     });
 
-    // Speichern via service role (DxSpot ist admin-create)
     let savedCount = 0;
     if (unique.length > 0) {
       try {
         await base44.asServiceRole.entities.DxSpot.bulkCreate(unique);
         savedCount = unique.length;
       } catch (e) {
-        // Falls bulkCreate fehlschlägt, versuche einzelne Creates
         for (const spot of unique) {
           try {
             await base44.asServiceRole.entities.DxSpot.create(spot);
@@ -142,7 +188,6 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
-    // Neueste 20 zurückgeben (sortiert nach spot_time absteigend)
     const latest = await base44.entities.DxSpot.list('-spot_time', 20);
 
     return Response.json({
@@ -151,6 +196,7 @@ export default async function(req: Request): Promise<Response> {
       saved: savedCount,
       spots: latest,
       warning: apiWarning,
+      stationLocator,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

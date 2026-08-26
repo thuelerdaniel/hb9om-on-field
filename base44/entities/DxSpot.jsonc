@@ -22,9 +22,20 @@
       "type": "string",
       "description": "Land der gespoteten Station"
     },
+    "countryCode": {
+      "type": "string",
+      "description": "L\u00e4ndercode (z.B. DE, FR)"
+    },
     "source": {
       "type": "string",
-      "description": "Datenquelle (z.B. DX Summit)"
+      "description": "Hauptdatenquelle (z.B. DX Summit, DXCluster)"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Alle Quellen die diesen Spot gemeldet haben"
     },
     "spotter": {
       "type": "string",
@@ -38,6 +49,33 @@
       "type": "string",
       "format": "date-time",
       "description": "Zeitpunkt des Spots"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Vertrauensscore 0-100 (Basis 50, +spotter, +locator, +country, +activity)"
+    },
+    "distance": {
+      "type": "number",
+      "description": "Distanz zur Station in km"
+    },
+    "azimuth": {
+      "type": "number",
+      "description": "Peilung/Azimuth 0-360 Grad"
+    },
+    "locator": {
+      "type": "string",
+      "description": "Maidenhead Grid Locator der gespoteten Station"
+    },
+    "comments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Kommentare/Zusatzinfos zum Spot"
+    },
+    "activity": {
+      "type": "string",
+      "description": "Aktivit\u00e4t (SOTA, POTA) falls in Kommentaren erkannt"
     },
     "is_active": {
       "type": "boolean",

@@ -1,0 +1,60 @@
+{
+  "name": "FoxHuntLog",
+  "type": "object",
+  "properties": {
+    "azimuth": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 360,
+      "description": "Peilrichtung 0-360 Grad"
+    },
+    "signal_strength": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 9,
+      "description": "Feldstaerke S-Meter 1-9"
+    },
+    "frequency": {
+      "type": "number",
+      "description": "Frequenz in kHz (optional)"
+    },
+    "note": {
+      "type": "string",
+      "description": "Notiz zur Peilung (optional)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt der Peilung"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad des geschaetzten Fuchs-Standorts"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad des geschaetzten Fuchs-Standorts"
+    }
+  },
+  "required": [
+    "azimuth",
+    "signal_strength",
+    "timestamp",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
