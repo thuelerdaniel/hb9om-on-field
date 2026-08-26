@@ -1070,6 +1070,7 @@ export default function Home() {
         maxZoom={18}
         zoomSnap={1}
         zoomDelta={1}
+        zoomAnimation={false}
         bounceAtZoomLimits={true}
         style={{ background: "#e8e8e8" }}
       >

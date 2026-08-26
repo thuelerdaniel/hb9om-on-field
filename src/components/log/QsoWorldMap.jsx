@@ -70,6 +70,7 @@ export default function QsoWorldMap({ entries }) {
       maxZoom={10}
       zoomSnap={1}
       zoomDelta={1}
+      zoomAnimation={false}
       worldCopyJump={true}
       style={{ height: '100%', width: '100%', background: '#0a1929' }}
     >

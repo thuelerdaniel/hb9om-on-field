@@ -234,6 +234,7 @@ export default function FoxHuntModal({ stationInfo, gpsPosition, onClose }) {
                 maxZoom={18}
                 zoomSnap={1}
                 zoomDelta={1}
+                zoomAnimation={false}
                 bounceAtZoomLimits={true}
                 style={{ background: '#050b10' }}
               >

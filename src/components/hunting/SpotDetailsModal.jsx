@@ -206,6 +206,7 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
                 maxZoom={18}
                 zoomSnap={1}
                 zoomDelta={1}
+                zoomAnimation={false}
                 bounceAtZoomLimits={true}
                 style={{ background: '#0d1720' }}
               >
