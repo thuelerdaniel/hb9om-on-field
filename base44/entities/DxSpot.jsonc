@@ -1,0 +1,70 @@
+{
+  "name": "DxSpot",
+  "type": "object",
+  "properties": {
+    "call": {
+      "type": "string",
+      "description": "Rufzeichen der gespoteten Station"
+    },
+    "frequency": {
+      "type": "number",
+      "description": "Frequenz in kHz"
+    },
+    "band": {
+      "type": "string",
+      "description": "Band (z.B. 20m, 40m)"
+    },
+    "mode": {
+      "type": "string",
+      "description": "Modulationsart (z.B. FT8, CW, SSB)"
+    },
+    "country": {
+      "type": "string",
+      "description": "Land der gespoteten Station"
+    },
+    "source": {
+      "type": "string",
+      "description": "Datenquelle (z.B. DX Summit)"
+    },
+    "spotter": {
+      "type": "string",
+      "description": "Rufzeichen des Spotters"
+    },
+    "age_seconds": {
+      "type": "number",
+      "description": "Alter des Spots in Sekunden"
+    },
+    "spot_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt des Spots"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob der Spot noch aktiv ist"
+    }
+  },
+  "required": [
+    "call",
+    "frequency"
+  ],
+  "rls": {
+    "read": true,
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "Propagation",
+  "type": "object",
+  "properties": {
+    "solar_flux": {
+      "type": "number",
+      "description": "Solar Flux Index (F10.7)"
+    },
+    "a_index": {
+      "type": "number",
+      "description": "A-Index (geomagnetisch)"
+    },
+    "k_index": {
+      "type": "number",
+      "description": "K-Index (geomagnetisch)"
+    },
+    "muf": {
+      "type": "number",
+      "description": "Maximum Usable Frequency in MHz"
+    },
+    "bands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "band": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "condition": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Band-Conditions Array"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Aktualisierung"
+    },
+    "source": {
+      "type": "string",
+      "description": "Datenquelle"
+    }
+  },
+  "required": [
+    "solar_flux"
+  ],
+  "rls": {
+    "read": true,
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

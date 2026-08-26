@@ -13,6 +13,7 @@ import ResetPassword from '@/pages/ResetPassword';
 import Settings from '@/pages/Settings';
 import Log from '@/pages/Log';
 import Help from '@/pages/Help';
+import Hunting from '@/pages/Hunting';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import ChangeRequests from '@/pages/ChangeRequests';
 import AdminChangeRequests from '@/pages/AdminChangeRequests';
@@ -45,6 +46,7 @@ function AuthenticatedApp() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/log" element={<Log />} />
         <Route path="/help" element={<Help />} />
+        <Route path="/hunting" element={<Hunting />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/change-requests" element={<ChangeRequests />} />
         <Route path="/admin/change-requests" element={<AdminChangeRequests />} />

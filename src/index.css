@@ -216,3 +216,23 @@
   background-color: #ffe600 !important;
   color: #000000 !important;
 }
+
+/* Dark inputs für Hunting-Seite */
+.input-dark {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  background-color: #0d0d0d;
+  color: #e5e5e5;
+  border: 1px solid #333;
+  border-radius: 0.5rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-dark:focus {
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+}
+.input-dark::placeholder {
+  color: #555;
+}
