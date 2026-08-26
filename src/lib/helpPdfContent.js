@@ -1344,14 +1344,40 @@ export const SECTIONS = [
       },
       {
         title: "Datenquellen & Automation",
-        body: "DX-Spots stammen von dxc.jo30.de (DXCluster, primaer) oder DX Summit (Fallback). Propagation-Daten stammen von NOAA SWPC (Solar Flux F10.7, planetaerer K-Index). Eine Automation ruft alle 5 Minuten automatisch neue Spots und Propagation-Daten ab. Distanz und Azimuth werden aus dem Station-Locator (JN36FL) und dem DX-Locator berechnet. Confidence: Basis 50, +20 Spotter, +10 Locator, +10 Land, +10 Aktivitaet (max 100).",
+        body: "DX-Spots stammen von zwei Quellen: 1) dxc.jo30.de (DXCluster) fuer alle DX-Spots mit DXCC-Koordinaten, Land und Flagge. 2) Spothole API (spothole.app) fuer SIG-gefilterte Spots mit Referenz-Daten (SOTA, POTA, WWFF, WWBOTA, WCA, TOTA/Towers, IOTA, WLOTA/ARLHS/ILLW). Spothole liefert sig und sig_refs mit Referenz-Name und Koordinaten. Beide Quellen werden gemerged: Spothole reichert jo30.de-Spots mit Activity-Daten an. Propagation-Daten stammen von NOAA SWPC. Eine Automation ruft alle 5 Minuten neue Spots ab.",
         steps: [
-          { icon: "radio", text: "DX-Spots von dxc.jo30.de (primaer) oder DX Summit (Fallback)" },
+          { icon: "radio", text: "jo30.de: DX-Cluster mit DXCC-Koordinaten, Land, Flagge" },
+          { icon: "crosshair", text: "Spothole: SIG-gefiltert (SOTA, POTA, WWFF, WWBOTA, WCA, TOTA, IOTA, WLOTA)" },
           { icon: "sun", text: "Propagation von NOAA SWPC (Solar Flux, K-Index)" },
-          { icon: "clock", text: "Automation alle 5 Minuten: Spots + Propagation" },
-          { icon: "navigation", text: "Distanz/Azimuth aus Station-Locator + DX-Locator" }
+          { icon: "clock", text: "Automation alle 5 Minuten: Spots + Propagation" }
         ],
-        tip: "Tipp: DX Summit war zeitweise nicht erreichbar — jo30.de wird als zuverlaessige Primaerquelle verwendet."
+        links: [
+          { label: "Spothole API (SIG-Spots)", url: "https://spothole.app/" },
+          { label: "The Holy Cluster (IARC)", url: "https://www.reddit.com/r/amateurradio/comments/1k73l6a/" }
+        ],
+        tip: "Tipp: Spothole aggregiert Spots von DX-Clustern und xOTA-Spotting-Sites und liefert Referenz-Name und Koordinaten direkt mit."
+      },
+      {
+        title: "Referenz-Filter (SOTA, POTA, WWFF, etc.)",
+        body: "In der Live Spot Activity Tabelle gibt es einen Referenz-Filter mit folgenden Typen: SOTA (Berggipfel), POTA (Parks), WWFF (Flora & Fauna), WWBOTA (Bunker), WCA (Burgen & Schloesser), TOTA (Tuerme & Antennen), IOTA (Inseln), WLOTA (Leuchtuerme). Der Filter zeigt nur DX-Spots an, die der gewaehlten Referenz zugeordnet sind. Die Zuordnung erfolgt ueber Spothole sig_refs (mit Referenz-Code und Name) oder ueber dxcc_spotted Referenzen von jo30.de.",
+        steps: [
+          { icon: "filter", text: "Referenz-Filter-Dropdown in der Spot-Tabelle waehlen" },
+          { icon: "crosshair", text: "SOTA, POTA, WWFF, WWBOTA, WCA, TOTA, IOTA, WLOTA verfuegbar" },
+          { icon: "list", text: "Tabelle zeigt nur Spots mit gewaehlter Referenz" },
+          { icon: "eye", text: "Activity-Badge zeigt Referenz-Typ und -Code im Spot" }
+        ],
+        tip: "Tipp: Kombinieren Sie den Referenz-Filter mit Band- und Mode-Filter fuer praezise Treffer."
+      },
+      {
+        title: "DX-Spot Referenzen im Admin-Bereich",
+        body: "Im Admin-Bereich unter Daten-Cache & Aktualisierung gibt es eine DX-Spot Referenzen Sektion. Sie zeigt alle DX-Spots gefiltert nach Referenz-Typ (SOTA, POTA, WWFF, etc.) mit Statistiken (Gesamt, Gefiltert, Mit Referenz, Typen). Ein PDF-Export erstellt ein PDF mit den gefilterten Spots inklusive Call, Referenz-Code, Frequenz, Land, Distanz und Quelle.",
+        steps: [
+          { icon: "shield", text: "Admin-Bereich → Daten-Cache & Aktualisierung → DX-Spot Referenzen" },
+          { icon: "filter", text: "Referenz-Typ auswaehlen (SOTA, POTA, etc.)" },
+          { icon: "download", text: "PDF-Button erstellt PDF mit gefilterten DX-Spots" },
+          { icon: "refreshCw", text: "Refresh-Button laedt aktuelle DX-Spots neu" }
+        ],
+        tip: "Tipp: Das PDF enthaelt Zebra-Streifen, Filter-Info, Legende und Seitenzahlen."
       },
       {
         title: "Station-Info konfigurieren",

@@ -38,6 +38,7 @@ const DOT_COLORS = {
 
 const BANDS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m'];
 const MODES = ['All', 'FT8', 'FT4', 'CW', 'SSB', 'FM', 'RTTY', 'PSK', 'Other'];
+const REFS = ['All', 'SOTA', 'POTA', 'WWFF', 'WWBOTA', 'WCA', 'TOTA', 'IOTA', 'WLOTA'];
 
 export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick }) {
   const [spots, setSpots] = useState([]);
@@ -51,6 +52,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
   const [countryFilter, setCountryFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('All');
   const [minConfidence, setMinConfidence] = useState(0);
+  const [refFilter, setRefFilter] = useState('All');
   const [sortBy, setSortBy] = useState('age');
   const [sortDir, setSortDir] = useState('asc');
 
@@ -96,6 +98,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
     if (modeFilter !== 'All' && s.mode !== modeFilter) return false;
     if (countryFilter && !s.country?.toLowerCase().includes(countryFilter.toLowerCase())) return false;
     if (sourceFilter !== 'All' && s.source !== sourceFilter) return false;
+    if (refFilter !== 'All' && s.activity !== refFilter) return false;
     if (s.confidence < minConfidence) return false;
     return true;
   }).sort((a, b) => {
@@ -157,6 +160,9 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
           </select>
           <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
             {MODES.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={refFilter} onChange={e => setRefFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
+            {REFS.map(r => <option key={r} value={r}>{r === 'All' ? 'Alle Ref' : r}</option>)}
           </select>
         </div>
         <div className="flex flex-wrap gap-2 items-center">

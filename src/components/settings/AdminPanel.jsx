@@ -27,6 +27,7 @@ import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import JsonRepeaterImport from "@/components/admin/JsonRepeaterImport";
 import CoverageScheduleManager from "@/components/admin/CoverageScheduleManager";
 import IllwAdminSection from "@/components/admin/IllwAdminSection";
+import DxSpotReferenceManager from "@/components/admin/DxSpotReferenceManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 
 const TYPE_LABELS = {
@@ -413,6 +414,9 @@ export default function AdminPanel({
 
         {/* Individual Source Reload */}
         <IndividualSourceReload />
+
+        {/* DX Spot Reference Manager */}
+        <DxSpotReferenceManager />
       </AdminCollapsibleSection>
 
       {/* ====== GROUP 3: Relais & Verlinkungen ====== */}
