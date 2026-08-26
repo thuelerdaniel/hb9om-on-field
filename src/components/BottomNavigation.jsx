@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { MapPin, BookOpen, Settings as SettingsIcon, LogOut, Shield, Crosshair } from "lucide-react";
+import { MapPin, BookOpen, Settings as SettingsIcon, LogOut, Shield } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAppFeatures } from "@/lib/appFeatures";
 
