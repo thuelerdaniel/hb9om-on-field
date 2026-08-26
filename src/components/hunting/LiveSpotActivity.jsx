@@ -3,12 +3,12 @@ import { Crosshair, RefreshCw, Eye, Target, FileText, Search, ChevronUp, Chevron
 import { base44 } from "@/api/base44Client";
 
 // Live Spot Activity — Hauptbereich mit Filtern, Worked-Status, sortierbar.
-// SHACK-SERVER Style: #050b10 bg, #0d1720 panels, #00e5ff cyan.
+// Theme-aware: bg-card, border-border, text-foreground, text-muted-foreground.
 
 const REFRESH_MS = 30 * 1000;
 
 function ageColor(age) {
-  if (age == null) return '#9aa7b0';
+  if (age == null) return 'hsl(var(--muted-foreground))';
   if (age < 60) return '#8cff00';
   if (age < 300) return '#ffc400';
   return '#ff5252';
@@ -33,11 +33,11 @@ const DOT_COLORS = {
   green: '#8cff00',
   blue: '#00e5ff',
   yellow: '#ffc400',
-  gray: '#9aa7b0',
+  gray: 'hsl(var(--muted-foreground))',
 };
 
 const BANDS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m'];
-const MODES = ['All', 'phone', 'digi', 'CW', 'SSB', 'FT8'];
+const MODES = ['All', 'FT8', 'FT4', 'CW', 'SSB', 'FM', 'RTTY', 'PSK', 'Other'];
 
 export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick }) {
   const [spots, setSpots] = useState([]);
@@ -120,14 +120,14 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
   const SortIcon = ({ col }) => sortBy === col ? (sortDir === 'asc' ? <ChevronUp className="w-2.5 h-2.5 inline" /> : <ChevronDown className="w-2.5 h-2.5 inline" />) : null;
 
   return (
-    <div className="bg-[#0d1720] border border-[#1d3442] rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1d3442]">
-        <h2 className="text-xs font-semibold text-white flex items-center gap-1.5">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <h2 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
           <Crosshair className="w-3.5 h-3.5 text-[#00e5ff]" /> LIVE SPOT ACTIVITY
-          <span className="text-[10px] text-[#9aa7b0] font-normal">({filtered.length})</span>
+          <span className="text-[10px] text-muted-foreground font-normal">({filtered.length})</span>
         </h2>
-        <button onClick={() => fetchSpots(true)} disabled={refreshing} className="text-[#9aa7b0] hover:text-white">
+        <button onClick={() => fetchSpots(true)} disabled={refreshing} className="text-muted-foreground hover:text-foreground">
           <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
@@ -140,22 +140,22 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
       )}
 
       {/* Filter Bar */}
-      <div className="px-3 py-2 border-b border-[#1d3442] space-y-2">
+      <div className="px-3 py-2 border-b border-border space-y-2">
         <div className="flex flex-wrap gap-2">
           <div className="relative flex-1 min-w-[120px]">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#9aa7b0]" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Call oder Land…"
-              className="w-full pl-7 pr-2 py-1.5 text-xs bg-[#050b10] border border-[#1d3442] rounded-lg text-white placeholder-[#9aa7b0] focus:border-[#00e5ff] outline-none"
+              className="w-full pl-7 pr-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:border-[#00e5ff] outline-none"
             />
           </div>
-          <select value={bandFilter} onChange={e => setBandFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-[#050b10] border border-[#1d3442] rounded-lg text-white focus:border-[#00e5ff] outline-none">
+          <select value={bandFilter} onChange={e => setBandFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
             {BANDS.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
-          <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-[#050b10] border border-[#1d3442] rounded-lg text-white focus:border-[#00e5ff] outline-none">
+          <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
             {MODES.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
@@ -165,21 +165,21 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
             value={countryFilter}
             onChange={e => setCountryFilter(e.target.value)}
             placeholder="Land…"
-            className="flex-1 px-2 py-1.5 text-xs bg-[#050b10] border border-[#1d3442] rounded-lg text-white placeholder-[#9aa7b0] focus:border-[#00e5ff] outline-none"
+            className="flex-1 min-w-[80px] px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:border-[#00e5ff] outline-none"
           />
-          <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-[#050b10] border border-[#1d3442] rounded-lg text-white focus:border-[#00e5ff] outline-none">
+          <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
             <option value="All">Alle Quellen</option>
             <option value="DXCluster (jo30.de)">jo30.de</option>
             <option value="DX Summit">DX Summit</option>
           </select>
           <div className="flex items-center gap-1">
-            <span className="text-[9px] text-[#9aa7b0]">Conf≥</span>
+            <span className="text-[9px] text-muted-foreground">Conf≥</span>
             <input
               type="number"
               min="0" max="100"
               value={minConfidence}
               onChange={e => setMinConfidence(parseInt(e.target.value) || 0)}
-              className="w-10 px-1 py-1.5 text-xs bg-[#050b10] border border-[#1d3442] rounded-lg text-white focus:border-[#00e5ff] outline-none"
+              className="w-10 px-1 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none"
             />
           </div>
         </div>
@@ -188,24 +188,24 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
       {/* Table */}
       <div className="max-h-[45vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
-          <div className="p-6 text-center text-sm text-[#9aa7b0] flex items-center justify-center gap-2">
+          <div className="p-6 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin" /> Spots werden geladen…
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-6 text-center text-sm text-[#9aa7b0]">Keine Spots gefunden.</div>
+          <div className="p-6 text-center text-sm text-muted-foreground">Keine Spots gefunden.</div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-[#0d1720] z-10">
-              <tr className="text-[9px] text-[#9aa7b0] uppercase border-b border-[#1d3442]">
-                <th className="px-2 py-1.5 text-left cursor-pointer hover:text-white" onClick={() => toggleSort('call')}>Call <SortIcon col="call" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white" onClick={() => toggleSort('freq')}>Freq <SortIcon col="freq" /></th>
+            <thead className="sticky top-0 bg-card z-10">
+              <tr className="text-[9px] text-muted-foreground uppercase border-b border-border">
+                <th className="px-2 py-1.5 text-left cursor-pointer hover:text-foreground" onClick={() => toggleSort('call')}>Call <SortIcon col="call" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('freq')}>Freq <SortIcon col="freq" /></th>
                 <th className="px-2 py-1.5 text-left">Mode</th>
                 <th className="px-2 py-1.5 text-left hidden md:table-cell">Comment</th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white hidden md:table-cell" onClick={() => toggleSort('dist')}>Dist <SortIcon col="dist" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white hidden md:table-cell" onClick={() => toggleSort('az')}>Az <SortIcon col="az" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('dist')}>Dist <SortIcon col="dist" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('az')}>Az <SortIcon col="az" /></th>
                 <th className="px-2 py-1.5 text-left hidden md:table-cell">Source</th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white" onClick={() => toggleSort('age')}>Age <SortIcon col="age" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-white hidden md:table-cell" onClick={() => toggleSort('score')}>Score <SortIcon col="score" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('age')}>Age <SortIcon col="age" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('score')}>Score <SortIcon col="score" /></th>
                 <th className="px-2 py-1.5 text-center">Actions</th>
               </tr>
             </thead>
@@ -214,11 +214,12 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
                 const dot = workedDot(spot, worked);
                 const comment = spot.comments?.[0] || '';
                 return (
-                  <tr key={spot.id || i} className="border-b border-[#1d3442]/50 hover:bg-[#050b10]">
+                  <tr key={spot.id || i} className="border-b border-border/50 hover:bg-muted">
                     <td className="px-2 py-1.5">
                       <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: DOT_COLORS[dot] }} />
-                        <button onClick={() => onCallClick?.(spot.call)} className="font-bold text-white hover:text-[#00e5ff] truncate">
+                        {spot.countryCode && <span className="text-sm leading-none">{spot.countryCode}</span>}
+                        <button onClick={() => onCallClick?.(spot.call)} className="font-bold text-foreground hover:text-[#00e5ff] truncate">
                           {spot.call}
                         </button>
                         {spot.activity && (
@@ -226,22 +227,22 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
                         )}
                       </div>
                     </td>
-                    <td className="px-2 py-1.5 text-right font-mono text-[#9aa7b0]">{formatFreq(spot.frequency)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{formatFreq(spot.frequency)}</td>
                     <td className="px-2 py-1.5 text-[#00e5ff]">{spot.mode || '—'}</td>
-                    <td className="px-2 py-1.5 text-[#9aa7b0] truncate max-w-[80px] hidden md:table-cell">{comment || '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-[#9aa7b0] hidden md:table-cell">{spot.distance > 0 ? `${spot.distance}` : '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-[#9aa7b0] hidden md:table-cell">{spot.azimuth > 0 ? `${spot.azimuth}°` : '—'}</td>
-                    <td className="px-2 py-1.5 text-[9px] text-[#9aa7b0] truncate max-w-[60px] hidden md:table-cell">{spot.source || '—'}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[80px] hidden md:table-cell">{comment || '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot.distance > 0 ? `${spot.distance}` : '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot.azimuth > 0 ? `${spot.azimuth}°` : '—'}</td>
+                    <td className="px-2 py-1.5 text-[9px] text-muted-foreground truncate max-w-[60px] hidden md:table-cell">{spot.source || '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono" style={{ color: ageColor(spot.age_seconds) }}>
                       {spot.age_seconds != null ? `${spot.age_seconds}s` : '—'}
                     </td>
-                    <td className="px-2 py-1.5 text-right font-mono text-white hidden md:table-cell">{spot.confidence || '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-foreground hidden md:table-cell">{spot.confidence || '—'}</td>
                     <td className="px-2 py-1.5">
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => onSpotDetails?.(spot)} className="text-[#9aa7b0] hover:text-[#00e5ff]" title="Details">
+                        <button onClick={() => onSpotDetails?.(spot)} className="text-muted-foreground hover:text-[#00e5ff]" title="Details">
                           <Eye className="w-3 h-3" />
                         </button>
-                        <button onClick={() => onLogQso?.(spot)} className="text-[#9aa7b0] hover:text-[#8cff00]" title="Log QSO">
+                        <button onClick={() => onLogQso?.(spot)} className="text-muted-foreground hover:text-[#8cff00]" title="Log QSO">
                           <FileText className="w-3 h-3" />
                         </button>
                       </div>
@@ -255,7 +256,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
       </div>
 
       {/* Footer */}
-      <div className="px-3 py-1.5 border-t border-[#1d3442] text-[8px] text-[#9aa7b0] flex justify-between">
+      <div className="px-3 py-1.5 border-t border-border text-[8px] text-muted-foreground flex justify-between">
         <span>Auto-Refresh 30s</span>
         <span>{filtered.length} / {spots.length} Spots</span>
       </div>

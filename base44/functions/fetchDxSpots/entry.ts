@@ -3,10 +3,26 @@ import { deriveBand } from "../../shared/bandDerivation.ts";
 import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts";
 
 // Lade DX-Spots von jo30.de DXCluster (primär) oder DX Summit (Fallback).
-// Berechne Distanz, Azimuth und Confidence aus Station-Locator (JN36FL oder AppSetting).
-// Speichere max 50 Spots, lösche Spots älter als 1 Stunde.
+// Verwendet dxcc_spotted.lat/lng für Distanz/Azimuth und Kartenanzeige.
+// Speichert max 50 Spots, lösche Spots älter als 1 Stunde.
 
 const DEFAULT_LOCATOR = 'JN36FL';
+
+// Submode → Log-kompatibler Mode (USB/LSB → SSB)
+function normalizeMode(apiMode: string, submode: string): string {
+  const sub = (submode || '').toUpperCase();
+  if (sub === 'USB' || sub === 'LSB') return 'SSB';
+  if (sub === 'FT8') return 'FT8';
+  if (sub === 'FT4') return 'FT4';
+  if (sub === 'CW') return 'CW';
+  if (sub === 'FM') return 'FM';
+  if (sub) return sub;
+  const m = (apiMode || '').toUpperCase();
+  if (m === 'PHONE') return 'SSB';
+  if (m === 'DIGI') return 'FT8';
+  if (m === 'CW') return 'CW';
+  return apiMode || 'Unknown';
+}
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -108,30 +124,60 @@ export default async function(req: Request): Promise<Response> {
       const message = s.message || s.comment || s.info || '';
       const comments = message ? [message] : [];
 
-      // Locator aus Kommentar extrahieren (z.B. "JN47QM" oder "locator JN47QM")
+      // DXCC-Daten der gespoteten Station (jo30.de liefert diese direkt!)
+      const dxccSpotted = s.dxcc_spotted || {};
+      const dxLat = dxccSpotted.lat ? Number(dxccSpotted.lat) : 0;
+      const dxLng = dxccSpotted.lng ? Number(dxccSpotted.lng) : 0;
+      const country = dxccSpotted.entity || s.country || s.dxcc || '';
+      const countryCode = dxccSpotted.flag || s.countryCode || '';
+      const continent = dxccSpotted.cont || '';
+      const cqZone = dxccSpotted.cqz ? String(dxccSpotted.cqz) : '';
+
+      // Locator aus Kommentar extrahieren (z.B. "JN47QM")
       let locator = '';
       const locMatch = message.match(/\b([A-R]{2}\d{2}[A-X]{2})\b/i);
       if (locMatch) locator = locMatch[1].toUpperCase();
 
-      // Activity aus Kommentar erkennen
+      // Activity aus dxcc_spotted Referenzen oder Kommentar erkennen
       let activity = '';
-      const msgUpper = message.toUpperCase();
-      if (msgUpper.includes('SOTA')) activity = 'SOTA';
-      else if (msgUpper.includes('POTA')) activity = 'POTA';
+      let activityRef = '';
+      if (dxccSpotted.sota_ref) {
+        activity = 'SOTA';
+        activityRef = String(dxccSpotted.sota_ref);
+      } else if (dxccSpotted.pota_ref) {
+        activity = 'POTA';
+        activityRef = String(dxccSpotted.pota_ref);
+      } else if (dxccSpotted.iota_ref) {
+        activity = 'IOTA';
+        activityRef = String(dxccSpotted.iota_ref);
+      } else if (dxccSpotted.wwff_ref) {
+        activity = 'WWFF';
+        activityRef = String(dxccSpotted.wwff_ref);
+      } else {
+        const msgUpper = message.toUpperCase();
+        if (msgUpper.includes('SOTA')) activity = 'SOTA';
+        else if (msgUpper.includes('POTA')) activity = 'POTA';
+      }
 
-      // Country/Code aus add-Objekt oder Feld
-      const country = s.country || s.dxcc || s.add?.country || '';
-      const countryCode = s.countryCode || s.add?.countryCode || s.dxcc_cc || '';
+      // DX-Position: Prefer Maidenhead locator (genauer), Fallback DXCC-Center
+      let dxPos: { lat: number; lon: number } | null = null;
+      if (locator) {
+        dxPos = maidenheadToLatLon(locator);
+      }
+      if (!dxPos && dxLat && dxLng) {
+        dxPos = { lat: dxLat, lon: dxLng };
+      }
 
-      // Distanz + Azimuth berechnen (nur wenn Locator vorhanden)
+      // Distanz + Azimuth berechnen
       let distance = 0;
       let azimuth = 0;
-      if (locator) {
-        const dxPos = maidenheadToLatLon(locator);
-        if (dxPos) {
-          distance = haversine(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
-          azimuth = bearing(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
-        }
+      let finalLat = 0;
+      let finalLng = 0;
+      if (dxPos) {
+        distance = haversine(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
+        azimuth = bearing(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
+        finalLat = Math.round(dxPos.lat * 10000) / 10000;
+        finalLng = Math.round(dxPos.lon * 10000) / 10000;
       }
 
       // Confidence: Basis 50, +20 spotter, +10 locator, +10 country, +10 activity. Max 100.
@@ -146,7 +192,7 @@ export default async function(req: Request): Promise<Response> {
         call: String(call).toUpperCase().trim(),
         frequency: freqKHz,
         band: deriveBand(freqKHz),
-        mode: s.add?.mode || s.mode || s.mod || 'Unknown',
+        mode: normalizeMode(s.mode, s.submode),
         country,
         countryCode,
         source,
@@ -158,8 +204,11 @@ export default async function(req: Request): Promise<Response> {
         distance,
         azimuth,
         locator,
+        lat: finalLat || undefined,
+        lng: finalLng || undefined,
         comments,
         activity,
+        activity_ref: activityRef || undefined,
         is_active: true,
       });
     }

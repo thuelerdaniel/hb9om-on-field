@@ -20,11 +20,11 @@
     },
     "country": {
       "type": "string",
-      "description": "Land der gespoteten Station"
+      "description": "Land der gespoteten Station (DXCC Entity)"
     },
     "countryCode": {
       "type": "string",
-      "description": "L\u00e4ndercode (z.B. DE, FR)"
+      "description": "Laendercode oder Flag-Emoji der gespoteten Station"
     },
     "source": {
       "type": "string",
@@ -64,7 +64,15 @@
     },
     "locator": {
       "type": "string",
-      "description": "Maidenhead Grid Locator der gespoteten Station"
+      "description": "Maidenhead Grid Locator der gespoteten Station (falls im Kommentar vorhanden)"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad der gespoteten Station (DXCC-Center oder aus Locator)"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad der gespoteten Station (DXCC-Center oder aus Locator)"
     },
     "comments": {
       "type": "array",
@@ -75,7 +83,11 @@
     },
     "activity": {
       "type": "string",
-      "description": "Aktivit\u00e4t (SOTA, POTA) falls in Kommentaren erkannt"
+      "description": "Aktivitaet (SOTA, POTA, IOTA, WWFF) falls erkannt"
+    },
+    "activity_ref": {
+      "type": "string",
+      "description": "Referenz-Code der Aktivitaet (z.B. W7Y/TT-161, US-2465)"
     },
     "is_active": {
       "type": "boolean",

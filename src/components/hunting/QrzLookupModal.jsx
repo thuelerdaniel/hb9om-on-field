@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { X, User, MapPin, Mail, Grid3x3, Loader2, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
-// QRZ Lookup Modal — SHACK-SERVER Style.
+// QRZ Lookup Modal — Theme-aware.
 // Prüft zuerst QrzLookup Entity, dann fetchQRZ.
 
 export default function QrzLookupModal({ callsign, onClose }) {
@@ -50,20 +50,20 @@ export default function QrzLookupModal({ callsign, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-[#0d1720] border border-[#1d3442] rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1d3442]">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
             <Search className="w-4 h-4 text-[#00e5ff]" /> QRZ-Lookup
           </h3>
-          <button onClick={onClose} className="text-[#9aa7b0] hover:text-white"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-4">
           <div className="mb-4">
-            <div className="text-[10px] text-[#9aa7b0] uppercase tracking-wide mb-0.5">Rufzeichen</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Rufzeichen</div>
             <div className="text-xl font-bold text-[#00e5ff]">{callsign}</div>
           </div>
           {loading && (
-            <div className="flex items-center gap-2 text-[#9aa7b0] py-4">
+            <div className="flex items-center gap-2 text-muted-foreground py-4">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm">QRZ.com wird abgefragt…</span>
             </div>
@@ -79,8 +79,8 @@ export default function QrzLookupModal({ callsign, onClose }) {
             </div>
           )}
         </div>
-        <div className="p-3 border-t border-[#1d3442]">
-          <button onClick={onClose} className="w-full py-2 bg-[#050b10] hover:bg-[#1d3442] text-[#9aa7b0] rounded-lg text-sm font-medium border border-[#1d3442]">Schliessen</button>
+        <div className="p-3 border-t border-border">
+          <button onClick={onClose} className="w-full py-2 bg-background hover:bg-muted text-muted-foreground rounded-lg text-sm font-medium border border-border">Schliessen</button>
         </div>
       </div>
     </div>
@@ -90,10 +90,10 @@ export default function QrzLookupModal({ callsign, onClose }) {
 function InfoRow({ icon, label, value }) {
   return (
     <div className="flex items-start gap-2">
-      <div className="text-[#9aa7b0] mt-0.5">{icon}</div>
+      <div className="text-muted-foreground mt-0.5">{icon}</div>
       <div className="flex-1 min-w-0">
-        <div className="text-[10px] text-[#9aa7b0] uppercase tracking-wide">{label}</div>
-        <div className="text-sm text-white break-words">{value}</div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</div>
+        <div className="text-sm text-foreground break-words">{value}</div>
       </div>
     </div>
   );

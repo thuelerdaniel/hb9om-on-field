@@ -3,11 +3,11 @@ import { Target, Radio, Crosshair, Bell, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 // Command Strip — 4 Info-Kästchen oben: DX Opportunity, Best Band, Station Ready, Opportunities.
-// SHACK-SERVER Style: #050b10 bg, #0d1720 panels, #00e5ff cyan, #8cff00 green.
+// Theme-aware: bg-card, border-border, text-foreground, text-muted-foreground.
 
-const PANEL = "bg-[#0d1720] border border-[#1d3442] rounded-xl";
-const LABEL = "text-[9px] text-[#9aa7b0] uppercase tracking-wider font-semibold";
-const VALUE = "text-sm font-bold text-white truncate";
+const PANEL = "bg-card border border-border rounded-xl";
+const LABEL = "text-[9px] text-muted-foreground uppercase tracking-wider font-semibold";
+const VALUE = "text-sm font-bold text-foreground truncate";
 
 export default function CommandStrip({ spots, propagation, stationInfo }) {
   const [worked, setWorked] = useState(null);
@@ -46,13 +46,13 @@ export default function CommandStrip({ spots, propagation, stationInfo }) {
         {farthest ? (
           <>
             <div className={VALUE}>{farthest.call}</div>
-            <div className="text-[10px] text-[#9aa7b0] mt-0.5">
+            <div className="text-[10px] text-muted-foreground mt-0.5">
               {farthest.distance > 0 ? `${farthest.distance.toLocaleString()} km` : '— km'}
               {farthest.azimuth > 0 && ` · ${farthest.azimuth}°`}
             </div>
           </>
         ) : (
-          <div className="text-xs text-[#9aa7b0]">—</div>
+          <div className="text-xs text-muted-foreground">—</div>
         )}
       </div>
 
@@ -65,12 +65,12 @@ export default function CommandStrip({ spots, propagation, stationInfo }) {
         {bestBand ? (
           <>
             <div className={VALUE}>{bestBand.band}</div>
-            <div className="text-[10px] text-[#9aa7b0] mt-0.5">
+            <div className="text-[10px] text-muted-foreground mt-0.5">
               {bestBand.condition} · {bestBand.score}
             </div>
           </>
         ) : (
-          <div className="text-xs text-[#9aa7b0]">—</div>
+          <div className="text-xs text-muted-foreground">—</div>
         )}
       </div>
 
@@ -83,12 +83,12 @@ export default function CommandStrip({ spots, propagation, stationInfo }) {
         {stationInfo ? (
           <>
             <div className={VALUE}>{stationInfo.callsign || '—'}</div>
-            <div className="text-[10px] text-[#9aa7b0] mt-0.5">
+            <div className="text-[10px] text-muted-foreground mt-0.5">
               {stationInfo.locator || '—'} · {stationInfo.name || ''}
             </div>
           </>
         ) : (
-          <div className="text-xs text-[#9aa7b0]">—</div>
+          <div className="text-xs text-muted-foreground">—</div>
         )}
       </div>
 
@@ -99,7 +99,7 @@ export default function CommandStrip({ spots, propagation, stationInfo }) {
           <span className={LABEL}>Opportunities</span>
         </div>
         <div className={VALUE}>{oppCount}</div>
-        <div className="text-[10px] text-[#9aa7b0] mt-0.5">
+        <div className="text-[10px] text-muted-foreground mt-0.5">
           {worked ? `${worked.calls?.length || 0} worked` : 'spots'}
         </div>
       </div>

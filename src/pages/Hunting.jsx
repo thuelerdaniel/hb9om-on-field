@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Crosshair, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Crosshair, Plus, ArrowLeft } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import CommandStrip from "@/components/hunting/CommandStrip";
 import PropagationBar from "@/components/hunting/PropagationBar";
-import FoxHuntButton from "@/components/hunting/FoxHuntButton";
-import FoxHuntModal from "@/components/hunting/FoxHuntModal";
 import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
 import SpotDetailsModal from "@/components/hunting/SpotDetailsModal";
 import QsoLogModal from "@/components/hunting/QsoLogModal";
@@ -12,32 +11,20 @@ import QrzLookupModal from "@/components/hunting/QrzLookupModal";
 import PriorityDx from "@/components/hunting/PriorityDx";
 import BottomNavigation from "@/components/BottomNavigation";
 
-// Hunting-Seite — SHACK-SERVER Style Dashboard.
-// Command Strip + Propagation Bar + Fox Hunting + Live Spots + Details + QSO + Priority DX.
-// Hintergrund #050b10, Panels #0d1720, Border #1d3442, Cyan #00e5ff, Grün #8cff00.
+// Hunting-Seite — DX-Spots, Propagation, QSO-Logging.
+// Theme-aware: verwendet bg-background, bg-card, text-foreground etc.
 
 const DEFAULT_STATION = { station: "HB9OM", callsign: "HB3YNF", name: "Dani", club: "HB9OM", locator: "JN36FL" };
 
 export default function Hunting() {
+  const navigate = useNavigate();
   const [spots, setSpots] = useState([]);
   const [propagation, setPropagation] = useState(null);
   const [stationInfo, setStationInfo] = useState(DEFAULT_STATION);
-  const [showFoxHunt, setShowFoxHunt] = useState(false);
   const [spotDetails, setSpotDetails] = useState(null);
   const [qsoSpot, setQsoSpot] = useState(null);
   const [qrzCall, setQrzCall] = useState(null);
-  const [gpsPosition, setGpsPosition] = useState(null);
   const [showBlankQso, setShowBlankQso] = useState(false);
-
-  // GPS-Position für Fox Hunting laden
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setGpsPosition([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-    );
-  }, []);
 
   // Station Info aus AppSetting laden
   useEffect(() => {
@@ -83,34 +70,34 @@ export default function Hunting() {
   }, [loadSpots, loadProp]);
 
   return (
-    <div className="min-h-screen bg-[#050b10] text-white" style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       {/* Header */}
       <header
-        className="sticky top-0 z-50 bg-[#050b10]/95 backdrop-blur-md border-b border-[#1d3442]"
+        className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="px-4 py-3 flex items-center gap-2">
+          <button onClick={() => navigate('/')} className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Zurück zur Karte">
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          </button>
           <Crosshair className="w-5 h-5 text-[#00e5ff]" />
-          <h1 className="text-lg font-bold text-white">Hunting</h1>
-          <span className="text-[10px] text-[#9aa7b0] ml-auto">SHACK-SERVER Style</span>
+          <h1 className="text-lg font-bold text-foreground">Hunting</h1>
+          <span className="text-[10px] text-muted-foreground ml-auto">DX-Spots & Propagation</span>
         </div>
       </header>
 
       {/* Content */}
       <main className="max-w-2xl mx-auto px-3 py-3 pb-24 space-y-3">
-        {/* 3.1 Command Strip */}
+        {/* Command Strip */}
         <CommandStrip spots={spots} propagation={propagation} stationInfo={stationInfo} />
 
-        {/* 3.2 Propagation Bar */}
+        {/* Propagation Bar */}
         <PropagationBar stationInfo={stationInfo} />
 
-        {/* 3.3 Fox Hunting Button */}
-        <FoxHuntButton onClick={() => setShowFoxHunt(true)} />
-
-        {/* 3.7 Priority DX */}
+        {/* Priority DX */}
         <PriorityDx spots={spots} onSpotDetails={setSpotDetails} />
 
-        {/* 3.4 Live Spot Activity */}
+        {/* Live Spot Activity */}
         <LiveSpotActivity
           onSpotDetails={setSpotDetails}
           onLogQso={setQsoSpot}
@@ -118,12 +105,7 @@ export default function Hunting() {
         />
       </main>
 
-      {/* 3.3 Fox Hunt Modal */}
-      {showFoxHunt && (
-        <FoxHuntModal stationInfo={stationInfo} gpsPosition={gpsPosition} onClose={() => setShowFoxHunt(false)} />
-      )}
-
-      {/* 3.5 Spot Details Modal */}
+      {/* Spot Details Modal */}
       {spotDetails && (
         <SpotDetailsModal
           spot={spotDetails}
@@ -133,7 +115,7 @@ export default function Hunting() {
         />
       )}
 
-      {/* 3.6 QSO Log Modal — aus Spot oder leer (blankQso) */}
+      {/* QSO Log Modal — aus Spot oder leer (blankQso) */}
       {(qsoSpot || showBlankQso) && (
         <QsoLogModal spot={qsoSpot} onClose={() => { setQsoSpot(null); setShowBlankQso(false); }} />
       )}

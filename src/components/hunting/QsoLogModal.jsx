@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Save, Loader2, Building2, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
-// QSO Log Modal — SHACK-SERVER Style. Vorausgefüllt aus DX-Spot.
+// QSO Log Modal — Theme-aware. Vorausgefüllt aus DX-Spot.
 // Speichert in Log Entity. QRZ-Lookup via QrzLookup Entity.
 
 export default function QsoLogModal({ spot, onClose }) {
@@ -29,7 +29,7 @@ export default function QsoLogModal({ spot, onClose }) {
         band: spot.band || '',
         mode: spot.mode && spot.mode !== 'Unknown' ? spot.mode : 'FT8',
         time_start: utcTime,
-        my_reference: spot.activity === 'SOTA' || spot.activity === 'POTA' ? spot.comments?.[0] || '' : '',
+        my_reference: spot.activity_ref || (spot.activity === 'SOTA' || spot.activity === 'POTA' ? spot.comments?.[0] || '' : ''),
         my_reference_type: spot.activity === 'SOTA' ? 'sota' : spot.activity === 'POTA' ? 'pota' : 'custom',
       }));
       // QRZ-Lookup
@@ -69,16 +69,16 @@ export default function QsoLogModal({ spot, onClose }) {
     }
   };
 
-  const inputClass = "w-full px-2 py-1.5 text-xs bg-[#050b10] border border-[#1d3442] rounded-lg text-white placeholder-[#9aa7b0] focus:border-[#00e5ff] outline-none";
+  const inputClass = "w-full px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:border-[#00e5ff] outline-none";
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-[#0d1720] border border-[#1d3442] rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1d3442] sticky top-0 bg-[#0d1720] z-10">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-card z-10">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
             <Save className="w-4 h-4 text-[#8cff00]" /> QSO loggen
           </h3>
-          <button onClick={onClose} className="text-[#9aa7b0] hover:text-white"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
         </div>
 
         {success ? (
@@ -129,7 +129,7 @@ export default function QsoLogModal({ spot, onClose }) {
             <Field label={`Operator Name${qrzLoading ? ' (QRZ…)' : ''}`}>
               <input type="text" value={form.operator_name} onChange={e => update('operator_name', e.target.value)} className={inputClass} />
             </Field>
-            {spot?.activity && (
+            {(spot?.activity || form.my_reference) && (
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Referenz">
                   <input type="text" value={form.my_reference} onChange={e => update('my_reference', e.target.value)} className={inputClass} />
@@ -146,11 +146,11 @@ export default function QsoLogModal({ spot, onClose }) {
             <button
               onClick={() => update('is_clubstation', !form.is_clubstation)}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                form.is_clubstation ? "bg-[#8cff00]/10 text-[#8cff00] border border-[#8cff00]/30" : "bg-[#050b10] text-[#9aa7b0] border border-[#1d3442]"
+                form.is_clubstation ? "bg-[#8cff00]/10 text-[#8cff00] border border-[#8cff00]/30" : "bg-background text-muted-foreground border border-border"
               }`}
             >
               <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4" /> Club-Station</span>
-              <span className={`relative w-9 h-5 rounded-full transition-colors ${form.is_clubstation ? "bg-[#8cff00]" : "bg-[#1d3442]"}`}>
+              <span className={`relative w-9 h-5 rounded-full transition-colors ${form.is_clubstation ? "bg-[#8cff00]" : "bg-muted"}`}>
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${form.is_clubstation ? "translate-x-4" : ""}`} />
               </span>
             </button>
@@ -169,7 +169,7 @@ export default function QsoLogModal({ spot, onClose }) {
             </Field>
             {error && <div className="text-xs text-[#ff5252] px-1">{error}</div>}
             <div className="flex gap-2 pt-1">
-              <button onClick={onClose} className="flex-1 py-2.5 bg-[#050b10] hover:bg-[#1d3442] text-[#9aa7b0] rounded-lg text-sm font-medium border border-[#1d3442]">Abbrechen</button>
+              <button onClick={onClose} className="flex-1 py-2.5 bg-background hover:bg-muted text-muted-foreground rounded-lg text-sm font-medium border border-border">Abbrechen</button>
               <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-[#8cff00] hover:bg-[#7aee00] text-black rounded-lg text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-1.5">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Speichern
               </button>
@@ -184,7 +184,7 @@ export default function QsoLogModal({ spot, onClose }) {
 function Field({ label, children }) {
   return (
     <div>
-      <label className="block text-[10px] text-[#9aa7b0] uppercase tracking-wide mb-1">{label}</label>
+      <label className="block text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{label}</label>
       {children}
     </div>
   );

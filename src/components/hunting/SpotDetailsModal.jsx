@@ -5,12 +5,10 @@ import L from "leaflet";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
 
-
-
 // Spot Details Modal — zeigt Spot-Details mit Leaflet-Karte.
-// QTH Marker + DX Marker + Polyline (Bearing), Auto-Zoom.
+// Verwendet spot.lat/lng (DXCC-Koordinaten) oder Locator für DX-Marker.
+// Theme-aware: bg-card, border-border, text-foreground.
 
-// Fix Leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -43,7 +41,14 @@ export default function SpotDetailsModal({ spot, stationInfo, onClose, onLogQso 
   const [qrzLoading, setQrzLoading] = useState(false);
 
   const stationPos = stationInfo?.locator ? maidenheadToLatLon(stationInfo.locator) : null;
-  const dxPos = spot?.locator ? maidenheadToLatLon(spot.locator) : null;
+
+  // DX-Position: Prefer spot.lat/lng (DXCC), Fallback to locator
+  let dxPos = null;
+  if (spot?.lat && spot?.lng) {
+    dxPos = { lat: spot.lat, lon: spot.lng };
+  } else if (spot?.locator) {
+    dxPos = maidenheadToLatLon(spot.locator);
+  }
 
   const positions = [];
   if (stationPos) positions.push([stationPos.lat, stationPos.lon]);
@@ -63,24 +68,28 @@ export default function SpotDetailsModal({ spot, stationInfo, onClose, onLogQso 
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-[#0d1720] border border-[#1d3442] rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1d3442] sticky top-0 bg-[#0d1720] z-10">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-card z-10">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
             <Eye className="w-4 h-4 text-[#00e5ff]" /> Spot Details
           </h3>
-          <button onClick={onClose} className="text-[#9aa7b0] hover:text-white"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
         </div>
 
         {/* Body */}
         <div className="p-4 space-y-3">
           {/* Call + Activity */}
           <div className="flex items-center gap-2">
+            {spot?.countryCode && <span className="text-xl leading-none">{spot.countryCode}</span>}
             <span className="text-xl font-bold text-[#00e5ff]">{spot?.call}</span>
             {spot?.activity && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8cff00]/20 text-[#8cff00] font-bold">{spot.activity}</span>
             )}
-            {spot?.country && <span className="text-xs text-[#9aa7b0]">{spot.country}</span>}
+            {spot?.activity_ref && (
+              <span className="text-[10px] text-muted-foreground">{spot.activity_ref}</span>
+            )}
+            {spot?.country && <span className="text-xs text-muted-foreground">{spot.country}</span>}
           </div>
 
           {/* Info Grid */}
@@ -91,38 +100,39 @@ export default function SpotDetailsModal({ spot, stationInfo, onClose, onLogQso 
             <InfoRow icon={<Navigation className="w-3 h-3" />} label="Distanz" value={spot?.distance > 0 ? `${spot.distance} km` : '—'} />
             <InfoRow icon={<Navigation className="w-3 h-3" />} label="Azimuth" value={spot?.azimuth > 0 ? `${spot.azimuth}°` : '—'} />
             <InfoRow icon={<MapPin className="w-3 h-3" />} label="Locator" value={spot?.locator || '—'} />
+            <InfoRow icon={<MapPin className="w-3 h-3" />} label="Koordinaten" value={spot?.lat ? `${spot.lat.toFixed(2)}°, ${spot.lng.toFixed(2)}°` : '—'} />
             <InfoRow icon={<Clock className="w-3 h-3" />} label="Alter" value={ageText(spot?.age_seconds)} />
             <InfoRow icon={<Radio className="w-3 h-3" />} label="Confidence" value={spot?.confidence ? `${spot.confidence}/100` : '—'} />
           </div>
 
           {/* Source + Spotter */}
-          <div className="text-[10px] text-[#9aa7b0]">
+          <div className="text-[10px] text-muted-foreground">
             Quelle: {spot?.source || '—'} · Spotter: {spot?.spotter || '—'}
           </div>
 
           {/* Comments */}
           {spot?.comments?.length > 0 && (
-            <div className="bg-[#050b10] rounded-lg p-2 border border-[#1d3442]">
-              <div className="text-[9px] text-[#9aa7b0] uppercase mb-1">Kommentare</div>
-              {spot.comments.map((c, i) => <div key={i} className="text-xs text-white">{c}</div>)}
+            <div className="bg-background rounded-lg p-2 border border-border">
+              <div className="text-[9px] text-muted-foreground uppercase mb-1">Kommentare</div>
+              {spot.comments.map((c, i) => <div key={i} className="text-xs text-foreground">{c}</div>)}
             </div>
           )}
 
           {/* QRZ Info */}
-          {qrzLoading && <div className="text-xs text-[#9aa7b0]">QRZ-Lookup…</div>}
+          {qrzLoading && <div className="text-xs text-muted-foreground">QRZ-Lookup…</div>}
           {qrzData && (
-            <div className="bg-[#050b10] rounded-lg p-2 border border-[#1d3442] space-y-1">
-              <div className="text-[9px] text-[#9aa7b0] uppercase">QRZ.com</div>
-              {qrzData.name && <div className="text-xs text-white">{qrzData.name}</div>}
-              {qrzData.country && <div className="text-xs text-[#9aa7b0]">{qrzData.country}</div>}
-              {qrzData.grid && <div className="text-xs text-[#9aa7b0]">Grid: {qrzData.grid}</div>}
+            <div className="bg-background rounded-lg p-2 border border-border space-y-1">
+              <div className="text-[9px] text-muted-foreground uppercase">QRZ.com</div>
+              {qrzData.name && <div className="text-xs text-foreground">{qrzData.name}</div>}
+              {qrzData.country && <div className="text-xs text-muted-foreground">{qrzData.country}</div>}
+              {qrzData.grid && <div className="text-xs text-muted-foreground">Grid: {qrzData.grid}</div>}
             </div>
           )}
 
           {/* Leaflet Map */}
           {positions.length > 0 && (
-            <div className="rounded-lg overflow-hidden border border-[#1d3442]" style={{ height: 200 }}>
-              <MapContainer center={positions[0]} zoom={8} className="w-full h-full" style={{ background: '#050b10' }}>
+            <div className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
+              <MapContainer center={positions[0]} zoom={8} className="w-full h-full" style={{ background: '#0d1720' }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
                 {stationPos && <Marker position={[stationPos.lat, stationPos.lon]} />}
                 {dxPos && <Marker position={[dxPos.lat, dxPos.lon]} />}
@@ -150,10 +160,10 @@ export default function SpotDetailsModal({ spot, stationInfo, onClose, onLogQso 
 function InfoRow({ icon, label, value }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-[#9aa7b0]">{icon}</span>
+      <span className="text-muted-foreground">{icon}</span>
       <div>
-        <div className="text-[9px] text-[#9aa7b0] uppercase">{label}</div>
-        <div className="text-xs text-white">{value}</div>
+        <div className="text-[9px] text-muted-foreground uppercase">{label}</div>
+        <div className="text-xs text-foreground">{value}</div>
       </div>
     </div>
   );
