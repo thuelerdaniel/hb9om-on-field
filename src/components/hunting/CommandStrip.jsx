@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Target, Radio, Crosshair, Bell, Loader2 } from "lucide-react";
+import { Target, Radio, Crosshair, Bell, Loader2, MapPin } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { latLngToGrid } from "@/lib/geoUtilsFrontend";
 
 // Command Strip — 4 Info-Kästchen oben: DX Opportunity, Best Band, Station Ready, Opportunities.
 // Theme-aware: bg-card, border-border, text-foreground, text-muted-foreground.
@@ -9,7 +10,7 @@ const PANEL = "bg-card border border-border rounded-xl";
 const LABEL = "text-[9px] text-muted-foreground uppercase tracking-wider font-semibold";
 const VALUE = "text-sm font-bold text-foreground truncate";
 
-export default function CommandStrip({ spots, propagation, stationInfo }) {
+export default function CommandStrip({ spots, propagation, stationInfo, gpsPos }) {
   const [worked, setWorked] = useState(null);
 
   const loadWorked = useCallback(async () => {
@@ -77,14 +78,24 @@ export default function CommandStrip({ spots, propagation, stationInfo }) {
       {/* Station Ready */}
       <div className={`${PANEL} p-2.5`}>
         <div className="flex items-center gap-1 mb-1">
-          <Crosshair className="w-3 h-3 text-[#ffc400]" />
+          <Crosshair className={`w-3 h-3 ${gpsPos ? 'text-[#8cff00]' : 'text-[#ffc400]'}`} />
           <span className={LABEL}>Station Ready</span>
+          {gpsPos && <MapPin className="w-2.5 h-2.5 text-[#8cff00] animate-pulse" />}
         </div>
         {stationInfo ? (
           <>
             <div className={VALUE}>{stationInfo.callsign || '—'}</div>
             <div className="text-[10px] text-muted-foreground mt-0.5">
-              {stationInfo.locator || '—'} · {stationInfo.name || ''}
+              {gpsPos ? (
+                <>
+                  <span className="text-[#8cff00] font-mono">{gpsPos.lat.toFixed(4)}°, {gpsPos.lng.toFixed(4)}°</span>
+                  <br />
+                  <span className="text-[9px]">GPS · {latLngToGrid(gpsPos.lat, gpsPos.lng)}</span>
+                  {gpsPos.accuracy && <span className="text-[9px] text-muted-foreground"> ±{Math.round(gpsPos.accuracy)}m</span>}
+                </>
+              ) : (
+                <>{stationInfo.locator || '—'} · {stationInfo.name || ''}</>
+              )}
             </div>
           </>
         ) : (

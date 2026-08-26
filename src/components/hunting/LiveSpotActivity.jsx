@@ -40,7 +40,7 @@ const BANDS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '
 const MODES = ['All', 'FT8', 'FT4', 'CW', 'SSB', 'FM', 'RTTY', 'PSK', 'Other'];
 const REFS = ['All', 'SOTA', 'POTA', 'WWFF', 'WWBOTA', 'WCA', 'TOTA', 'IOTA', 'WLOTA'];
 
-export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick }) {
+export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick, gpsPos }) {
   const [spots, setSpots] = useState([]);
   const [worked, setWorked] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,8 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
   const fetchSpots = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await base44.functions.invoke("fetchDxSpots", {});
+      const payload = gpsPos ? { station_lat: gpsPos.lat, station_lng: gpsPos.lng } : {};
+      const res = await base44.functions.invoke("fetchDxSpots", payload);
       const data = res?.data || res;
       if (data?.spots) {
         setSpots(data.spots);
@@ -89,7 +90,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick 
     loadWorked();
     const interval = setInterval(() => { fetchSpots(true); }, REFRESH_MS);
     return () => clearInterval(interval);
-  }, [fetchSpots, loadWorked]);
+  }, [fetchSpots, loadWorked, gpsPos]);
 
   // Filter + Sort
   const filtered = spots.filter(s => {

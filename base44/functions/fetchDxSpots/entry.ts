@@ -48,7 +48,15 @@ export default async function(req: Request): Promise<Response> {
         if (info.locator) stationLocator = info.locator.toUpperCase();
       }
     } catch {}
-    const stationPos = maidenheadToLatLon(stationLocator) || { lat: 46.5, lon: 6.5 };
+
+    // GPS-Koordinaten vom Client haben Vorrang vor dem konfigurierten Locator
+    let stationPos: { lat: number; lon: number };
+    if (typeof body.station_lat === 'number' && typeof body.station_lng === 'number' &&
+        !isNaN(body.station_lat) && !isNaN(body.station_lng)) {
+      stationPos = { lat: body.station_lat, lon: body.station_lng };
+    } else {
+      stationPos = maidenheadToLatLon(stationLocator) || { lat: 46.5, lon: 6.5 };
+    }
 
     // === 1. jo30.de DX-Cluster (all spots) ===
     let joSpots: any[] = [];
@@ -278,6 +286,8 @@ export default async function(req: Request): Promise<Response> {
       spots: latest,
       warning: warnings.length > 0 ? warnings.join('; ') : null,
       stationLocator,
+      stationPos: { lat: stationPos.lat, lon: stationPos.lon },
+      usingGps: typeof body.station_lat === 'number',
       sources: { jo30de: joSpots.length, spothole: spotholeSpots.length },
     });
   } catch (error) {

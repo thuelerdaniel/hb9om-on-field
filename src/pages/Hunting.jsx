@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Crosshair, Plus, ArrowLeft } from "lucide-react";
+import { Crosshair, Plus, ArrowLeft, MapPin } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import CommandStrip from "@/components/hunting/CommandStrip";
 import PropagationBar from "@/components/hunting/PropagationBar";
@@ -25,6 +25,30 @@ export default function Hunting() {
   const [qsoSpot, setQsoSpot] = useState(null);
   const [qrzCall, setQrzCall] = useState(null);
   const [showBlankQso, setShowBlankQso] = useState(false);
+  const [gpsPos, setGpsPos] = useState(null); // { lat, lng, accuracy }
+  const [gpsStatus, setGpsStatus] = useState('idle'); // idle | locating | ok | error
+  const watchIdRef = useRef(null);
+
+  // GPS-Tracking: Live-Position vom Gerät
+  useEffect(() => {
+    if (!navigator.geolocation) { setGpsStatus('error'); return; }
+    setGpsStatus('locating');
+    const onSuccess = (pos) => {
+      setGpsPos({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      });
+      setGpsStatus('ok');
+    };
+    const onError = () => setGpsStatus('error');
+    watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+      enableHighAccuracy: true, maximumAge: 15000, timeout: 20000,
+    });
+    return () => {
+      if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []);
 
   // Station Info aus AppSetting laden
   useEffect(() => {
@@ -39,10 +63,11 @@ export default function Hunting() {
     })();
   }, []);
 
-  // Spots laden (für CommandStrip + PriorityDx)
+  // Spots laden (für CommandStrip + PriorityDx) — mit GPS-Position falls verfügbar
   const loadSpots = useCallback(async () => {
     try {
-      const res = await base44.functions.invoke("fetchDxSpots", {});
+      const payload = gpsPos ? { station_lat: gpsPos.lat, station_lng: gpsPos.lng } : {};
+      const res = await base44.functions.invoke("fetchDxSpots", payload);
       const data = res?.data || res;
       if (data?.spots) setSpots(data.spots);
     } catch {
@@ -51,7 +76,7 @@ export default function Hunting() {
         setSpots(list || []);
       } catch {}
     }
-  }, []);
+  }, [gpsPos]);
 
   // Propagation laden (für CommandStrip)
   const loadProp = useCallback(async () => {
@@ -88,8 +113,20 @@ export default function Hunting() {
 
       {/* Content */}
       <main className="max-w-2xl mx-auto px-3 py-3 pb-24 space-y-3">
+        {/* GPS Status Banner */}
+        {gpsStatus === 'locating' && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#00e5ff]/10 border border-[#00e5ff]/20 rounded-lg text-[10px] text-[#00e5ff]">
+            <MapPin className="w-3 h-3 animate-pulse" /> GPS wird lokalisiert…
+          </div>
+        )}
+        {gpsStatus === 'error' && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#ff9800]/10 border border-[#ff9800]/20 rounded-lg text-[10px] text-[#ff9800]">
+            <MapPin className="w-3 h-3" /> GPS nicht verfügbar — verwende Stations-Locator
+          </div>
+        )}
+
         {/* Command Strip */}
-        <CommandStrip spots={spots} propagation={propagation} stationInfo={stationInfo} />
+        <CommandStrip spots={spots} propagation={propagation} stationInfo={stationInfo} gpsPos={gpsPos} />
 
         {/* Propagation Bar */}
         <PropagationBar stationInfo={stationInfo} />
@@ -102,6 +139,7 @@ export default function Hunting() {
           onSpotDetails={setSpotDetails}
           onLogQso={setQsoSpot}
           onCallClick={setQrzCall}
+          gpsPos={gpsPos}
         />
       </main>
 
@@ -110,6 +148,7 @@ export default function Hunting() {
         <SpotDetailsModal
           spot={spotDetails}
           stationInfo={stationInfo}
+          gpsPos={gpsPos}
           onClose={() => setSpotDetails(null)}
           onLogQso={setQsoSpot}
         />

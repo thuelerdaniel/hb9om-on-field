@@ -36,11 +36,14 @@ function ageText(age) {
   return `${Math.floor(age / 3600)}h`;
 }
 
-export default function SpotDetailsModal({ spot, stationInfo, onClose, onLogQso }) {
+export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, onLogQso }) {
   const [qrzData, setQrzData] = useState(null);
   const [qrzLoading, setQrzLoading] = useState(false);
 
-  const stationPos = stationInfo?.locator ? maidenheadToLatLon(stationInfo.locator) : null;
+  // Station-Position: GPS voranstellen, Fallback auf Locator
+  const stationPos = gpsPos
+    ? { lat: gpsPos.lat, lon: gpsPos.lng }
+    : (stationInfo?.locator ? maidenheadToLatLon(stationInfo.locator) : null);
 
   // DX-Position: Prefer spot.lat/lng (DXCC), Fallback to locator
   let dxPos = null;

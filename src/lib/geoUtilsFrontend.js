@@ -68,3 +68,21 @@ export function signalToDistance(sMeter) {
   const map = { 9: 1, 8: 2, 7: 5, 6: 10, 5: 20, 4: 50, 3: 100, 2: 200, 1: 500 };
   return map[sMeter] || 500;
 }
+
+export function latLngToGrid(lat, lng) {
+  const adjLng = lng + 180;
+  const adjLat = lat + 90;
+  const fieldLng = Math.floor(adjLng / 20);
+  const fieldLat = Math.floor(adjLat / 10);
+  const squareLng = Math.floor((adjLng % 20) / 2);
+  const squareLat = Math.floor(adjLat % 10);
+  const subSqLng = Math.floor((adjLng % 20 % 2) * 12);
+  const subSqLat = Math.floor((adjLat % 10 % 1) * 24);
+  return (
+    String.fromCharCode(65 + fieldLng) +
+    String.fromCharCode(65 + fieldLat) +
+    squareLng + squareLat +
+    String.fromCharCode(97 + subSqLng) +
+    String.fromCharCode(97 + subSqLat)
+  );
+}
