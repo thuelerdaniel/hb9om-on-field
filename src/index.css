@@ -4,6 +4,13 @@
 
 .leaflet-container {
   font-family: inherit;
+  touch-action: auto !important;
+  -ms-touch-action: auto !important;
+}
+
+.leaflet-map-pane {
+  touch-action: auto !important;
+  -ms-touch-action: auto !important;
 }
 
 .leaflet-tile-pane {

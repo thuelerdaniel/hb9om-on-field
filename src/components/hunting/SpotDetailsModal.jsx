@@ -45,12 +45,14 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
     ? { lat: gpsPos.lat, lon: gpsPos.lng }
     : (stationInfo?.locator ? maidenheadToLatLon(stationInfo.locator) : null);
 
-  // DX-Position: Prefer spot.lat/lng (DXCC), Fallback to locator
+  // DX-Position: ActivitySpot hat latitude/longitude, DxSpot hat lat/lng
+  const dxLat = spot?.latitude ?? spot?.lat;
+  const dxLng = spot?.longitude ?? spot?.lng;
   let dxPos = null;
-  if (spot?.lat && spot?.lng) {
-    dxPos = { lat: spot.lat, lon: spot.lng };
-  } else if (spot?.locator) {
-    dxPos = maidenheadToLatLon(spot.locator);
+  if (dxLat != null && dxLng != null) {
+    dxPos = { lat: dxLat, lon: dxLng };
+  } else if (spot?.locator || spot?.grid6) {
+    dxPos = maidenheadToLatLon(spot.locator || spot.grid6);
   }
 
   const positions = [];
@@ -86,11 +88,17 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
           <div className="flex items-center gap-2">
             {spot?.countryCode && <span className="text-xl leading-none">{spot.countryCode}</span>}
             <span className="text-xl font-bold text-[#00e5ff]">{spot?.call}</span>
-            {spot?.activity && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8cff00]/20 text-[#8cff00] font-bold">{spot.activity}</span>
+            {(spot?.activity || spot?.activity_type) && (
+              <span
+                className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                style={{
+                  background: (spot.activity_type || spot.activity) === 'SOTA' ? '#ff980020' : '#8cff0020',
+                  color: (spot.activity_type || spot.activity) === 'SOTA' ? '#ff9800' : '#8cff00',
+                }}
+              >{spot.activity_type || spot.activity}</span>
             )}
-            {spot?.activity_ref && (
-              <span className="text-[10px] text-muted-foreground">{spot.activity_ref}</span>
+            {(spot?.activity_ref || spot?.reference) && (
+              <span className="text-[10px] text-muted-foreground">{spot.activity_ref || spot.reference}</span>
             )}
             {spot?.country && <span className="text-xs text-muted-foreground">{spot.country}</span>}
           </div>
@@ -102,8 +110,8 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             <InfoRow icon={<Radio className="w-3 h-3" />} label="Mode" value={spot?.mode || '—'} />
             <InfoRow icon={<Navigation className="w-3 h-3" />} label="Distanz" value={spot?.distance > 0 ? `${spot.distance} km` : '—'} />
             <InfoRow icon={<Navigation className="w-3 h-3" />} label="Azimuth" value={spot?.azimuth > 0 ? `${spot.azimuth}°` : '—'} />
-            <InfoRow icon={<MapPin className="w-3 h-3" />} label="Locator" value={spot?.locator || '—'} />
-            <InfoRow icon={<MapPin className="w-3 h-3" />} label="Koordinaten" value={spot?.lat ? `${spot.lat.toFixed(2)}°, ${spot.lng.toFixed(2)}°` : '—'} />
+            <InfoRow icon={<MapPin className="w-3 h-3" />} label="Locator" value={spot?.locator || spot?.grid6 || '—'} />
+            <InfoRow icon={<MapPin className="w-3 h-3" />} label="Koordinaten" value={dxLat != null ? `${dxLat.toFixed(2)}°, ${dxLng.toFixed(2)}°` : '—'} />
             <InfoRow icon={<Clock className="w-3 h-3" />} label="Alter" value={ageText(spot?.age_seconds)} />
             <InfoRow icon={<Radio className="w-3 h-3" />} label="Confidence" value={spot?.confidence ? `${spot.confidence}/100` : '—'} />
           </div>
@@ -135,7 +143,22 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
           {/* Leaflet Map */}
           {positions.length > 0 && (
             <div className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
-              <MapContainer center={positions[0]} zoom={8} className="w-full h-full" style={{ background: '#0d1720' }}>
+              <MapContainer
+                center={positions[0]}
+                zoom={8}
+                className="w-full h-full"
+                scrollWheelZoom={true}
+                touchZoom={true}
+                doubleClickZoom={true}
+                dragging={true}
+                tap={true}
+                minZoom={3}
+                maxZoom={18}
+                zoomSnap={0.5}
+                zoomDelta={0.5}
+                bounceAtZoomLimits={true}
+                style={{ background: '#0d1720' }}
+              >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
                 {stationPos && <Marker position={[stationPos.lat, stationPos.lon]} />}
                 {dxPos && <Marker position={[dxPos.lat, dxPos.lon]} />}

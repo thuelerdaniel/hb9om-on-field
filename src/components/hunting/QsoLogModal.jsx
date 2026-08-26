@@ -22,6 +22,10 @@ export default function QsoLogModal({ spot, onClose }) {
     if (spot) {
       const now = new Date();
       const utcTime = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
+      // ActivitySpot hat activity_type + reference; DxSpot hat activity + activity_ref
+      const actType = (spot.activity_type || spot.activity || '').toUpperCase();
+      const refCode = spot.reference || spot.activity_ref || '';
+      const refType = actType === 'SOTA' ? 'sota' : actType === 'POTA' ? 'pota' : 'custom';
       setForm(prev => ({
         ...prev,
         callsign: spot.call || '',
@@ -29,8 +33,8 @@ export default function QsoLogModal({ spot, onClose }) {
         band: spot.band || '',
         mode: spot.mode && spot.mode !== 'Unknown' ? spot.mode : 'FT8',
         time_start: utcTime,
-        my_reference: spot.activity_ref || (spot.activity === 'SOTA' || spot.activity === 'POTA' ? spot.comments?.[0] || '' : ''),
-        my_reference_type: spot.activity === 'SOTA' ? 'sota' : spot.activity === 'POTA' ? 'pota' : 'custom',
+        my_reference: refType !== 'custom' ? refCode : '',
+        my_reference_type: refType,
       }));
       // QRZ-Lookup
       if (spot.call) {

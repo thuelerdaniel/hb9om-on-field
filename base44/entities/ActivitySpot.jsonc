@@ -1,0 +1,119 @@
+{
+  "name": "ActivitySpot",
+  "type": "object",
+  "properties": {
+    "call": {
+      "type": "string",
+      "description": "Rufzeichen des Aktivators"
+    },
+    "activity_type": {
+      "type": "string",
+      "enum": [
+        "SOTA",
+        "POTA"
+      ],
+      "description": "Aktivitaets-Typ"
+    },
+    "reference": {
+      "type": "string",
+      "description": "Referenz-Code (z.B. HB/VS-001, US-2465)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name des Summits / Parks"
+    },
+    "locationDesc": {
+      "type": "string",
+      "description": "Standort-Beschreibung"
+    },
+    "frequency": {
+      "type": "number",
+      "description": "Frequenz in kHz"
+    },
+    "band": {
+      "type": "string",
+      "description": "Band"
+    },
+    "mode": {
+      "type": "string",
+      "description": "Modulationsart"
+    },
+    "latitude": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "longitude": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "grid4": {
+      "type": "string",
+      "description": "Maidenhead 4-Zeichen Locator"
+    },
+    "grid6": {
+      "type": "string",
+      "description": "Maidenhead 6-Zeichen Locator"
+    },
+    "comments": {
+      "type": "string",
+      "description": "Kommentare / Spot-Info"
+    },
+    "spotter": {
+      "type": "string",
+      "description": "Rufzeichen des Spotters"
+    },
+    "source": {
+      "type": "string",
+      "description": "Datenquelle (POTA API, SOTA API)"
+    },
+    "spot_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt des Spots"
+    },
+    "age_seconds": {
+      "type": "number",
+      "description": "Alter des Spots in Sekunden"
+    },
+    "distance": {
+      "type": "number",
+      "description": "Distanz zur Station in km"
+    },
+    "azimuth": {
+      "type": "number",
+      "description": "Peilung 0-360 Grad"
+    },
+    "count": {
+      "type": "number",
+      "description": "Anzahl QSOs (POTA)"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob der Spot noch aktiv ist"
+    }
+  },
+  "required": [
+    "call",
+    "activity_type",
+    "frequency"
+  ],
+  "rls": {
+    "read": true,
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

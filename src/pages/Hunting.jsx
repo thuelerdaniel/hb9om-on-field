@@ -9,6 +9,7 @@ import SpotDetailsModal from "@/components/hunting/SpotDetailsModal";
 import QsoLogModal from "@/components/hunting/QsoLogModal";
 import QrzLookupModal from "@/components/hunting/QrzLookupModal";
 import PriorityDx from "@/components/hunting/PriorityDx";
+import ActivityPanel from "@/components/hunting/ActivityPanel";
 import BottomNavigation from "@/components/BottomNavigation";
 
 // Hunting-Seite — DX-Spots, Propagation, QSO-Logging.
@@ -133,6 +134,13 @@ export default function Hunting() {
 
         {/* Priority DX */}
         <PriorityDx spots={spots} onSpotDetails={setSpotDetails} />
+
+        {/* Activity Panel — SOTA + POTA Aktivierungen */}
+        <ActivityPanel
+          onLogQso={setQsoSpot}
+          onSpotDetails={setSpotDetails}
+          gpsPos={gpsPos}
+        />
 
         {/* Live Spot Activity */}
         <LiveSpotActivity

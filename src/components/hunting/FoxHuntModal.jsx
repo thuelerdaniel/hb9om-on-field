@@ -218,7 +218,22 @@ export default function FoxHuntModal({ stationInfo, gpsPosition, onClose }) {
           {/* Map */}
           {showMap && (
             <div className="rounded-lg overflow-hidden border border-[#1d3442]" style={{ height: 250 }}>
-              <MapContainer center={[stationPos.lat, stationPos.lon]} zoom={12} className="w-full h-full" style={{ background: '#050b10' }}>
+              <MapContainer
+                center={[stationPos.lat, stationPos.lon]}
+                zoom={12}
+                className="w-full h-full"
+                scrollWheelZoom={true}
+                touchZoom={true}
+                doubleClickZoom={true}
+                dragging={true}
+                tap={true}
+                minZoom={3}
+                maxZoom={18}
+                zoomSnap={0.5}
+                zoomDelta={0.5}
+                bounceAtZoomLimits={true}
+                style={{ background: '#050b10' }}
+              >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
                 <Marker position={[stationPos.lat, stationPos.lon]} icon={qthIcon} />
                 {bearingLines.map((line, i) => (

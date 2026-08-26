@@ -1061,6 +1061,16 @@ export default function Home() {
         className="w-full h-full"
         zoomControl={false}
         preferCanvas={true}
+        scrollWheelZoom={true}
+        touchZoom={true}
+        doubleClickZoom={true}
+        dragging={true}
+        tap={true}
+        minZoom={3}
+        maxZoom={18}
+        zoomSnap={0.5}
+        zoomDelta={0.5}
+        bounceAtZoomLimits={true}
         style={{ background: "#e8e8e8" }}
       >
         <MapTileLayer
