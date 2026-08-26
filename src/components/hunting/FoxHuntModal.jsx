@@ -226,11 +226,10 @@ export default function FoxHuntModal({ stationInfo, gpsPosition, onClose }) {
                 touchZoom={true}
                 doubleClickZoom={true}
                 dragging={true}
-                tap={true}
                 minZoom={3}
                 maxZoom={18}
-                zoomSnap={0.5}
-                zoomDelta={0.5}
+                zoomSnap={1}
+                zoomDelta={1}
                 bounceAtZoomLimits={true}
                 style={{ background: '#050b10' }}
               >
