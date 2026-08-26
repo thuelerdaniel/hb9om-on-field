@@ -17,13 +17,16 @@ export default async function(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // DX Summit API liefert aktuelle Spots
+    // DX-Cluster Spots laden — primär dxc.jo30.de (REST/JSON Cache), Fallback DX Summit
     let spots = [];
     let apiWarning = null;
+    let source = 'DXCluster (jo30.de)';
+
+    // Primär: dxc.jo30.de/dxcache/spots (rollierender Cache, ~1000 Spots)
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
-      const resp = await fetch('https://www.dxsummit.fi/api/v1/spots', {
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const resp = await fetch('https://dxc.jo30.de/dxcache/spots', {
         headers: { 'Accept': 'application/json' },
         signal: controller.signal,
       });
@@ -32,10 +35,32 @@ export default async function(req: Request): Promise<Response> {
         const raw = await resp.json();
         spots = Array.isArray(raw) ? raw : (raw.spots || raw.data || []);
       } else {
-        apiWarning = `DX Summit API Status ${resp.status}`;
+        apiWarning = `jo30.de API Status ${resp.status}`;
       }
     } catch (e) {
-      apiWarning = 'DX Summit API nicht erreichbar — Timeout oder Netzwerkfehler';
+      apiWarning = 'jo30.de API nicht erreichbar';
+    }
+
+    // Fallback: DX Summit API
+    if (spots.length === 0) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const resp = await fetch('https://www.dxsummit.fi/api/v1/spots', {
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const raw = await resp.json();
+          spots = Array.isArray(raw) ? raw : (raw.spots || raw.data || []);
+          source = 'DX Summit';
+        } else if (!apiWarning) {
+          apiWarning = `DX Summit API Status ${resp.status}`;
+        }
+      } catch (e) {
+        if (!apiWarning) apiWarning = 'DX Summit API nicht erreichbar';
+      }
     }
 
     // Max 50 Spots verarbeiten
@@ -54,13 +79,17 @@ export default async function(req: Request): Promise<Response> {
     const now = Date.now();
     const normalized = [];
     for (const s of toProcess) {
-      // DX Summit Felder: frequency (kHz), call, spotter, time, mode (optional)
+      // jo30.de Felder: spotted (call), spotter, frequency (kHz), when (ISO), add.mode
+      // DX Summit Felder: call, spotter, frequency (kHz), time, mode
       const freqKHz = Number(s.frequency || s.freq || 0);
-      if (!freqKHz || !s.call) continue;
+      const call = s.spotted || s.call || s.dxcallsign;
+      if (!freqKHz || !call) continue;
 
-      // Zeit parsen — DX Summit liefert Unix-Sekunden oder ISO-String
+      // Zeit parsen — jo30.de liefert ISO-String in "when", DX Summit Unix-Sekunden oder ISO in "time"
       let spotTime: Date;
-      if (s.time) {
+      if (s.when) {
+        spotTime = new Date(s.when);
+      } else if (s.time) {
         const t = Number(s.time);
         spotTime = !isNaN(t) && t > 1e9
           ? new Date(t * 1000)
@@ -74,12 +103,12 @@ export default async function(req: Request): Promise<Response> {
       const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
 
       normalized.push({
-        call: String(s.call).toUpperCase().trim(),
+        call: String(call).toUpperCase().trim(),
         frequency: freqKHz,
         band: deriveBand(freqKHz),
-        mode: s.mode || s.mod || 'Unknown',
+        mode: s.add?.mode || s.mode || s.mod || 'Unknown',
         country: s.country || s.dxcc || '',
-        source: 'DX Summit',
+        source: source,
         spotter: s.spotter || s.spotted_by || '',
         spot_time: spotTime.toISOString(),
         age_seconds: ageSeconds,

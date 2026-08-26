@@ -32,7 +32,6 @@ export default function BottomNavigation() {
   const navItems = [
     { path: "/", label: "Karte", icon: MapPin, always: true },
   ];
-  navItems.push({ path: "/hunting", label: "Hunting", icon: Crosshair });
   if (tools.logbook !== false) {
     navItems.push({ path: "/log", label: "Logbuch", icon: BookOpen });
   }

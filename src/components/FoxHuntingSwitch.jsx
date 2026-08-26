@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Crosshair, Radio } from "lucide-react";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 
 export default function FoxHuntingSwitch({ mode, onModeChange }) {
-  const [showHint, setShowHint] = useState(false);
+  const navigate = useNavigate();
   const { containerRef } = useDraggablePosition("drag-fox-switch");
 
   const isFox = mode === "fox";
@@ -22,24 +23,14 @@ export default function FoxHuntingSwitch({ mode, onModeChange }) {
           Fox
         </button>
         <button
-          onClick={() => {
-            setShowHint(true);
-            setTimeout(() => setShowHint(false), 5000);
-          }}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 cursor-not-allowed opacity-50"
-          title="Hunting-Modus: Fuchsjagd-DF-Tools — kommt in einem späteren Update"
-          aria-disabled="true"
+          onClick={() => navigate("/hunting")}
+          className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all bg-orange-500 text-white hover:bg-orange-600"
+          title="Hunting-Modus: DX-Spots, Propagation und QSO-Logging"
         >
           <Crosshair className="w-3.5 h-3.5" />
-          <span>Hunting</span>
-          <span className="ml-0.5 px-1.5 py-0.5 text-[8px] font-bold bg-amber-100 text-amber-700 rounded-full uppercase tracking-wide">Bald</span>
+          Hunting
         </button>
       </div>
-      {showHint && (
-        <div className="absolute top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
-          🎯 Hunting-Modul kommt in einem späteren Update — Fuchsjagd-DF-Tools in Entwicklung
-        </div>
-      )}
     </div>
   );
 }
