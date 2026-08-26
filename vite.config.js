@@ -15,5 +15,45 @@ export default defineConfig({
       visualEditAgent: true
     }),
     react(),
-  ]
+  ],
+  build: {
+    // Warnung bei großen Chunks erhöhen — die App hat viele Libraries
+    chunkSizeWarningLimit: 1200,
+    // Rollup-Optionen für besseres Code-Splitting
+    rollupOptions: {
+      output: {
+        // Vendor-Chunks manuell aufteilen für besseres Caching
+        manualChunks: {
+          // React Core
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // Leaflet + React-Leaflet (große Library)
+          'leaflet-vendor': ['leaflet', 'react-leaflet'],
+          // UI-Komponenten (Radix + Lucide)
+          'ui-vendor': ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-select', '@radix-ui/react-dropdown-menu'],
+          // Charts
+          'chart-vendor': ['recharts'],
+          // PDF-Generierung
+          'pdf-vendor': ['jspdf', 'html2canvas'],
+          // Drag & Drop
+          'dnd-vendor': ['@hello-pangea/dnd'],
+          // Markdown & Quill Editor
+          'editor-vendor': ['react-markdown', 'react-quill'],
+          // 3D
+          'three-vendor': ['three'],
+        },
+      },
+    },
+    // CSS-Code-Splitting
+    cssCodeSplit: true,
+    // Source Maps nur in Entwicklung
+    sourcemap: false,
+    // Minify mit esbuild (schneller als terser)
+    minify: 'esbuild',
+    // Target auf moderne Browser
+    target: 'es2020',
+  },
+  // Esbuild-Optionen für schnellere Builds
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
 });

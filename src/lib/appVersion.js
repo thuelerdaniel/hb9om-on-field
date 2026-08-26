@@ -8,23 +8,31 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.87";
+export const APP_VERSION = "0.9001";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608141240";
+export const APP_BUILD = "202608270024";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
-  "Meine Abdeckung: Dialog-Fenster frei verschiebbar (Header ziehen)",
-  "Meine Abdeckung: Antennenhöhe mit Slider + Zahleneingabe anpassbar",
-  "Meine Abdeckung: Verlauf mit einzelnen Berechnungen — speichern, laden, einzeln löschen",
-  "Meine Abdeckung: Neu berechnen mit Abfrage wie viele alte Berechnungen behalten werden",
-  "Öffentliche Position: GPS-Standort für alle Benutzer sichtbar teilen",
-  "Öffentliche Position: Refresh gemäss GPS-Intervall-Einstellung in den Settings",
-  "Karte: Öffentliche Positionen aller Benutzer mit Rufzeichen-Popup",
+  "Hunting-Modul: Live DX-Spots mit GPS-basierter Distanz- und Azimuth-Berechnung",
+  "Hunting-Modul: Activity Panel mit Live SOTA- und POTA-Aktivierungen (Auto-Refresh 60s)",
+  "Hunting-Modul: Propagation-Dashboard mit Solar Flux, K-Index und Band-Conditions",
+  "Hunting-Modul: Fox Hunting mit Peilung, Triangulation und GPS-Position",
+  "Hunting-Modul: QSO direkt aus Spot loggen — Formular wird automatisch vorausgefüllt",
+  "Hunting-Modul: QRZ-Lookup direkt aus der Spot-Tabelle per Klick auf Rufzeichen",
+  "Hunting-Modul: Priority DX — Top 5 weiteste Spots nach Distanz sortiert",
+  "Hunting-Modul: Theme-aware (Dark/Light Mode) — alle Komponenten folgen dem globalen Theme",
+  "GPS-Tracking: Live-Position vom Gerät überschreibt statischen Stations-Locator",
+  "GPS-Tracking: Distanz- und Azimuth-Berechnungen nutzen echte GPS-Koordinaten",
+  "ActivitySpot: Neue Entity für SOTA/POTA-Aktivierungen mit API-Fetchern",
+  "ActivitySpot: POTA API (api.pota.app) und SOTA API (api2.sota.org.uk) Integration",
+  "ActivitySpot: Frequenz-Konvertierung korrigiert (POTA API gibt Hz zurück, nicht MHz)",
+  "SpotDetailsModal: Unterstützt sowohl DxSpot als auch ActivitySpot Datenstrukturen",
+  "Build-Optimierung: Vendor-Chunks aufgeteilt für schnelleres Laden",
 ];
 
 // Data sources reference — used by Help page and menu.

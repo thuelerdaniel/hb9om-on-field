@@ -34,8 +34,28 @@ export default async function(req) {
       return Response.json({ error: 'Keine Benutzer mit E-Mail-Adresse gefunden' }, { status: 400 });
     }
 
-    const subject = `HB9OM On Field – Neuigkeiten in Version ${version}`;
-    const emailBody = `Hallo,\n\nEs gibt eine neue Version von HB9OM On Field!\n\nVersion ${version} – ${changelogTitle}\n\nWas ist neu:\n${changelogText}\n\nDie App wird beim nächsten Start automatisch aktualisiert. Besuchen Sie hb9om.ch für mehr Informationen.\n\n73,\nClub HB9OM`;
+    const subject = `HB9OM On Field v${version} – ${changelogTitle}`;
+    const emailBody = [
+      `Hallo,`,
+      ``,
+      `Es gibt ein neues Release von HB9OM On Field!`,
+      ``,
+      `Version ${version} – ${changelogTitle}`,
+      ``,
+      `Was ist neu:`,
+      changelogText,
+      ``,
+      `Die App wird beim nächsten Start automatisch aktualisiert.`,
+      ``,
+      `Neu in dieser Version: Das Hunting-Modul mit Live DX-Spots,`,
+      `SOTA/POTA-Aktivierungen, Propagation-Dashboard und Fox Hunting.`,
+      `Alle Berechnungen nutzen jetzt Ihre Live-GPS-Position.`,
+      ``,
+      `Besuchen Sie hb9om.ch für mehr Informationen.`,
+      ``,
+      `73,`,
+      `Club HB9OM`,
+    ].join('\n');
 
     let sentCount = 0;
     let failedCount = 0;

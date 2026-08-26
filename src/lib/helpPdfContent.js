@@ -1282,11 +1282,25 @@ export const SECTIONS = [
         ]
       },
       {
+        title: "Activity Panel (Live SOTA & POTA Aktivierungen)",
+        body: "Das Activity Panel zeigt Live-Aktivierungen von SOTA- und POTA-Aktivatoren weltweit. Die Daten stammen direkt von den offiziellen APIs: POTA (api.pota.app) und SOTA (api2.sota.org.uk). Das Panel hat zwei Tabs: SOTA und POTA. Jede Aktivierung zeigt Rufzeichen, Referenz-Code, Summit/Park-Name, Frequenz, Mode, Distanz, Azimuth und Alter des Spots. Die Aktivierungen werden alle 60 Sekunden automatisch aktualisiert. Die Distanz und Peilung werden ab Ihrer GPS-Position berechnet (Fallback: Stations-Locator).",
+        steps: [
+          { icon: "crosshair", text: "Activity Panel zwischen Priority DX und Live Spot Activity" },
+          { icon: "mountain", text: "SOTA-Tab: Live-Gipfel-Aktivierungen mit Referenz und Summit-Name" },
+          { icon: "trees", text: "POTA-Tab: Live-Park-Aktivierungen mit Referenz und Park-Name" },
+          { icon: "navigation", text: "Distanz und Azimuth ab GPS-Position (Fallback: Stations-Locator)" },
+          { icon: "clock", text: "Auto-Refresh alle 60 Sekunden" },
+          { icon: "pencil", text: "Stift-Icon tippen → QSO-Formular wird vorausgefüllt" },
+          { icon: "eye", text: "Augen-Icon tippen → Spot-Details mit Karte und Peillinie" }
+        ],
+        tip: "Tipp: Das Activity Panel ist die schnellste Moeglichkeit, aktive SOTA/POTA-Stationen zu finden. Kombinieren Sie mit dem Referenz-Filter in der Live Spot Activity fuer gezielte Jagd."
+      },
+      {
         title: "Live Spot Activity (DX-Spots)",
-        body: "Die Live Spot Activity Tabelle zeigt die aktuellsten DX-Spots (max. 50) mit Filtern: Suche, Band, Mode, Land, Quelle und Confidence. Auf dem Handy werden nur die wichtigsten Spalten angezeigt (Call, Freq, Mode, Age, Actions) — weitere Spalten erscheinen auf groesseren Bildschirmen. Die Spots werden alle 30 Sekunden automatisch aktualisiert.",
+        body: "Die Live Spot Activity Tabelle zeigt die aktuellsten DX-Spots (max. 50) mit Filtern: Suche, Band, Mode, Land, Quelle, Referenz-Typ und Confidence. Auf dem Handy werden nur die wichtigsten Spalten angezeigt (Call, Freq, Mode, Age, Actions) — weitere Spalten erscheinen auf groesseren Bildschirmen. Die Spots werden alle 30 Sekunden automatisch aktualisiert. Der Referenz-Filter (SOTA, POTA, WWFF, WWBOTA, WCA, TOTA, IOTA, WLOTA) zeigt nur DX-Spots der gewaehlten Aktivitaet.",
         steps: [
           { icon: "search", text: "Suche nach Call oder Land eingeben" },
-          { icon: "filter", text: "Filter: Band, Mode, Quelle, Confidence" },
+          { icon: "filter", text: "Filter: Band, Mode, Quelle, Referenz-Typ, Confidence" },
           { icon: "list", text: "Tabelle zeigt Call, Freq, Mode, Age, Actions (mobile)" },
           { icon: "clock", text: "Auto-Refresh alle 30 Sekunden" }
         ],
@@ -1378,6 +1392,18 @@ export const SECTIONS = [
           { icon: "refreshCw", text: "Refresh-Button laedt aktuelle DX-Spots neu" }
         ],
         tip: "Tipp: Das PDF enthaelt Zebra-Streifen, Filter-Info, Legende und Seitenzahlen."
+      },
+      {
+        title: "GPS-basierte Station-Position (Live)",
+        body: "Die Hunting-Seite verwendet Ihre Live-GPS-Position vom Geraet fuer alle Distanz- und Azimuth-Berechnungen — nicht den statischen Stations-Locator. Beim Oeffnen der Hunting-Seite wird automatisch GPS aktiviert (watchPosition). Die GPS-Position wird an fetchDxSpots, fetchPotaSpots und fetchSotaSpots uebergeben. Wenn GPS nicht verfuegbar ist (z.B. im Browser ohne Berechtigung), wird der Station-Locator (JN36FL) als Fallback verwendet. Ein Status-Banner oben zeigt den GPS-Status: blau = lokalisieren, orange = nicht verfuegbar. Die Command Strip und das SpotDetailsModal zeigen ebenfalls, ob GPS oder Station-Locator verwendet wird.",
+        steps: [
+          { icon: "locateFixed", text: "GPS wird beim Oeffnen der Hunting-Seite automatisch aktiviert" },
+          { icon: "mapPin", text: "GPS-Position wird an alle Spot-Fetcher uebergeben" },
+          { icon: "navigation", text: "Distanz und Azimuth ab echter GPS-Position berechnet" },
+          { icon: "mapPin", text: "Fallback: Station-Locator JN36FL wenn GPS nicht verfuegbar" },
+          { icon: "eye", text: "Status-Banner zeigt GPS-Status (lokalisieren / ok / Fehler)" }
+        ],
+        tip: "Tipp: Im Feld mit GPS-Position werden Distanz und Peilung korrekt von Ihrem aktuellen Standort berechnet. Ohne GPS wird der Station-Locator verwendet."
       },
       {
         title: "Station-Info konfigurieren",

@@ -676,9 +676,14 @@ const SECTIONS = [
         example: "Verlauf (3) → Peilung von 14:32 mit S7 und 45° → Mülleimer-Icon zum Löschen."
       },
       {
+        title: "Activity Panel (Live SOTA & POTA Aktivierungen)",
+        body: "Das Activity Panel zeigt Live-Aktivierungen von SOTA- und POTA-Aktivatoren weltweit. Die Daten stammen direkt von den offiziellen APIs: POTA (api.pota.app) und SOTA (api2.sota.org.uk). Das Panel hat zwei Tabs: SOTA und POTA. Jede Aktivierung zeigt Rufzeichen, Referenz-Code, Summit/Park-Name, Frequenz, Mode, Distanz, Azimuth und Alter des Spots. Die Aktivierungen werden alle 60 Sekunden automatisch aktualisiert. Die Distanz und Peilung werden ab Ihrer GPS-Position berechnet (Fallback: Stations-Locator). Tippen Sie auf das Stift-Icon, um ein QSO direkt aus der Aktivierung zu loggen — das Formular wird vorausgefüllt.",
+        example: "Activity Panel → POTA-Tab → «M0TTQ, GB-4591, Farlington Marshes, 14.315 MHz SSB, 733 km» → Stift-Icon → QSO-Formular vorausgefüllt."
+      },
+      {
         title: "Live Spot Activity (DX-Spots)",
-        body: "Die Live Spot Activity Tabelle zeigt die aktuellsten DX-Spots (max. 50) mit Filtern: Suche, Band, Mode, Land, Quelle und Confidence. Auf dem Handy werden nur die wichtigsten Spalten angezeigt (Call, Freq, Mode, Age, Actions) — weitere Spalten (Comment, Dist, Az, Source, Score) erscheinen auf grösseren Bildschirmen. Die Spots werden alle 30 Sekunden automatisch aktualisiert.",
-        example: "Filter «20m» + «FT8» → nur 20m FT8-Spots werden angezeigt → Auto-Refresh alle 30s."
+        body: "Die Live Spot Activity Tabelle zeigt die aktuellsten DX-Spots (max. 50) mit Filtern: Suche, Band, Mode, Land, Quelle, Referenz-Typ (SOTA, POTA, WWFF, etc.) und Confidence. Auf dem Handy werden nur die wichtigsten Spalten angezeigt (Call, Freq, Mode, Age, Actions) — weitere Spalten (Comment, Dist, Az, Source, Score) erscheinen auf grösseren Bildschirmen. Die Spots werden alle 30 Sekunden automatisch aktualisiert. Der Referenz-Filter zeigt nur DX-Spots der gewählten Aktivität (z.B. nur SOTA-Spots).",
+        example: "Filter «20m» + «FT8» + «SOTA» → nur 20m FT8-Spots mit SOTA-Aktivität werden angezeigt → Auto-Refresh alle 30s."
       },
       {
         title: "Worked-Status (farbiger Punkt)",
@@ -706,13 +711,18 @@ const SECTIONS = [
         example: "Rufzeichen DL1LDZ tippen → QRZ-Lookup zeigt Name, Adresse und Grid."
       },
       {
+        title: "GPS-basierte Station-Position (Live)",
+        body: "Die Hunting-Seite verwendet Ihre Live-GPS-Position vom Gerät für alle Distanz- und Azimuth-Berechnungen — nicht den statischen Stations-Locator. Beim Öffnen der Hunting-Seite wird automatisch GPS aktiviert (watchPosition). Die GPS-Position wird an fetchDxSpots, fetchPotaSpots und fetchSotaSpots übergeben. Wenn GPS nicht verfügbar ist (z.B. im Browser ohne Berechtigung), wird der Station-Locator (JN36FL) als Fallback verwendet. Ein Status-Banner oben zeigt den GPS-Status: blau = lokalisieren, orange = nicht verfügbar. Die Command Strip und das SpotDetailsModal zeigen ebenfalls, ob GPS oder Station-Locator verwendet wird.",
+        example: "Hunting-Seite öffnen → GPS wird automatisch aktiviert → Status-Banner «GPS wird lokalisiert…» → Position gefunden → alle Distanzen ab echter GPS-Position berechnet."
+      },
+      {
         title: "Datenquellen & Automation",
-        body: "DX-Spots stammen von dxc.jo30.de (DXCluster, primär) oder DX Summit (Fallback). Propagation-Daten stammen von NOAA SWPC (Solar Flux F10.7, planetarer K-Index). Eine Automation ruft alle 5 Minuten automatisch neue Spots und Propagation-Daten ab. Distanz und Azimuth werden aus dem Station-Locator (JN36FL) und dem DX-Locator berechnet. Confidence: Basis 50, +20 Spotter, +10 Locator, +10 Land, +10 Aktivität (max 100).",
-        example: "Automation läuft alle 5 Min → 50 neue Spots von jo30.de → Distanz/Azimuth aus JN36FL berechnet → in Datenbank gespeichert."
+        body: "DX-Spots stammen von dxc.jo30.de (DXCluster) und Spothole (spothole.app) für SIG-gefilterte Spots (SOTA, POTA, WWFF, etc.). Activity-Spots stammen von POTA (api.pota.app) und SOTA (api2.sota.org.uk). Propagation-Daten stammen von NOAA SWPC (Solar Flux F10.7, planetarer K-Index). Eine Automation ruft alle 5 Minuten neue DX-Spots und Propagation-Daten ab. Activity-Spots werden alle 60 Sekunden aktualisiert. Distanz und Azimuth werden aus Ihrer GPS-Position (oder Station-Locator als Fallback) berechnet.",
+        example: "Automation läuft alle 5 Min → 50 neue DX-Spots von jo30.de + Spothole → Distanz/Azimuth aus GPS-Position berechnet."
       },
       {
         title: "Station-Info konfigurieren",
-        body: "Die Station-Info (Rufzeichen, Name, Club, Locator) wird in der AppSetting «station_info» gespeichert. Standard: Station HB9OM, Rufzeichen HB3YNF, Name Dani, Locator JN36FL. Der Locator wird für Distanz- und Azimuth-Berechnungen der DX-Spots verwendet (Fallback, wenn keine GPS-Position verfügbar).",
+        body: "Die Station-Info (Rufzeichen, Name, Club, Locator) wird in der AppSetting «station_info» gespeichert. Standard: Station HB9OM, Rufzeichen HB3YNF, Name Dani, Locator JN36FL. Der Locator wird für Distanz- und Azimuth-Berechnungen der DX-Spots verwendet (Fallback, wenn keine GPS-Position verfügbar). Wenn GPS verfügbar ist, wird die GPS-Position anstelle des Locators verwendet.",
         example: "AppSetting station_info = {station:'HB9OM', callsign:'HB3YNF', name:'Dani', locator:'JN36FL'}."
       }
     ]

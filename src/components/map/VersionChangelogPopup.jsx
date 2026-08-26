@@ -7,6 +7,27 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9001",
+    title: "Hunting-Modul, Live SOTA/POTA-Aktivierungen & GPS-Tracking",
+    changes: [
+      "Hunting-Modul: Live DX-Spots mit GPS-basierter Distanz- und Azimuth-Berechnung",
+      "Activity Panel: Live SOTA- und POTA-Aktivierungen mit Auto-Refresh (60 Sekunden)",
+      "Propagation-Dashboard: Solar Flux, K-Index, MUF und Band-Conditions von NOAA SWPC",
+      "Fox Hunting: Peilung mit Azimuth-Slider, Feldstärke und Triangulation auf der Karte",
+      "QSO loggen: Direkt aus DX-Spot oder Activity-Spot — Formular wird vorausgefüllt",
+      "QRZ-Lookup: Klick auf Rufzeichen in der Spot-Tabelle öffnet Operator-Details",
+      "Priority DX: Top 5 weiteste DX-Spots nach Distanz sortiert",
+      "GPS-Tracking: Live-Position vom Gerät überschreibt statischen Stations-Locator",
+      "GPS-Tracking: Alle Distanz- und Azimuth-Berechnungen nutzen echte GPS-Koordinaten",
+      "ActivitySpot: Neue Datenstruktur für SOTA/POTA-Aktivierungen mit API-Fetchern",
+      "POTA/SOTA API: Live-Aktivierungen von api.pota.app und api2.sota.org.uk",
+      "Frequenz-Korrektur: POTA API gibt Hz zurück — korrekte kHz-Konvertierung",
+      "SpotDetailsModal: Unterstützt DxSpot und ActivitySpot mit Karte und Peillinie",
+      "Theme-aware: Hunting-Komponenten folgen globalem Dark/Light-Mode",
+      "Build-Optimierung: Vendor-Chunks aufgeteilt für schnelleres Laden und Caching",
+    ],
+  },
+  {
     version: "0.87",
     title: "Abdeckungs-Dialog verschiebbar, Verlauf & Öffentliche Position",
     changes: [
