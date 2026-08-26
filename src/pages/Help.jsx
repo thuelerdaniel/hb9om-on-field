@@ -37,7 +37,7 @@ const SECTIONS = [
       },
       {
         title: "Karte navigieren",
-        body: "Verschieben Sie die Karte per Drag-and-Drop, zoomen Sie mit dem Mausrad oder mit zwei Fingern auf dem Handy. Die Karte merkt sich die letzte Position.",
+        body: "Verschieben Sie die Karte per Drag-and-Drop, zoomen Sie mit dem Mausrad oder mit zwei Fingern auf dem Handy. Die Karte merkt sich die letzte Position. Der Zoom erfolgt ohne Animation (direkt) — das verhindert Abstürze beim schnellen Schliessen von Modalen oder beim Seitenwechsel während des Zoomens und sorgt für maximale Stabilität.",
         example: "Tipp: Auf dem Handy nach oben wischen, um die Karte unter der Kopfleiste zu sehen."
       },
       {

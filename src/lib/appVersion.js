@@ -8,16 +8,20 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9001";
+export const APP_VERSION = "0.9002";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608270024";
+export const APP_BUILD = "202608270124";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Karten-Fix: Stabile Container-Keys verhindern _leaflet_pos-Fehler bei View-Wechseln",
+  "Zoom-Animation deaktiviert: Keine Abstürze mehr beim Schliessen von Modalen oder Seitenwechsel während Zoom",
+  "QSO-Weltkarte: Sauberes Umschalten zwischen Globus und 2D-Karte ohne Karten-Neuaufbau",
+  "Spot-Details und Fox-Hunt-Modal: Karte bleibt stabil beim Zoomen und sofortigen Schliessen",
   "Hunting-Modul: Live DX-Spots mit GPS-basierter Distanz- und Azimuth-Berechnung",
   "Hunting-Modul: Activity Panel mit Live SOTA- und POTA-Aktivierungen (Auto-Refresh 60s)",
   "Hunting-Modul: Propagation-Dashboard mit Solar Flux, K-Index und Band-Conditions",

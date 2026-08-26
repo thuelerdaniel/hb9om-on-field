@@ -7,6 +7,16 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9002",
+    title: "Karten-Stabilität & Zoom-Fix",
+    changes: [
+      "Karten-Fix: Stabile Container-Keys verhindern _leaflet_pos-Fehler bei View-Wechseln",
+      "Zoom-Animation deaktiviert: Keine Abstürze mehr beim Schliessen von Modalen oder Seitenwechsel während Zoom",
+      "QSO-Weltkarte: Sauberes Umschalten zwischen Globus und 2D-Karte ohne Karten-Neuaufbau",
+      "Spot-Details und Fox-Hunt-Modal: Karte bleibt stabil beim Zoomen und sofortigen Schliessen",
+    ],
+  },
+  {
     version: "0.9001",
     title: "Hunting-Modul, Live SOTA/POTA-Aktivierungen & GPS-Tracking",
     changes: [

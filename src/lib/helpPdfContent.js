@@ -105,10 +105,10 @@ export const SECTIONS = [
       },
       {
         title: "Karte navigieren",
-        body: "Verschieben Sie die Karte per Drag-and-Drop, zoomen Sie mit dem Mausrad oder mit zwei Fingern auf dem Handy. Die Karte merkt sich die letzte Position.",
+        body: "Verschieben Sie die Karte per Drag-and-Drop, zoomen Sie mit dem Mausrad oder mit zwei Fingern auf dem Handy. Die Karte merkt sich die letzte Position. Der Zoom erfolgt ohne Animation (direkt) — das verhindert Abstürze beim schnellen Schliessen von Modalen oder beim Seitenwechsel während des Zoomens und sorgt für maximale Stabilität.",
         steps: [
           { icon: "move", text: "Karte mit gedrückter Maustaste (oder Finger) verschieben" },
-          { icon: "plus", text: "Mit Mausrad oder Zwei-Finger-Pinch zoomen" },
+          { icon: "plus", text: "Mit Mausrad oder Zwei-Finger-Pinch zoomen (direkt, ohne Animation)" },
           { icon: "check", text: "Die letzte Position wird automatisch gespeichert" }
         ],
         screenshot: "map"
