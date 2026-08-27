@@ -207,9 +207,14 @@ export default function Hunting() {
         <QsoLogModal spot={qsoSpot} onClose={() => { setQsoSpot(null); setShowBlankQso(false); }} />
       )}
 
-      {/* QRZ Lookup Modal */}
+      {/* QRZ Lookup Modal — Fix 3: mit QSO-Loggen Button + Spot-Prefill */}
       {qrzCall && (
-        <QrzLookupModal callsign={qrzCall} onClose={() => setQrzCall(null)} />
+        <QrzLookupModal
+          callsign={qrzCall?.call || qrzCall}
+          spot={qrzCall}
+          onLogQso={setQsoSpot}
+          onClose={() => setQrzCall(null)}
+        />
       )}
 
       {/* Fix 2: Verschiebbarer QSO-Loggen Button — lang gedrückt halten zum Verschieben */}

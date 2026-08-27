@@ -151,34 +151,45 @@ export default async function(req: Request): Promise<Response> {
       });
     }
 
-    // Fix 6: SOTA API laden — mit CORS-Proxy Fallback und mehreren Endpunkten
+    // Fix 2: SOTA Spotlite API — api2.sota.org.uk/api/spots/-1 holt alle aktiven Spots der letzten 24h
     let sotaSpots: any[] = [];
     let apiError: string | null = null;
     const sotaUrls = [
-      'https://api2.sota.org.uk/api/spots',
-      'https://api2.sota.org.uk/api/spots/all',
-      `https://corsproxy.io/?url=${encodeURIComponent('https://api2.sota.org.uk/api/spots')}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api2.sota.org.uk/api/spots')}`,
+      'https://api2.sota.org.uk/api/spots/-1',
+      `https://corsproxy.io/?url=${encodeURIComponent('https://api2.sota.org.uk/api/spots/-1')}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api2.sota.org.uk/api/spots/-1')}`,
     ];
+    let retry429 = 0;
     for (let attempt = 0; attempt < sotaUrls.length; attempt++) {
       const url = sotaUrls[attempt];
       try {
         const resp = await fetch(url, {
-          headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'HB9OM-On-Field/1.0',
+          },
           signal: AbortSignal.timeout(10000),
         });
+        console.log('[fetchSotaSpots] Response status:', resp.status);
         if (resp.ok) {
           const raw = await resp.json();
           sotaSpots = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED' && s.activatorCallsign !== 'DEPRECATED') : [];
-          console.log(`[SOTA] API OK (${url.split('//')[1]?.split('/')[0]}), ${sotaSpots.length} Spots geladen`);
+          console.log('[fetchSotaSpots] Spots received:', sotaSpots.length);
           break;
+        } else if (resp.status === 429 && retry429 < 1) {
+          retry429++;
+          console.warn('[fetchSotaSpots] HTTP 429 Rate Limit — Retry nach 5 Sekunden');
+          await new Promise(r => setTimeout(r, 5000));
+          attempt--;
+          continue;
         } else {
           apiError = `HTTP ${resp.status}`;
-          console.warn(`[SOTA] Attempt ${attempt + 1} (${url.split('//')[1]?.split('/')[0]}): ${apiError}`);
+          console.warn(`[fetchSotaSpots] Attempt ${attempt + 1}: ${apiError}`);
         }
       } catch (e: any) {
         apiError = e.message || 'SOTA API nicht erreichbar';
-        console.warn(`[SOTA] Attempt ${attempt + 1}: ${apiError}`);
+        console.warn(`[fetchSotaSpots] Attempt ${attempt + 1}: ${apiError}`);
       }
     }
 

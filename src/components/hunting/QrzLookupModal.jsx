@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, User, MapPin, Mail, Grid3x3, Loader2, Search } from "lucide-react";
+import { X, User, MapPin, Mail, Grid3x3, Loader2, Search, Plus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 // QRZ Lookup Modal — Theme-aware.
 // Prüft zuerst QrzLookup Entity, dann fetchQRZ.
+// Fix 3: "QSO loggen" Button — schliesst QRZ-Popup, öffnet QSO-Formular mit Prefill.
 
-export default function QrzLookupModal({ callsign, onClose }) {
+export default function QrzLookupModal({ callsign, spot, onLogQso, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,7 +80,13 @@ export default function QrzLookupModal({ callsign, onClose }) {
             </div>
           )}
         </div>
-        <div className="p-3 border-t border-border">
+        <div className="p-3 border-t border-border space-y-2">
+          <button
+            onClick={() => { onClose?.(); onLogQso?.(spot); }}
+            className="w-full py-2.5 bg-[#1a9c7c] text-white rounded-lg text-sm font-bold hover:bg-[#178570] transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> QSO loggen
+          </button>
           <button onClick={onClose} className="w-full py-2 bg-background hover:bg-muted text-muted-foreground rounded-lg text-sm font-medium border border-border">Schliessen</button>
         </div>
       </div>

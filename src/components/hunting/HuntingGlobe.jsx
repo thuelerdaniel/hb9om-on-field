@@ -159,7 +159,8 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
 
     let renderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      // Fix 6C: Performance — antialias nur bei devicePixelRatio < 2, powerPreference high-performance
+      renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, alpha: true, powerPreference: 'high-performance' });
     } catch (e) {
       setWebglError(true);
       return;
@@ -197,10 +198,14 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     scene.add(globeGroup);
 
     const texture = createProceduralGlobeTexture();
-    const sphereGeo = new THREE.SphereGeometry(1, 64, 64);
+    // Fix 6C: Low-Perf Devices — Sphere-Segmente 48 statt 64
+    const lowPerf = window.devicePixelRatio >= 2;
+    const sphereGeo = new THREE.SphereGeometry(1, lowPerf ? 48 : 64, lowPerf ? 48 : 64);
     const sphereMat = new THREE.MeshPhongMaterial({ map: texture, transparent: true, opacity: 0.95, shininess: 3 });
     loadEarthTexture(sphereMat);
-    globeGroup.add(new THREE.Mesh(sphereGeo, sphereMat));
+    // Fix 5: Globe-Mesh referenzieren für Raycasting
+    const globeMesh = new THREE.Mesh(sphereGeo, sphereMat);
+    globeGroup.add(globeMesh);
 
     const atmGeo = new THREE.SphereGeometry(1.08, 64, 64);
     const atmMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.08, side: THREE.BackSide });
@@ -365,8 +370,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       globeGroup.add(new THREE.Line(geo, mat));
     }
 
-    // === INTERACTION ===
-    let rotX = 0.3, rotY = 0;
+    // === INTERACTION — Fix 4/5/6: Pointer Events, Raycasting, Quaternion ===
     let autoRotate = true;
     let isDragging = false;
     let prevX = 0, prevY = 0;
@@ -380,7 +384,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
     };
 
-    // Fix 6: Mond-Drag erkennen — raycast gegen Mond beim pointer down
+    // Fix 5: Raycasting — Drag nur starten wenn Globus getroffen wird
     const onPointerDown = (x, y) => {
       const rect = renderer.domElement.getBoundingClientRect();
       const mouse = new THREE.Vector2(
@@ -389,19 +393,25 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       );
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouse, camera);
+      // Mond-Drag erkennen
       const moonHits = raycaster.intersectObject(moon, true);
       if (moonHits.length > 0) {
-        // Fix 6: Mond-Drag starten
         moonDragModeRef.current = true;
         moonAutoRotateRef.current = false;
         prevX = x; prevY = y; downPos = { x, y };
         renderer.domElement.style.cursor = 'grabbing';
         return;
       }
-      isDragging = true; stopAutoRotate(); prevX = x; prevY = y; downPos = { x, y };
+      // Fix 5: Globus-Raycasting — nur Drag starten wenn Globus getroffen
+      const globeHits = raycaster.intersectObject(globeMesh, true);
+      if (globeHits.length > 0) {
+        isDragging = true; stopAutoRotate(); prevX = x; prevY = y; downPos = { x, y };
+        return;
+      }
+      // Kein Treffer = Weltraum-Klick → kein Drag
     };
+    // Fix 6B: Quaternion-Rotation statt Euler
     const onPointerMove = (x, y) => {
-      // Fix 6: Mond-Drag — Rotation um Y-Achse
       if (moonDragModeRef.current) {
         moonGroup.rotation.y += (x - prevX) * 0.01;
         moon.rotation.y += (x - prevX) * 0.01;
@@ -409,20 +419,20 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         return;
       }
       if (!isDragging) return;
-      rotY += (x - prevX) * 0.005;
-      rotX += (y - prevY) * 0.005;
-      rotX = Math.max(-1.4, Math.min(1.4, rotX));
+      const deltaX = x - prevX;
+      const deltaY = y - prevY;
+      const quatY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), deltaX * 0.005);
+      const quatX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), deltaY * 0.005);
+      globeGroup.quaternion.multiplyQuaternions(quatY, globeGroup.quaternion);
+      globeGroup.quaternion.multiplyQuaternions(quatX, globeGroup.quaternion);
       prevX = x; prevY = y;
     };
     const onPointerUp = (x, y) => {
-      // Fix 6: Mond-Drag beenden
       if (moonDragModeRef.current) {
         moonDragModeRef.current = false;
         renderer.domElement.style.cursor = 'grab';
         if (moonAutoRotateTimer) clearTimeout(moonAutoRotateTimer);
         moonAutoRotateTimer = setTimeout(() => { moonAutoRotateRef.current = true; }, 3000);
-        // Fix 5: Klick auf Mond-Körper → KEIN Popup (nur SOTA-Marker öffnet Popup)
-        // Mond-Klick macht nichts — nur Drag/Rotation. Popup nur via Raycaster auf sotaMarker.
         return;
       }
       isDragging = false;
@@ -450,35 +460,37 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       }
     };
 
-    const onMouseDown = (e) => onPointerDown(e.clientX, e.clientY);
-    const onMouseMove = (e) => onPointerMove(e.clientX, e.clientY);
-    const onMouseUp = (e) => onPointerUp(e.clientX, e.clientY);
-    // Fix 7: Zoom-Limit — min 1.5 (knapp über Oberfläche), max 8.0 (ganze Erde sichtbar)
+    // Fix 6A: Pointer Events statt mouse/touch
+    const onPointerDownEvent = (e) => onPointerDown(e.clientX, e.clientY);
+    const onPointerMoveEvent = (e) => onPointerMove(e.clientX, e.clientY);
+    const onPointerUpEvent = (e) => onPointerUp(e.clientX, e.clientY);
     const onWheel = (e) => { e.preventDefault(); camera.position.z = Math.max(1.5, Math.min(8, camera.position.z + e.deltaY * 0.002)); };
-    const onTouchStart = (e) => { if (e.touches.length === 1) onPointerDown(e.touches[0].clientX, e.touches[0].clientY); };
-    const onTouchMove = (e) => { if (e.touches.length === 1) { e.preventDefault(); onPointerMove(e.touches[0].clientX, e.touches[0].clientY); } };
-    const onTouchEnd = (e) => { if (e.changedTouches.length === 1) onPointerUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY); };
 
-    renderer.domElement.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    renderer.domElement.addEventListener('pointerdown', onPointerDownEvent);
+    window.addEventListener('pointermove', onPointerMoveEvent);
+    window.addEventListener('pointerup', onPointerUpEvent);
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
-    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
-    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
-    renderer.domElement.addEventListener('touchend', onTouchEnd);
 
+    // Fix 4: Initial rotation via Euler → Quaternion
+    globeGroup.rotation.x = 0.3;
     let animId;
     let frameCount = 0;
-    const animate = () => {
+    // Fix 4: Delta-time basierte Rotation statt fixed-step
+    let lastTime = performance.now();
+    const animate = (currentTime) => {
       animId = requestAnimationFrame(animate);
+      const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
+      lastTime = currentTime;
       frameCount++;
-      if (autoRotate && !isDragging && rotationRef.current) rotY += 0.002;
-      globeGroup.rotation.x = rotX;
-      globeGroup.rotation.y = rotY;
-      // Fix 4: Mond-Rotation respektiert Pause (rotationRef) und Mond-Drag (moonAutoRotateRef)
+      // Fix 4: Delta-time Auto-Rotation mit Quaternion
+      if (autoRotate && !isDragging && rotationRef.current) {
+        const rotQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.3 * delta);
+        globeGroup.quaternion.multiplyQuaternions(rotQuat, globeGroup.quaternion);
+      }
+      // Mond-Rotation
       if (autoRotate && !isDragging && rotationRef.current && moonAutoRotateRef.current) {
-        moonGroup.rotation.y += 0.000873;
-        moon.rotation.y += 0.000873;
+        moonGroup.rotation.y += 0.05238 * delta;
+        moon.rotation.y += 0.05238 * delta;
       }
       // Fix 6: Marker bei Zoom skalieren — Punkte werden beim Hineinzoomen kleiner
       const camDist = camera.position.z;
@@ -505,7 +517,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       }
       renderer.render(scene, camera);
     };
-    animate();
+    animate(performance.now());
 
     const handleResize = () => {
       const w = container.clientWidth;
@@ -522,13 +534,11 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       if (autoRotateTimer) clearTimeout(autoRotateTimer);
       if (moonAutoRotateTimer) clearTimeout(moonAutoRotateTimer);
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      renderer.domElement.removeEventListener('mousedown', onMouseDown);
+      // Fix 6A: Pointer Events Cleanup
+      window.removeEventListener('pointermove', onPointerMoveEvent);
+      window.removeEventListener('pointerup', onPointerUpEvent);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDownEvent);
       renderer.domElement.removeEventListener('wheel', onWheel);
-      renderer.domElement.removeEventListener('touchstart', onTouchStart);
-      renderer.domElement.removeEventListener('touchmove', onTouchMove);
-      renderer.domElement.removeEventListener('touchend', onTouchEnd);
       renderer.dispose();
       texture.dispose();
       moonTexture.dispose();

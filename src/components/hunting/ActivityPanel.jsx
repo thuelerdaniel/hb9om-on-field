@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock, Globe, AlertCircle } from "lucide-react";
+import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock, Globe, AlertCircle, Filter, ChevronDown, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 // Activity Panel — zeigt aktive SOTA- und POTA-Aktivierungen.
 // Zwei Tabs: SOTA (orange) und POTA (grün).
+// Fix 7: Band-Filter Dropdown mit Backdrop — schliesst sauber bei Aussenklick.
 // Theme-aware: bg-card, border-border, text-foreground.
 
 const REFRESH_MS = 60 * 1000;
+
+const BAND_OPTIONS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm'];
 
 function ageColor(age) {
   if (age == null) return 'hsl(var(--muted-foreground))';
@@ -34,6 +37,11 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('SOTA');
   const [showFuture, setShowFuture] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [bandFilter, setBandFilter] = useState('All');
+
+  // Fix 7C: Cleanup — Dropdown schliessen beim Verlassen der Komponente
+  useEffect(() => { return () => setFilterOpen(false); }, []);
 
   const fetchActivities = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -70,7 +78,9 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
 
   const activeSpots = tab === 'SOTA' ? activities.sota : activities.pota;
   const futureSpots = tab === 'SOTA' ? activities.futureSota : activities.futurePota;
-  const spots = showFuture ? [...activeSpots, ...futureSpots] : activeSpots;
+  const allSpots = showFuture ? [...activeSpots, ...futureSpots] : activeSpots;
+  // Fix 7: Band-Filter anwenden
+  const spots = bandFilter === 'All' ? allSpots : allSpots.filter(s => s.band === bandFilter);
   const accentColor = tab === 'SOTA' ? '#ff9800' : '#8cff00';
   const Icon = tab === 'SOTA' ? Mountain : TreePine;
 
@@ -95,6 +105,56 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
             <CalendarClock className="w-3 h-3" />
             {showFuture ? "Aktiv + Geplant" : "Geplante"}
           </button>
+          {/* Fix 7: Band-Filter Dropdown mit Backdrop */}
+          <div className="relative">
+            <button
+              onClick={() => setFilterOpen(!filterOpen)}
+              className={`flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors ${
+                bandFilter !== 'All'
+                  ? "bg-[#ff9800]/10 text-[#ff9800] border-[#ff9800]/30"
+                  : "bg-background text-muted-foreground border-border hover:bg-muted"
+              }`}
+              title="Band-Filter"
+            >
+              <Filter className="w-3 h-3" />
+              {bandFilter === 'All' ? 'Alle Bänder' : bandFilter}
+              <ChevronDown className={`w-2.5 h-2.5 transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {filterOpen && (
+              <>
+                {/* Fix 7A: Backdrop — klicken schliesst Dropdown */}
+                <div
+                  onClick={() => setFilterOpen(false)}
+                  style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+                />
+                {/* Fix 7B: Dropdown — z-index 9999, onClick statt onTouchEnd */}
+                <div
+                  className="absolute top-full right-0 mt-1 bg-card border border-border rounded-lg shadow-2xl min-w-[120px] max-h-[200px] overflow-y-auto"
+                  style={{ zIndex: 9999 }}
+                >
+                  <div className="flex items-center justify-between px-2 py-1.5 border-b border-border sticky top-0 bg-card">
+                    <span className="text-[9px] font-semibold text-muted-foreground uppercase">Band</span>
+                    <button onClick={() => setFilterOpen(false)} className="text-muted-foreground hover:text-foreground">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {BAND_OPTIONS.map(b => (
+                    <button
+                      key={b}
+                      onClick={() => { setBandFilter(b); setFilterOpen(false); }}
+                      className={`w-full text-left px-2 py-1.5 text-[10px] transition-colors ${
+                        bandFilter === b
+                          ? 'bg-[#ff9800]/10 text-[#ff9800] font-bold'
+                          : 'text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {b === 'All' ? 'Alle Bänder' : b}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           {/* Fix 3: Manueller Refresh-Button — lädt auch geplante Aktivitäten neu */}
           <button
             onClick={() => fetchActivities(true)}
