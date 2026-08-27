@@ -58,10 +58,13 @@ export default async function(req: Request): Promise<Response> {
       let apiError: string | null = null;
 
       // Fix 11: SOTA Scheduled API — mit CORS-Proxy Fallback und korrekten Headern
+      const baseUrl = 'https://api2.sota.org.uk/api/scheduled_activations';
       const scheduledUrls = [
-        body.date ? `https://api2.sota.org.uk/api/scheduled_activations?date=${body.date}` : 'https://api2.sota.org.uk/api/scheduled_activations',
-        `https://corsproxy.io/?url=${encodeURIComponent('https://api2.sota.org.uk/api/scheduled_activations')}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api2.sota.org.uk/api/scheduled_activations')}`,
+        body.date ? `${baseUrl}?date=${body.date}` : baseUrl,
+        body.date ? `${baseUrl}?year=${new Date().getFullYear()}` : `${baseUrl}?year=${new Date().getFullYear()}`,
+        'https://api2.sota.org.uk/api/scheduled/',  // Alternative Endpunkt (mit trailing slash)
+        `https://corsproxy.io/?url=${encodeURIComponent(baseUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(baseUrl)}`,
       ];
       for (let attempt = 1; attempt <= 3; attempt++) {
         const url = scheduledUrls[Math.min(attempt - 1, scheduledUrls.length - 1)];
@@ -89,8 +92,9 @@ export default async function(req: Request): Promise<Response> {
       if (scheduledSpots.length === 0) {
         return Response.json({
           success: false,
-          warning: apiError || 'SOTA Scheduled temporär nicht erreichbar',
+          warning: 'SOTA Scheduled API temporär nicht erreichbar. Bitte später erneut versuchen.',
           spots: [],
+          apiError,
         });
       }
 
