@@ -5,14 +5,21 @@ import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
 import { createProceduralGlobeTexture, loadEarthTexture, createProceduralMoonTexture, createMoonBumpTexture } from "@/lib/globeTexture";
 import { fetchIssPosition } from "@/lib/issPosition";
+import { calibrateIssFromApi, calculateISSPosition, hasIssCalibration } from "@/lib/issOrbit";
 import { getMoon3DPosition, getSunDirection } from "@/lib/moonPosition";
 import IssFrequencyPopup from "@/components/hunting/IssFrequencyPopup";
 import MoonSotaPopup from "@/components/hunting/MoonSotaPopup";
+import MoonInfoPopup from "@/components/hunting/MoonInfoPopup";
 
 // 3D Hunting Globe — drehbare Weltkugel mit allen aktiven Spots.
-// Station QTH = pulsierend grün, SOTA = blau, POTA = grün, DX = rot, andere = gelb.
-// Mond mit Bump-Map + Rim-Light + SOTA-Marker (Mare Tranquillitatis).
-// ISS mit Echtzeit-Position + Footprint-Kreis. Klick auf ISS/Mond-SOTA öffnet Popups.
+// FIX v0.9003: Flüssige Auto-Rotation mit Momentum/Dämpfung, ISS & Mond pro Frame,
+//   dynamische Marker-Skalierung, klickbarer Mond mit Info-Popup.
+
+const GLOBE_RADIUS = 1.0;
+const MOON_DISTANCE = 1.8;
+const AUTO_ROTATE_SPEED = 0.15; // rad/s — konstant, unabhängig von Framerate
+const DAMPING_FACTOR = 0.92;     // pro Frame — Momentum läuft weich aus
+const MOMENTUM_THRESHOLD = 0.001; // autoRotate kehrt zurück wenn Momentum < threshold
 
 const LayerFilters = [
   { id: 'all', label: 'Alle', color: '#00e5ff' },
@@ -44,9 +51,9 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
   const [issData, setIssData] = useState(null);
   const [showIssPopup, setShowIssPopup] = useState(false);
   const [showMoonSotaPopup, setShowMoonSotaPopup] = useState(false);
+  const [showMoonInfo, setShowMoonInfo] = useState(false);
   const rotationRef = useRef(true);
   rotationRef.current = rotationEnabled;
-  // Fix 4/6: Mond-Rotation und Mond-Drag State
   const moonAutoRotateRef = useRef(true);
   const moonDragModeRef = useRef(false);
   const issDataRef = useRef(null);
@@ -84,43 +91,17 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Fix 9: Marker-Verteilung pro Kontinent loggen
-  useEffect(() => {
-    if (!activities.length && !dxSpots.length) return;
-    const continents = {
-      Europa: 0, Asien: 0, Afrika: 0, 'Nordamerika': 0, 'Südamerika': 0, Ozeanien: 0, Andere: 0,
-    };
-    const countContinent = (lat, lon) => {
-      if (lat >= 35 && lat <= 70 && lon >= -10 && lon <= 40) return 'Europa';
-      if (lat >= 0 && lat <= 60 && lon >= 60 && lon <= 150) return 'Asien';
-      if (lat >= -35 && lat <= 35 && lon >= -20 && lon <= 50) return 'Afrika';
-      if (lat >= 25 && lat <= 70 && lon >= -130 && lon <= -60) return 'Nordamerika';
-      if (lat >= -55 && lat <= 15 && lon >= -80 && lon <= -35) return 'Südamerika';
-      if (lat >= -45 && lat <= 0 && lon >= 110 && lon <= 180) return 'Ozeanien';
-      return 'Andere';
-    };
-    for (const s of activities) continents[countContinent(s.latitude, s.longitude)]++;
-    for (const s of dxSpots) continents[countContinent(s.lat, s.lng)]++;
-    console.table(continents);
-  }, [activities, dxSpots]);
-
-  // ISS-Position alle 5 Sekunden aktualisieren
+  // ISS-Position alle 30 Sekunden von API holen (Kalibrierung für Orbital-Modell)
   useEffect(() => {
     const fetchIss = async () => {
       const pos = await fetchIssPosition();
-      if (pos) setIssData(pos);
+      if (pos) {
+        setIssData(pos);
+        calibrateIssFromApi(pos.lat, pos.lon, Date.now());
+      }
     };
     fetchIss();
-    const interval = setInterval(fetchIss, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fix 5: Mond-Position alle 60 Sekunden aktualisieren (realitätsnah nach Meeus)
-  const [moonPos3D, setMoonPos3D] = useState(() => getMoon3DPosition(new Date(), 1.8));
-  useEffect(() => {
-    const updateMoon = () => setMoonPos3D(getMoon3DPosition(new Date(), 1.8));
-    updateMoon();
-    const interval = setInterval(updateMoon, 60000);
+    const interval = setInterval(fetchIss, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -159,14 +140,18 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
 
     let renderer;
     try {
-      // Fix 6C: Performance — antialias nur bei devicePixelRatio < 2, powerPreference high-performance
       renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, alpha: true, powerPreference: 'high-performance' });
+      // Explizite Kontext-Prüfung — THREE logt Fehler ohne throw bei Kontext-Mangel
+      if (!renderer.getContext()) {
+        setWebglError(true);
+        renderer.dispose();
+        return;
+      }
     } catch (e) {
       setWebglError(true);
       return;
     }
 
-    // Fix 10: Dunkler Weltall-Hintergrund
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000511);
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
@@ -176,11 +161,10 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Fix 10: Sternenfeld (2000 Sterne)
+    // Sternenfeld
     const starGeo = new THREE.BufferGeometry();
     const starCount = 2000;
     const starPositions = new Float32Array(starCount * 3);
-    const starSizes = new Float32Array(starCount);
     for (let i = 0; i < starCount; i++) {
       const r = 30 + Math.random() * 40;
       const theta = Math.random() * Math.PI * 2;
@@ -188,7 +172,6 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       starPositions[i * 3 + 2] = r * Math.cos(phi);
-      starSizes[i] = 0.3 + Math.random() * 1.2;
     }
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
     const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.8, sizeAttenuation: true });
@@ -198,30 +181,28 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     scene.add(globeGroup);
 
     const texture = createProceduralGlobeTexture();
-    // Fix 6C: Low-Perf Devices — Sphere-Segmente 48 statt 64
     const lowPerf = window.devicePixelRatio >= 2;
-    const sphereGeo = new THREE.SphereGeometry(1, lowPerf ? 48 : 64, lowPerf ? 48 : 64);
+    const sphereGeo = new THREE.SphereGeometry(GLOBE_RADIUS, lowPerf ? 48 : 64, lowPerf ? 48 : 64);
     const sphereMat = new THREE.MeshPhongMaterial({ map: texture, transparent: true, opacity: 0.95, shininess: 3 });
     loadEarthTexture(sphereMat);
-    // Fix 5: Globe-Mesh referenzieren für Raycasting
     const globeMesh = new THREE.Mesh(sphereGeo, sphereMat);
     globeGroup.add(globeMesh);
 
-    const atmGeo = new THREE.SphereGeometry(1.08, 64, 64);
+    const atmGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.08, 64, 64);
     const atmMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.08, side: THREE.BackSide });
     globeGroup.add(new THREE.Mesh(atmGeo, atmMat));
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    // Fix 5: Sonnen-Position für realistische Mondphasen-Beleuchtung
     const sunDir = getSunDirection(new Date());
     const dir = new THREE.DirectionalLight(0xffffff, 0.7);
     dir.position.set(sunDir.x, sunDir.y, sunDir.z);
     scene.add(dir);
 
-    // === MOND — mit Bump-Map + Rim-Light (Fresnel) ===
+    // === MOND — mit Bump-Map + Rim-Light + unsichtbarem Hit-Bereich ===
     const moonGroup = new THREE.Group();
     scene.add(moonGroup);
-    const moonGeo = new THREE.SphereGeometry(0.27, 32, 32);
+    const moonRadius = 0.22;
+    const moonGeo = new THREE.SphereGeometry(moonRadius, 32, 32);
     const moonTexture = createProceduralMoonTexture();
     const moonBumpTexture = createMoonBumpTexture();
     const moonMat = new THREE.MeshStandardMaterial({
@@ -232,12 +213,19 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       metalness: 0.0,
     });
     const moon = new THREE.Mesh(moonGeo, moonMat);
-    // Fix 5: Mond-Position aus realer Mond-Positionsberechnung (Meeus)
-    moon.position.set(moonPos3D.x, moonPos3D.y, moonPos3D.z);
+    const moonInitPos = getMoon3DPosition(new Date(), MOON_DISTANCE);
+    moon.position.set(moonInitPos.x, moonInitPos.y, moonInitPos.z);
     moonGroup.add(moon);
 
+    // FIX 3B: Unsichtbarer Hit-Bereich für einfachere Klickbarkeit
+    const moonHitGeo = new THREE.SphereGeometry(moonRadius * 1.6, 16, 16);
+    const moonHitMat = new THREE.MeshBasicMaterial({ visible: false });
+    const moonHitArea = new THREE.Mesh(moonHitGeo, moonHitMat);
+    moonHitArea.userData = { type: 'moon_body' };
+    moon.add(moonHitArea);
+
     // Rim-Light (Fresnel-Effekt an den Rändern)
-    const rimGeo = new THREE.SphereGeometry(0.275, 32, 32);
+    const rimGeo = new THREE.SphereGeometry(moonRadius * 1.02, 32, 32);
     const rimMat = new THREE.ShaderMaterial({
       uniforms: { rimColor: { value: new THREE.Color(0x9999bb) } },
       vertexShader: `
@@ -265,11 +253,11 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     });
     moon.add(new THREE.Mesh(rimGeo, rimMat));
 
-    // === SOTA-MARKER AUF DEM MOND (Gag) — blaues Dreieck bei 20°N 0°O (Mare Tranquillitatis) ===
+    // SOTA-MARKER AUF DEM MOND (Gag) — blaues Dreieck bei Mare Tranquillitatis
     const sotaMarkerGeo = new THREE.ConeGeometry(0.015, 0.04, 4);
     const sotaMarkerMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
     const sotaMarker = new THREE.Mesh(sotaMarkerGeo, sotaMarkerMat);
-    const moonSotaPos = latLonToVec3(20, 0, 0.27);
+    const moonSotaPos = latLonToVec3(20, 0, moonRadius);
     sotaMarker.position.copy(moonSotaPos);
     sotaMarker.lookAt(new THREE.Vector3(0, 0, 0));
     sotaMarker.rotateX(Math.PI);
@@ -280,7 +268,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const stationCoreGeo = new THREE.SphereGeometry(0.02, 12, 12);
     const stationCoreMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     const stationCore = new THREE.Mesh(stationCoreGeo, stationCoreMat);
-    stationCore.position.copy(latLonToVec3(stationPos.lat, stationPos.lon, 1.02));
+    stationCore.position.copy(latLonToVec3(stationPos.lat, stationPos.lon, GLOBE_RADIUS * 1.02));
     stationCore.userData = { type: 'station', data: { call: stationInfo?.callsign || 'QTH', ...stationInfo } };
     globeGroup.add(stationCore);
 
@@ -324,7 +312,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     issModelGroup.userData = { type: 'iss' };
     issModelGroup.visible = false;
 
-    // ISS Footprint — Sichtbarkeitskreis (ca. 2260 km → angular_radius ≈ 0.349 rad → sin ≈ 0.34)
+    // ISS Footprint — Sichtbarkeitskreis
     const footprintGroup = new THREE.Group();
     globeGroup.add(footprintGroup);
     const fpRadius = 0.34;
@@ -347,22 +335,22 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       const dotGeo = new THREE.SphereGeometry(0.018, 8, 8);
       const dotMat = new THREE.MeshBasicMaterial({ color: colorHex });
       const dot = new THREE.Mesh(dotGeo, dotMat);
-      dot.position.copy(latLonToVec3(s._lat, s._lng, 1.01));
-      dot.userData = { type: 'spot', data: s };
+      dot.position.copy(latLonToVec3(s._lat, s._lng, GLOBE_RADIUS * 1.01));
+      dot.userData = { type: 'spot', data: s, baseScale: 1.0 };
       globeGroup.add(dot);
       dotMeshes.push(dot);
     }
 
     // === PROPAGATION ARCS ===
     for (const s of (showPropagation ? visibleSpots.filter(s => s._type === 'dx') : [])) {
-      const fromVec = latLonToVec3(stationPos.lat, stationPos.lon, 1);
-      const toVec = latLonToVec3(s._lat, s._lng, 1);
+      const fromVec = latLonToVec3(stationPos.lat, stationPos.lon, GLOBE_RADIUS);
+      const toVec = latLonToVec3(s._lat, s._lng, GLOBE_RADIUS);
       const segments = 30;
       const pts = [];
       for (let i = 0; i <= segments; i++) {
         const t = i / segments;
         const p = new THREE.Vector3().lerpVectors(fromVec, toVec, t).normalize();
-        p.multiplyScalar(1 + Math.sin(t * Math.PI) * 0.12);
+        p.multiplyScalar(GLOBE_RADIUS + Math.sin(t * Math.PI) * 0.12);
         pts.push(p);
       }
       const geo = new THREE.BufferGeometry().setFromPoints(pts);
@@ -370,21 +358,38 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       globeGroup.add(new THREE.Line(geo, mat));
     }
 
-    // === INTERACTION — Fix 4/5/6: Pointer Events, Raycasting, Quaternion ===
-    let autoRotate = true;
+    // === INTERACTION — FIX 1: Momentum/Dämpfung, FIX 3: Mond-Klick, Cursor-Hover ===
     let isDragging = false;
     let prevX = 0, prevY = 0;
-    let autoRotateTimer = null;
-    let moonAutoRotateTimer = null;
     let downPos = { x: 0, y: 0 };
+    let rotationVelocity = { x: 0, y: 0 };
+    let autoRotateActive = true;
+    let moonAutoRotateTimer = null;
 
-    const stopAutoRotate = () => {
-      autoRotate = false;
-      if (autoRotateTimer) clearTimeout(autoRotateTimer);
-      autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
+    const clampPitch = () => {
+      // Verhindert Überschlag am Pol
+      const maxPitch = Math.PI / 2 - 0.1;
+      globeGroup.rotation.x = Math.max(-maxPitch, Math.min(maxPitch, globeGroup.rotation.x));
     };
 
-    // Fix 5: Raycasting — Drag nur starten wenn Globus getroffen wird
+    // FIX 3E: Cursor-Change bei Hover über Mond/ISS
+    const checkHover = (x, y) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((x - rect.left) / rect.width) * 2 - 1,
+        -((y - rect.top) / rect.height) * 2 + 1
+      );
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+      const hoverTargets = [moonHitArea, sotaMarker, issModelGroup];
+      const hits = raycaster.intersectObjects(hoverTargets, true);
+      if (hits.length > 0) {
+        renderer.domElement.style.cursor = 'pointer';
+      } else {
+        renderer.domElement.style.cursor = 'grab';
+      }
+    };
+
     const onPointerDown = (x, y) => {
       const rect = renderer.domElement.getBoundingClientRect();
       const mouse = new THREE.Vector2(
@@ -393,7 +398,8 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       );
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouse, camera);
-      // Mond-Drag erkennen
+
+      // Mond-Drag erkennen (separate Mond-Rotation)
       const moonHits = raycaster.intersectObject(moon, true);
       if (moonHits.length > 0) {
         moonDragModeRef.current = true;
@@ -402,32 +408,47 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         renderer.domElement.style.cursor = 'grabbing';
         return;
       }
-      // Fix 5: Globus-Raycasting — nur Drag starten wenn Globus getroffen
+
+      // Globus-Drag starten
       const globeHits = raycaster.intersectObject(globeMesh, true);
       if (globeHits.length > 0) {
-        isDragging = true; stopAutoRotate(); prevX = x; prevY = y; downPos = { x, y };
+        isDragging = true;
+        autoRotateActive = false;
+        rotationVelocity = { x: 0, y: 0 };
+        prevX = x; prevY = y; downPos = { x, y };
+        renderer.domElement.style.cursor = 'grabbing';
         return;
       }
-      // Kein Treffer = Weltraum-Klick → kein Drag
     };
-    // Fix 6B: Quaternion-Rotation statt Euler
+
     const onPointerMove = (x, y) => {
+      // Mond-Drag (separate Rotation)
       if (moonDragModeRef.current) {
         moonGroup.rotation.y += (x - prevX) * 0.01;
         moon.rotation.y += (x - prevX) * 0.01;
         prevX = x; prevY = y;
         return;
       }
-      if (!isDragging) return;
-      const deltaX = x - prevX;
-      const deltaY = y - prevY;
-      const quatY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), deltaX * 0.005);
-      const quatX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), deltaY * 0.005);
-      globeGroup.quaternion.multiplyQuaternions(quatY, globeGroup.quaternion);
-      globeGroup.quaternion.multiplyQuaternions(quatX, globeGroup.quaternion);
-      prevX = x; prevY = y;
+
+      if (isDragging) {
+        const deltaX = x - prevX;
+        const deltaY = y - prevY;
+        // Euler-Rotation für einfaches Pitch-Clamping
+        globeGroup.rotation.y += deltaX * 0.005;
+        globeGroup.rotation.x += deltaY * 0.005;
+        clampPitch();
+        // Momentum speichern für Dämpfung nach Drag-End
+        rotationVelocity.y = deltaX * 0.005;
+        rotationVelocity.x = deltaY * 0.005;
+        prevX = x; prevY = y;
+      } else {
+        // FIX 3E: Cursor-Hover-Erkennung
+        checkHover(x, y);
+      }
     };
+
     const onPointerUp = (x, y) => {
+      // Mond-Drag beenden
       if (moonDragModeRef.current) {
         moonDragModeRef.current = false;
         renderer.domElement.style.cursor = 'grab';
@@ -435,7 +456,11 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         moonAutoRotateTimer = setTimeout(() => { moonAutoRotateRef.current = true; }, 3000);
         return;
       }
+
       isDragging = false;
+      renderer.domElement.style.cursor = 'grab';
+
+      // Click-Erkennung: nur wenn keine signifikante Bewegung
       if (Math.abs(x - downPos.x) < 5 && Math.abs(y - downPos.y) < 5) {
         const rect = renderer.domElement.getBoundingClientRect();
         const mouse = new THREE.Vector2(
@@ -444,23 +469,39 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         );
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(mouse, camera);
-        const targets = [stationCore, ...dotMeshes, sotaMarker, issModelGroup];
-        const hits = raycaster.intersectObjects(targets, true);
-        if (hits.length > 0) {
-          let target = hits[0].object;
+
+        // FIX 3A: Raycasting-Reihenfolge: SOTA-Marker → Mond → ISS → Spots → Globe
+        // 1. SOTA-Marker auf dem Mond
+        const sotaHits = raycaster.intersectObject(sotaMarker, true);
+        if (sotaHits.length > 0) {
+          setShowMoonSotaPopup(true);
+          return;
+        }
+        // 2. Mond-Body (Hit-Area)
+        const moonBodyHits = raycaster.intersectObject(moonHitArea, true);
+        if (moonBodyHits.length > 0) {
+          setShowMoonInfo(true);
+          return;
+        }
+        // 3. ISS
+        const issHits = raycaster.intersectObject(issModelGroup, true);
+        if (issHits.length > 0) {
+          setShowIssPopup(true);
+          return;
+        }
+        // 4. Station + Spot-Marker
+        const spotTargets = [stationCore, ...dotMeshes];
+        const spotHits = raycaster.intersectObjects(spotTargets, true);
+        if (spotHits.length > 0) {
+          let target = spotHits[0].object;
           while (target && !target.userData?.type) target = target.parent;
-          if (target?.userData?.type === 'moon_sota') {
-            setShowMoonSotaPopup(true);
-          } else if (target?.userData?.type === 'iss') {
-            setShowIssPopup(true);
-          } else if (target?.userData?.data) {
+          if (target?.userData?.data) {
             onSpotClick?.(target.userData.data);
           }
         }
       }
     };
 
-    // Fix 6A: Pointer Events statt mouse/touch
     const onPointerDownEvent = (e) => onPointerDown(e.clientX, e.clientY);
     const onPointerMoveEvent = (e) => onPointerMove(e.clientX, e.clientY);
     const onPointerUpEvent = (e) => onPointerUp(e.clientX, e.clientY);
@@ -471,53 +512,87 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     window.addEventListener('pointerup', onPointerUpEvent);
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
 
-    // Fix 4: Initial rotation via Euler → Quaternion
+    // === ANIMATE-LOOP — FIX 1: Flüssige Rotation mit Momentum, FIX 2: Marker-Skalierung ===
     globeGroup.rotation.x = 0.3;
     let animId;
-    let frameCount = 0;
-    // Fix 4: Delta-time basierte Rotation statt fixed-step
-    let lastTime = performance.now();
-    const animate = (currentTime) => {
+    const clock = new THREE.Clock();
+    let pulseTime = 0;
+
+    const animate = () => {
       animId = requestAnimationFrame(animate);
-      const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
-      lastTime = currentTime;
-      frameCount++;
-      // Fix 4: Delta-time Auto-Rotation mit Quaternion
-      if (autoRotate && !isDragging && rotationRef.current) {
-        const rotQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.3 * delta);
-        globeGroup.quaternion.multiplyQuaternions(rotQuat, globeGroup.quaternion);
+
+      // FIX 1: Delta-time mit Clamp (verhindert Sprünge bei Tab-Wechsel)
+      const delta = Math.min(clock.getDelta(), 0.1);
+      pulseTime += delta;
+
+      // FIX 1: Auto-Rotation (konstante Geschwindigkeit in rad/s)
+      if (autoRotateActive && !isDragging && rotationRef.current) {
+        globeGroup.rotation.y += AUTO_ROTATE_SPEED * delta;
       }
+
+      // FIX 1: Momentum nach Drag-End (läuft weich aus)
+      if (!isDragging && (Math.abs(rotationVelocity.x) > MOMENTUM_THRESHOLD || Math.abs(rotationVelocity.y) > MOMENTUM_THRESHOLD)) {
+        globeGroup.rotation.y += rotationVelocity.y * delta * 60; // *60 für vergleichbare Geschwindigkeit
+        globeGroup.rotation.x += rotationVelocity.x * delta * 60;
+        clampPitch();
+        rotationVelocity.x *= DAMPING_FACTOR;
+        rotationVelocity.y *= DAMPING_FACTOR;
+      } else if (!isDragging && autoRotateActive === false && Math.abs(rotationVelocity.x) < MOMENTUM_THRESHOLD && Math.abs(rotationVelocity.y) < MOMENTUM_THRESHOLD) {
+        // FIX 1: Auto-Rotate wieder AN wenn Momentum < threshold
+        autoRotateActive = true;
+      }
+
       // Mond-Rotation
-      if (autoRotate && !isDragging && rotationRef.current && moonAutoRotateRef.current) {
+      if (!moonDragModeRef.current && rotationRef.current && moonAutoRotateRef.current) {
         moonGroup.rotation.y += 0.05238 * delta;
         moon.rotation.y += 0.05238 * delta;
       }
-      // Fix 6: Marker bei Zoom skalieren — Punkte werden beim Hineinzoomen kleiner
-      const camDist = camera.position.z;
-      const markerScale = Math.max(0.3, Math.min(3.0, 3.0 / camDist));
-      for (const dot of dotMeshes) {
-        dot.scale.setScalar(markerScale);
-      }
-      // Station-Marker auch skalieren
-      stationCore.scale.setScalar(markerScale);
-      stationRing.scale.setScalar(markerScale * (0.75 + ((frameCount % 120) / 120) * 1.875));
-      // Pulsierender Standort: 1 Puls pro 2 Sek = 120 Frames bei 60fps
-      const pulsePhase = (frameCount % 120) / 120;
-      stationRing.scale.setScalar(0.75 + pulsePhase * 1.875);
-      stationRingMat.opacity = 0.8 * (1 - pulsePhase);
-      // ISS: smooth transition zur Echtzeit-Position
-      if (issDataRef.current) {
+
+      // FIX 1: Mond-Position JEDE FRAME neu berechnen
+      const moonPos = getMoon3DPosition(new Date(), MOON_DISTANCE);
+      moonGroup.position.set(moonPos.x, moonPos.y, moonPos.z);
+
+      // FIX 1: ISS-Position JEDE FRAME neu berechnen (Orbital-Modell mit API-Kalibrierung)
+      const issOrbitPos = calculateISSPosition(new Date(), GLOBE_RADIUS);
+      if (issOrbitPos) {
         issModelGroup.visible = true;
         footprintGroup.visible = true;
-        const issTarget = latLonToVec3(issDataRef.current.lat, issDataRef.current.lon, 1.05);
+        issModelGroup.position.set(issOrbitPos.x, issOrbitPos.y, issOrbitPos.z);
+        // FIX 1: ISS-Mesh korrekt orientieren
+        issModelGroup.lookAt(0, 0, 0);
+        const fpTarget = latLonToVec3(issOrbitPos.lat, issOrbitPos.lon, GLOBE_RADIUS);
+        footprintGroup.position.copy(fpTarget);
+        footprintGroup.lookAt(0, 0, 0);
+      } else if (issDataRef.current) {
+        // Fallback: API-Position (vor erster Kalibrierung oder wenn Orbital-Modell noch nicht bereit)
+        issModelGroup.visible = true;
+        footprintGroup.visible = true;
+        const issTarget = latLonToVec3(issDataRef.current.lat, issDataRef.current.lon, GLOBE_RADIUS * 1.05);
         issModelGroup.position.lerp(issTarget, 0.1);
-        const fpTarget = latLonToVec3(issDataRef.current.lat, issDataRef.current.lon, 1.0);
+        issModelGroup.lookAt(0, 0, 0);
+        const fpTarget = latLonToVec3(issDataRef.current.lat, issDataRef.current.lon, GLOBE_RADIUS);
         footprintGroup.position.lerp(fpTarget, 0.1);
         footprintGroup.lookAt(0, 0, 0);
       }
+
+      // FIX 2: Dynamische Marker-Skalierung mit Smooth-Lerp
+      const cameraDistance = camera.position.length();
+      const scaleFactor = Math.max(0.3, Math.min(2.0, cameraDistance / GLOBE_RADIUS * 0.5));
+      for (const dot of dotMeshes) {
+        const targetScale = (dot.userData.baseScale || 1.0) * scaleFactor;
+        dot.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+      }
+      // Station-Marker skalieren
+      stationCore.scale.lerp(new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor), 0.1);
+      // Pulsierender Standort: 1 Puls pro 2 Sekunden
+      const pulsePhase = (pulseTime % 2) / 2;
+      const ringScale = scaleFactor * (0.75 + pulsePhase * 1.875);
+      stationRing.scale.setScalar(ringScale);
+      stationRingMat.opacity = 0.8 * (1 - pulsePhase);
+
       renderer.render(scene, camera);
     };
-    animate(performance.now());
+    animate();
 
     const handleResize = () => {
       const w = container.clientWidth;
@@ -531,15 +606,14 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
 
     return () => {
       cancelAnimationFrame(animId);
-      if (autoRotateTimer) clearTimeout(autoRotateTimer);
       if (moonAutoRotateTimer) clearTimeout(moonAutoRotateTimer);
       window.removeEventListener('resize', handleResize);
-      // Fix 6A: Pointer Events Cleanup
       window.removeEventListener('pointermove', onPointerMoveEvent);
       window.removeEventListener('pointerup', onPointerUpEvent);
       renderer.domElement.removeEventListener('pointerdown', onPointerDownEvent);
       renderer.domElement.removeEventListener('wheel', onWheel);
       renderer.dispose();
+      renderer.forceContextLoss(); // Explizit WebGL-Kontext freigeben (verhindert Kontext-Leck bei Re-Mount)
       texture.dispose();
       moonTexture.dispose();
       moonBumpTexture.dispose();
@@ -549,7 +623,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         if (obj.material) { if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); }
       });
     };
-  }, [visibleSpots, stationPos, stationInfo, loading, onSpotClick, showPropagation, webglError, moonPos3D]);
+  }, [visibleSpots, stationPos, stationInfo, loading, onSpotClick, showPropagation, webglError]);
 
   const totalCount = visibleSpots.length;
 
@@ -629,13 +703,15 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       </div>
       {/* Hint */}
       <div className="px-3 py-1 text-[8px] text-muted-foreground text-center border-t border-border">
-        Globus drehen: Drag · Zoomen: Scroll/Pinch · 🌙 Mond mit SOTA-Punkt (klickbar) · 🛰️ ISS live mit Footprint · 📍 Standort pulsiert
+        Globus drehen: Drag (mit Momentum) · Zoomen: Scroll/Pinch · 🌙 Mond klickbar (Phase/Beleuchtung) · 🛰️ ISS live · 📍 Standort pulsiert
       </div>
 
       {/* ISS Frequenz-Popup */}
       {showIssPopup && <IssFrequencyPopup issData={issData} onClose={() => setShowIssPopup(false)} />}
       {/* Mond SOTA Spenden-Popup */}
       {showMoonSotaPopup && <MoonSotaPopup onClose={() => setShowMoonSotaPopup(false)} />}
+      {/* FIX 3: Mond-Info-Popup (Phase, Beleuchtung, Koordinaten) */}
+      {showMoonInfo && <MoonInfoPopup onClose={() => setShowMoonInfo(false)} />}
     </div>
   );
 }
