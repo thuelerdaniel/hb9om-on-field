@@ -644,6 +644,15 @@ export default function Home() {
     });
   }, []);
 
+  // Map refresh when layers change — ensures correct sizing after layer toggle
+  useEffect(() => {
+    if (mapRef.current) {
+      setTimeout(() => {
+        mapRef.current.invalidateSize();
+      }, 100);
+    }
+  }, [activeLayers]);
+
   const handleHeavyLoadConfirm = useCallback(() => {
     if (pendingLayers) {
       setActiveLayers(prev => [...prev, ...pendingLayers]);

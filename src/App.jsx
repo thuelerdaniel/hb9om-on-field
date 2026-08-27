@@ -24,6 +24,7 @@ import UserManagement from '@/pages/UserManagement';
 import OAuthConsent from '@/pages/OAuthConsent';
 import PageNotFound from '@/lib/PageNotFound';
 import TestReport from '@/pages/TestReport';
+import AppErrorBoundary from '@/components/AppErrorBoundary';
 
 function AuthenticatedApp() {
   const { isLoadingAuth } = useAuth();
@@ -73,16 +74,18 @@ function App() {
   }, []);
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <AuthProvider>
-        <QueryClientProvider client={queryClientInstance}>
-          <Router>
-            <AuthenticatedApp />
-          </Router>
-          <Toaster />
-        </QueryClientProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <AppErrorBoundary>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <AuthProvider>
+          <QueryClientProvider client={queryClientInstance}>
+            <Router>
+              <AuthenticatedApp />
+            </Router>
+            <Toaster />
+          </QueryClientProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </AppErrorBoundary>
   )
 }
 

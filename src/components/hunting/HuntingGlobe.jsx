@@ -37,6 +37,9 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [showPropagation, setShowPropagation] = useState(true);
   const [webglError, setWebglError] = useState(false);
+  const [rotationEnabled, setRotationEnabled] = useState(true);
+  const rotationRef = useRef(true);
+  rotationRef.current = rotationEnabled;
 
   const stationPos = useMemo(() => {
     if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
@@ -140,14 +143,38 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     moon.position.set(1.8, 0, 0);
     moonGroup.add(moon);
 
-    // ISS — kleine helle Bahn nahe der Erde
+    // ISS — Mini-Modell mit Modulen und Solarpanels
     const issGroup = new THREE.Group();
     scene.add(issGroup);
-    const issGeo = new THREE.SphereGeometry(0.012, 8, 8);
-    const issMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-    const iss = new THREE.Mesh(issGeo, issMat);
-    iss.position.set(1.12, 0, 0);
-    issGroup.add(iss);
+    const issModel = new THREE.Group();
+    const moduleMat = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+    const mod1 = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.015, 0.015), moduleMat);
+    const mod2 = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.012, 0.012), moduleMat);
+    mod2.position.x = 0.025;
+    const mod3 = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.010, 0.010), moduleMat);
+    mod3.position.x = -0.022;
+    issModel.add(mod1, mod2, mod3);
+    const panelMat = new THREE.MeshBasicMaterial({ color: 0x1a3a6a, side: THREE.DoubleSide });
+    const panelFrameMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.003, 0.003), panelFrameMat);
+    leftArm.position.x = -0.035;
+    const leftPanel1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.001), panelMat);
+    leftPanel1.position.x = -0.065;
+    const leftPanel2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.001), panelMat);
+    leftPanel2.position.x = -0.105;
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.003, 0.003), panelFrameMat);
+    rightArm.position.x = 0.035;
+    const rightPanel1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.001), panelMat);
+    rightPanel1.position.x = 0.065;
+    const rightPanel2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.001), panelMat);
+    rightPanel2.position.x = 0.105;
+    issModel.add(leftArm, leftPanel1, leftPanel2, rightArm, rightPanel1, rightPanel2);
+    const issLight = new THREE.Mesh(new THREE.SphereGeometry(0.004, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+    issLight.position.set(0, 0.01, 0);
+    issModel.add(issLight);
+    issModel.position.set(1.12, 0, 0);
+    issModel.scale.set(1.5, 1.5, 1.5);
+    issGroup.add(issModel);
     // ISS-Bahn-Ring (subtil sichtbar)
     const issOrbitGeo = new THREE.RingGeometry(1.115, 1.125, 64);
     const issOrbitMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.08, side: THREE.DoubleSide });
@@ -252,7 +279,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const animate = () => {
       animId = requestAnimationFrame(animate);
       frameCount++;
-      if (autoRotate && !isDragging) rotY += 0.002;
+      if (autoRotate && !isDragging && rotationRef.current) rotY += 0.002;
       globeGroup.rotation.x = rotX;
       globeGroup.rotation.y = rotY;
       // Mond kreist langsam um die Erde
@@ -346,6 +373,13 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
 
       {/* Globe */}
       <div className="h-[300px] md:h-[350px] lg:h-[400px] relative">
+        <button
+          onClick={() => setRotationEnabled(r => !r)}
+          className="absolute top-2 right-2 z-10 bg-black/60 text-cyan-400 text-[10px] px-2 py-1 rounded-md border border-cyan-500/30 hover:bg-black/80 transition-colors"
+          title="Globus-Rotation ein/aus"
+        >
+          {rotationEnabled ? '⏸️ Rotation' : '▶️ Rotation'}
+        </button>
         {loading ? (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground gap-2">
             <Loader2 className="w-4 h-4 animate-spin" /> Globus wird geladen…
@@ -365,7 +399,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       </div>
       {/* Hint: deeper zoom + moon/ISS */}
       <div className="px-3 py-1 text-[8px] text-muted-foreground text-center border-t border-border">
-        Globus drehen: Drag · Zoomen: Scroll/Pinch (bis Länderebene) · 🌙 Mond & ISS umkreisen die Erde
+        Globus drehen: Drag · Zoomen: Scroll/Pinch · 🌙 Mond & 🛰️ ISS umkreisen die Erde · Rotation Taste oben rechts
       </div>
     </div>
   );

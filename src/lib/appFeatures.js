@@ -43,7 +43,7 @@ export const DEFAULT_FEATURES = {
     "6m": false, "2m": true, "1.25m": false, "70cm": true, "33cm": false, "23cm": false,
   },
   tools: {
-    fox_hunt: false, legende: false, filter: false, zoom: true,
+    fox_hunt: false, legende: false, filter: true, zoom: true,
     search: false, coords: false, repeater_coverage: false, own_coverage: false,
     gps: true, qth_locator: false, height_profile: false,
     logbook: true, statistics: false, qso_add: true, dxcc: false,
@@ -80,7 +80,7 @@ export const QUICK_PRESETS = {
   kw: {
     layers: { sota: true, pota: true, wwff: true, wca: true, bota: true, tota: true, iota: true, lighthouse: true, naturzonen: true, hazards: true, fm_funknetz: false, ch_repeater_links: false, repeater: false, aprs: false, brandmeister: false },
     bands: { "160m": true, "80m": true, "60m": true, "40m": true, "30m": true, "20m": true, "17m": true, "15m": true, "12m": true, "10m": true, "6m": false, "2m": false, "1.25m": false, "70cm": false, "33cm": false, "23cm": false },
-    tools: { fox_hunt: false, legende: false, filter: false, zoom: true, search: false, coords: false, repeater_coverage: false, own_coverage: true, gps: true, qth_locator: true, height_profile: false, logbook: true, statistics: false, qso_add: true, dxcc: false, admin: true, json_import: false, sync_status: false, change_requests: false, feature_requests: false, center_position: false, set_position: false },
+    tools: { fox_hunt: false, legende: false, filter: true, zoom: true, search: false, coords: false, repeater_coverage: false, own_coverage: true, gps: true, qth_locator: true, height_profile: false, logbook: true, statistics: false, qso_add: true, dxcc: false, admin: true, json_import: false, sync_status: false, change_requests: false, feature_requests: false, center_position: false, set_position: false },
     offline: { offline_mode: false, map_download: false, data_download: false, auto_cache: false },
     advanced: { advanced_propagation: true, kw_propagation: true, solar_activity: "medium", auto_time: true, map_tile: "osm", marker_density: "medium", language: "de", imperial: false },
   },
