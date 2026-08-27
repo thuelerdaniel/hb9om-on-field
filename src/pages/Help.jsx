@@ -24,6 +24,45 @@ const CEPT_COUNTRIES_LIST = CEPT_COUNTRIES.map(c => ({
 
 const SECTIONS = [
   {
+    id: "hunting",
+    icon: Crosshair,
+    title: "Hunting & DX-Spots",
+    color: "#00e5ff",
+    description: "Die Hunting-Seite zeigt Live DX-Spots, SOTA/POTA-Aktivierungen, ISS-Echtzeit-Position, Propagation und eine 3D-Weltkugel.",
+    items: [
+      {
+        title: "Hunting Globe (3D-Weltkugel)",
+        body: "Die 3D-Weltkugel zeigt alle aktiven Spots als farbcodierte Marker: SOTA (blau), POTA (grün), DX (rot), eigene Station (pulsierend grün). Der Mond umkreist die Erde mit realistischer Textur (Bump-Map mit Kratern, Rim-Light/Fresnel-Effekt). Ein SOTA-Marker (blaues Dreieck) auf dem Mond bei Mare Tranquillitatis (Apollo 11 Landestelle, 20°N 0°O) öffnet beim Klick ein Spenden-Popup. Die ISS wird in Echtzeit (alle 5 Sek.) auf der Globe angezeigt mit Footprint-Kreis (Sichtbarkeitsbereich ca. 2260 km). Klick auf die ISS öffnet ein Frequenz-Popup.",
+        example: "Globus drehen: Drag · Zoomen: Scroll/Pinch · Klick auf 🛰️ ISS → Frequenz-Popup · Klick auf 🌙 Mond-SOTA → Spenden-Popup"
+      },
+      {
+        title: "ISS-Frequenzen & Echtzeit-Position",
+        body: "Die ISS sendet auf mehreren Frequenzen: VHF Downlink 145.800 MHz FM (Voice), VHF Uplink 145.990 MHz FM, UHF Downlink 437.800 MHz (Packet), APRS 145.825 MHz (1200 baud AFSK), SSTV 145.800 MHz (gelegentlich). Die ISS-Position wird alle 5 Sekunden von wheretheiss.at aktualisiert. Der Footprint-Kreis (gelb) zeigt den Sichtbarkeitsbereich. Klick auf die ISS im Globe öffnet das Frequenz-Popup mit Position, Geschwindigkeit (ca. 27600 km/h) und Flughöhe (ca. 408 km).",
+        example: "ISS sichtbar? Footprint-Kreis deckt Ihre Position ab → 145.800 MHz FM für Voice-QSO."
+      },
+      {
+        title: "Stations-Locator (GPS-Fallback)",
+        body: "Wenn kein GPS-Empfang verfügbar ist, wird der manuell eingegebene Maidenhead-Locator als Standort verwendet. Klicken Sie auf 'Station Ready' in der CommandStrip um den Locator einzugeben (Format: 2 Buchstaben + 2 Zahlen + optional 2 Buchstaben, z.B. JN58LK). Der Locator wird im LocalStorage gespeichert und in der User-Entity. Reihenfolge: 1. GPS (watchPosition) 2. gespeicherter Stations-Locator 3. Standard (Zürich: JN47OQ). Das UI zeigt klar ob GPS aktiv (grün) oder Locator manuell (gelb) ist.",
+        example: "GPS nicht verfügbar → 'Station Ready' klicken → JN58LK eingeben → Distanz/Azimut werden ab diesem Locator berechnet."
+      },
+      {
+        title: "Hear-Probability-Score (Hörscheinlichkeit)",
+        body: "Die Live Spot Activity Tabelle ist standardmässig nach Hörscheinlichkeit sortiert (Score 0-100%). Der Score wird berechnet aus: Distanz (40% — näher = besser), Propagation (35% — NOAA-Daten + Tag/Nacht), Standort (15% — SOTA-Berge bekommen Bonus), Band/Frequenz (10% — 40m/20m/15m/10m optimal für DX). Farbcodierung: grün >70%, gelb 40-70%, rot <40%. Mit dem Toggle-Button können Sie zwischen 'Nach Score' und 'Nach Zeit' sortieren.",
+        example: "Score 75% (grün) → gute Chance die Station zu hören. Score 25% (rot) → unwahrscheinlich."
+      },
+      {
+        title: "SOTA Scheduled Activations",
+        body: "Geplante SOTA-Aktivierungen können über die SOTA Scheduled API abgerufen werden (api2.sota.org.uk/api/scheduled_activations). Die Funktion versucht 3 Mal mit 2 Sekunden Pause und 10 Sekunden Timeout. Bei Timeout erscheint 'SOTA Scheduled temporär nicht erreichbar'. Die summit_code wird mit der SotaPoint-Datenbank verknüpft um Koordinaten zu erhalten. Fehler werden mit '[SOTA Scheduled]' Prefix in der Konsole protokolliert.",
+        example: "Scheduled Activations laden → zeigt zukünftige SOTA-Aktivierungen mit Summit-Koordinaten auf der Globe."
+      },
+      {
+        title: "Spot-Detail Karte (kontinent-übergreifend)",
+        body: "Beim Klick auf das Augen-Symbol eines Spots öffnet sich eine Detail-Karte. Die Verbindungslinie wird als Great Circle (Grosskreis) mit 64 Zwischenpunkten gezeichnet — korrekt gekrümmt, nicht gerade. Bei kontinent-übergreifenden Spots (Datumsgrenze) wird der Viewport korrekt berechnet (Longitude um ±360 verschoben) und maxZoom auf 3 gesetzt. invalidateSize wird nach 200ms und 500ms aufgerufen damit die Karte im Modal korrekt dargestellt wird.",
+        example: "Spot in USA (kontinent-übergreifend) → Karte zeigt gekrümmte Linie, beide Marker sichtbar, korrekter Zoom."
+      },
+    ],
+  },
+  {
     id: "karte",
     icon: MapPin,
     title: "Karte & Referenzen",
