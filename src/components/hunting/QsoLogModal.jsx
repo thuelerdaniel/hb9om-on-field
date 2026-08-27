@@ -76,13 +76,24 @@ export default function QsoLogModal({ spot, onClose }) {
   const inputClass = "w-full px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:border-[#00e5ff] outline-none";
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-card z-10">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
             <Save className="w-4 h-4 text-[#8cff00]" /> QSO loggen
           </h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {success ? (
@@ -173,7 +184,7 @@ export default function QsoLogModal({ spot, onClose }) {
             </Field>
             {error && <div className="text-xs text-[#ff5252] px-1">{error}</div>}
             <div className="flex gap-2 pt-1">
-              <button onClick={onClose} className="flex-1 py-2.5 bg-background hover:bg-muted text-muted-foreground rounded-lg text-sm font-medium border border-border">Abbrechen</button>
+              <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="flex-1 py-2.5 bg-background hover:bg-muted text-muted-foreground rounded-lg text-sm font-medium border border-border">Abbrechen</button>
               <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-[#8cff00] hover:bg-[#7aee00] text-black rounded-lg text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-1.5">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Speichern
               </button>

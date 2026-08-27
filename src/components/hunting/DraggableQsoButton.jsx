@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 
 // Verschiebbarer QSO-Loggen Button — position: fixed, draggable per Pointer-Events.
@@ -103,6 +104,20 @@ export default function DraggableQsoButton({ onClick }) {
     setPos(clampToViewport(newX, newY));
   }, [isDragging]);
 
+  // pointerup direkt am Button — löscht den Long-Press Timer bei einem kurzen Klick.
+  // Ohne dies würde der Timer nach dem Öffnen des Modals feuern, isDragging=true setzen
+  // und globale pointermove/pointerup Listener aktivieren, die die Button-Position
+  // an die Maus koppeln — der Button springt dann zur X-Position des Modals.
+  const handleButtonPointerUp = useCallback((e) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    if (!isDragging) {
+      isLongPressRef.current = false;
+    }
+  }, [isDragging]);
+
   const handlePointerUp = useCallback((e) => {
     // Long-Press Timer abbrechen
     if (longPressTimerRef.current) {
@@ -115,8 +130,6 @@ export default function DraggableQsoButton({ onClick }) {
       savePosition(pos.x, pos.y);
       setIsDragging(false);
     }
-    // Fix 9: Click wird im onClick Handler behandelt (nicht hier), da handlePointerUp
-    // nur bei isDragging=true am window hängt — ein kurzer Tap würde hier nie ankommen.
   }, [isDragging, pos]);
 
   // Globale Pointer-Events während Drag
@@ -134,24 +147,30 @@ export default function DraggableQsoButton({ onClick }) {
     };
   }, [isDragging, handlePointerMove, handlePointerUp]);
 
-  return (
+  // React Portal an document.body — komplett unabhängig vom Modal-Container.
+  // Kein Shared-State, kein Event-Bubbling zwischen Button und Modal.
+  return createPortal(
     <button
       onPointerDown={handlePointerDown}
+      onPointerUp={handleButtonPointerUp}
       onClick={(e) => {
-        // Fix 9: Click nur auslösen wenn KEIN Long-Press und KEINE Bewegung stattfand.
-        // isLongPressRef ist ein Ref (sofort verfügbar), isDragging ist state (async).
+        // Long-Press Timer sicherheitshalber auch hier löschen
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+        // Click nur auslösen wenn KEIN Long-Press und KEINE Bewegung stattfand.
         if (isLongPressRef.current || hasMovedRef.current) {
           e.preventDefault();
           e.stopPropagation();
         } else {
-          // Normaler kurzer Klick — QSO-Formular öffnen
           onClick?.();
         }
         // Reset für nächsten Klick-Zyklus
         isLongPressRef.current = false;
         hasMovedRef.current = false;
       }}
-      className="fixed z-[1000] h-14 px-6 rounded-full bg-[#8cff00] text-black shadow-2xl shadow-[#8cff00]/40 flex items-center gap-2 select-none"
+      className="fixed z-[10000] h-14 px-6 rounded-full bg-[#8cff00] text-black shadow-2xl shadow-[#8cff00]/40 flex items-center gap-2 select-none"
       style={{
         left: `${pos.x}px`,
         top: `${pos.y}px`,
@@ -165,6 +184,7 @@ export default function DraggableQsoButton({ onClick }) {
     >
       <Plus className="w-6 h-6" />
       <span className="font-bold text-sm whitespace-nowrap">QSO loggen</span>
-    </button>
+    </button>,
+    document.body
   );
 }
