@@ -23,23 +23,52 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Vendor-Chunks manuell aufteilen für besseres Caching
-        manualChunks: {
-          // React Core
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        // Funktions-Form: erfasst zuverlässig ALLE Subpath-Imports (react/jsx-runtime,
+        // react-dom/client, scheduler) — die Objekt-Form verpasst diese und erzeugt
+        // zirkuläre Abhängigkeiten zwischen React Core und React DOM Chunks.
+        manualChunks(id) {
+          // React Core + DOM + scheduler MÜSSEN im selben Chunk sein (zirkuläre Abhängigkeit)
+          if (id.includes('node_modules/react/') ||
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/scheduler/') ||
+              id.includes('node_modules/react-router-dom')) {
+            return 'react-vendor';
+          }
           // Leaflet + React-Leaflet (große Library)
-          'leaflet-vendor': ['leaflet', 'react-leaflet'],
+          if (id.includes('node_modules/leaflet') ||
+              id.includes('node_modules/react-leaflet')) {
+            return 'leaflet-vendor';
+          }
           // UI-Komponenten (Radix + Lucide)
-          'ui-vendor': ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-select', '@radix-ui/react-dropdown-menu'],
+          if (id.includes('node_modules/lucide-react') ||
+              id.includes('node_modules/@radix-ui/react-dialog') ||
+              id.includes('node_modules/@radix-ui/react-popover') ||
+              id.includes('node_modules/@radix-ui/react-select') ||
+              id.includes('node_modules/@radix-ui/react-dropdown-menu')) {
+            return 'ui-vendor';
+          }
           // Charts
-          'chart-vendor': ['recharts'],
+          if (id.includes('node_modules/recharts')) {
+            return 'chart-vendor';
+          }
           // PDF-Generierung
-          'pdf-vendor': ['jspdf', 'html2canvas'],
+          if (id.includes('node_modules/jspdf') ||
+              id.includes('node_modules/html2canvas')) {
+            return 'pdf-vendor';
+          }
           // Drag & Drop
-          'dnd-vendor': ['@hello-pangea/dnd'],
+          if (id.includes('node_modules/@hello-pangea/dnd')) {
+            return 'dnd-vendor';
+          }
           // Markdown & Quill Editor
-          'editor-vendor': ['react-markdown', 'react-quill'],
+          if (id.includes('node_modules/react-markdown') ||
+              id.includes('node_modules/react-quill')) {
+            return 'editor-vendor';
+          }
           // 3D
-          'three-vendor': ['three'],
+          if (id.includes('node_modules/three')) {
+            return 'three-vendor';
+          }
         },
       },
     },
