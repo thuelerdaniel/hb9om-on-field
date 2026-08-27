@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 // Live Spot Activity — Hauptbereich mit Filtern, Worked-Status, sortierbar.
 // Theme-aware: bg-card, border-border, text-foreground, text-muted-foreground.
 
-const REFRESH_MS = 30 * 1000;
+const REFRESH_MS = 60 * 1000;
 
 function ageColor(age) {
   if (age == null) return 'hsl(var(--muted-foreground))';
@@ -35,6 +35,29 @@ const DOT_COLORS = {
   yellow: '#ffc400',
   gray: 'hsl(var(--muted-foreground))',
 };
+
+// Source badge colors
+function sourceColor(source) {
+  if (!source) return '#9ca3af';
+  const s = source.toLowerCase();
+  if (s.includes('dx summit')) return '#3b82f6';
+  if (s.includes('hb9on')) return '#22c55e';
+  if (s.includes('hb9iac')) return '#f97316';
+  if (s.includes('holy')) return '#a855f7';
+  if (s.includes('jo30') || s.includes('dxcluster')) return '#06b6d4';
+  return '#9ca3af';
+}
+
+function sourceLabel(source) {
+  if (!source) return '—';
+  const s = source.toLowerCase();
+  if (s.includes('dx summit')) return 'DX Summit';
+  if (s.includes('hb9on')) return 'HB9ON-8';
+  if (s.includes('hb9iac')) return 'HB9IAC-8';
+  if (s.includes('holy')) return 'HolyCluster';
+  if (s.includes('jo30') || s.includes('dxcluster')) return 'jo30.de';
+  return source.length > 12 ? source.slice(0, 10) + '…' : source;
+}
 
 const BANDS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m'];
 const MODES = ['All', 'FT8', 'FT4', 'CW', 'SSB', 'FM', 'RTTY', 'PSK', 'Other'];
@@ -98,7 +121,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
     if (bandFilter !== 'All' && s.band !== bandFilter) return false;
     if (modeFilter !== 'All' && s.mode !== modeFilter) return false;
     if (countryFilter && !s.country?.toLowerCase().includes(countryFilter.toLowerCase())) return false;
-    if (sourceFilter !== 'All' && s.source !== sourceFilter) return false;
+    if (sourceFilter !== 'All' && !(s.source || '').toLowerCase().includes(sourceFilter.toLowerCase())) return false;
     if (refFilter !== 'All' && s.activity !== refFilter) return false;
     if (s.confidence < minConfidence) return false;
     return true;
@@ -176,8 +199,11 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
           />
           <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
             <option value="All">Alle Quellen</option>
-            <option value="DXCluster (jo30.de)">jo30.de</option>
             <option value="DX Summit">DX Summit</option>
+            <option value="HB9ON-8">HB9ON-8</option>
+            <option value="HB9IAC-8">HB9IAC-8</option>
+            <option value="HolyCluster">HolyCluster</option>
+            <option value="DXCluster (jo30.de)">jo30.de</option>
           </select>
           <div className="flex items-center gap-1">
             <span className="text-[9px] text-muted-foreground">Conf≥</span>
@@ -239,7 +265,14 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                     <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[80px] hidden md:table-cell">{comment || '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot.distance > 0 ? `${spot.distance}` : '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot.azimuth > 0 ? `${spot.azimuth}°` : '—'}</td>
-                    <td className="px-2 py-1.5 text-[9px] text-muted-foreground truncate max-w-[60px] hidden md:table-cell">{spot.source || '—'}</td>
+                    <td className="px-2 py-1.5 hidden md:table-cell">
+                      <span
+                        className="text-[8px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap"
+                        style={{ background: sourceColor(spot.source) + '20', color: sourceColor(spot.source) }}
+                      >
+                        {sourceLabel(spot.source)}
+                      </span>
+                    </td>
                     <td className="px-2 py-1.5 text-right font-mono" style={{ color: ageColor(spot.age_seconds) }}>
                       {spot.age_seconds != null ? `${spot.age_seconds}s` : '—'}
                     </td>
@@ -264,7 +297,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
 
       {/* Footer */}
       <div className="px-3 py-1.5 border-t border-border text-[8px] text-muted-foreground flex justify-between">
-        <span>Auto-Refresh 30s</span>
+        <span>Auto-Refresh 60s</span>
         <span>{filtered.length} / {spots.length} Spots</span>
       </div>
     </div>

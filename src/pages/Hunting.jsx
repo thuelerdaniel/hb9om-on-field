@@ -92,7 +92,7 @@ export default function Hunting() {
   useEffect(() => {
     loadSpots();
     loadProp();
-    const interval = setInterval(() => { loadSpots(); loadProp(); }, 5 * 60 * 1000);
+    const interval = setInterval(() => { loadSpots(); loadProp(); }, 60 * 1000);
     return () => clearInterval(interval);
   }, [loadSpots, loadProp]);
 

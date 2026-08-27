@@ -35,6 +35,7 @@ import PerformanceSuggestionPopup from "@/components/map/PerformanceSuggestionPo
 import SplashScreen from "@/components/map/SplashScreen";
 import VersionChangelogPopup from "@/components/map/VersionChangelogPopup";
 import DonationPopup from "@/components/DonationPopup";
+import MapCacheModal from "@/components/MapCacheModal";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
@@ -246,6 +247,7 @@ export default function Home() {
   const [foxMode, setFoxMode] = useState(() => safeGetItem("hb9om_fox_mode") || "fox");
   const [showLogForm, setShowLogForm] = useState(false);
   const [editLogEntry, setEditLogEntry] = useState(null);
+  const [showCacheModal, setShowCacheModal] = useState(false);
   const [showOfflineDialog, setShowOfflineDialog] = useState(false);
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
 
@@ -1200,7 +1202,8 @@ export default function Home() {
           radius={positionRadius}
           onRadiusChange={setPositionRadius}
           onPositionChange={handlePositionChange}
-          onPublicPositionUpdate={handlePublicPositionUpdate} />
+          onPublicPositionUpdate={handlePublicPositionUpdate}
+          onCacheDownload={() => setShowCacheModal(true)} />
         <WmsOverlayLayer activeLayers={activeLayers} />
         <WmsFeatureInfo
           activeLayers={activeLayers}
@@ -1605,6 +1608,14 @@ export default function Home() {
           mapCenter={mapRef.current?.getCenter()?.lat ? [mapRef.current.getCenter().lat, mapRef.current.getCenter().lng] : null}
           externalPosition={userCoveragePosition}
           onMapClickMode={() => setMapClickForCoverage(true)}
+        />
+      )}
+
+      {/* Map Cache Modal — Offline-Tile-Download */}
+      {showCacheModal && (
+        <MapCacheModal
+          gpsPos={currentPosition}
+          onClose={() => setShowCacheModal(false)}
         />
       )}
 

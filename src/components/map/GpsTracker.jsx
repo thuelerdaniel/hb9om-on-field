@@ -73,7 +73,7 @@ function latLngToGrid(lat, lng) {
   );
 }
 
-export default function GpsTracker({ onPublicPositionUpdate, radius, onRadiusChange, onPositionChange }) {
+export default function GpsTracker({ onPublicPositionUpdate, radius, onRadiusChange, onPositionChange, onCacheDownload }) {
   const [position, setPosition] = useState(null);
   const [currentAprsSymbol, setCurrentAprsSymbol] = useState(
     () => localStorage.getItem("hb9om_gps_public_symbol") || "dot"
@@ -261,6 +261,7 @@ export default function GpsTracker({ onPublicPositionUpdate, radius, onRadiusCha
             radius={radius || 5000}
             onRadiusChange={onRadiusChange}
             onPositionChange={onPositionChange}
+            onCacheDownload={onCacheDownload}
             title="📍 GPS-Position"
           />
         </Popup>

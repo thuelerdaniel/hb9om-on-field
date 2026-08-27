@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import L from "leaflet";
-import { Navigation, MapPin } from "lucide-react";
+import { Navigation, MapPin, Download } from "lucide-react";
 
 function latLngToGrid(lat, lng) {
   const adjLng = lng + 180;
@@ -53,7 +53,7 @@ function formatRadius(m) {
  * Used by PositionMarker (fixed position) and GpsTracker (GPS position).
  * When onPositionChange is provided, WGS84/LV95 inputs are editable.
  */
-export default function PositionPopupContent({ lat, lng, radius, onRadiusChange, onPositionChange, title }) {
+export default function PositionPopupContent({ lat, lng, radius, onRadiusChange, onPositionChange, onCacheDownload, title }) {
   const interactiveRef = useRef(null);
   const [latInput, setLatInput] = useState("");
   const [lngInput, setLngInput] = useState("");
@@ -221,6 +221,17 @@ export default function PositionPopupContent({ lat, lng, radius, onRadiusChange,
         <Navigation className="w-4 h-4" />
         Navigieren zu
       </a>
+
+      {/* Cache download button */}
+      {onCacheDownload && (
+        <button
+          onClick={onCacheDownload}
+          className="mt-1.5 flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-gray-800 text-white rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Karten-Cache Download
+        </button>
+      )}
     </div>
   );
 }
