@@ -17,9 +17,10 @@ export default async function(req: Request): Promise<Response> {
 
     const includeFuture = body.include_future === true;
 
+    // Fix 7: Mehr Spots laden (500 statt 100) für vollständige Globe-Anzeige
     let spots: any[] = [];
     try {
-      spots = await base44.entities.ActivitySpot.list('-spot_time', 100);
+      spots = await base44.entities.ActivitySpot.list('-spot_time', 500);
     } catch {}
 
     const sota = spots.filter(s => s.activity_type === 'SOTA');
@@ -30,11 +31,11 @@ export default async function(req: Request): Promise<Response> {
     let sotaScheduledAvailable = false;
 
     if (includeFuture) {
-      // SOTA scheduled activations — API wurde am 31. Aug 2026 abgeschaltet
+      // Fix 11: SOTA scheduled activations — korrekte API-URL mit CORS-Proxy Fallback
       try {
-        const resp = await fetch('https://api2.sota.org.uk/api/scheduled/', {
-          headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(8000),
+        const resp = await fetch('https://api2.sota.org.uk/api/scheduled_activations', {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
+          signal: AbortSignal.timeout(15000),
         });
         if (resp.ok) {
           sotaScheduledAvailable = true;

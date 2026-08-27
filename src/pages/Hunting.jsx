@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Crosshair, Plus, MapPin, Radio, HelpCircle } from "lucide-react";
+import { Crosshair, MapPin, Radio, HelpCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import DraggableQsoButton from "@/components/hunting/DraggableQsoButton";
 import CommandStrip from "@/components/hunting/CommandStrip";
 import PropagationBar from "@/components/hunting/PropagationBar";
 import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
@@ -208,16 +209,8 @@ export default function Hunting() {
         <QrzLookupModal callsign={qrzCall} onClose={() => setQrzCall(null)} />
       )}
 
-      {/* Prominenter QSO-Loggen Button — gross, grün, immer sichtbar */}
-      <button
-        onClick={() => setShowBlankQso(true)}
-        className="fixed right-4 z-[1000] h-14 px-6 rounded-full bg-[#8cff00] text-black shadow-2xl shadow-[#8cff00]/40 flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 80px)" }}
-        title="Neues QSO loggen"
-      >
-        <Plus className="w-6 h-6" />
-        <span className="font-bold text-sm whitespace-nowrap">QSO loggen</span>
-      </button>
+      {/* Fix 2: Verschiebbarer QSO-Loggen Button — lang gedrückt halten zum Verschieben */}
+      <DraggableQsoButton onClick={() => setShowBlankQso(true)} />
 
       {/* Bottom Navigation */}
       <BottomNavigation />

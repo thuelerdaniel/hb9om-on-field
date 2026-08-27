@@ -32,8 +32,23 @@ const SECTIONS = [
     items: [
       {
         title: "Hunting Globe (3D-Weltkugel)",
-        body: "Die 3D-Weltkugel zeigt alle aktiven Spots als farbcodierte Marker: SOTA (blau), POTA (grün), DX (rot), eigene Station (pulsierend grün). Der Mond umkreist die Erde mit realistischer Textur (Bump-Map mit Kratern, Rim-Light/Fresnel-Effekt). Ein SOTA-Marker (blaues Dreieck) auf dem Mond bei Mare Tranquillitatis (Apollo 11 Landestelle, 20°N 0°O) öffnet beim Klick ein Spenden-Popup. Die ISS wird in Echtzeit (alle 5 Sek.) auf der Globe angezeigt mit Footprint-Kreis (Sichtbarkeitsbereich ca. 2260 km). Klick auf die ISS öffnet ein Frequenz-Popup.",
+        body: "Die 3D-Weltkugel zeigt alle aktiven Spots als farbcodierte Marker: SOTA (blau), POTA (grün), DX (rot), eigene Station (pulsierend grün). Der Hintergrund ist immer dunkel (Weltall mit 2000 Sternen). Der Mond umkreist die Erde mit realistischer Textur (Bump-Map mit Kratern, Rim-Light/Fresnel-Effekt) an realer Position (Meeus-Algorithmus, alle 60 Sek. aktualisiert). Ein SOTA-Marker (blaues Dreieck) auf dem Mond bei Mare Tranquillitatis (Apollo 11 Landestelle, 20°N 0°O) öffnet beim Klick ein Spenden-Popup. Die ISS wird in Echtzeit (alle 5 Sek.) auf der Globe angezeigt mit Footprint-Kreis (Sichtbarkeitsbereich ca. 2260 km). Klick auf die ISS öffnet ein Frequenz-Popup.",
         example: "Globus drehen: Drag · Zoomen: Scroll/Pinch · Klick auf 🛰️ ISS → Frequenz-Popup · Klick auf 🌙 Mond-SOTA → Spenden-Popup"
+      },
+      {
+        title: "QSO-Button verschieben",
+        body: "Der grüne '+ QSO loggen' Button ist verschiebbar: Lang gedrückt halten (500ms) startet den Drag-Modus, dann an eine beliebige Position ziehen. Der Button wird an den Viewport-Grenzen festgehalten (Clamp) und kann nicht aus dem Bildschirm geschoben werden. Die Position wird im LocalStorage gespeichert und beim nächsten App-Start wiederhergestellt. Ein normaler Klick (ohne Halten) öffnet das QSO-Loggen-Formular. In den Einstellungen kann die Position zurückgesetzt werden ('QSO-Button Position zurücksetzen').",
+        example: "Button lang drücken → verschieben → loslassen → Position gespeichert. Kurzer Klick → QSO-Formular öffnet."
+      },
+      {
+        title: "Mond-Steuerung (Pause, Drag, Position)",
+        body: "Der Mond auf dem Hunting Globe kann manuell gedreht werden: Drag auf den Mond startet die manuelle Drehung (um die Y-Achse). Nach Loslassen setzt die automatische Rotation nach 3 Sekunden Pause fort. Der Cursor ändert zu 'grab' beim Hover über den Mond, 'grabbing' beim Drag. Die Pause/Resume-Funktion stoppt sowohl die Erd- als auch die Mond-Rotation — beide müssen stoppen und sich wieder bewegen. Die Mond-Position wird realitätsnah aus dem aktuellen Datum berechnet (Meeus-Algorithmus: ekliptische Länge/Breite, Mondphase). Die Sonnen-Position für die Mondphasen-Beleuchtung wird ebenfalls berechnet.",
+        example: "Pause-Button klicken → Erde UND Mond stoppen. Drag auf Mond → manuelle Drehung. Resume → beide drehen sich wieder."
+      },
+      {
+        title: "Konsolidierte Spots (Duplicate Removal)",
+        body: "In der Live Spot Activity Tabelle werden doppelte Spots konsolidiert: Gleicher Call + gleiche Frequenz = ein Eintrag. Die Anzahl wird als '3x' Badge (gelb) angezeigt. Bei mehreren Spottern wird der erste gezeigt mit '+N' Kürzung (z.B. 'DK1XX +2 andere'). Die neueste Spot-Zeit wird als Zeitstempel verwendet. Bei mehreren Kommentaren wird der neueste gezeigt, ältere als Tooltip (Maus-Hover). Exakte Duplikate (gleicher Call, Freq, Spotter, Zeit innerhalb 60s Toleranz) werden komplett entfernt. Die Sortierung bleibt nach Hear-Probability-Score.",
+        example: "3 Spots von DL1ABC auf 14074 kHz → ein Eintrag mit '3x' Badge, Spotter: 'DK1XX +2 andere'."
       },
       {
         title: "ISS-Frequenzen & Echtzeit-Position",

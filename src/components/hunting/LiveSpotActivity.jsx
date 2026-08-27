@@ -158,8 +158,42 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
     return null;
   }, [gpsPos, stationInfo]);
 
+  // Fix 3: Duplicate Spots konsolidieren — gleicher Call + gleiche Frequenz = ein Eintrag
+  const consolidatedSpots = useMemo(() => {
+    if (!spots.length) return [];
+    // 1. Exakte Duplikate entfernen (gleicher Call, Freq, Spotter, Zeit innerhalb 60s)
+    const deduped = [];
+    const seen = new Set();
+    for (const s of spots) {
+      const time = s.spot_time ? new Date(s.spot_time).getTime() : 0;
+      const key = `${s.call}_${Math.round(s.frequency)}_${s.spotter || ''}_${Math.floor(time / 60000)}`;
+      if (!seen.has(key)) { seen.add(key); deduped.push(s); }
+    }
+    // 2. Nach Call + Frequenz konsolidieren
+    const map = new Map();
+    for (const s of deduped) {
+      const key = `${s.call}_${Math.round(s.frequency)}`;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...s, _spotCount: 1, _allSpotters: [s.spotter].filter(Boolean), _allComments: [...(Array.isArray(s.comments) ? s.comments : (s.comments ? [s.comments] : []))] });
+      } else {
+        const existingTime = existing.spot_time ? new Date(existing.spot_time).getTime() : 0;
+        const newTime = s.spot_time ? new Date(s.spot_time).getTime() : 0;
+        existing._spotCount++;
+        if (s.spotter && !existing._allSpotters.includes(s.spotter)) existing._allSpotters.push(s.spotter);
+        const sComments = Array.isArray(s.comments) ? s.comments : (s.comments ? [s.comments] : []);
+        if (sComments.length) existing._allComments.push(...sComments);
+        if (newTime > existingTime) {
+          const merged = { ...s, _spotCount: existing._spotCount, _allSpotters: existing._allSpotters, _allComments: existing._allComments };
+          map.set(key, merged);
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, [spots]);
+
   // Filter + Sort — mit clientseitig berechneter Distanz/Azimut
-  const filtered = spots.map(s => {
+  const filtered = consolidatedSpots.map(s => {
     const { dist, az } = getDistAz(s, stationPos);
     const score = calcHearScore({ ...s, _calcDist: dist }, stationPos, null);
     return { ...s, _calcDist: dist, _calcAz: az, _hearScore: score };
@@ -280,8 +314,9 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
         </div>
       </div>
 
+      {/* Fix 1: Table — overflow-x auto mit touch scrolling */}
       {/* Table */}
-      <div className="max-h-[45vh] overflow-y-auto overflow-x-auto">
+      <div className="max-h-[45vh] overflow-y-auto overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
         {loading ? (
           <div className="p-6 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin" /> Spots werden geladen…
@@ -289,22 +324,22 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
         ) : filtered.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">Keine Spots gefunden.</div>
         ) : (
-          <table className="w-full text-[13px]" style={{ minWidth: '900px' }}>
+          <table className="w-full text-[13px] spot-table" style={{ minWidth: '1100px', tableLayout: 'auto' }}>
             <thead className="sticky top-0 bg-card z-10">
               <tr className="text-[9px] text-muted-foreground uppercase border-b border-border">
-                <th className="px-2 py-1.5 text-left cursor-pointer hover:text-foreground" onClick={() => toggleSort('call')} title="Rufzeichen des sendenden Stations">Call <SortIcon col="call" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('freq')} title="Frequenz in MHz">Freq <SortIcon col="freq" /></th>
-                <th className="px-2 py-1.5 text-left" title="Betriebsart (SSB, CW, FT8, etc.)">Mode</th>
-                <th className="px-2 py-1.5 text-left hidden md:table-cell" title="Letzter Kommentar zum Spot">Comment</th>
-                <th className="px-2 py-1.5 text-left hidden md:table-cell" title="Rufzeichen des Spot-Gebers">Spotter</th>
-                <th className="px-2 py-1.5 text-right hidden md:table-cell" title="Zeitpunkt des Spots (UTC)">Time</th>
-                <th className="px-2 py-1.5 text-left hidden md:table-cell" title="SOTA/POTA/WWFF-Referenz des Aktivierungs-Punktes">Ref</th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('dist')} title="Entfernung zum Spot in Kilometern (Great Circle)">Dist <SortIcon col="dist" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('az')} title="Azimut/Peilung zum Spot in Grad (0=N, 90=O, 180=S, 270=W)">Az <SortIcon col="az" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('age')} title="Alter des Spots in Sekunden">Age <SortIcon col="age" /></th>
-                <th className="px-2.5 py-1.5 text-right cursor-pointer hover:text-foreground whitespace-nowrap" onClick={() => toggleSort('score')} title="Wahrscheinlichkeit die Station zu hören, berechnet aus Distanz, Ausbreitung, Standort und Band.">Score <SortIcon col="score" /></th>
-                <th className="px-2 py-1.5 text-center hidden md:table-cell" title="Spot-Typ: DX (rot), SOTA (blau), POTA (grün)">Type</th>
-                <th className="px-2 py-1.5 text-center">Actions</th>
+                <th className="px-2 py-1.5 text-left cursor-pointer hover:text-foreground" style={{ minWidth: '110px' }} onClick={() => toggleSort('call')} title="Rufzeichen des sendenden Stations">Call <SortIcon col="call" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" style={{ minWidth: '80px' }} onClick={() => toggleSort('freq')} title="Frequenz in MHz">Freq <SortIcon col="freq" /></th>
+                <th className="px-2 py-1.5 text-left" style={{ minWidth: '70px' }} title="Betriebsart (SSB, CW, FT8, etc.)">Mode</th>
+                <th className="px-2 py-1.5 text-left hidden md:table-cell" style={{ minWidth: '140px' }} title="Letzter Kommentar zum Spot">Comment</th>
+                <th className="px-2 py-1.5 text-left hidden md:table-cell" style={{ minWidth: '110px' }} title="Rufzeichen des Spot-Gebers">Spotter</th>
+                <th className="px-2 py-1.5 text-right hidden md:table-cell" style={{ minWidth: '70px' }} title="Zeitpunkt des Spots (UTC)">Time</th>
+                <th className="px-2 py-1.5 text-left hidden md:table-cell" style={{ minWidth: '110px' }} title="SOTA/POTA/WWFF-Referenz des Aktivierungs-Punktes">Ref</th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" style={{ minWidth: '70px' }} onClick={() => toggleSort('dist')} title="Entfernung zum Spot in Kilometern (Great Circle)">Dist <SortIcon col="dist" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" style={{ minWidth: '70px' }} onClick={() => toggleSort('az')} title="Azimut/Peilung zum Spot in Grad (0=N, 90=O, 180=S, 270=W)">Az <SortIcon col="az" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" style={{ minWidth: '70px' }} onClick={() => toggleSort('age')} title="Alter des Spots in Sekunden">Age <SortIcon col="age" /></th>
+                <th className="px-2.5 py-1.5 text-right cursor-pointer hover:text-foreground" style={{ minWidth: '70px' }} onClick={() => toggleSort('score')} title="Wahrscheinlichkeit die Station zu hören, berechnet aus Distanz, Ausbreitung, Standort und Band.">Score <SortIcon col="score" /></th>
+                <th className="px-2 py-1.5 text-center hidden md:table-cell" style={{ minWidth: '70px' }} title="Spot-Typ: DX (rot), SOTA (blau), POTA (grün)">Type</th>
+                <th className="px-2 py-1.5 text-center" style={{ minWidth: '80px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -323,12 +358,21 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                         {spot.activity && (
                           <span className="text-[7px] px-1 rounded bg-[#00e5ff]/20 text-[#00e5ff] font-bold">{spot.activity}</span>
                         )}
+                        {spot._spotCount > 1 && (
+                          <span className="text-[7px] px-1 rounded bg-[#ffc400]/20 text-[#ffc400] font-bold" title={`${spot._spotCount} Spots konsolidiert`}>{spot._spotCount}x</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{formatFreq(spot.frequency)}</td>
                     <td className="px-2 py-1.5 text-[#00e5ff]">{spot.mode || '—'}</td>
-                    <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[80px] hidden md:table-cell">{comment || '—'}</td>
-                    <td className="px-2 py-1.5 text-muted-foreground hidden md:table-cell">{spot.spotter || '—'}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[140px] hidden md:table-cell" title={spot._allComments?.length > 1 ? spot._allComments.join('\n---\n') : comment}>
+                      {comment || '—'}
+                    </td>
+                    <td className="px-2 py-1.5 text-muted-foreground hidden md:table-cell">
+                      {spot._allSpotters?.length > 1
+                        ? <span title={spot._allSpotters.join(', ')}>{spot._allSpotters[0]} +{spot._allSpotters.length - 1}</span>
+                        : (spot.spotter || '—')}
+                    </td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{formatTime(spot.spot_time)}</td>
                     <td className="px-2 py-1.5 text-muted-foreground hidden md:table-cell">{spot.activity_ref || '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot._calcDist != null ? `${spot._calcDist}` : '—'}</td>

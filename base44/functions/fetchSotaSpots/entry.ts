@@ -57,24 +57,31 @@ export default async function(req: Request): Promise<Response> {
       let scheduledSpots: any[] = [];
       let apiError: string | null = null;
 
+      // Fix 11: SOTA Scheduled API — mit CORS-Proxy Fallback und korrekten Headern
+      const scheduledUrls = [
+        body.date ? `https://api2.sota.org.uk/api/scheduled_activations?date=${body.date}` : 'https://api2.sota.org.uk/api/scheduled_activations',
+        `https://corsproxy.io/?url=${encodeURIComponent('https://api2.sota.org.uk/api/scheduled_activations')}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api2.sota.org.uk/api/scheduled_activations')}`,
+      ];
       for (let attempt = 1; attempt <= 3; attempt++) {
+        const url = scheduledUrls[Math.min(attempt - 1, scheduledUrls.length - 1)];
         try {
-          const dateParam = body.date ? `?date=${body.date}` : '';
-          const resp = await fetch(`https://api2.sota.org.uk/api/scheduled_activations${dateParam}`, {
-            headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
-            signal: AbortSignal.timeout(10000),
+          const resp = await fetch(url, {
+            headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0', 'Origin': 'https://hb9om.online' },
+            signal: AbortSignal.timeout(15000),
           });
           if (resp.ok) {
             const raw = await resp.json();
             scheduledSpots = Array.isArray(raw) ? raw : [];
+            console.log(`[SOTA Scheduled] HTTP ${resp.status}, Datensätze: ${scheduledSpots.length}`);
             break;
           } else {
             apiError = `HTTP ${resp.status}`;
-            console.warn(`[SOTA Scheduled] Attempt ${attempt} failed: ${apiError}`);
+            console.warn(`[SOTA Scheduled] Attempt ${attempt} (${url.split('?')[0]}): ${apiError}`);
           }
         } catch (e: any) {
           apiError = e.message || 'SOTA Scheduled API nicht erreichbar';
-          console.warn(`[SOTA Scheduled] Attempt ${attempt} failed: ${apiError}`);
+          console.warn(`[SOTA Scheduled] Attempt ${attempt} (${url.split('?')[0]}): ${apiError}`);
         }
         if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
       }
@@ -140,23 +147,25 @@ export default async function(req: Request): Promise<Response> {
       });
     }
 
-    // SOTA API laden (deprecated — kann fehlschlagen)
+    // Fix 7: SOTA API laden — alle aktiven Spots (nicht nur 50)
     let sotaSpots: any[] = [];
     let apiError: string | null = null;
     try {
-      const resp = await fetch('https://api2.sota.org.uk/api/spots/50/all', {
-        headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(8000),
+      const resp = await fetch('https://api2.sota.org.uk/api/spots/all', {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
+        signal: AbortSignal.timeout(10000),
       });
       if (resp.ok) {
         const raw = await resp.json();
-        // FIX 6: DEPRECATED-Einträge herausfiltern
         sotaSpots = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED' && s.activatorCallsign !== 'DEPRECATED') : [];
+        console.log(`[SOTA] API OK, ${sotaSpots.length} Spots geladen`);
       } else {
         apiError = `HTTP ${resp.status}`;
+        console.error(`[SOTA] API Fehler: ${apiError}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       apiError = e.message || 'SOTA API nicht erreichbar';
+      console.error(`[SOTA] API Fehler: ${apiError}`);
     }
 
     if (sotaSpots.length === 0) {

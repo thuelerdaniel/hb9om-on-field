@@ -243,3 +243,22 @@
 .input-dark::placeholder {
   color: #555;
 }
+
+/* Fix 1: Spot-Tabelle — table-layout auto, nowrap, mobile padding */
+.spot-table td,
+.spot-table th {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .spot-table td,
+  .spot-table th {
+    padding: 4px 6px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* Fix 10: Hunting Globe — dunkler Weltall-Hintergrund */
+.hunting-globe-container {
+  background-color: #000511 !important;
+}
