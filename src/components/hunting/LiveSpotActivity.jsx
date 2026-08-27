@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Crosshair, RefreshCw, Eye, Target, FileText, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
+import { calcHearScore, scoreColor } from "@/lib/hearScore";
 
 // Live Spot Activity — Hauptbereich mit Filtern, Worked-Status, sortierbar.
 // Theme-aware: bg-card, border-border, text-foreground, text-muted-foreground.
@@ -108,8 +109,8 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
   const [sourceFilter, setSourceFilter] = useState('All');
   const [minConfidence, setMinConfidence] = useState(0);
   const [refFilter, setRefFilter] = useState('All');
-  const [sortBy, setSortBy] = useState('age');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortBy, setSortBy] = useState('score');
+  const [sortDir, setSortDir] = useState('desc');
 
   const fetchSpots = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -160,7 +161,8 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
   // Filter + Sort — mit clientseitig berechneter Distanz/Azimut
   const filtered = spots.map(s => {
     const { dist, az } = getDistAz(s, stationPos);
-    return { ...s, _calcDist: dist, _calcAz: az };
+    const score = calcHearScore({ ...s, _calcDist: dist }, stationPos, null);
+    return { ...s, _calcDist: dist, _calcAz: az, _hearScore: score };
   }).filter(s => {
     if (search && !s.call?.toLowerCase().includes(search.toLowerCase()) && !s.country?.toLowerCase().includes(search.toLowerCase())) return false;
     if (bandFilter !== 'All' && s.band !== bandFilter) return false;
@@ -177,7 +179,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
       case 'freq': av = a.frequency; bv = b.frequency; break;
       case 'dist': av = a._calcDist || a.distance || 0; bv = b._calcDist || b.distance || 0; break;
       case 'az': av = a._calcAz || a.azimuth || 0; bv = b._calcAz || b.azimuth || 0; break;
-      case 'score': av = a.confidence || 0; bv = b.confidence || 0; break;
+      case 'score': av = a._hearScore || 0; bv = b._hearScore || 0; break;
       default: av = a.age_seconds || 0; bv = b.age_seconds || 0;
     }
     if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
@@ -208,9 +210,18 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
           <Crosshair className="w-3.5 h-3.5 text-[#00e5ff]" /> LIVE SPOT ACTIVITY
           <span className="text-[10px] text-muted-foreground font-normal">({filtered.length})</span>
         </h2>
-        <button onClick={() => fetchSpots(true)} disabled={refreshing} className="text-muted-foreground hover:text-foreground">
-          <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setSortBy(sortBy === 'score' ? 'age' : 'score'); setSortDir('desc'); }}
+            className="text-[9px] px-2 py-0.5 rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Sortierung wechseln: nach Hörscheinlichkeit oder nach Zeit"
+          >
+            {sortBy === 'score' ? '⭐ Nach Score' : '🕐 Nach Zeit'}
+          </button>
+          <button onClick={() => fetchSpots(true)} disabled={refreshing} className="text-muted-foreground hover:text-foreground">
+            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {/* Warning */}
@@ -270,7 +281,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
       </div>
 
       {/* Table */}
-      <div className="max-h-[45vh] overflow-y-auto overflow-x-hidden">
+      <div className="max-h-[45vh] overflow-y-auto overflow-x-auto">
         {loading ? (
           <div className="p-6 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin" /> Spots werden geladen…
@@ -278,7 +289,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
         ) : filtered.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">Keine Spots gefunden.</div>
         ) : (
-          <table className="w-full text-xs">
+          <table className="w-full text-[13px]" style={{ minWidth: '900px' }}>
             <thead className="sticky top-0 bg-card z-10">
               <tr className="text-[9px] text-muted-foreground uppercase border-b border-border">
                 <th className="px-2 py-1.5 text-left cursor-pointer hover:text-foreground" onClick={() => toggleSort('call')} title="Rufzeichen des sendenden Stations">Call <SortIcon col="call" /></th>
@@ -291,7 +302,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('dist')} title="Entfernung zum Spot in Kilometern (Great Circle)">Dist <SortIcon col="dist" /></th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('az')} title="Azimut/Peilung zum Spot in Grad (0=N, 90=O, 180=S, 270=W)">Az <SortIcon col="az" /></th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('age')} title="Alter des Spots in Sekunden">Age <SortIcon col="age" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('score')} title="Konfidenz-Score der Ausbreitungsvorhersage (0-100%)">Conf <SortIcon col="score" /></th>
+                <th className="px-2.5 py-1.5 text-right cursor-pointer hover:text-foreground whitespace-nowrap" onClick={() => toggleSort('score')} title="Wahrscheinlichkeit die Station zu hören, berechnet aus Distanz, Ausbreitung, Standort und Band.">Score <SortIcon col="score" /></th>
                 <th className="px-2 py-1.5 text-center hidden md:table-cell" title="Spot-Typ: DX (rot), SOTA (blau), POTA (grün)">Type</th>
                 <th className="px-2 py-1.5 text-center">Actions</th>
               </tr>
@@ -325,7 +336,11 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                     <td className="px-2 py-1.5 text-right font-mono" style={{ color: ageColor(spot.age_seconds) }}>
                       {spot.age_seconds != null ? `${spot.age_seconds}s` : '—'}
                     </td>
-                    <td className="px-2 py-1.5 text-right font-mono text-foreground hidden md:table-cell">{spot.confidence || '—'}</td>
+                    <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: scoreColor(spot._hearScore) + '20', color: scoreColor(spot._hearScore) }}>
+                        {spot._hearScore}
+                      </span>
+                    </td>
                     <td className="px-2 py-1.5 text-center hidden md:table-cell">
                       {(() => {
                         const spotType = spot.activity || 'DX';

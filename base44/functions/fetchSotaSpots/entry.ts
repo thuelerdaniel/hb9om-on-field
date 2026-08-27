@@ -52,6 +52,94 @@ export default async function(req: Request): Promise<Response> {
       });
     } catch {}
 
+    // === SCHEDULED ACTIVATIONS MODE ===
+    if (body.scheduled === true) {
+      let scheduledSpots: any[] = [];
+      let apiError: string | null = null;
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const dateParam = body.date ? `?date=${body.date}` : '';
+          const resp = await fetch(`https://api2.sota.org.uk/api/scheduled_activations${dateParam}`, {
+            headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (resp.ok) {
+            const raw = await resp.json();
+            scheduledSpots = Array.isArray(raw) ? raw : [];
+            break;
+          } else {
+            apiError = `HTTP ${resp.status}`;
+            console.warn(`[SOTA Scheduled] Attempt ${attempt} failed: ${apiError}`);
+          }
+        } catch (e: any) {
+          apiError = e.message || 'SOTA Scheduled API nicht erreichbar';
+          console.warn(`[SOTA Scheduled] Attempt ${attempt} failed: ${apiError}`);
+        }
+        if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
+      }
+
+      if (scheduledSpots.length === 0) {
+        return Response.json({
+          success: false,
+          warning: apiError || 'SOTA Scheduled temporär nicht erreichbar',
+          spots: [],
+        });
+      }
+
+      // Parse + mit SotaPoint-Datenbank verknüpfen für Koordinaten
+      const records: any[] = [];
+      for (const s of scheduledSpots) {
+        const summitCode = s.summit_code || s.summitCode || '';
+        const associationCode = s.association_code || s.associationCode || '';
+        const ref = summitCode ? `${associationCode}/${summitCode}` : '';
+
+        let lat: number | undefined;
+        let lon: number | undefined;
+        if (ref) {
+          try {
+            const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
+            if (points && points.length > 0 && points[0].lat != null) {
+              lat = Number(points[0].lat);
+              lon = Number(points[0].lng);
+            }
+          } catch {}
+        }
+
+        const frequency = s.frequency ? Number(s.frequency) * 1000 : null;
+        const rec: any = {
+          call: s.callsign || s.activator_callsign || '',
+          activity_type: 'SOTA',
+          reference: ref,
+          name: s.summit_details || s.summitDetails || '',
+          frequency,
+          band: frequency ? deriveBand(frequency) : '',
+          mode: s.mode || 'CW',
+          latitude: lat,
+          longitude: lon,
+          spot_time: s.activation_date ? new Date(s.activation_date).toISOString() : new Date().toISOString(),
+          source: 'SOTA Scheduled',
+          is_active: true,
+        };
+        if (rec.call && rec.frequency) records.push(rec);
+      }
+
+      let savedCount = 0;
+      if (records.length > 0) {
+        try {
+          await base44.asServiceRole.entities.ActivitySpot.bulkCreate(records);
+          savedCount = records.length;
+        } catch {}
+      }
+
+      return Response.json({
+        success: true,
+        fetched: scheduledSpots.length,
+        saved: savedCount,
+        spots: records,
+      });
+    }
+
     // SOTA API laden (deprecated — kann fehlschlagen)
     let sotaSpots: any[] = [];
     let apiError: string | null = null;

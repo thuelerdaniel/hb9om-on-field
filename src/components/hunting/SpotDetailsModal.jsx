@@ -32,6 +32,39 @@ const dxIcon = L.divIcon({
   iconAnchor: [9, 9],
 });
 
+// Great Circle intermediate points — gekrümmte Polyline entlang des Grosskreises.
+// 64 Segmente für korrekte Krümmung. Handhabt Datumsgrenze korrekt.
+function greatCirclePoints(lat1, lon1, lat2, lon2, segments = 64) {
+  const pts = [];
+  const phi1 = lat1 * Math.PI / 180;
+  const phi2 = lat2 * Math.PI / 180;
+  let lam1 = lon1 * Math.PI / 180;
+  let lam2 = lon2 * Math.PI / 180;
+  // Datumsgrenze: kürzesten Weg wählen
+  if (Math.abs(lam2 - lam1) > Math.PI) {
+    if (lam2 > lam1) lam2 -= 2 * Math.PI;
+    else lam1 -= 2 * Math.PI;
+  }
+  const cosA = Math.sin(phi1) * Math.sin(phi2) + Math.cos(phi1) * Math.cos(phi2) * Math.cos(lam2 - lam1);
+  const a = Math.acos(Math.max(-1, Math.min(1, cosA)));
+  const sinA = Math.sin(a);
+  for (let i = 0; i <= segments; i++) {
+    const f = i / segments;
+    if (sinA < 0.001) { pts.push([lat1, lon1]); continue; }
+    const sinF1 = Math.sin((1 - f) * a) / sinA;
+    const sinF2 = Math.sin(f * a) / sinA;
+    const x = sinF1 * Math.cos(phi1) * Math.cos(lam1) + sinF2 * Math.cos(phi2) * Math.cos(lam2);
+    const y = sinF1 * Math.cos(phi1) * Math.sin(lam1) + sinF2 * Math.cos(phi2) * Math.sin(lam2);
+    const z = sinF1 * Math.sin(phi1) + sinF2 * Math.sin(phi2);
+    const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+    let lon = Math.atan2(y, x) * 180 / Math.PI;
+    if (lon > 180) lon -= 360;
+    if (lon < -180) lon += 360;
+    pts.push([lat, lon]);
+  }
+  return pts;
+}
+
 // AutoFit läuft nur EINMAL beim Mount — danach nicht mehr, damit User pan/zoom frei nutzen kann
 function AutoFit({ positions }) {
   const map = useMap();
@@ -39,12 +72,24 @@ function AutoFit({ positions }) {
   useEffect(() => {
     if (done.current) return;
     // invalidateSize: Modal-Container hat beim ersten Render oft falsche Grösse.
-    // Zweiter Aufruf nach 200ms + 500ms falls Modal Animation hat.
     try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) { console.warn('invalidateSize skipped:', e.message); }
     setTimeout(() => { try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) {} }, 200);
+
+    // Datumsgrenze erkennen: abs(lon1-lon2) > 180
+    const crossesDateline = positions.length === 2 && Math.abs(positions[0][1] - positions[1][1]) > 180;
+    const maxZoomVal = crossesDateline ? 3 : 5;
+    let boundsPositions = positions;
+    if (crossesDateline) {
+      // Longitude um ±360 verschieben für korrekten Viewport
+      boundsPositions = [
+        positions[0],
+        [positions[1][0], positions[1][1] > 0 ? positions[1][1] - 360 : positions[1][1] + 360],
+      ];
+    }
+
     if (positions.length >= 2) {
-      const bounds = L.latLngBounds(positions.map(p => [p[0], p[1]]));
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+      const bounds = L.latLngBounds(boundsPositions.map(p => [p[0], p[1]]));
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: maxZoomVal });
       done.current = true;
     } else if (positions.length === 1) {
       map.setView(positions[0], 4);
@@ -54,8 +99,8 @@ function AutoFit({ positions }) {
     setTimeout(() => {
       try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) {}
       if (positions.length >= 2) {
-        const bounds = L.latLngBounds(positions.map(p => [p[0], p[1]]));
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+        const bounds = L.latLngBounds(boundsPositions.map(p => [p[0], p[1]]));
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: maxZoomVal });
       }
     }, 500);
   }, [positions, map]);
@@ -232,9 +277,24 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
                 {stationPos && <Marker position={[stationPos.lat, stationPos.lon]} icon={stationIcon}><Tooltip direction="top" offset={[0, -10]} permanent>Mein Standort</Tooltip></Marker>}
                 {dxPos && <Marker position={[dxPos.lat, dxPos.lon]} icon={dxIcon}><Tooltip direction="top" offset={[0, -10]} permanent>{spot?.call}{spot?.activity_ref ? ` · ${spot.activity_ref}` : ''}</Tooltip></Marker>}
-                {positions.length === 2 && (
-                  <Polyline positions={positions} pathOptions={{ color: '#00e5ff', dashArray: '5,5' }} />
-                )}
+                {positions.length === 2 && stationPos && dxPos && (() => {
+                  const gcPts = greatCirclePoints(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon, 64);
+                  // Am Datumsgrenze in Segmente aufteilen
+                  const segments = [];
+                  let currentSeg = [gcPts[0]];
+                  for (let i = 1; i < gcPts.length; i++) {
+                    if (Math.abs(gcPts[i][1] - gcPts[i - 1][1]) > 180) {
+                      segments.push(currentSeg);
+                      currentSeg = [gcPts[i]];
+                    } else {
+                      currentSeg.push(gcPts[i]);
+                    }
+                  }
+                  segments.push(currentSeg);
+                  return segments.map((seg, i) => (
+                    <Polyline key={i} positions={seg} pathOptions={{ color: '#00e5ff', dashArray: '5,5' }} />
+                  ));
+                })()}
                 <AutoFit positions={positions} />
               </MapContainer>
             </div>

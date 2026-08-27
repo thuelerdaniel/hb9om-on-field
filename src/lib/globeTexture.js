@@ -103,5 +103,42 @@ export function createProceduralMoonTexture() {
     ctx.fill();
   }
 
+  // Contrast +30%, Brightness -10% für stärkere Struktur
+  const finalData = ctx.getImageData(0, 0, 1024, 512);
+  const fd = finalData.data;
+  const contrast = 1.3;
+  const brightness = -25.5;
+  for (let i = 0; i < fd.length; i += 4) {
+    fd[i] = Math.max(0, Math.min(255, contrast * (fd[i] - 128) + 128 + brightness));
+    fd[i + 1] = Math.max(0, Math.min(255, contrast * (fd[i + 1] - 128) + 128 + brightness));
+    fd[i + 2] = Math.max(0, Math.min(255, contrast * (fd[i + 2] - 128) + 128 + brightness));
+  }
+  ctx.putImageData(finalData, 0, 0);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+// Bump-Textur für den Mond — Graustufen-Krater-Map für bumpMap.
+// Heller = höher (Krater-Rand), Dunkler = tiefer (Krater-Inner).
+export function createMoonBumpTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 80; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 256;
+    const r = Math.random() * 20 + 5;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(220, 220, 220, 0.6)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.7, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(40, 40, 40, 0.7)';
+    ctx.fill();
+  }
   return new THREE.CanvasTexture(canvas);
 }
