@@ -51,7 +51,7 @@ export default function DraggableQsoButton({ onClick }) {
     return clampToViewport(window.innerWidth - BUTTON_WIDTH - 20, window.innerHeight - BUTTON_HEIGHT - 100);
   });
   const [isDragging, setIsDragging] = useState(false);
-  const [isLongPress, setIsLongPress] = useState(false);
+  const isLongPressRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const longPressTimerRef = useRef(null);
   const hasMovedRef = useRef(false);
@@ -73,9 +73,9 @@ export default function DraggableQsoButton({ onClick }) {
     };
     hasMovedRef.current = false;
 
-    // Long-Press Timer starten
+    // Long-Press Timer starten — setzt isLongPressRef (Ref für sofortige Click-Erkennung)
     longPressTimerRef.current = setTimeout(() => {
-      setIsLongPress(true);
+      isLongPressRef.current = true;
       setIsDragging(true);
     }, LONG_PRESS_MS);
   }, [pos]);
@@ -114,12 +114,10 @@ export default function DraggableQsoButton({ onClick }) {
       // Drag beenden — Position speichern
       savePosition(pos.x, pos.y);
       setIsDragging(false);
-      setIsLongPress(false);
-    } else if (!hasMovedRef.current) {
-      // Normaler Klick — QSO-Formular öffnen
-      onClick?.();
     }
-  }, [isDragging, pos, onClick]);
+    // Fix 9: Click wird im onClick Handler behandelt (nicht hier), da handlePointerUp
+    // nur bei isDragging=true am window hängt — ein kurzer Tap würde hier nie ankommen.
+  }, [isDragging, pos]);
 
   // Globale Pointer-Events während Drag
   useEffect(() => {
@@ -140,11 +138,18 @@ export default function DraggableQsoButton({ onClick }) {
     <button
       onPointerDown={handlePointerDown}
       onClick={(e) => {
-        // Click nur auslösen wenn kein Drag stattfand
-        if (hasMovedRef.current) {
+        // Fix 9: Click nur auslösen wenn KEIN Long-Press und KEINE Bewegung stattfand.
+        // isLongPressRef ist ein Ref (sofort verfügbar), isDragging ist state (async).
+        if (isLongPressRef.current || hasMovedRef.current) {
           e.preventDefault();
           e.stopPropagation();
+        } else {
+          // Normaler kurzer Klick — QSO-Formular öffnen
+          onClick?.();
         }
+        // Reset für nächsten Klick-Zyklus
+        isLongPressRef.current = false;
+        hasMovedRef.current = false;
       }}
       className="fixed z-[1000] h-14 px-6 rounded-full bg-[#8cff00] text-black shadow-2xl shadow-[#8cff00]/40 flex items-center gap-2 select-none"
       style={{
@@ -153,7 +158,7 @@ export default function DraggableQsoButton({ onClick }) {
         opacity: isDragging ? 0.7 : 1,
         transform: isDragging ? "scale(1.05)" : "scale(1)",
         transition: isDragging ? "none" : "transform 0.15s, opacity 0.15s",
-        cursor: isDragging ? "grabbing" : isLongPress ? "grab" : "pointer",
+        cursor: isDragging ? "grabbing" : "pointer",
         touchAction: "none",
       }}
       title="Klick: QSO loggen · Lang gedrückt halten: verschieben"

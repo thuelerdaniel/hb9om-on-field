@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ClipboardList, Database, Clock, RefreshCw, Loader2, CheckCircle2, XCircle,
   AlertCircle, Bell, UserPlus, AlertTriangle, Users, User, KeyRound, Lightbulb,
-  RadioTower, Signal, Wrench, Shield, ChevronDown, Mail, Network, FileJson,
+  RadioTower, Signal, Wrench, Shield, ChevronDown, Mail, Network, FileJson, Upload,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
@@ -29,6 +29,7 @@ import CoverageScheduleManager from "@/components/admin/CoverageScheduleManager"
 import IllwAdminSection from "@/components/admin/IllwAdminSection";
 import DxSpotReferenceManager from "@/components/admin/DxSpotReferenceManager";
 import MobileSelect from "@/components/ui/MobileSelect";
+import AdminDownloadManager from "@/components/admin/AdminDownloadManager";
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
@@ -746,6 +747,15 @@ export default function AdminPanel({
         statusLabel={groupEmailLabel}
       >
         <AdminEmailSettings />
+      </AdminCollapsibleSection>
+
+      {/* ====== GROUP 8: Downloads (PDF & APK) ====== */}
+      <AdminCollapsibleSection
+        title="Downloads (PDF & APK)"
+        description="PDF-Dokumente und Android APK-Dateien hochladen und verwalten"
+        icon={Upload}
+      >
+        <AdminDownloadManager />
       </AdminCollapsibleSection>
     </>
   );

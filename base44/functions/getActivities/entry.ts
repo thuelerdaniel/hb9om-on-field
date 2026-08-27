@@ -23,56 +23,129 @@ export default async function(req: Request): Promise<Response> {
       spots = await base44.entities.ActivitySpot.list('-spot_time', 500);
     } catch {}
 
-    const sota = spots.filter(s => s.activity_type === 'SOTA');
+    let sota = spots.filter(s => s.activity_type === 'SOTA');
     const pota = spots.filter(s => s.activity_type === 'POTA');
+
+    // Fix 1: Falls keine SOTA-Spots in DB: direkt von SOTA API laden (mit CORS-Proxy Fallback)
+    if (sota.length === 0) {
+      const sotaUrls = [
+        'https://api2.sota.org.uk/api/spots',
+        `https://corsproxy.io/?url=${encodeURIComponent('https://api2.sota.org.uk/api/spots')}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api2.sota.org.uk/api/spots')}`,
+      ];
+      for (const url of sotaUrls) {
+        try {
+          const resp = await fetch(url, {
+            headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (resp.ok) {
+            const raw = await resp.json();
+            const sotaSpots = Array.isArray(raw) ? raw.filter((s: any) => s.activatorCallsign && s.frequency) : [];
+            console.log(`[SOTA Active] geladen: ${sotaSpots.length} (via ${url.split('//')[1]?.split('/')[0]})`);
+            const refCoordMap = new Map<string, { lat: number; lon: number }>();
+            for (const s of sotaSpots) {
+              const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';
+              if (ref && !refCoordMap.has(ref)) {
+                try {
+                  const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
+                  if (points && points.length > 0 && points[0].lat != null) {
+                    refCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
+                  }
+                } catch {}
+              }
+            }
+            sota = sotaSpots.map((s: any) => {
+              const frequency = Number(s.frequency) * 1000;
+              const spotTime = s.timeStamp ? new Date(s.timeStamp) : new Date();
+              const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
+              const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';
+              const coords = ref ? refCoordMap.get(ref) : undefined;
+              return {
+                call: s.activatorCallsign,
+                activity_type: 'SOTA',
+                reference: ref,
+                name: s.summitDetails || '',
+                frequency,
+                band: '',
+                mode: s.mode || 'CW',
+                latitude: coords?.lat,
+                longitude: coords?.lon,
+                comments: s.comments || s.comment || '',
+                spotter: s.spotterCallsign || '',
+                source: 'SOTA API (live)',
+                spot_time: spotTime.toISOString(),
+                age_seconds: ageSeconds,
+                distance: null,
+                azimuth: null,
+                is_active: true,
+              };
+            });
+            break;
+          }
+        } catch (e: any) {
+          console.warn(`[SOTA Active] ${url.split('//')[1]?.split('/')[0]}: ${e.message}`);
+        }
+      }
+    }
 
     let futureSota: any[] = [];
     let futurePota: any[] = [];
     let sotaScheduledAvailable = false;
 
     if (includeFuture) {
-      // Fix 11: SOTA scheduled activations — korrekte API-URL mit CORS-Proxy Fallback
-      try {
-        const resp = await fetch('https://api2.sota.org.uk/api/scheduled_activations', {
-          headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
-          signal: AbortSignal.timeout(15000),
-        });
-        if (resp.ok) {
-          sotaScheduledAvailable = true;
-          const raw = await resp.json();
-          const scheduled = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED') : [];
-          // Look up coordinates from SotaPoint entities
-          const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
-          for (const a of scheduled.slice(0, 200)) {
-            const ref = a.summit || '';
-            if (ref && !refCoordMap.has(ref)) {
-              try {
-                const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
-                if (points && points.length > 0 && points[0].lat != null) {
-                  refCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng), name: points[0].name || '' });
-                }
-              } catch {}
+      // Fix 2: SOTA scheduled activations — mit CORS-Proxy Fallback und mehreren Endpunkten
+      const scheduledUrls = [
+        'https://api2.sota.org.uk/api/scheduled_activations',
+        `https://corsproxy.io/?url=${encodeURIComponent('https://api2.sota.org.uk/api/scheduled_activations')}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api2.sota.org.uk/api/scheduled_activations')}`,
+      ];
+      for (const url of scheduledUrls) {
+        try {
+          const resp = await fetch(url, {
+            headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
+            signal: AbortSignal.timeout(15000),
+          });
+          if (resp.ok) {
+            sotaScheduledAvailable = true;
+            const raw = await resp.json();
+            const scheduled = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED') : [];
+            console.log(`[SOTA Scheduled] geladen: ${scheduled.length} (via ${url.split('//')[1]?.split('/')[0]})`);
+            const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
+            for (const a of scheduled.slice(0, 200)) {
+              const ref = a.summit || a.summit_code || a.summitCode || '';
+              if (ref && !refCoordMap.has(ref)) {
+                try {
+                  const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
+                  if (points && points.length > 0 && points[0].lat != null) {
+                    refCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng), name: points[0].name || '' });
+                  }
+                } catch {}
+              }
             }
+            futureSota = scheduled.slice(0, 200).map((a: any) => {
+              const ref = a.summit || a.summit_code || a.summitCode || '';
+              const coords = refCoordMap.get(ref);
+              return {
+                call: a.callsign || a.activator_callsign || '',
+                activity_type: 'SOTA',
+                reference: ref,
+                name: coords?.name || a.summit_details || a.summitDetails || '',
+                frequency: 0,
+                mode: a.mode || '',
+                spot_time: (a.date || a.activation_date) ? new Date(a.date || a.activation_date).toISOString() : null,
+                is_future: true,
+                latitude: coords?.lat,
+                longitude: coords?.lon,
+                is_active: false,
+              };
+            }).filter((s: any) => s.call);
+            break;
           }
-          futureSota = scheduled.slice(0, 200).map((a: any) => {
-            const ref = a.summit || '';
-            const coords = refCoordMap.get(ref);
-            return {
-              call: a.callsign,
-              activity_type: 'SOTA',
-              reference: ref,
-              name: coords?.name || a.summitDetails || '',
-              frequency: 0,
-              mode: a.mode || '',
-              spot_time: a.date ? new Date(a.date).toISOString() : null,
-              is_future: true,
-              latitude: coords?.lat,
-              longitude: coords?.lon,
-              is_active: false,
-            };
-          }).filter((s: any) => s.call);
+        } catch (e: any) {
+          console.warn(`[SOTA Scheduled] ${url.split('//')[1]?.split('/')[0]}: ${e.message}`);
         }
-      } catch {}
+      }
 
       // POTA scheduled activations
       try {

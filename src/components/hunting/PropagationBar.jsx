@@ -110,12 +110,7 @@ export default function PropagationBar({ stationInfo }) {
           </svg>
         </div>
 
-        {/* Rechts: Station Info */}
-        <div className="sm:text-right">
-          <div className="text-xs font-bold text-foreground">{stationInfo?.callsign || '—'}</div>
-          <div className="text-[10px] text-muted-foreground">{stationInfo?.locator || '—'}</div>
-          <div className="text-[10px] text-muted-foreground">{stationInfo?.name || ''}</div>
-        </div>
+        {/* Fix 8: Station-Info entfernt — nur noch Propagation-Daten ohne Stations-Identifikation */}
       </div>
 
       {/* Footer */}

@@ -13,6 +13,7 @@ import { resetChangelog } from "@/components/map/VersionChangelogPopup";
 import { useToast } from "@/components/ui/use-toast";
 import { APP_VERSION, APP_BUILD, DATA_SOURCES } from "@/lib/appVersion";
 import { CEPT_COUNTRIES, CEPT_LINKS } from "@/lib/ceptCountries";
+import DownloadSection from "@/components/help/DownloadSection";
 
 // CEPT-Laenderliste fuer die Hilfe-Tabelle
 const CEPT_COUNTRIES_LIST = CEPT_COUNTRIES.map(c => ({
@@ -33,12 +34,12 @@ const SECTIONS = [
       {
         title: "Hunting Globe (3D-Weltkugel)",
         body: "Die 3D-Weltkugel zeigt alle aktiven Spots als farbcodierte Marker: SOTA (blau), POTA (grün), DX (rot), eigene Station (pulsierend grün). Der Hintergrund ist immer dunkel (Weltall mit 2000 Sternen). Der Mond umkreist die Erde mit realistischer Textur (Bump-Map mit Kratern, Rim-Light/Fresnel-Effekt) an realer Position (Meeus-Algorithmus, alle 60 Sek. aktualisiert). Ein SOTA-Marker (blaues Dreieck) auf dem Mond bei Mare Tranquillitatis (Apollo 11 Landestelle, 20°N 0°O) öffnet beim Klick ein Spenden-Popup. Die ISS wird in Echtzeit (alle 5 Sek.) auf der Globe angezeigt mit Footprint-Kreis (Sichtbarkeitsbereich ca. 2260 km). Klick auf die ISS öffnet ein Frequenz-Popup.",
-        example: "Globus drehen: Drag · Zoomen: Scroll/Pinch · Klick auf 🛰️ ISS → Frequenz-Popup · Klick auf 🌙 Mond-SOTA → Spenden-Popup"
+        example: "Globus drehen: Drag · Zoomen: Scroll/Pinch (min 1.5x, max 8x) · Klick auf 🛰️ ISS → Frequenz-Popup · Klick auf 🌙 Mond-SOTA-Marker (nicht Mond-Körper) → Spenden-Popup · Marker werden beim Zoomen kleiner"
       },
       {
         title: "QSO-Button verschieben",
         body: "Der grüne '+ QSO loggen' Button ist verschiebbar: Lang gedrückt halten (500ms) startet den Drag-Modus, dann an eine beliebige Position ziehen. Der Button wird an den Viewport-Grenzen festgehalten (Clamp) und kann nicht aus dem Bildschirm geschoben werden. Die Position wird im LocalStorage gespeichert und beim nächsten App-Start wiederhergestellt. Ein normaler Klick (ohne Halten) öffnet das QSO-Loggen-Formular. In den Einstellungen kann die Position zurückgesetzt werden ('QSO-Button Position zurücksetzen').",
-        example: "Button lang drücken → verschieben → loslassen → Position gespeichert. Kurzer Klick → QSO-Formular öffnet."
+        example: "Button lang drücken → verschieben → loslassen → Position gespeichert. Kurzer Klick (< 500ms) → QSO-Formular öffnet. Drag-Modus: Button wird halbtransparent."
       },
       {
         title: "Mond-Steuerung (Pause, Drag, Position)",
@@ -893,6 +894,24 @@ const ADMIN_SECTIONS = [
     ]
   },
   {
+    id: "downloads",
+    icon: Download,
+    title: "Downloads (PDF & APK)",
+    color: "#22c55e",
+    description: "Lade Hilfe-Dokumente (PDF) und die Android-App (APK) herunter.",
+    items: [
+      {
+        title: "Verfügbare Downloads",
+        body: "Im Download-Bereich unten findest du alle verfügbaren PDF-Dokumente (z.B. Hilfe, Flyer, Bandplan) und die aktuelle Android APK-Version. Jeder Download zeigt Dateiname, Version, Dateigröße und Upload-Datum. Klicke auf einen Eintrag um den Download zu starten.",
+      },
+      {
+        title: "APK-Installation (Android)",
+        body: "Lade die APK-Datei herunter und öffne sie auf deinem Android-Gerät. Falls die Installation aus unbekannten Quellen blockiert wird: erlaube die Installation in den Android-Sicherheitseinstellungen. Die APK ist direkt von der HB9OM-Website und sicher.",
+        example: "Download → Datei öffnen → Installation erlauben → App starten"
+      },
+    ]
+  },
+  {
     id: "releases",
     icon: Bell,
     title: "Release History (Versionen)",
@@ -1267,6 +1286,15 @@ export default function Help() {
             </button>
           </div>
           <p className="text-xs text-blue-700 dark:text-blue-300 mt-1.5">Zeigt die Änderungen seit v0.75 nach dem Splash Screen.</p>
+        </div>
+
+        {/* Download-Bereich: PDFs + APK */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4 mb-3">
+          <div className="flex items-center gap-2 mb-3">
+            <Download className="w-4 h-4 text-green-600" />
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Downloads</h3>
+          </div>
+          <DownloadSection />
         </div>
 
         {/* Data Sources Reference */}

@@ -421,10 +421,8 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         renderer.domElement.style.cursor = 'grab';
         if (moonAutoRotateTimer) clearTimeout(moonAutoRotateTimer);
         moonAutoRotateTimer = setTimeout(() => { moonAutoRotateRef.current = true; }, 3000);
-        // Klick auf Mond → SOTA Popup
-        if (Math.abs(x - downPos.x) < 5 && Math.abs(y - downPos.y) < 5) {
-          setShowMoonSotaPopup(true);
-        }
+        // Fix 5: Klick auf Mond-Körper → KEIN Popup (nur SOTA-Marker öffnet Popup)
+        // Mond-Klick macht nichts — nur Drag/Rotation. Popup nur via Raycaster auf sotaMarker.
         return;
       }
       isDragging = false;
@@ -455,7 +453,8 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const onMouseDown = (e) => onPointerDown(e.clientX, e.clientY);
     const onMouseMove = (e) => onPointerMove(e.clientX, e.clientY);
     const onMouseUp = (e) => onPointerUp(e.clientX, e.clientY);
-    const onWheel = (e) => { e.preventDefault(); camera.position.z = Math.max(1.08, Math.min(6, camera.position.z + e.deltaY * 0.002)); };
+    // Fix 7: Zoom-Limit — min 1.5 (knapp über Oberfläche), max 8.0 (ganze Erde sichtbar)
+    const onWheel = (e) => { e.preventDefault(); camera.position.z = Math.max(1.5, Math.min(8, camera.position.z + e.deltaY * 0.002)); };
     const onTouchStart = (e) => { if (e.touches.length === 1) onPointerDown(e.touches[0].clientX, e.touches[0].clientY); };
     const onTouchMove = (e) => { if (e.touches.length === 1) { e.preventDefault(); onPointerMove(e.touches[0].clientX, e.touches[0].clientY); } };
     const onTouchEnd = (e) => { if (e.changedTouches.length === 1) onPointerUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY); };
@@ -481,6 +480,15 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         moonGroup.rotation.y += 0.000873;
         moon.rotation.y += 0.000873;
       }
+      // Fix 6: Marker bei Zoom skalieren — Punkte werden beim Hineinzoomen kleiner
+      const camDist = camera.position.z;
+      const markerScale = Math.max(0.3, Math.min(3.0, 3.0 / camDist));
+      for (const dot of dotMeshes) {
+        dot.scale.setScalar(markerScale);
+      }
+      // Station-Marker auch skalieren
+      stationCore.scale.setScalar(markerScale);
+      stationRing.scale.setScalar(markerScale * (0.75 + ((frameCount % 120) / 120) * 1.875));
       // Pulsierender Standort: 1 Puls pro 2 Sek = 120 Frames bei 60fps
       const pulsePhase = (frameCount % 120) / 120;
       stationRing.scale.setScalar(0.75 + pulsePhase * 1.875);

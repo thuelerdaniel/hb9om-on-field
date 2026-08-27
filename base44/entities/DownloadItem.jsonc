@@ -1,0 +1,72 @@
+{
+  "name": "DownloadItem",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Dateiname oder Titel"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "pdf",
+        "apk"
+      ],
+      "description": "Dateityp: PDF-Dokument oder Android APK"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL zur Datei in der Base44-Dateiablage"
+    },
+    "file_size": {
+      "type": "number",
+      "description": "Dateigroesse in Bytes"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version (z.B. v1.0.3)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung des Downloads",
+      "maxLength": 1000
+    },
+    "upload_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Upload-Datum"
+    },
+    "uploaded_by": {
+      "type": "string",
+      "description": "Name oder Rufzeichen des Uploaders"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob der Download aktiv und sichtbar ist"
+    }
+  },
+  "required": [
+    "name",
+    "type",
+    "file_url"
+  ],
+  "rls": {
+    "read": true,
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -63,6 +63,11 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
     return () => clearInterval(interval);
   }, [fetchActivities]);
 
+  // Fix 3: Sofortiger Refresh wenn showFuture wechselt — nicht erst beim Tab-Wechsel
+  useEffect(() => {
+    if (!loading) fetchActivities(true);
+  }, [showFuture]);
+
   const activeSpots = tab === 'SOTA' ? activities.sota : activities.pota;
   const futureSpots = tab === 'SOTA' ? activities.futureSota : activities.futurePota;
   const spots = showFuture ? [...activeSpots, ...futureSpots] : activeSpots;
@@ -79,18 +84,24 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
         </h2>
         <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setShowFuture(!showFuture)}
+            onClick={() => { setShowFuture(!showFuture); }}
             className={`flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors ${
               showFuture
                 ? "bg-[#00e5ff]/10 text-[#00e5ff] border-[#00e5ff]/30"
                 : "bg-background text-muted-foreground border-border hover:bg-muted"
             }`}
-            title="Zukünftige Aktivierungen ein-/ausblenden"
+            title="Zukünftige Aktivierungen ein-/ausblenden (sofortiger Refresh)"
           >
             <CalendarClock className="w-3 h-3" />
             {showFuture ? "Aktiv + Geplant" : "Geplante"}
           </button>
-          <button onClick={() => fetchActivities(true)} disabled={refreshing} className="text-muted-foreground hover:text-foreground">
+          {/* Fix 3: Manueller Refresh-Button — lädt auch geplante Aktivitäten neu */}
+          <button
+            onClick={() => fetchActivities(true)}
+            disabled={refreshing}
+            className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+            title="Aktivierungen aktualisieren (inkl. geplante)"
+          >
             <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
