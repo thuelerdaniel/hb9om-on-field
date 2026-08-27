@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Crosshair, Plus, MapPin, Radio } from "lucide-react";
+import { Crosshair, Plus, MapPin, Radio, HelpCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import CommandStrip from "@/components/hunting/CommandStrip";
 import PropagationBar from "@/components/hunting/PropagationBar";
@@ -112,7 +113,13 @@ export default function Hunting() {
               <Crosshair className="w-3.5 h-3.5" />Hunting
             </button>
           </div>
-          <span className="text-[10px] text-muted-foreground ml-auto">DX-Spots & Propagation</span>
+          <Link
+            to="/help#hunting"
+            className="ml-auto p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            title="Hilfe: Hunting"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </Link>
         </div>
       </header>
 

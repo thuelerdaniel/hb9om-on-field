@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock } from "lucide-react";
+import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock, Globe, AlertCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 // Activity Panel — zeigt aktive SOTA- und POTA-Aktivierungen.
@@ -29,6 +29,7 @@ function formatFreq(kHz) {
 
 export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
   const [activities, setActivities] = useState({ sota: [], pota: [], futureSota: [], futurePota: [], total: 0, futureTotal: 0 });
+  const [sotaScheduledAvailable, setSotaScheduledAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('SOTA');
@@ -48,6 +49,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
           total: data.total || 0,
           futureTotal: data.futureTotal || 0,
         });
+        setSotaScheduledAvailable(data.sotaScheduledAvailable !== false);
       }
     } catch {} finally {
       setLoading(false);
@@ -118,6 +120,14 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
         </button>
       </div>
 
+      {/* SOTA scheduled API unavailable warning */}
+      {showFuture && tab === 'SOTA' && !sotaScheduledAvailable && (
+        <div className="px-3 py-1.5 bg-[#ff9800]/10 border-b border-[#ff9800]/20 text-[9px] text-[#ff9800] flex items-center gap-1">
+          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+          SOTA-Scheduled-API nicht verfügbar — nur POTA-Geplant verfügbar.
+        </div>
+      )}
+
       {/* List */}
       <div className="max-h-[40vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
@@ -161,6 +171,13 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
                 <span className="ml-auto font-mono" style={{ color: ageColor(spot.age_seconds) }}>
                   {ageText(spot.age_seconds)}
                 </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onSpotDetails?.(spot); }}
+                  className="text-muted-foreground hover:text-[#00e5ff] flex-shrink-0"
+                  title="Auf Globus/Karte zeigen"
+                >
+                  <Globe className="w-3 h-3" />
+                </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onLogQso?.(spot); }}
                   className="text-muted-foreground hover:text-[#8cff00] flex-shrink-0"

@@ -36,6 +36,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
   const [showPropagation, setShowPropagation] = useState(true);
+  const [webglError, setWebglError] = useState(false);
 
   const stationPos = useMemo(() => {
     if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
@@ -95,11 +96,19 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const height = container.clientHeight;
     if (width === 0 || height === 0) return;
 
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      setWebglError(true);
+      return;
+    }
+
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.z = 3;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
@@ -121,6 +130,28 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const dir = new THREE.DirectionalLight(0xffffff, 0.7);
     dir.position.set(5, 3, 5);
     scene.add(dir);
+
+    // Mond — um die Erde kreisend
+    const moonGroup = new THREE.Group();
+    scene.add(moonGroup);
+    const moonGeo = new THREE.SphereGeometry(0.27, 32, 32);
+    const moonMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 2 });
+    const moon = new THREE.Mesh(moonGeo, moonMat);
+    moon.position.set(1.8, 0, 0);
+    moonGroup.add(moon);
+
+    // ISS — kleine helle Bahn nahe der Erde
+    const issGroup = new THREE.Group();
+    scene.add(issGroup);
+    const issGeo = new THREE.SphereGeometry(0.012, 8, 8);
+    const issMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const iss = new THREE.Mesh(issGeo, issMat);
+    iss.position.set(1.12, 0, 0);
+    issGroup.add(iss);
+    // ISS-Bahn-Ring (subtil sichtbar)
+    const issOrbitGeo = new THREE.RingGeometry(1.115, 1.125, 64);
+    const issOrbitMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.08, side: THREE.DoubleSide });
+    issGroup.add(new THREE.Mesh(issOrbitGeo, issOrbitMat));
 
     // Station QTH (red, larger)
     const stationDotGeo = new THREE.SphereGeometry(0.03, 12, 12);
@@ -203,7 +234,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const onMouseDown = (e) => onPointerDown(e.clientX, e.clientY);
     const onMouseMove = (e) => onPointerMove(e.clientX, e.clientY);
     const onMouseUp = (e) => onPointerUp(e.clientX, e.clientY);
-    const onWheel = (e) => { e.preventDefault(); camera.position.z = Math.max(1.5, Math.min(6, camera.position.z + e.deltaY * 0.002)); };
+    const onWheel = (e) => { e.preventDefault(); camera.position.z = Math.max(1.08, Math.min(6, camera.position.z + e.deltaY * 0.002)); };
     const onTouchStart = (e) => { if (e.touches.length === 1) onPointerDown(e.touches[0].clientX, e.touches[0].clientY); };
     const onTouchMove = (e) => { if (e.touches.length === 1) { e.preventDefault(); onPointerMove(e.touches[0].clientX, e.touches[0].clientY); } };
     const onTouchEnd = (e) => { if (e.changedTouches.length === 1) onPointerUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY); };
@@ -217,11 +248,18 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     renderer.domElement.addEventListener('touchend', onTouchEnd);
 
     let animId;
+    let frameCount = 0;
     const animate = () => {
       animId = requestAnimationFrame(animate);
+      frameCount++;
       if (autoRotate && !isDragging) rotY += 0.002;
       globeGroup.rotation.x = rotX;
       globeGroup.rotation.y = rotY;
+      // Mond kreist langsam um die Erde
+      moonGroup.rotation.y = frameCount * 0.001;
+      // ISS kreist schneller
+      issGroup.rotation.y = frameCount * 0.008;
+      issGroup.rotation.x = 0.4;
       renderer.render(scene, camera);
     };
     animate();
@@ -255,7 +293,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         if (obj.material) { if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); }
       });
     };
-  }, [visibleSpots, stationPos, stationInfo, loading, onSpotClick, showPropagation]);
+  }, [visibleSpots, stationPos, stationInfo, loading, onSpotClick, showPropagation, webglError]);
 
   const totalCount = visibleSpots.length;
 
@@ -312,6 +350,11 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground gap-2">
             <Loader2 className="w-4 h-4 animate-spin" /> Globus wird geladen…
           </div>
+        ) : webglError ? (
+          <div className="flex flex-col items-center justify-center h-full text-xs text-muted-foreground gap-1 px-4 text-center">
+            <Globe className="w-6 h-6 text-muted-foreground/50" />
+            <span>3D-Globus nicht verfügbar (WebGL nicht unterstützt).</span>
+          </div>
         ) : totalCount === 0 ? (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
             Keine Spots mit Koordinaten verfügbar.
@@ -319,6 +362,10 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         ) : (
           <div ref={containerRef} className="w-full h-full" style={{ touchAction: 'none', cursor: 'grab' }} />
         )}
+      </div>
+      {/* Hint: deeper zoom + moon/ISS */}
+      <div className="px-3 py-1 text-[8px] text-muted-foreground text-center border-t border-border">
+        Globus drehen: Drag · Zoomen: Scroll/Pinch (bis Länderebene) · 🌙 Mond & ISS umkreisen die Erde
       </div>
     </div>
   );

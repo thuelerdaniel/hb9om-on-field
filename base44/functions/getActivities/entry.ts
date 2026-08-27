@@ -27,15 +27,17 @@ export default async function(req: Request): Promise<Response> {
 
     let futureSota: any[] = [];
     let futurePota: any[] = [];
+    let sotaScheduledAvailable = false;
 
     if (includeFuture) {
-      // SOTA scheduled activations
+      // SOTA scheduled activations — API wurde am 31. Aug 2026 abgeschaltet
       try {
         const resp = await fetch('https://api2.sota.org.uk/api/scheduled/', {
           headers: { 'Accept': 'application/json' },
           signal: AbortSignal.timeout(8000),
         });
         if (resp.ok) {
+          sotaScheduledAvailable = true;
           const raw = await resp.json();
           const scheduled = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED') : [];
           // Look up coordinates from SotaPoint entities
@@ -128,6 +130,7 @@ export default async function(req: Request): Promise<Response> {
       pota,
       futureSota,
       futurePota,
+      sotaScheduledAvailable,
       total: spots.length,
       futureTotal: futureSota.length + futurePota.length,
     });
