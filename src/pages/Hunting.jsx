@@ -69,7 +69,18 @@ export default function Hunting() {
   // Spots laden (für CommandStrip + PriorityDx) — mit GPS-Position falls verfügbar
   const loadSpots = useCallback(async () => {
     try {
-      const payload = gpsPos ? { station_lat: gpsPos.lat, station_lng: gpsPos.lng } : {};
+      let payload = {};
+      if (gpsPos) {
+        payload = { station_lat: gpsPos.lat, station_lng: gpsPos.lng };
+      } else {
+        // Fallback: gespeicherter Stations-Locator aus localStorage
+        const savedLocator = typeof localStorage !== 'undefined' ? localStorage.getItem('station_locator') : null;
+        if (savedLocator) {
+          const { maidenheadToLatLon } = await import('@/lib/geoUtilsFrontend');
+          const p = maidenheadToLatLon(savedLocator);
+          if (p) payload = { station_lat: p.lat, station_lng: p.lon };
+        }
+      }
       const res = await base44.functions.invoke("fetchDxSpots", payload);
       const data = res?.data || res;
       if (data?.spots) setSpots(data.spots);
@@ -138,7 +149,13 @@ export default function Hunting() {
         )}
 
         {/* Command Strip */}
-        <CommandStrip spots={spots} propagation={propagation} stationInfo={stationInfo} gpsPos={gpsPos} />
+        <CommandStrip
+          spots={spots}
+          propagation={propagation}
+          stationInfo={stationInfo}
+          gpsPos={gpsPos}
+          onLocatorSave={(locator) => setStationInfo(prev => ({ ...prev, locator }))}
+        />
 
         {/* Propagation Bar */}
         <PropagationBar stationInfo={stationInfo} />

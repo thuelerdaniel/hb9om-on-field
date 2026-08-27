@@ -3,11 +3,15 @@ import * as THREE from "three";
 import { Globe, Loader2, Radio } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
-import { createProceduralGlobeTexture, loadEarthTexture, createProceduralMoonTexture } from "@/lib/globeTexture";
+import { createProceduralGlobeTexture, loadEarthTexture, createProceduralMoonTexture, createMoonBumpTexture } from "@/lib/globeTexture";
+import { fetchIssPosition } from "@/lib/issPosition";
+import IssFrequencyPopup from "@/components/hunting/IssFrequencyPopup";
+import MoonSotaPopup from "@/components/hunting/MoonSotaPopup";
 
 // 3D Hunting Globe — drehbare Weltkugel mit allen aktiven Spots.
-// Station QTH = rot, SOTA = orange, POTA = gruen, DX = cyan, andere Aktivitaeten = gelb.
-// Layer-Filter: Alle, DX, SOTA, POTA, Andere. Klick auf Spot oeffnet Details (Raycasting).
+// Station QTH = pulsierend grün, SOTA = blau, POTA = grün, DX = rot, andere = gelb.
+// Mond mit Bump-Map + Rim-Light + SOTA-Marker (Mare Tranquillitatis).
+// ISS mit Echtzeit-Position + Footprint-Kreis. Klick auf ISS/Mond-SOTA öffnet Popups.
 
 const LayerFilters = [
   { id: 'all', label: 'Alle', color: '#00e5ff' },
@@ -27,8 +31,6 @@ function latLonToVec3(lat, lon, radius) {
   );
 }
 
-// createGlobeTexture wird aus globeTexture.js importiert (createProceduralGlobeTexture + loadEarthTexture)
-
 export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
   const containerRef = useRef(null);
   const [activities, setActivities] = useState([]);
@@ -38,18 +40,30 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
   const [showPropagation, setShowPropagation] = useState(true);
   const [webglError, setWebglError] = useState(false);
   const [rotationEnabled, setRotationEnabled] = useState(true);
+  const [issData, setIssData] = useState(null);
+  const [showIssPopup, setShowIssPopup] = useState(false);
+  const [showMoonSotaPopup, setShowMoonSotaPopup] = useState(false);
   const rotationRef = useRef(true);
   rotationRef.current = rotationEnabled;
+  const issDataRef = useRef(null);
+  issDataRef.current = issData;
 
+  // Station-Position: GPS → localStorage Locator → stationInfo → Zürich (JN47OQ)
   const stationPos = useMemo(() => {
     if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
+    const savedLocator = typeof localStorage !== 'undefined' ? localStorage.getItem('station_locator') : null;
+    if (savedLocator) {
+      const p = maidenheadToLatLon(savedLocator);
+      if (p) return p;
+    }
     if (stationInfo?.locator) {
       const p = maidenheadToLatLon(stationInfo.locator);
-      return p || { lat: 46.5, lon: 6.5 };
+      return p || { lat: 47.37, lon: 8.54 };
     }
-    return { lat: 46.5, lon: 6.5 };
+    return { lat: 47.37, lon: 8.54 };
   }, [gpsPos, stationInfo]);
 
+  // Spot-Daten laden (alle 5 Min)
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -63,6 +77,17 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     };
     loadData();
     const interval = setInterval(loadData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ISS-Position alle 5 Sekunden aktualisieren
+  useEffect(() => {
+    const fetchIss = async () => {
+      const pos = await fetchIssPosition();
+      if (pos) setIssData(pos);
+    };
+    fetchIss();
+    const interval = setInterval(fetchIss, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -112,7 +137,6 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     camera.position.z = 3;
 
     renderer.setSize(width, height);
-    renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
@@ -134,19 +158,80 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     dir.position.set(5, 3, 5);
     scene.add(dir);
 
-    // Mond — um die Erde kreisend
+    // === MOND — mit Bump-Map + Rim-Light (Fresnel) ===
     const moonGroup = new THREE.Group();
     scene.add(moonGroup);
     const moonGeo = new THREE.SphereGeometry(0.27, 32, 32);
     const moonTexture = createProceduralMoonTexture();
-    const moonMat = new THREE.MeshStandardMaterial({ map: moonTexture, roughness: 0.95, metalness: 0.0 });
+    const moonBumpTexture = createMoonBumpTexture();
+    const moonMat = new THREE.MeshStandardMaterial({
+      map: moonTexture,
+      bumpMap: moonBumpTexture,
+      bumpScale: 0.1,
+      roughness: 0.85,
+      metalness: 0.0,
+    });
     const moon = new THREE.Mesh(moonGeo, moonMat);
     moon.position.set(1.8, 0, 0);
     moonGroup.add(moon);
 
-    // ISS — Mini-Modell mit Modulen und Solarpanels
-    const issGroup = new THREE.Group();
-    scene.add(issGroup);
+    // Rim-Light (Fresnel-Effekt an den Rändern)
+    const rimGeo = new THREE.SphereGeometry(0.275, 32, 32);
+    const rimMat = new THREE.ShaderMaterial({
+      uniforms: { rimColor: { value: new THREE.Color(0x9999bb) } },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+          vViewDir = normalize(-mvPos.xyz);
+          gl_Position = projectionMatrix * mvPos;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 rimColor;
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        void main() {
+          float fresnel = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 2.0);
+          gl_FragColor = vec4(rimColor, fresnel * 0.4);
+        }
+      `,
+      transparent: true,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+    });
+    moon.add(new THREE.Mesh(rimGeo, rimMat));
+
+    // === SOTA-MARKER AUF DEM MOND (Gag) — blaues Dreieck bei 20°N 0°O (Mare Tranquillitatis) ===
+    const sotaMarkerGeo = new THREE.ConeGeometry(0.015, 0.04, 4);
+    const sotaMarkerMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
+    const sotaMarker = new THREE.Mesh(sotaMarkerGeo, sotaMarkerMat);
+    const moonSotaPos = latLonToVec3(20, 0, 0.27);
+    sotaMarker.position.copy(moonSotaPos);
+    sotaMarker.lookAt(new THREE.Vector3(0, 0, 0));
+    sotaMarker.rotateX(Math.PI);
+    sotaMarker.userData = { type: 'moon_sota' };
+    moon.add(sotaMarker);
+
+    // === PULSIERENDER STANDORT-MARKER ===
+    const stationCoreGeo = new THREE.SphereGeometry(0.02, 12, 12);
+    const stationCoreMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const stationCore = new THREE.Mesh(stationCoreGeo, stationCoreMat);
+    stationCore.position.copy(latLonToVec3(stationPos.lat, stationPos.lon, 1.02));
+    stationCore.userData = { type: 'station', data: { call: stationInfo?.callsign || 'QTH', ...stationInfo } };
+    globeGroup.add(stationCore);
+
+    const stationRingGeo = new THREE.SphereGeometry(0.04, 12, 12);
+    const stationRingMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 });
+    const stationRing = new THREE.Mesh(stationRingGeo, stationRingMat);
+    stationRing.position.copy(stationCore.position);
+    globeGroup.add(stationRing);
+
+    // === ISS — Echtzeit-Position + Footprint ===
+    const issModelGroup = new THREE.Group();
+    globeGroup.add(issModelGroup);
     const issModel = new THREE.Group();
     const moduleMat = new THREE.MeshBasicMaterial({ color: 0xcccccc });
     const mod1 = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.015, 0.015), moduleMat);
@@ -173,23 +258,28 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const issLight = new THREE.Mesh(new THREE.SphereGeometry(0.004, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
     issLight.position.set(0, 0.01, 0);
     issModel.add(issLight);
-    issModel.position.set(1.12, 0, 0);
     issModel.scale.set(1.5, 1.5, 1.5);
-    issGroup.add(issModel);
-    // ISS-Bahn-Ring (subtil sichtbar)
-    const issOrbitGeo = new THREE.RingGeometry(1.115, 1.125, 64);
-    const issOrbitMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.08, side: THREE.DoubleSide });
-    issGroup.add(new THREE.Mesh(issOrbitGeo, issOrbitMat));
+    issModelGroup.add(issModel);
+    issModelGroup.userData = { type: 'iss' };
+    issModelGroup.visible = false;
 
-    // Station QTH (red, larger)
-    const stationDotGeo = new THREE.SphereGeometry(0.03, 12, 12);
-    const stationDotMat = new THREE.MeshBasicMaterial({ color: 0xff5252 });
-    const stationDot = new THREE.Mesh(stationDotGeo, stationDotMat);
-    stationDot.position.copy(latLonToVec3(stationPos.lat, stationPos.lon, 1.02));
-    stationDot.userData = { type: 'station', data: { call: stationInfo?.callsign || 'QTH', ...stationInfo } };
-    globeGroup.add(stationDot);
+    // ISS Footprint — Sichtbarkeitskreis (ca. 2260 km → angular_radius ≈ 0.349 rad → sin ≈ 0.34)
+    const footprintGroup = new THREE.Group();
+    globeGroup.add(footprintGroup);
+    const fpRadius = 0.34;
+    const footprintFill = new THREE.Mesh(
+      new THREE.RingGeometry(0, fpRadius, 64),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.15, side: THREE.DoubleSide })
+    );
+    footprintGroup.add(footprintFill);
+    const footprintOutline = new THREE.Mesh(
+      new THREE.RingGeometry(fpRadius * 0.99, fpRadius, 64),
+      new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+    );
+    footprintGroup.add(footprintOutline);
+    footprintGroup.visible = false;
 
-    // Spot dots
+    // === SPOT DOTS ===
     const dotMeshes = [];
     for (const s of visibleSpots) {
       const colorHex = parseInt(s._color.replace('#', ''), 16);
@@ -202,7 +292,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       dotMeshes.push(dot);
     }
 
-    // Arcs from station to DX spots (only when propagation toggle is on)
+    // === PROPAGATION ARCS ===
     for (const s of (showPropagation ? visibleSpots.filter(s => s._type === 'dx') : [])) {
       const fromVec = latLonToVec3(stationPos.lat, stationPos.lon, 1);
       const toVec = latLonToVec3(s._lat, s._lng, 1);
@@ -219,7 +309,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       globeGroup.add(new THREE.Line(geo, mat));
     }
 
-    // Interaction
+    // === INTERACTION ===
     let rotX = 0.3, rotY = 0;
     let autoRotate = true;
     let isDragging = false;
@@ -251,10 +341,18 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         );
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(mouse, camera);
-        const targets = [stationDot, ...dotMeshes];
-        const hits = raycaster.intersectObjects(targets);
-        if (hits.length > 0 && hits[0].object.userData?.data) {
-          onSpotClick?.(hits[0].object.userData.data);
+        const targets = [stationCore, ...dotMeshes, sotaMarker, issModelGroup];
+        const hits = raycaster.intersectObjects(targets, true);
+        if (hits.length > 0) {
+          let target = hits[0].object;
+          while (target && !target.userData?.type) target = target.parent;
+          if (target?.userData?.type === 'moon_sota') {
+            setShowMoonSotaPopup(true);
+          } else if (target?.userData?.type === 'iss') {
+            setShowIssPopup(true);
+          } else if (target?.userData?.data) {
+            onSpotClick?.(target.userData.data);
+          }
         }
       }
     };
@@ -283,12 +381,23 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       if (autoRotate && !isDragging && rotationRef.current) rotY += 0.002;
       globeGroup.rotation.x = rotX;
       globeGroup.rotation.y = rotY;
-      // Mond kreist langsam um die Erde + langsame Eigenrotation
-      moonGroup.rotation.y = frameCount * 0.001;
-      moon.rotation.y = frameCount * 0.0005;
-      // ISS kreist schneller
-      issGroup.rotation.y = frameCount * 0.008;
-      issGroup.rotation.x = 0.4;
+      // Mond: 0.5 Umdrehungen/Min = 0.5/60 * 2π rad/s ≈ 0.0524 rad/s → bei 60fps: 0.000873/frame
+      moonGroup.rotation.y = frameCount * 0.000873;
+      moon.rotation.y = frameCount * 0.000873;
+      // Pulsierender Standort: 1 Puls pro 2 Sek = 120 Frames bei 60fps
+      const pulsePhase = (frameCount % 120) / 120;
+      stationRing.scale.setScalar(0.75 + pulsePhase * 1.875);
+      stationRingMat.opacity = 0.8 * (1 - pulsePhase);
+      // ISS: smooth transition zur Echtzeit-Position
+      if (issDataRef.current) {
+        issModelGroup.visible = true;
+        footprintGroup.visible = true;
+        const issTarget = latLonToVec3(issDataRef.current.lat, issDataRef.current.lon, 1.05);
+        issModelGroup.position.lerp(issTarget, 0.1);
+        const fpTarget = latLonToVec3(issDataRef.current.lat, issDataRef.current.lon, 1.0);
+        footprintGroup.position.lerp(fpTarget, 0.1);
+        footprintGroup.lookAt(0, 0, 0);
+      }
       renderer.render(scene, camera);
     };
     animate();
@@ -317,6 +426,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       renderer.dispose();
       texture.dispose();
       moonTexture.dispose();
+      moonBumpTexture.dispose();
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       scene.traverse((obj) => {
         if (obj.geometry) obj.geometry.dispose();
@@ -351,7 +461,8 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
             <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#3b82f6]" />SOTA</span>
             <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#22c55e]" />POTA</span>
             <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ef4444]" />DX</span>
-            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ff5252]" />QTH</span>
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#00ff00]" />QTH</span>
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ffd700]" />ISS</span>
           </div>
         </div>
       </div>
@@ -400,10 +511,15 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
           <div ref={containerRef} className="w-full h-full" style={{ touchAction: 'none', cursor: 'grab' }} />
         )}
       </div>
-      {/* Hint: deeper zoom + moon/ISS */}
+      {/* Hint */}
       <div className="px-3 py-1 text-[8px] text-muted-foreground text-center border-t border-border">
-        Globus drehen: Drag · Zoomen: Scroll/Pinch · 🌙 Mond & 🛰️ ISS umkreisen die Erde · Rotation Taste oben rechts
+        Globus drehen: Drag · Zoomen: Scroll/Pinch · 🌙 Mond mit SOTA-Punkt (klickbar) · 🛰️ ISS live mit Footprint · 📍 Standort pulsiert
       </div>
+
+      {/* ISS Frequenz-Popup */}
+      {showIssPopup && <IssFrequencyPopup issData={issData} onClose={() => setShowIssPopup(false)} />}
+      {/* Mond SOTA Spenden-Popup */}
+      {showMoonSotaPopup && <MoonSotaPopup onClose={() => setShowMoonSotaPopup(false)} />}
     </div>
   );
 }
