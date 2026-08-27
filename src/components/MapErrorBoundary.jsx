@@ -1,9 +1,9 @@
-import React from "react";
+import { Component } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 // Global error boundary — prevents a single failed layer from crashing the entire app.
 // Shows a non-blocking error banner instead of a white screen.
-export default class MapErrorBoundary extends React.Component {
+export default class MapErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
