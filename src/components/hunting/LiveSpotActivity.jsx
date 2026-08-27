@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Crosshair, RefreshCw, Eye, Target, FileText, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
 
 // Live Spot Activity — Hauptbereich mit Filtern, Worked-Status, sortierbar.
 // Theme-aware: bg-card, border-border, text-foreground, text-muted-foreground.
@@ -59,11 +60,42 @@ function sourceLabel(source) {
   return source.length > 12 ? source.slice(0, 10) + '…' : source;
 }
 
+function getDistAz(spot, stationPos) {
+  if (spot.distance > 0 && spot.azimuth > 0) {
+    return { dist: spot.distance, az: spot.azimuth };
+  }
+  const locator = spot.locator || spot.grid6;
+  if (locator && stationPos) {
+    const p = maidenheadToLatLon(locator);
+    if (p) {
+      return {
+        dist: Math.round(haversine(stationPos.lat, stationPos.lon, p.lat, p.lon)),
+        az: Math.round(bearing(stationPos.lat, stationPos.lon, p.lat, p.lon)),
+      };
+    }
+  }
+  if (spot.lat != null && spot.lng != null && stationPos) {
+    return {
+      dist: Math.round(haversine(stationPos.lat, stationPos.lon, spot.lat, spot.lng)),
+      az: Math.round(bearing(stationPos.lat, stationPos.lon, spot.lat, spot.lng)),
+    };
+  }
+  return { dist: null, az: null };
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return '—';
+  try {
+    const d = new Date(timeStr);
+    return d.toISOString().slice(11, 16);
+  } catch { return '—'; }
+}
+
 const BANDS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m'];
 const MODES = ['All', 'FT8', 'FT4', 'CW', 'SSB', 'FM', 'RTTY', 'PSK', 'Other'];
 const REFS = ['All', 'SOTA', 'POTA', 'WWFF', 'WWBOTA', 'WCA', 'TOTA', 'IOTA', 'WLOTA'];
 
-export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick, gpsPos }) {
+export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick, gpsPos, stationInfo }) {
   const [spots, setSpots] = useState([]);
   const [worked, setWorked] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -115,8 +147,21 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
     return () => clearInterval(interval);
   }, [fetchSpots, loadWorked, gpsPos]);
 
-  // Filter + Sort
-  const filtered = spots.filter(s => {
+  // Station-Position für Distanz/Azimut-Berechnung
+  const stationPos = useMemo(() => {
+    if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
+    if (stationInfo?.locator) {
+      const p = maidenheadToLatLon(stationInfo.locator);
+      return p || null;
+    }
+    return null;
+  }, [gpsPos, stationInfo]);
+
+  // Filter + Sort — mit clientseitig berechneter Distanz/Azimut
+  const filtered = spots.map(s => {
+    const { dist, az } = getDistAz(s, stationPos);
+    return { ...s, _calcDist: dist, _calcAz: az };
+  }).filter(s => {
     if (search && !s.call?.toLowerCase().includes(search.toLowerCase()) && !s.country?.toLowerCase().includes(search.toLowerCase())) return false;
     if (bandFilter !== 'All' && s.band !== bandFilter) return false;
     if (modeFilter !== 'All' && s.mode !== modeFilter) return false;
@@ -130,8 +175,8 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
     switch (sortBy) {
       case 'call': av = a.call; bv = b.call; break;
       case 'freq': av = a.frequency; bv = b.frequency; break;
-      case 'dist': av = a.distance || 0; bv = b.distance || 0; break;
-      case 'az': av = a.azimuth || 0; bv = b.azimuth || 0; break;
+      case 'dist': av = a._calcDist || a.distance || 0; bv = b._calcDist || b.distance || 0; break;
+      case 'az': av = a._calcAz || a.azimuth || 0; bv = b._calcAz || b.azimuth || 0; break;
       case 'score': av = a.confidence || 0; bv = b.confidence || 0; break;
       default: av = a.age_seconds || 0; bv = b.age_seconds || 0;
     }
@@ -236,14 +281,18 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="text-[9px] text-muted-foreground uppercase border-b border-border">
-                <th className="px-2 py-1.5 text-left cursor-pointer hover:text-foreground" onClick={() => toggleSort('call')}>Call <SortIcon col="call" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('freq')}>Freq <SortIcon col="freq" /></th>
-                <th className="px-2 py-1.5 text-left">Mode</th>
-                <th className="px-2 py-1.5 text-left hidden md:table-cell">Comment</th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('dist')}>Dist <SortIcon col="dist" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('az')}>Az <SortIcon col="az" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('age')}>Age <SortIcon col="age" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('score')}>Score <SortIcon col="score" /></th>
+                <th className="px-2 py-1.5 text-left cursor-pointer hover:text-foreground" onClick={() => toggleSort('call')} title="Rufzeichen des sendenden Stations">Call <SortIcon col="call" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('freq')} title="Frequenz in MHz">Freq <SortIcon col="freq" /></th>
+                <th className="px-2 py-1.5 text-left" title="Betriebsart (SSB, CW, FT8, etc.)">Mode</th>
+                <th className="px-2 py-1.5 text-left hidden md:table-cell" title="Letzter Kommentar zum Spot">Comment</th>
+                <th className="px-2 py-1.5 text-left hidden md:table-cell" title="Rufzeichen des Spot-Gebers">Spotter</th>
+                <th className="px-2 py-1.5 text-right hidden md:table-cell" title="Zeitpunkt des Spots (UTC)">Time</th>
+                <th className="px-2 py-1.5 text-left hidden md:table-cell" title="SOTA/POTA/WWFF-Referenz des Aktivierungs-Punktes">Ref</th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('dist')} title="Entfernung zum Spot in Kilometern (Great Circle)">Dist <SortIcon col="dist" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('az')} title="Azimut/Peilung zum Spot in Grad (0=N, 90=O, 180=S, 270=W)">Az <SortIcon col="az" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('age')} title="Alter des Spots in Sekunden">Age <SortIcon col="age" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('score')} title="Konfidenz-Score der Ausbreitungsvorhersage (0-100%)">Conf <SortIcon col="score" /></th>
+                <th className="px-2 py-1.5 text-center hidden md:table-cell" title="Spot-Typ: DX (rot), SOTA (blau), POTA (grün)">Type</th>
                 <th className="px-2 py-1.5 text-center">Actions</th>
               </tr>
             </thead>
@@ -268,12 +317,22 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{formatFreq(spot.frequency)}</td>
                     <td className="px-2 py-1.5 text-[#00e5ff]">{spot.mode || '—'}</td>
                     <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[80px] hidden md:table-cell">{comment || '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot.distance > 0 ? `${spot.distance}` : '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot.azimuth > 0 ? `${spot.azimuth}°` : '—'}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground hidden md:table-cell">{spot.spotter || '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{formatTime(spot.spot_time)}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground hidden md:table-cell">{spot.activity_ref || '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot._calcDist != null ? `${spot._calcDist}` : '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot._calcAz != null ? `${spot._calcAz}°` : '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono" style={{ color: ageColor(spot.age_seconds) }}>
                       {spot.age_seconds != null ? `${spot.age_seconds}s` : '—'}
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-foreground hidden md:table-cell">{spot.confidence || '—'}</td>
+                    <td className="px-2 py-1.5 text-center hidden md:table-cell">
+                      {(() => {
+                        const spotType = spot.activity || 'DX';
+                        const typeColor = spotType === 'SOTA' ? '#3b82f6' : spotType === 'POTA' ? '#22c55e' : spotType === 'DX' ? '#ef4444' : '#ffc400';
+                        return <span className="text-[8px] font-bold" style={{ color: typeColor }}>{spotType}</span>;
+                      })()}
+                    </td>
                     <td className="px-2 py-1.5">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => onSpotDetails?.(spot)} className="text-muted-foreground hover:text-[#00e5ff]" title="Details">

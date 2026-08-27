@@ -163,6 +163,7 @@ export default function Hunting() {
           onLogQso={setQsoSpot}
           onCallClick={setQrzCall}
           gpsPos={gpsPos}
+          stationInfo={stationInfo}
         />
 
         {/* Priority DX */}

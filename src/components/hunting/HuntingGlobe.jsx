@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { Globe, Loader2, Radio } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
-import { createProceduralGlobeTexture, loadEarthTexture } from "@/lib/globeTexture";
+import { createProceduralGlobeTexture, loadEarthTexture, createProceduralMoonTexture } from "@/lib/globeTexture";
 
 // 3D Hunting Globe — drehbare Weltkugel mit allen aktiven Spots.
 // Station QTH = rot, SOTA = orange, POTA = gruen, DX = cyan, andere Aktivitaeten = gelb.
@@ -11,9 +11,9 @@ import { createProceduralGlobeTexture, loadEarthTexture } from "@/lib/globeTextu
 
 const LayerFilters = [
   { id: 'all', label: 'Alle', color: '#00e5ff' },
-  { id: 'dx', label: 'DX', color: '#00e5ff' },
-  { id: 'sota', label: 'SOTA', color: '#ff9800' },
-  { id: 'pota', label: 'POTA', color: '#8cff00' },
+  { id: 'dx', label: 'DX', color: '#ef4444' },
+  { id: 'sota', label: 'SOTA', color: '#3b82f6' },
+  { id: 'pota', label: 'POTA', color: '#22c55e' },
   { id: 'other', label: 'Andere', color: '#ffc400' },
 ];
 
@@ -54,15 +54,15 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const loadData = async () => {
       try {
         const [actList, dxList] = await Promise.all([
-          base44.entities.ActivitySpot.list("-spot_time", 100),
-          base44.entities.DxSpot.list("-spot_time", 50),
+          base44.entities.ActivitySpot.list("-spot_time", 500),
+          base44.entities.DxSpot.list("-spot_time", 200),
         ]);
         setActivities((actList || []).filter(s => s.latitude != null && s.longitude != null));
         setDxSpots((dxList || []).filter(s => s.lat != null && s.lng != null));
       } catch {} finally { setLoading(false); }
     };
     loadData();
-    const interval = setInterval(loadData, 60 * 1000);
+    const interval = setInterval(loadData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -77,13 +77,13 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
   const visibleSpots = useMemo(() => {
     const all = [];
     if (activeFilter === 'all' || activeFilter === 'sota') {
-      spotsByLayer.sota.forEach(s => all.push({ ...s, _type: 'sota', _lat: s.latitude, _lng: s.longitude, _color: '#ff9800' }));
+      spotsByLayer.sota.forEach(s => all.push({ ...s, _type: 'sota', _lat: s.latitude, _lng: s.longitude, _color: '#3b82f6' }));
     }
     if (activeFilter === 'all' || activeFilter === 'pota') {
-      spotsByLayer.pota.forEach(s => all.push({ ...s, _type: 'pota', _lat: s.latitude, _lng: s.longitude, _color: '#8cff00' }));
+      spotsByLayer.pota.forEach(s => all.push({ ...s, _type: 'pota', _lat: s.latitude, _lng: s.longitude, _color: '#22c55e' }));
     }
     if (activeFilter === 'all' || activeFilter === 'dx') {
-      spotsByLayer.dx.forEach(s => all.push({ ...s, _type: 'dx', _lat: s.lat, _lng: s.lng, _color: '#00e5ff' }));
+      spotsByLayer.dx.forEach(s => all.push({ ...s, _type: 'dx', _lat: s.lat, _lng: s.lng, _color: '#ef4444' }));
     }
     if (activeFilter === 'all' || activeFilter === 'other') {
       spotsByLayer.other.forEach(s => all.push({ ...s, _type: 'other', _lat: s.lat, _lng: s.lng, _color: '#ffc400' }));
@@ -138,7 +138,8 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const moonGroup = new THREE.Group();
     scene.add(moonGroup);
     const moonGeo = new THREE.SphereGeometry(0.27, 32, 32);
-    const moonMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 2 });
+    const moonTexture = createProceduralMoonTexture();
+    const moonMat = new THREE.MeshStandardMaterial({ map: moonTexture, roughness: 0.95, metalness: 0.0 });
     const moon = new THREE.Mesh(moonGeo, moonMat);
     moon.position.set(1.8, 0, 0);
     moonGroup.add(moon);
@@ -282,8 +283,9 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       if (autoRotate && !isDragging && rotationRef.current) rotY += 0.002;
       globeGroup.rotation.x = rotX;
       globeGroup.rotation.y = rotY;
-      // Mond kreist langsam um die Erde
+      // Mond kreist langsam um die Erde + langsame Eigenrotation
       moonGroup.rotation.y = frameCount * 0.001;
+      moon.rotation.y = frameCount * 0.0005;
       // ISS kreist schneller
       issGroup.rotation.y = frameCount * 0.008;
       issGroup.rotation.x = 0.4;
@@ -314,6 +316,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       renderer.domElement.removeEventListener('touchend', onTouchEnd);
       renderer.dispose();
       texture.dispose();
+      moonTexture.dispose();
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       scene.traverse((obj) => {
         if (obj.geometry) obj.geometry.dispose();
@@ -345,9 +348,9 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
             <Radio className="w-3 h-3" /> Prop.
           </button>
           <div className="hidden md:flex items-center gap-2 text-[9px] text-muted-foreground">
-            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ff9800]" />SOTA</span>
-            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#8cff00]" />POTA</span>
-            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#00e5ff]" />DX</span>
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#3b82f6]" />SOTA</span>
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#22c55e]" />POTA</span>
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ef4444]" />DX</span>
             <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ff5252]" />QTH</span>
           </div>
         </div>

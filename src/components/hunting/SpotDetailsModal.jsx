@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { MapPin, Navigation, Clock, Radio, X, Eye, Loader2 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
@@ -38,8 +38,10 @@ function AutoFit({ positions }) {
   const done = useRef(false);
   useEffect(() => {
     if (done.current) return;
-    // invalidateSize: Modal-Container hat beim ersten Render oft falsche Grösse
+    // invalidateSize: Modal-Container hat beim ersten Render oft falsche Grösse.
+    // Zweiter Aufruf nach 200ms + 500ms falls Modal Animation hat.
     try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) { console.warn('invalidateSize skipped:', e.message); }
+    setTimeout(() => { try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) {} }, 200);
     if (positions.length >= 2) {
       const bounds = L.latLngBounds(positions.map(p => [p[0], p[1]]));
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
@@ -48,6 +50,14 @@ function AutoFit({ positions }) {
       map.setView(positions[0], 4);
       done.current = true;
     }
+    // Zweiter invalidateSize + fitBounds nach 500ms (Modal-Animation abgeschlossen)
+    setTimeout(() => {
+      try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) {}
+      if (positions.length >= 2) {
+        const bounds = L.latLngBounds(positions.map(p => [p[0], p[1]]));
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+      }
+    }, 500);
   }, [positions, map]);
   return null;
 }
@@ -220,8 +230,8 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
                 style={{ background: '#0d1720' }}
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
-                {stationPos && <Marker position={[stationPos.lat, stationPos.lon]} icon={stationIcon} />}
-                {dxPos && <Marker position={[dxPos.lat, dxPos.lon]} icon={dxIcon} />}
+                {stationPos && <Marker position={[stationPos.lat, stationPos.lon]} icon={stationIcon}><Tooltip direction="top" offset={[0, -10]} permanent>Mein Standort</Tooltip></Marker>}
+                {dxPos && <Marker position={[dxPos.lat, dxPos.lon]} icon={dxIcon}><Tooltip direction="top" offset={[0, -10]} permanent>{spot?.call}{spot?.activity_ref ? ` · ${spot.activity_ref}` : ''}</Tooltip></Marker>}
                 {positions.length === 2 && (
                   <Polyline positions={positions} pathOptions={{ color: '#00e5ff', dashArray: '5,5' }} />
                 )}
