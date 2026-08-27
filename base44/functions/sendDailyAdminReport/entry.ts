@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
 
 // This function sends a sync report to admins.
 // mode='weekly' (default for scheduled Monday runs): Weekly sync report with delta comparison
@@ -61,7 +62,7 @@ export default async function(req: Request): Promise<Response> {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    if (body.scheduled !== true) {
+    if (!isInternalCall(body)) {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       if (user.role !== 'admin') return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
     }

@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { calculateBandConditions } from "../../shared/bandDerivation.ts";
+import { isInternalCall } from "../../shared/internalAuth.ts";
 
 // Lade Solar-Flux und K-Index von NOAA SWPC.
 // Berechne Band-Conditions und speichere in Propagation Entity.
@@ -11,8 +12,8 @@ export default async function(req: Request): Promise<Response> {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    // Scheduled runs have no user context — skip auth. Manual runs require login.
-    if (body.scheduled !== true) {
+    // Internal calls (from automation) pass a server-side secret. Manual runs require login.
+    if (!isInternalCall(body)) {
       const user = await base44.auth.me();
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }

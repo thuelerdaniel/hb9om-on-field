@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { todayUTC, isToday, extractCount, extractStatus } from '../../shared/syncHelpers.ts';
+import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
 
 // This function runs every 5 minutes via automation.
 // It checks the DailyRefreshSchedule entity for sources whose next_run_utc
@@ -14,8 +15,8 @@ export default async function(req: Request): Promise<Response> {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    // Authorization: scheduled runs have no user. Manual runs require admin.
-    if (body.scheduled !== true) {
+    // Authorization: internal calls (from automation) pass a server-side secret.
+    if (!isInternalCall(body)) {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       if (user.role !== 'admin') return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
     }
@@ -139,7 +140,7 @@ export default async function(req: Request): Promise<Response> {
         return false;
       });
       if (stillIncomplete.length === 0) {
-        await base44.functions.invoke('sendDailyAdminReport', { scheduled: true });
+        await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, internal_secret: getInternalSecret() });
         reportTriggered = true;
       }
     } catch {}

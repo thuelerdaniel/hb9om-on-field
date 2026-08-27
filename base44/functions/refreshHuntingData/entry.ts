@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
 
 // Combined refresh function for the Hunting automation.
 // Calls fetchDxSpots and fetchPropagation via service-role invoke.
@@ -10,8 +11,8 @@ export default async function(req: Request): Promise<Response> {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    // Scheduled runs: no user. Manual runs: admin only.
-    if (body.scheduled !== true) {
+    // Internal calls (from automation) pass a server-side secret. Manual runs: admin only.
+    if (!isInternalCall(body)) {
       const user = await base44.auth.me();
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       if (user.role !== 'admin') return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
@@ -21,7 +22,7 @@ export default async function(req: Request): Promise<Response> {
 
     // fetchDxSpots aufrufen
     try {
-      const dxRes = await base44.asServiceRole.functions.invoke('fetchDxSpots', { scheduled: true });
+      const dxRes = await base44.asServiceRole.functions.invoke('fetchDxSpots', { scheduled: true, internal_secret: getInternalSecret() });
       results.dxSpots = {
         success: dxRes?.success ?? true,
         saved: dxRes?.saved ?? 0,
@@ -33,7 +34,7 @@ export default async function(req: Request): Promise<Response> {
 
     // fetchPropagation aufrufen
     try {
-      const propRes = await base44.asServiceRole.functions.invoke('fetchPropagation', { scheduled: true });
+      const propRes = await base44.asServiceRole.functions.invoke('fetchPropagation', { scheduled: true, internal_secret: getInternalSecret() });
       results.propagation = {
         success: propRes?.success ?? true,
         bestBand: propRes?.bestBand?.band || null,

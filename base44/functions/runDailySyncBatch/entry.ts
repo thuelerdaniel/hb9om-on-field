@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { todayUTC, isToday, extractCount, extractStatus, shuffle } from '../../shared/syncHelpers.ts';
+import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
 
 // ─── Weekly Sync Batch Scheduler ───
 // Replaces the old daily scheduler. Runs on Mondays (full sync, 01:00-05:00 UTC)
@@ -133,8 +134,9 @@ export default async function (req: Request): Promise<Response> {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    // Authorization: scheduled runs bypass auth. Manual runs require admin.
-    if (body.scheduled !== true) {
+    // Authorization: internal calls (from automation) pass a server-side secret.
+    // Manual runs require admin. The client-controllable `scheduled` flag is NOT trusted for auth.
+    if (!isInternalCall(body)) {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       if (user.role !== 'admin') return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
     }
@@ -229,7 +231,7 @@ export default async function (req: Request): Promise<Response> {
       // Send weekly report on Monday if not already sent
       if (effectiveDay === 'Monday' && !(await isReportSentToday(base44))) {
         try {
-          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly' });
+          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly', internal_secret: getInternalSecret() });
           await markReportSent(base44);
         } catch {}
       }
@@ -261,7 +263,7 @@ export default async function (req: Request): Promise<Response> {
       const allDone = enabledSources.every((s: any) => isDone(s));
       if (allDone && effectiveDay === 'Monday' && !(await isReportSentToday(base44))) {
         try {
-          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly' });
+          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly', internal_secret: getInternalSecret() });
           await markReportSent(base44);
         } catch {}
         return Response.json({ status: 'complete', day: effectiveDay, message: 'Alle Quellen abgeschlossen, Wochen-Report versendet' });
@@ -476,7 +478,7 @@ export default async function (req: Request): Promise<Response> {
         return !isDone(s);
       });
       if (stillIncomplete.length === 0 && effectiveDay === 'Monday' && !(await isReportSentToday(base44))) {
-        await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly' });
+        await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly', internal_secret: getInternalSecret() });
         await markReportSent(base44);
         reportTriggered = true;
       }

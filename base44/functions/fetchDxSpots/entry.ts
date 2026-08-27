@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { deriveBand } from "../../shared/bandDerivation.ts";
 import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts";
+import { isInternalCall } from "../../shared/internalAuth.ts";
 
 // Lade DX-Spots von jo30.de (DX-Cluster) + Spothole (SIG-gefiltert: SOTA, POTA, WWFF, etc.)
 // Spothole liefert sig + sig_refs mit Referenz-Name und Koordinaten.
@@ -52,7 +53,7 @@ export default async function(req: Request): Promise<Response> {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    if (body.scheduled !== true) {
+    if (!isInternalCall(body)) {
       const user = await base44.auth.me();
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
