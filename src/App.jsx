@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { requestWakeLock, startWakeLockMonitor } from '@/lib/wakeLockManager';
@@ -15,7 +15,7 @@ import ResetPassword from '@/pages/ResetPassword';
 import Settings from '@/pages/Settings';
 import Log from '@/pages/Log';
 import Help from '@/pages/Help';
-import Hunting from '@/pages/Hunting';
+const HuntingPage = lazy(() => import('@/pages/Hunting'));
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import ChangeRequests from '@/pages/ChangeRequests';
 import AdminChangeRequests from '@/pages/AdminChangeRequests';
@@ -24,7 +24,7 @@ import UserManagement from '@/pages/UserManagement';
 import OAuthConsent from '@/pages/OAuthConsent';
 import PageNotFound from '@/lib/PageNotFound';
 import TestReport from '@/pages/TestReport';
-import AppErrorBoundary from '@/components/AppErrorBoundary';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 function AuthenticatedApp() {
   const { isLoadingAuth } = useAuth();
@@ -49,7 +49,11 @@ function AuthenticatedApp() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/log" element={<Log />} />
         <Route path="/help" element={<Help />} />
-        <Route path="/hunting" element={<Hunting />} />
+        <Route path="/hunting" element={
+          <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0e17', color: '#4fd1c5', fontFamily: 'monospace' }}>Loading Hunting...</div>}>
+            <HuntingPage />
+          </Suspense>
+        } />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/change-requests" element={<ChangeRequests />} />
         <Route path="/admin/change-requests" element={<AdminChangeRequests />} />
@@ -70,11 +74,24 @@ function App() {
   useEffect(() => {
     requestWakeLock();
     const stop = startWakeLockMonitor();
+    // Service Worker + Cache Cleanup — verhindert veraltete Caches nach Updates
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        keys.forEach(k => {
+          if (k.includes('workbox') || k.includes('base44')) caches.delete(k);
+        });
+      });
+    }
     return () => clearInterval(stop);
   }, []);
 
   return (
-    <AppErrorBoundary>
+    <ErrorBoundary>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>
           <QueryClientProvider client={queryClientInstance}>
@@ -85,7 +102,7 @@ function App() {
           </QueryClientProvider>
         </AuthProvider>
       </ThemeProvider>
-    </AppErrorBoundary>
+    </ErrorBoundary>
   )
 }
 
