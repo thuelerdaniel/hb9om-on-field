@@ -5,9 +5,24 @@ import '@/index.css'
 import { base44 } from '@/api/base44Client'
 import { cleanupLargeLocalStorageData } from '@/lib/safeStorage'
 
+// Alte Service Worker deregistrieren (verhindert White-Screen durch veraltete Caches)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(reg => {
+      console.log('Deregistering old service worker:', reg.scope);
+      reg.unregister();
+    });
+  });
+}
+if ('caches' in window) {
+  caches.keys().then(names => {
+    if (names.some(n => n.includes('workbox') || n.includes('base44'))) {
+      names.forEach(n => caches.delete(n));
+    }
+  });
+}
+
 // Remove large legacy data from localStorage that should be in IndexedDB.
-// Runs once at app start — prevents QuotaExceededError on Android (5MB localStorage limit).
-// Large reference data (SOTA, POTA, repeaters) is stored in IndexedDB (50MB+ capacity).
 try {
   cleanupLargeLocalStorageData();
 } catch {}
@@ -33,6 +48,18 @@ function reportError(errorType, message, stack) {
 }
 
 window.addEventListener('error', (event) => {
+  // Script-Lade-Fehler: Cache leeren und neu laden
+  if (event.target && event.target.tagName === 'SCRIPT') {
+    console.error('Script failed to load:', event.target.src);
+    if (event.target.type === 'module') {
+      console.error('Module script failed — clearing cache and reloading');
+      if ('caches' in window) {
+        caches.keys().then(names => names.forEach(n => caches.delete(n)));
+      }
+      setTimeout(() => window.location.reload(), 1000);
+    }
+    return;
+  }
   reportError('runtime', event.message, event.error?.stack);
 });
 
@@ -44,7 +71,6 @@ window.addEventListener('unhandledrejection', (event) => {
 try {
   ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 } catch (renderError) {
-  // Fallback: Wenn React selbst nicht rendern kann
   const root = document.getElementById('root');
   if (root) {
     root.innerHTML = `
@@ -70,3 +96,16 @@ try {
   }
   console.error('Render error:', renderError);
 }
+
+// White-Screen-Fallback: Wenn nach 5 Sekunden kein React-Inhalt, Seite neu laden
+setTimeout(() => {
+  const root = document.getElementById('root');
+  if (root && root.children.length > 0) {
+    const hasReactRendered = root.querySelector('[data-reactroot], [data-react-id]');
+    const isStillSSR = root.querySelector('[data-source-location]');
+    if (isStillSSR && !hasReactRendered && !root.querySelector('input, button[type]')) {
+      console.error('React failed to hydrate — forcing reload');
+      window.location.reload();
+    }
+  }
+}, 5000);

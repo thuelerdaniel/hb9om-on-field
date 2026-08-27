@@ -51,6 +51,7 @@ import AprsFilter from "@/components/map/AprsFilter";
 import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
 import LighthouseFilter from "@/components/map/LighthouseFilter";
 import LighthouseLayer from "@/components/map/LighthouseLayer";
+import ReferenceSearchFilter from "@/components/map/ReferenceSearchFilter";
 import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
 
 // Safe storage wrappers (prevent QuotaExceededError crashes)
@@ -373,6 +374,14 @@ export default function Home() {
   // ILLW status — loaded from Lighthouse entity, keyed by ILLW number
   const [illwStatus, setIllwStatus] = useState({});
 
+  // Reference-layer search queries (SOTA, POTA, HBFF, WWBOTA, WCA, IOTA)
+  const [refSearchQueries, setRefSearchQueries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_ref_search")) || {}; } catch { return {}; }
+  });
+  useEffect(() => {
+    safeSetJSON("hb9om_ref_search", refSearchQueries, 2048);
+  }, [refSearchQueries]);
+
   // Save filter state to localStorage — debounced + size-limited + safeSetJSON.
   // Debounce (500ms) prevents rapid writes on every filter keystroke.
   // safeSetJSON checks size (< 10KB) and uses safeSetItem which catches quota errors.
@@ -546,8 +555,22 @@ export default function Home() {
   // Data with filtered lighthouses for map display (QSO form uses unfiltered)
   const mapData = useMemo(() => ({ ...data, lighthouse: filteredLighthouses }), [data, filteredLighthouses]);
 
-  // Build unified markers array for MapMarkers
-  const allMarkers = useMemo(() => buildMarkers(mapData, activeLayers), [mapData, activeLayers]);
+  // Build unified markers array for MapMarkers — with per-layer search filtering
+  const allMarkers = useMemo(() => {
+    let markers = buildMarkers(mapData, activeLayers);
+    // Apply per-layer reference search filters
+    for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota"]) {
+      const q = (refSearchQueries[type] || "").toLowerCase().trim();
+      if (q) {
+        markers = markers.filter(m =>
+          m.layerType !== type ||
+          (m.code || "").toLowerCase().includes(q) ||
+          (m.name || "").toLowerCase().includes(q)
+        );
+      }
+    }
+    return markers;
+  }, [mapData, activeLayers, refSearchQueries]);
   // All loaded markers regardless of active layers — used by QSO form for reference selection
   const allMarkersUnfiltered = useMemo(() => {
     const markers = buildMarkers(data, null);
@@ -644,12 +667,18 @@ export default function Home() {
     });
   }, []);
 
-  // Map refresh when layers change — ensures correct sizing after layer toggle
+  // Map refresh when layers change — invalidateSize + layer redraw for clean tiles
   useEffect(() => {
     if (mapRef.current) {
+      mapRef.current.invalidateSize();
       setTimeout(() => {
-        mapRef.current.invalidateSize();
-      }, 100);
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+          mapRef.current.eachLayer(layer => {
+            if (layer.redraw) layer.redraw();
+          });
+        }
+      }, 150);
     }
   }, [activeLayers]);
 
@@ -1030,28 +1059,43 @@ export default function Home() {
   const tileConfig = TILE_CONFIGS[baseLayer] || TILE_CONFIGS.osm;
   const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || forceOffline);
 
-  // Calculate filter button left offsets based on active layers
+  // Calculate filter button positions — max 6 per row, second row if more.
+  // Existing filter components use leftOffsetClass (row 0). New reference search
+  // filters use inline px positioning and go to row 1 when total exceeds 6.
   const filterButtons = useMemo(() => {
     const buttons = [];
-    let offsetIdx = 0;
+    if (activeLayers.includes("repeater")) buttons.push({ type: "repeater" });
+    if (activeLayers.includes("tota")) buttons.push({ type: "tota" });
+    if (activeLayers.includes("lighthouse")) buttons.push({ type: "lighthouse" });
+    if (activeLayers.includes("aprs")) buttons.push({ type: "aprs" });
+    if (activeLayers.includes("brandmeister")) buttons.push({ type: "brandmeister" });
     const offsets = ["left-3", "left-16", "left-28", "left-40", "left-52", "left-64"];
-    if (activeLayers.includes("repeater")) {
-      buttons.push({ type: "repeater", offset: offsets[offsetIdx++] });
-    }
-    if (activeLayers.includes("tota")) {
-      buttons.push({ type: "tota", offset: offsets[offsetIdx++] });
-    }
-    if (activeLayers.includes("lighthouse")) {
-      buttons.push({ type: "lighthouse", offset: offsets[offsetIdx++] });
-    }
-    if (activeLayers.includes("aprs")) {
-      buttons.push({ type: "aprs", offset: offsets[offsetIdx++] });
-    }
-    if (activeLayers.includes("brandmeister")) {
-      buttons.push({ type: "brandmeister", offset: offsets[offsetIdx++] });
-    }
-    return buttons;
-  }, [activeLayers]);
+    // Reference search filters — placed after existing filters, wrapping to row 1
+    const refTypes = [
+      { type: "sota", label: "SOTA", color: "#e74c3c" },
+      { type: "pota", label: "POTA", color: "#27ae60" },
+      { type: "hbff", label: "WWFF", color: "#8e44ad" },
+      { type: "castle", label: "WCA", color: "#e67e22" },
+      { type: "wwbota", label: "WWBOTA", color: "#795548" },
+      { type: "iota", label: "IOTA", color: "#3498db" },
+    ];
+    const refButtons = refTypes
+      .filter(r => activeLayers.includes(r.type))
+      .map(r => ({ ...r, query: refSearchQueries[r.type] || "", count: (mapData[r.type] || []).length }));
+
+    // Assign positions: existing filters take row 0 cols 0..N-1.
+    // Reference filters start at col = buttons.length, wrap to row 1 after col 5.
+    buttons.forEach((b, i) => { b.offset = offsets[i] || offsets[offsets.length - 1]; });
+    const refBaseCol = buttons.length;
+    refButtons.forEach((b, i) => {
+      const totalIdx = refBaseCol + i;
+      b.col = totalIdx % 6;
+      b.row = Math.floor(totalIdx / 6);
+      b.leftPx = 12 + b.col * 52;
+      b.bottomPx = 230 + b.row * 52;
+    });
+    return { existing: buttons, reference: refButtons };
+  }, [activeLayers, refSearchQueries, mapData]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -1079,8 +1123,8 @@ export default function Home() {
         dragging={true}
         minZoom={3}
         maxZoom={18}
-        zoomSnap={1}
-        zoomDelta={1}
+        zoomSnap={0.5}
+        zoomDelta={0.5}
         zoomAnimation={false}
         bounceAtZoomLimits={true}
         style={{ background: "#e8e8e8" }}
@@ -1347,7 +1391,7 @@ export default function Home() {
       )}
 
       {/* Filter buttons — positioned based on active layers (only if filter tool enabled) */}
-      {features.tools.filter !== false && filterButtons.map(btn => {
+      {features.tools.filter !== false && filterButtons.existing.map(btn => {
         if (btn.type === "repeater") {
           return (
             <RepeaterFilter
@@ -1461,6 +1505,21 @@ export default function Home() {
         }
         return null;
       })}
+
+      {/* Reference search filters (SOTA, POTA, HBFF, WWBOTA, WCA, IOTA) */}
+      {features.tools.filter !== false && filterButtons.reference.map(btn => (
+        <ReferenceSearchFilter
+          key={`ref-filter-${btn.type}`}
+          layerType={btn.type}
+          label={btn.label}
+          color={btn.color}
+          query={btn.query}
+          onQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, [btn.type]: q }))}
+          leftPx={btn.leftPx}
+          bottomPx={btn.bottomPx}
+          markerCount={btn.count}
+        />
+      ))}
 
       {/* Legend — only if enabled */}
       {features.tools.legende !== false && (

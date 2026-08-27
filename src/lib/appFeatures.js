@@ -43,8 +43,8 @@ export const DEFAULT_FEATURES = {
     "6m": false, "2m": true, "1.25m": false, "70cm": true, "33cm": false, "23cm": false,
   },
   tools: {
-    fox_hunt: false, legende: false, filter: true, zoom: true,
-    search: false, coords: false, repeater_coverage: false, own_coverage: false,
+    fox_hunt: true, legende: true, filter: true, zoom: true,
+    search: true, coords: false, repeater_coverage: false, own_coverage: false,
     gps: true, qth_locator: false, height_profile: false,
     logbook: true, statistics: false, qso_add: true, dxcc: false,
     admin: true, json_import: false, sync_status: false,

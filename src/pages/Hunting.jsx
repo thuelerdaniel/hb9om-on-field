@@ -143,21 +143,18 @@ export default function Hunting() {
         {/* Propagation Bar */}
         <PropagationBar stationInfo={stationInfo} />
 
-        {/* Priority DX */}
-        <PriorityDx spots={spots} onSpotDetails={setSpotDetails} />
+        {/* Hunting Globe — 3D drehbare Weltkugel mit allen Spots */}
+        <HuntingGlobe
+          gpsPos={gpsPos}
+          stationInfo={stationInfo}
+          onSpotClick={setSpotDetails}
+        />
 
         {/* Activity Panel — SOTA + POTA Aktivierungen */}
         <ActivityPanel
           onLogQso={setQsoSpot}
           onSpotDetails={setSpotDetails}
           gpsPos={gpsPos}
-        />
-
-        {/* Hunting Globe — 3D drehbare Weltkugel mit allen Spots */}
-        <HuntingGlobe
-          gpsPos={gpsPos}
-          stationInfo={stationInfo}
-          onSpotClick={setSpotDetails}
         />
 
         {/* Live Spot Activity */}
@@ -167,6 +164,9 @@ export default function Hunting() {
           onCallClick={setQrzCall}
           gpsPos={gpsPos}
         />
+
+        {/* Priority DX */}
+        <PriorityDx spots={spots} onSpotDetails={setSpotDetails} />
       </main>
 
       {/* Spot Details Modal */}
