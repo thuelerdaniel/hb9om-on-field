@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Crosshair, Plus, ArrowLeft, MapPin } from "lucide-react";
+import { Crosshair, Plus, MapPin, Radio } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import CommandStrip from "@/components/hunting/CommandStrip";
 import PropagationBar from "@/components/hunting/PropagationBar";
@@ -104,11 +104,14 @@ export default function Hunting() {
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="px-4 py-3 flex items-center gap-2">
-          <button onClick={() => navigate('/')} className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Zurück zur Karte">
-            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-          </button>
-          <Crosshair className="w-5 h-5 text-[#00e5ff]" />
-          <h1 className="text-lg font-bold text-foreground">Hunting</h1>
+          <div className="flex items-center gap-0.5 bg-muted rounded-full p-0.5">
+            <button onClick={() => navigate('/')} className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground transition-colors" title="Fox-Modus: Referenzkarte">
+              <Radio className="w-3.5 h-3.5" />Fox
+            </button>
+            <button className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#00e5ff] text-black" title="Hunting-Modus (aktiv)">
+              <Crosshair className="w-3.5 h-3.5" />Hunting
+            </button>
+          </div>
           <span className="text-[10px] text-muted-foreground ml-auto">DX-Spots & Propagation</span>
         </div>
       </header>

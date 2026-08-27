@@ -40,7 +40,7 @@ export default async function(req: Request): Promise<Response> {
           const scheduled = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED') : [];
           // Look up coordinates from SotaPoint entities
           const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
-          for (const a of scheduled.slice(0, 50)) {
+          for (const a of scheduled.slice(0, 200)) {
             const ref = a.summit || '';
             if (ref && !refCoordMap.has(ref)) {
               try {
@@ -51,7 +51,7 @@ export default async function(req: Request): Promise<Response> {
               } catch {}
             }
           }
-          futureSota = scheduled.slice(0, 50).map((a: any) => {
+          futureSota = scheduled.slice(0, 200).map((a: any) => {
             const ref = a.summit || '';
             const coords = refCoordMap.get(ref);
             return {
@@ -87,7 +87,7 @@ export default async function(req: Request): Promise<Response> {
               if (!dateStr) return false;
               return new Date(dateStr) > now;
             })
-            .slice(0, 50);
+            .slice(0, 200);
           // Look up coordinates from PotaPoint entities
           const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
           for (const a of scheduled) {

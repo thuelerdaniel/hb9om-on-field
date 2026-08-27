@@ -3,7 +3,7 @@ import { MapPin, Navigation, Clock, Radio, X, Eye, Loader2 } from "lucide-react"
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
-import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
+import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
 
 // Spot Details Modal — zeigt Spot-Details mit Leaflet-Karte.
 // Verwendet spot.lat/lng (DXCC-Koordinaten) oder Locator für DX-Marker.
@@ -104,6 +104,18 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
     })();
   }, [spot?.call]);
 
+  // Effective distance/azimuth: use spot values, or fall back to QRZ grid
+  const qrzPos = qrzData?.grid ? maidenheadToLatLon(qrzData.grid) : null;
+  const hasSpotDist = spot?.distance != null && spot.distance > 0;
+  const hasSpotAz = spot?.azimuth != null && spot.azimuth > 0;
+  const effectiveDistance = hasSpotDist
+    ? spot.distance
+    : (qrzPos && stationPos ? haversine(stationPos.lat, stationPos.lon, qrzPos.lat, qrzPos.lon) : null);
+  const effectiveAzimuth = hasSpotAz
+    ? spot.azimuth
+    : (qrzPos && stationPos ? bearing(stationPos.lat, stationPos.lon, qrzPos.lat, qrzPos.lon) : null);
+  const isApprox = !hasSpotDist && effectiveDistance != null;
+
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto">
@@ -141,8 +153,8 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             <InfoRow icon={<Radio className="w-3 h-3" />} label="Frequenz" value={spot?.frequency ? `${(spot.frequency / 1000).toFixed(3)} MHz` : '—'} />
             <InfoRow icon={<MapPin className="w-3 h-3" />} label="Band" value={spot?.band || '—'} />
             <InfoRow icon={<Radio className="w-3 h-3" />} label="Mode" value={spot?.mode || '—'} />
-            <InfoRow icon={<Navigation className="w-3 h-3" />} label="Distanz" value={spot?.distance > 0 ? `${spot.distance} km` : '—'} />
-            <InfoRow icon={<Navigation className="w-3 h-3" />} label="Azimuth" value={spot?.azimuth > 0 ? `${spot.azimuth}°` : '—'} />
+            <InfoRow icon={<Navigation className="w-3 h-3" />} label="Distanz" value={effectiveDistance != null ? `${isApprox ? 'ca. ' : ''}${effectiveDistance} km` : '—'} />
+            <InfoRow icon={<Navigation className="w-3 h-3" />} label="Azimuth" value={effectiveAzimuth != null ? `${isApprox ? 'ca. ' : ''}${effectiveAzimuth}°` : '—'} />
             <InfoRow icon={<MapPin className="w-3 h-3" />} label="Locator" value={spot?.locator || spot?.grid6 || '—'} />
             <InfoRow icon={<MapPin className="w-3 h-3" />} label="Koordinaten" value={dxLat != null ? `${dxLat.toFixed(2)}°, ${dxLng.toFixed(2)}°` : '—'} />
             <InfoRow icon={<Clock className="w-3 h-3" />} label="Alter" value={ageText(spot?.age_seconds)} />

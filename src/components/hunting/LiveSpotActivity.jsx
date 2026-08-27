@@ -242,7 +242,6 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                 <th className="px-2 py-1.5 text-left hidden md:table-cell">Comment</th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('dist')}>Dist <SortIcon col="dist" /></th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('az')}>Az <SortIcon col="az" /></th>
-                <th className="px-2 py-1.5 text-left hidden md:table-cell">Source</th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('age')}>Age <SortIcon col="age" /></th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" onClick={() => toggleSort('score')}>Score <SortIcon col="score" /></th>
                 <th className="px-2 py-1.5 text-center">Actions</th>
@@ -271,14 +270,6 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                     <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[80px] hidden md:table-cell">{comment || '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot.distance > 0 ? `${spot.distance}` : '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot.azimuth > 0 ? `${spot.azimuth}°` : '—'}</td>
-                    <td className="px-2 py-1.5 hidden md:table-cell">
-                      <span
-                        className="text-[8px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap"
-                        style={{ background: sourceColor(spot.source) + '20', color: sourceColor(spot.source) }}
-                      >
-                        {sourceLabel(spot.source)}
-                      </span>
-                    </td>
                     <td className="px-2 py-1.5 text-right font-mono" style={{ color: ageColor(spot.age_seconds) }}>
                       {spot.age_seconds != null ? `${spot.age_seconds}s` : '—'}
                     </td>

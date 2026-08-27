@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
+import { createProceduralGlobeTexture, loadEarthTexture } from "@/lib/globeTexture";
 
 // 3D Globus mit three.js — zeigt alle QSO-Positionen als leuchtende Punkte.
 // Rotation per Maus/Touch-Drag, Zoom per Scrollrad/Pinch.
@@ -97,9 +98,10 @@ export default function QsoGlobe({ entries }) {
     const globeGroup = new THREE.Group();
     scene.add(globeGroup);
 
-    const texture = createGlobeTexture();
+    const texture = createProceduralGlobeTexture();
     const sphereGeo = new THREE.SphereGeometry(1, 64, 64);
     const sphereMat = new THREE.MeshPhongMaterial({ map: texture, transparent: true, opacity: 0.95, shininess: 3 });
+    loadEarthTexture(sphereMat);
     globeGroup.add(new THREE.Mesh(sphereGeo, sphereMat));
 
     const atmGeo = new THREE.SphereGeometry(1.08, 64, 64);

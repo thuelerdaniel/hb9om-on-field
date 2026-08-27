@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { Globe, Loader2 } from "lucide-react";
+import { Globe, Loader2, Radio } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
+import { createProceduralGlobeTexture, loadEarthTexture } from "@/lib/globeTexture";
 
 // 3D Hunting Globe — drehbare Weltkugel mit allen aktiven Spots.
 // Station QTH = rot, SOTA = orange, POTA = gruen, DX = cyan, andere Aktivitaeten = gelb.
@@ -26,26 +27,7 @@ function latLonToVec3(lat, lon, radius) {
   );
 }
 
-function createGlobeTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 1024;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createLinearGradient(0, 0, 0, 1024);
-  gradient.addColorStop(0, '#0a1929');
-  gradient.addColorStop(0.5, '#0d2538');
-  gradient.addColorStop(1, '#0a1929');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 2048, 1024);
-  ctx.strokeStyle = 'rgba(0, 229, 255, 0.12)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 24; i++) { ctx.beginPath(); ctx.moveTo(i * (2048 / 24), 0); ctx.lineTo(i * (2048 / 24), 1024); ctx.stroke(); }
-  for (let i = 0; i <= 12; i++) { ctx.beginPath(); ctx.moveTo(0, i * (1024 / 12)); ctx.lineTo(2048, i * (1024 / 12)); ctx.stroke(); }
-  ctx.strokeStyle = 'rgba(0, 229, 255, 0.3)';
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, 512); ctx.lineTo(2048, 512); ctx.stroke();
-  return new THREE.CanvasTexture(canvas);
-}
+// createGlobeTexture wird aus globeTexture.js importiert (createProceduralGlobeTexture + loadEarthTexture)
 
 export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
   const containerRef = useRef(null);
@@ -53,6 +35,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
   const [dxSpots, setDxSpots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [showPropagation, setShowPropagation] = useState(true);
 
   const stationPos = useMemo(() => {
     if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
@@ -124,9 +107,10 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     const globeGroup = new THREE.Group();
     scene.add(globeGroup);
 
-    const texture = createGlobeTexture();
+    const texture = createProceduralGlobeTexture();
     const sphereGeo = new THREE.SphereGeometry(1, 64, 64);
     const sphereMat = new THREE.MeshPhongMaterial({ map: texture, transparent: true, opacity: 0.95, shininess: 3 });
+    loadEarthTexture(sphereMat);
     globeGroup.add(new THREE.Mesh(sphereGeo, sphereMat));
 
     const atmGeo = new THREE.SphereGeometry(1.08, 64, 64);
@@ -159,8 +143,8 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       dotMeshes.push(dot);
     }
 
-    // Arcs from station to DX spots
-    for (const s of visibleSpots.filter(s => s._type === 'dx')) {
+    // Arcs from station to DX spots (only when propagation toggle is on)
+    for (const s of (showPropagation ? visibleSpots.filter(s => s._type === 'dx') : [])) {
       const fromVec = latLonToVec3(stationPos.lat, stationPos.lon, 1);
       const toVec = latLonToVec3(s._lat, s._lng, 1);
       const segments = 30;
@@ -271,7 +255,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
         if (obj.material) { if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); }
       });
     };
-  }, [visibleSpots, stationPos, stationInfo, loading, onSpotClick]);
+  }, [visibleSpots, stationPos, stationInfo, loading, onSpotClick, showPropagation]);
 
   const totalCount = visibleSpots.length;
 
@@ -279,15 +263,28 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <h2 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+        <h2 className="text-xs font-semibold text-foreground flex items-center gap-1.5 flex-shrink-0">
           <Globe className="w-3.5 h-3.5 text-[#00e5ff]" /> HUNTING GLOBE
           <span className="text-[10px] text-muted-foreground font-normal">({totalCount})</span>
         </h2>
-        <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
-          <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ff9800]" />SOTA</span>
-          <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#8cff00]" />POTA</span>
-          <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#00e5ff]" />DX</span>
-          <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ff5252]" />QTH</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPropagation(!showPropagation)}
+            className={`flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors flex-shrink-0 ${
+              showPropagation
+                ? "bg-[#00e5ff]/10 text-[#00e5ff] border-[#00e5ff]/30"
+                : "bg-background text-muted-foreground border-border"
+            }`}
+            title="Propagation-Pfade ein-/ausschalten"
+          >
+            <Radio className="w-3 h-3" /> Prop.
+          </button>
+          <div className="hidden md:flex items-center gap-2 text-[9px] text-muted-foreground">
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ff9800]" />SOTA</span>
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#8cff00]" />POTA</span>
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#00e5ff]" />DX</span>
+            <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full bg-[#ff5252]" />QTH</span>
+          </div>
         </div>
       </div>
 
@@ -310,7 +307,7 @@ export default function HuntingGlobe({ gpsPos, stationInfo, onSpotClick }) {
       </div>
 
       {/* Globe */}
-      <div style={{ height: 350 }} className="relative">
+      <div className="h-[300px] md:h-[350px] lg:h-[400px] relative">
         {loading ? (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground gap-2">
             <Loader2 className="w-4 h-4 animate-spin" /> Globus wird geladen…
