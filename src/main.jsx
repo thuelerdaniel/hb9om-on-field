@@ -41,6 +41,32 @@ window.addEventListener('unhandledrejection', (event) => {
   reportError('unhandled_promise', reason?.message || String(reason), reason?.stack);
 });
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <App />
-)
+try {
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+} catch (renderError) {
+  // Fallback: Wenn React selbst nicht rendern kann
+  const root = document.getElementById('root');
+  if (root) {
+    root.innerHTML = `
+      <div style="position:fixed;inset:0;background:#0d1720;color:#e2e8f0;
+      display:flex;align-items:center;justify-content:center;
+      font-family:monospace;padding:20px;">
+        <div style="max-width:600px">
+          <h2 style="color:#ef4444">Render-Fehler</h2>
+          <pre style="color:#f87171;font-size:13px;white-space:pre-wrap">
+            ${renderError.message}
+          </pre>
+          <pre style="color:#64748b;font-size:11px;white-space:pre-wrap;margin-top:16px">
+            ${renderError.stack || ''}
+          </pre>
+          <button onclick="window.location.href='/'"
+            style="margin-top:16px;padding:10px 24px;background:#06b6d4;
+            color:#000;border:none;border-radius:8px;cursor:pointer">
+            Neu laden
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  console.error('Render error:', renderError);
+}
