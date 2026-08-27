@@ -37,6 +37,7 @@ import VersionChangelogPopup from "@/components/map/VersionChangelogPopup";
 import DonationPopup from "@/components/DonationPopup";
 import MapCacheModal from "@/components/MapCacheModal";
 import LogEntryForm from "@/components/map/LogEntryForm";
+import DraggableQsoButton from "@/components/hunting/DraggableQsoButton";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import RepeaterCorrectionDialog from "@/components/map/RepeaterCorrectionDialog";
@@ -1645,17 +1646,9 @@ export default function Home() {
         />
       )}
 
-      {/* Neues QSO Button — Floating Action Button (only if qso_add enabled) */}
+      {/* Neues QSO Button — verschiebbar (gleiche Komponente wie Hunting-Seite) */}
       {features.tools.qso_add !== false && (
-        <button
-          onClick={() => setShowLogForm(true)}
-          className="fixed right-4 z-[1000] h-14 px-5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
-          style={{ bottom: "calc(env(safe-area-inset-bottom) + 76px)" }}
-          title="Neues QSO-Log erfassen"
-        >
-          <Plus className="w-6 h-6" />
-          <span className="font-semibold text-sm whitespace-nowrap">Log QSO</span>
-        </button>
+        <DraggableQsoButton onClick={() => setShowLogForm(true)} />
       )}
 
       {/* Map click hint for coverage position — shown when mapClickForCoverage is active */}
