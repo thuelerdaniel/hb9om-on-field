@@ -109,10 +109,9 @@ export default async function(req: Request): Promise<Response> {
       } else { spotholeWarning = `Spothole API Status ${resp.status}`; }
     } catch { spotholeWarning = 'Spothole API nicht erreichbar'; }
 
-    // Alte Spots loeschen (> 1 Stunde)
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    // Fix 4: ALLE Spots vor dem Neuladen löschen — verhindert Duplikat-Akkumulation
     try {
-      await base44.asServiceRole.entities.DxSpot.deleteMany({ spot_time: { $lt: oneHourAgo } });
+      await base44.asServiceRole.entities.DxSpot.deleteMany({});
     } catch {}
 
     const now = Date.now();

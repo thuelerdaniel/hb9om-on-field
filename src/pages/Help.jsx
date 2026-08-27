@@ -47,8 +47,23 @@ const SECTIONS = [
       },
       {
         title: "Konsolidierte Spots (Duplicate Removal)",
-        body: "In der Live Spot Activity Tabelle werden doppelte Spots konsolidiert: Gleicher Call + gleiche Frequenz = ein Eintrag. Die Anzahl wird als '3x' Badge (gelb) angezeigt. Bei mehreren Spottern wird der erste gezeigt mit '+N' Kürzung (z.B. 'DK1XX +2 andere'). Die neueste Spot-Zeit wird als Zeitstempel verwendet. Bei mehreren Kommentaren wird der neueste gezeigt, ältere als Tooltip (Maus-Hover). Exakte Duplikate (gleicher Call, Freq, Spotter, Zeit innerhalb 60s Toleranz) werden komplett entfernt. Die Sortierung bleibt nach Hear-Probability-Score.",
-        example: "3 Spots von DL1ABC auf 14074 kHz → ein Eintrag mit '3x' Badge, Spotter: 'DK1XX +2 andere'."
+        body: "In der Live Spot Activity Tabelle werden doppelte Spots konsolidiert: Gleicher Call + gleiche Frequenz = ein Eintrag. Die Anzahl wird als 'Nx' Badge (gelb) angezeigt. Bei mehreren Spottern wird der erste gezeigt mit '+N' Kürzung. Die neueste Spot-Zeit wird als Zeitstempel verwendet. Exakte Duplikate (gleicher Call, Freq, Spotter, Zeit innerhalb 60s) werden komplett entfernt. Das Backend löscht alle DX-Spots vor jedem Neuladen — keine Duplikat-Akkumulation mehr. Die Sortierung bleibt nach Hear-Probability-Score.",
+        example: "50 Spots von 4 Stationen → 4 konsolidierte Einträge mit '12x', '12x', '14x', '2x' Badges."
+      },
+      {
+        title: "QSO loggen aus Spot-Detail",
+        body: "Beim Klick auf das Augen-Symbol eines Spots öffnet sich das Spot-Detail-Popup mit Karte und QRZ-Lookup. Der grüne '+ QSO loggen' Button öffnet das QSO-Formular mit vorausgefüllten Feldern: Call, Frequenz, Mode, Band (automatisch berechnet), Datum/Zeit (aktuelle UTC). Falls QRZ-Daten verfügbar sind (Name, QTH, Locator), werden diese ebenfalls eingetragen. Ein zusätzlicher 'QRZ' Button öffnet die QRZ.com Detail-Seite im neuen Tab.",
+        example: "Spot anklicken → '+ QSO loggen' → Formular öffnet mit Call + Frequenz vorausgefüllt → RST eingeben → speichern."
+      },
+      {
+        title: "DX Opportunity Klick → Spot in Tabelle",
+        body: "Die DX Opportunity Karte oben in der CommandStrip ist klickbar. Beim Klick scrollt die Seite zur Live Spot Activity Tabelle und der entsprechende Spot-Eintrag wird mit einem gelben Rahmen für 3 Sekunden hervorgehoben. Falls der Spot durch Filter ausgeblendet ist, wird zur Tabelle gescrollt. Tooltip: 'Klicken um zum Spot in der Tabelle zu springen'.",
+        example: "DX Opportunity zeigt AC1RH 6127 km → Klick → Tabelle scrollt zu AC1RH → gelber Rahmen 3s."
+      },
+      {
+        title: "Mobile Tabellenansicht (ohne Scrollen)",
+        body: "Auf Mobilgeräten (max 768px) zeigt die Live Spot Activity Tabelle nur 6 wesentliche Spalten: CALL, FREQ, MODE, DIST, SCORE, ACTIONS. Ausgeblendete Spalten (COMMENT, SPOTTER, TIME, REF, AZ, AGE, TYPE) sind nur auf Desktop sichtbar. Die Tabelle passt sich automatisch an die Bildschirmbreite an — kein horizontales Scrollen nötig auf iPhone SE (375px). Font: 12px Mobil, 13px Desktop. Padding: 4px 6px Mobil, 6px 10px Desktop.",
+        example: "iPhone SE 375px → 6 Spalten passen ohne Scrollen → DIST und SCORE immer sichtbar."
       },
       {
         title: "ISS-Frequenzen & Echtzeit-Position",
@@ -62,8 +77,8 @@ const SECTIONS = [
       },
       {
         title: "Hear-Probability-Score (Hörscheinlichkeit)",
-        body: "Die Live Spot Activity Tabelle ist standardmässig nach Hörscheinlichkeit sortiert (Score 0-100%). Der Score wird berechnet aus: Distanz (40% — näher = besser), Propagation (35% — NOAA-Daten + Tag/Nacht), Standort (15% — SOTA-Berge bekommen Bonus), Band/Frequenz (10% — 40m/20m/15m/10m optimal für DX). Farbcodierung: grün >70%, gelb 40-70%, rot <40%. Mit dem Toggle-Button können Sie zwischen 'Nach Score' und 'Nach Zeit' sortieren.",
-        example: "Score 75% (grün) → gute Chance die Station zu hören. Score 25% (rot) → unwahrscheinlich."
+        body: "Die Live Spot Activity Tabelle ist standardmässig nach Hörscheinlichkeit sortiert (Score 0-100%). Der Score wird differenziert berechnet aus: Distanz (30% — kontinuierliche Exponentialfunktion, näher = höher), Alter (20% — neuere Spots scoren höher), Confidence (20% — Spotter/Locator/Land), Aktivität (15% — SOTA-Berge bekommen Bonus), Band/Propagation (15% — 20m/40m optimal, NOAA-Daten falls verfügbar). Farbcodierung: grün >70%, gelb 40-70%, rot <40%. Mit dem Toggle-Button können Sie zwischen 'Nach Score' und 'Nach Zeit' sortieren.",
+        example: "Score 88 (nah, neu, SOTA, 20m) vs Score 44 (weit, alt, DX, 15m) → klare Differenzierung."
       },
       {
         title: "SOTA Scheduled Activations",
@@ -875,6 +890,51 @@ const ADMIN_SECTIONS = [
         body: "Relais die über den JSON-Import angelegt wurden (source_id = «json-import») werden von automatischen Synchronisationen (fetchRepeaters, fetchHearhamRepeaters) nicht überschrieben oder gelöscht. Das verhindert, dass manuell importierte oder korrigierte Daten bei der nächsten Aktualisierung verloren gehen. Im Sync-Response wird die Anzahl geschützter Records als «json_protected» zurückgemeldet. Wenn Sie den Schutz für einzelne oder alle JSON-Importe aufheben möchten, klicken Sie im JSON-Repeater-Import-Bereich auf «JSON-Schutz aufheben». Bestätigen Sie den Dialog — die betroffenen Records erhalten ein leeres source_id und werden bei der nächsten Synchronisation wie alle anderen behandelt (überschrieben oder gelöscht). Verwenden Sie diese Funktion mit Bedacht: nach dem Aufheben sind die Daten dem automatischen Sync ausgesetzt.",
         example: "«JSON-Schutz aufheben» klicken → Bestätigen → json_protected wird bei nächstem Sync als 0 gemeldet → Records werden wieder synchronisiert."
       }
+    ]
+  },
+  {
+    id: "releases",
+    icon: Bell,
+    title: "Release History (Versionen)",
+    color: "#6366f1",
+    description: "Alle Versionen seit v0.8 mit Änderungen — das Versions-Popup zeigt nur die neuesten Versionen.",
+    items: [
+      {
+        title: "v0.9003 — Hunting-Fixes",
+        body: "Spot-Konsolidierung (Call+Frequenz = ein Eintrag mit Nx Badge), mobile Tabelle ohne horizontales Scrollen (6 Spalten), DX Opportunity klickbar (scrollt zum Spot mit Highlight), QSO loggen aus Spot-Detail (grün, QRZ-Vorausfüllung), Priority DX konsolidiert (max 5 unique), Hear-Score differenziert (Distanz/Alter/Confidence/Band), SOTA API mit CORS-Proxy, DX-Backend löscht alle Spots vor Neuladen, Fox-Modus QSO-Button verschiebbar.",
+      },
+      {
+        title: "v0.9002 — Karten-Stabilität & Zoom-Fix",
+        body: "Stabile Container-Keys verhindern _leaflet_pos-Fehler bei View-Wechseln. Zoom-Animation deaktiviert — keine Abstürze beim Schliessen von Modalen. QSO-Weltkarte sauberes Umschalten zwischen Globus und 2D-Karte.",
+      },
+      {
+        title: "v0.9001 — Hunting-Modul & Live SOTA/POTA",
+        body: "Hunting-Modul mit DX-Spots, GPS-basierter Distanz/Azimuth, Activity Panel (SOTA/POTA), Propagation-Dashboard, Fox Hunting, QSO loggen aus Spot, QRZ-Lookup, Priority DX, GPS-Tracking, Theme-aware, Build-Optimierung.",
+      },
+      {
+        title: "v0.87 — Abdeckungs-Dialog & Öffentliche Position",
+        body: "Abdeckungs-Dialog verschiebbar, Antennenhöhe-Slider, Berechnungs-Verlauf, Öffentliche Position mit GPS-Refresh, Karte zeigt öffentliche Positionen.",
+      },
+      {
+        title: "v0.86 — Passwort-Sicherheit & Demo-Beschränkungen",
+        body: "Passwort-Sichtbarkeit, Verbindungs-Tests, BrandMeister-Login, Demo-Konto gesperrt, Konfigurations-Status, einklappbare Menüs, Hilfe-Links.",
+      },
+      {
+        title: "v0.85 — Terrain-Abdeckung & Relais-Performance",
+        body: "Terrain-LOS Abdeckung mit SRTM 30m, Meine Abdeckung berechnen, Position auf Karte setzen, CircleMarker bei >500 Stationen, Admin Abdeckungs-Stats.",
+      },
+      {
+        title: "v0.82 — TOTA weltweit & IOTA erweitert",
+        body: "TOTA 5315 Türme weltweit, IOTA 326 Inselgruppen, Multi-Select Länder-Filter, Leuchttürme laden sofort, stabile Zähler, Paginierung repariert.",
+      },
+      {
+        title: "v0.81 — Leuchtturm-Scraper & Relais-Länder-Filter",
+        body: "Leuchtturm-Scraper sequenziell (15 Regionen), Relais-Länder-Filter repariert (31000+), Daten-Zähler konsistent, Auto-Geocodierung, Splash-Screen Zähler.",
+      },
+      {
+        title: "v0.8 — Weltweite Referenzen & Nordamerika-Relais",
+        body: "SOTA/POTA/WWFF/WWBOTA/Burgen weltweit, WWFF ersetzt HBFF, RepeaterBook USA+Kanada, IOTA weltweit, Kontinent-Filter, Marker-Sortierung, Restore-Points, API-Key-Verwaltung, BrandMeister, Admin E-Mail-Reports, Club-Rufzeichen.",
+      },
     ]
   }
 ];

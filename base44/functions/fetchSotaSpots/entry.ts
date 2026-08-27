@@ -151,25 +151,35 @@ export default async function(req: Request): Promise<Response> {
       });
     }
 
-    // Fix 7: SOTA API laden — alle aktiven Spots (nicht nur 50)
+    // Fix 6: SOTA API laden — mit CORS-Proxy Fallback und mehreren Endpunkten
     let sotaSpots: any[] = [];
     let apiError: string | null = null;
-    try {
-      const resp = await fetch('https://api2.sota.org.uk/api/spots/all', {
-        headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (resp.ok) {
-        const raw = await resp.json();
-        sotaSpots = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED' && s.activatorCallsign !== 'DEPRECATED') : [];
-        console.log(`[SOTA] API OK, ${sotaSpots.length} Spots geladen`);
-      } else {
-        apiError = `HTTP ${resp.status}`;
-        console.error(`[SOTA] API Fehler: ${apiError}`);
+    const sotaUrls = [
+      'https://api2.sota.org.uk/api/spots',
+      'https://api2.sota.org.uk/api/spots/all',
+      `https://corsproxy.io/?url=${encodeURIComponent('https://api2.sota.org.uk/api/spots')}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api2.sota.org.uk/api/spots')}`,
+    ];
+    for (let attempt = 0; attempt < sotaUrls.length; attempt++) {
+      const url = sotaUrls[attempt];
+      try {
+        const resp = await fetch(url, {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-Online/1.0' },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (resp.ok) {
+          const raw = await resp.json();
+          sotaSpots = Array.isArray(raw) ? raw.filter((s: any) => s.callsign !== 'DEPRECATED' && s.activatorCallsign !== 'DEPRECATED') : [];
+          console.log(`[SOTA] API OK (${url.split('//')[1]?.split('/')[0]}), ${sotaSpots.length} Spots geladen`);
+          break;
+        } else {
+          apiError = `HTTP ${resp.status}`;
+          console.warn(`[SOTA] Attempt ${attempt + 1} (${url.split('//')[1]?.split('/')[0]}): ${apiError}`);
+        }
+      } catch (e: any) {
+        apiError = e.message || 'SOTA API nicht erreichbar';
+        console.warn(`[SOTA] Attempt ${attempt + 1}: ${apiError}`);
       }
-    } catch (e: any) {
-      apiError = e.message || 'SOTA API nicht erreichbar';
-      console.error(`[SOTA] API Fehler: ${apiError}`);
     }
 
     if (sotaSpots.length === 0) {

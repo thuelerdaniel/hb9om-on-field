@@ -244,18 +244,36 @@
   color: #555;
 }
 
-/* Fix 1: Spot-Tabelle — table-layout auto, nowrap, mobile padding */
+/* Fix 1: Spot-Tabelle — responsive, keine min-width auf Mobil, auto-layout */
 .spot-table td,
 .spot-table th {
   white-space: nowrap;
 }
 
+.spot-table-responsive {
+  table-layout: auto;
+  min-width: 1100px;
+}
+
 @media (max-width: 768px) {
+  .spot-table-responsive {
+    min-width: auto !important;
+  }
   .spot-table td,
   .spot-table th {
     padding: 4px 6px !important;
     font-size: 12px !important;
+    min-width: auto !important;
   }
+}
+
+/* Fix 3: Spot-Highlight bei DX-Opportunity-Klick */
+.spot-highlight {
+  animation: spot-highlight-pulse 3s ease-out;
+}
+@keyframes spot-highlight-pulse {
+  0%, 100% { background-color: transparent; box-shadow: none; }
+  20%, 80% { background-color: rgba(255, 235, 59, 0.25); box-shadow: inset 0 0 0 2px rgba(255, 193, 7, 0.6); }
 }
 
 /* Fix 10: Hunting Globe — dunkler Weltall-Hintergrund */

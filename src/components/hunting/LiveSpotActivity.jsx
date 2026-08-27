@@ -96,7 +96,7 @@ const BANDS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '
 const MODES = ['All', 'FT8', 'FT4', 'CW', 'SSB', 'FM', 'RTTY', 'PSK', 'Other'];
 const REFS = ['All', 'SOTA', 'POTA', 'WWFF', 'WWBOTA', 'WCA', 'TOTA', 'IOTA', 'WLOTA'];
 
-export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick, gpsPos, stationInfo }) {
+export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick, gpsPos, stationInfo, highlightSpot }) {
   const [spots, setSpots] = useState([]);
   const [worked, setWorked] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -111,6 +111,24 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
   const [refFilter, setRefFilter] = useState('All');
   const [sortBy, setSortBy] = useState('score');
   const [sortDir, setSortDir] = useState('desc');
+  const [highlightedKey, setHighlightedKey] = useState(null);
+
+  // Fix 3: Bei highlightSpot → zum Spot-Eintrag scrollen und hervorheben
+  useEffect(() => {
+    if (!highlightSpot) return;
+    const key = `${highlightSpot.call}_${Math.round(highlightSpot.frequency)}`;
+    setHighlightedKey(key);
+    setTimeout(() => {
+      const row = document.querySelector(`tr[data-spot-key="${CSS.escape(key)}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        const table = document.querySelector('.spot-table');
+        if (table) table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      setTimeout(() => setHighlightedKey(null), 3000);
+    }, 100);
+  }, [highlightSpot]);
 
   const fetchSpots = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -324,7 +342,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
         ) : filtered.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">Keine Spots gefunden.</div>
         ) : (
-          <table className="w-full text-[13px] spot-table" style={{ minWidth: '1100px', tableLayout: 'auto' }}>
+          <table className="w-full text-[13px] spot-table spot-table-responsive">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="text-[9px] text-muted-foreground uppercase border-b border-border">
                 <th className="px-2 py-1.5 text-left cursor-pointer hover:text-foreground" style={{ minWidth: '110px' }} onClick={() => toggleSort('call')} title="Rufzeichen des sendenden Stations">Call <SortIcon col="call" /></th>
@@ -334,9 +352,9 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                 <th className="px-2 py-1.5 text-left hidden md:table-cell" style={{ minWidth: '110px' }} title="Rufzeichen des Spot-Gebers">Spotter</th>
                 <th className="px-2 py-1.5 text-right hidden md:table-cell" style={{ minWidth: '70px' }} title="Zeitpunkt des Spots (UTC)">Time</th>
                 <th className="px-2 py-1.5 text-left hidden md:table-cell" style={{ minWidth: '110px' }} title="SOTA/POTA/WWFF-Referenz des Aktivierungs-Punktes">Ref</th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" style={{ minWidth: '70px' }} onClick={() => toggleSort('dist')} title="Entfernung zum Spot in Kilometern (Great Circle)">Dist <SortIcon col="dist" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" style={{ minWidth: '55px' }} onClick={() => toggleSort('dist')} title="Entfernung zum Spot in Kilometern (Great Circle)">Dist <SortIcon col="dist" /></th>
                 <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" style={{ minWidth: '70px' }} onClick={() => toggleSort('az')} title="Azimut/Peilung zum Spot in Grad (0=N, 90=O, 180=S, 270=W)">Az <SortIcon col="az" /></th>
-                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground" style={{ minWidth: '70px' }} onClick={() => toggleSort('age')} title="Alter des Spots in Sekunden">Age <SortIcon col="age" /></th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:text-foreground hidden md:table-cell" style={{ minWidth: '70px' }} onClick={() => toggleSort('age')} title="Alter des Spots in Sekunden">Age <SortIcon col="age" /></th>
                 <th className="px-2.5 py-1.5 text-right cursor-pointer hover:text-foreground" style={{ minWidth: '70px' }} onClick={() => toggleSort('score')} title="Wahrscheinlichkeit die Station zu hören, berechnet aus Distanz, Ausbreitung, Standort und Band.">Score <SortIcon col="score" /></th>
                 <th className="px-2 py-1.5 text-center hidden md:table-cell" style={{ minWidth: '70px' }} title="Spot-Typ: DX (rot), SOTA (blau), POTA (grün)">Type</th>
                 <th className="px-2 py-1.5 text-center" style={{ minWidth: '80px' }}>Actions</th>
@@ -347,7 +365,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                 const dot = workedDot(spot, worked);
                 const comment = spot.comments?.[0] || '';
                 return (
-                  <tr key={spot.id || i} className="border-b border-border/50 hover:bg-muted">
+                  <tr key={spot.id || i} data-spot-key={`${spot.call}_${Math.round(spot.frequency)}`} className={`border-b border-border/50 hover:bg-muted ${highlightedKey === `${spot.call}_${Math.round(spot.frequency)}` ? 'spot-highlight' : ''}`}>
                     <td className="px-2 py-1.5">
                       <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: DOT_COLORS[dot] }} />
@@ -375,9 +393,9 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{formatTime(spot.spot_time)}</td>
                     <td className="px-2 py-1.5 text-muted-foreground hidden md:table-cell">{spot.activity_ref || '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot._calcDist != null ? `${spot._calcDist}` : '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{spot._calcDist != null ? `${spot._calcDist}` : '—'}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground hidden md:table-cell">{spot._calcAz != null ? `${spot._calcAz}°` : '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-mono" style={{ color: ageColor(spot.age_seconds) }}>
+                    <td className="px-2 py-1.5 text-right font-mono hidden md:table-cell" style={{ color: ageColor(spot.age_seconds) }}>
                       {spot.age_seconds != null ? `${spot.age_seconds}s` : '—'}
                     </td>
                     <td className="px-2.5 py-1.5 text-right whitespace-nowrap">

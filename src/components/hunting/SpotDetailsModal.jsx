@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { MapPin, Navigation, Clock, Radio, X, Eye, Loader2 } from "lucide-react";
+import { MapPin, Navigation, Clock, Radio, X, Eye, Loader2, Plus } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
@@ -304,13 +304,24 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             </div>
           )}
 
-          {/* Log QSO Button */}
-          <button
-            onClick={() => { onLogQso?.(spot); onClose(); }}
-            className="w-full py-2.5 bg-[#8cff00] text-black rounded-lg text-sm font-bold hover:bg-[#7aee00] transition-colors"
-          >
-            QSO loggen
-          </button>
+          {/* Fix 2: QSO Log Button + QRZ Button — prominent, grün, vorausgefüllt */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { onLogQso?.({ ...spot, _qrzData: qrzData }); onClose(); }}
+              className="flex-1 py-2.5 bg-[#22c55e] text-white rounded-lg text-sm font-bold hover:bg-[#16a34a] transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> QSO loggen
+            </button>
+            {qrzData && (
+              <button
+                onClick={() => window.open(`https://www.qrz.com/db/${spot?.call}`, '_blank')}
+                className="px-3 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5"
+                title="QRZ.com Detail-Seite öffnen"
+              >
+                <Eye className="w-4 h-4" /> QRZ
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

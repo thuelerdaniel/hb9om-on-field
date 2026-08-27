@@ -11,7 +11,7 @@ const PANEL = "bg-card border border-border rounded-xl";
 const LABEL = "text-[9px] text-muted-foreground uppercase tracking-wider font-semibold";
 const VALUE = "text-sm font-bold text-foreground truncate";
 
-export default function CommandStrip({ spots, propagation, stationInfo, gpsPos, onLocatorSave }) {
+export default function CommandStrip({ spots, propagation, stationInfo, gpsPos, onLocatorSave, onDxClick }) {
   const [worked, setWorked] = useState(null);
   const [showLocatorDialog, setShowLocatorDialog] = useState(false);
   const [savedLocator, setSavedLocator] = useState(() => localStorage.getItem('station_locator') || '');
@@ -41,8 +41,12 @@ export default function CommandStrip({ spots, propagation, stationInfo, gpsPos, 
 
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {/* DX Opportunity */}
-      <div className={`${PANEL} p-2.5`}>
+      {/* DX Opportunity — klickbar: scrollt zum Spot in der Tabelle */}
+      <div
+        className={`${PANEL} p-2.5 cursor-pointer hover:border-[#00e5ff] hover:bg-[#00e5ff]/5 transition-all`}
+        onClick={() => farthest && onDxClick?.(farthest)}
+        title="Klicken um zum Spot in der Tabelle zu springen"
+      >
         <div className="flex items-center gap-1 mb-1">
           <Target className="w-3 h-3 text-[#00e5ff]" />
           <span className={LABEL}>DX Opportunity</span>

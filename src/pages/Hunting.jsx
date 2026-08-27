@@ -29,6 +29,7 @@ export default function Hunting() {
   const [qsoSpot, setQsoSpot] = useState(null);
   const [qrzCall, setQrzCall] = useState(null);
   const [showBlankQso, setShowBlankQso] = useState(false);
+  const [highlightSpot, setHighlightSpot] = useState(null);
   const [gpsPos, setGpsPos] = useState(null); // { lat, lng, accuracy }
   const [gpsStatus, setGpsStatus] = useState('idle'); // idle | locating | ok | error
   const watchIdRef = useRef(null);
@@ -156,6 +157,7 @@ export default function Hunting() {
           stationInfo={stationInfo}
           gpsPos={gpsPos}
           onLocatorSave={(locator) => setStationInfo(prev => ({ ...prev, locator }))}
+          onDxClick={setHighlightSpot}
         />
 
         {/* Propagation Bar */}
@@ -182,6 +184,7 @@ export default function Hunting() {
           onCallClick={setQrzCall}
           gpsPos={gpsPos}
           stationInfo={stationInfo}
+          highlightSpot={highlightSpot}
         />
 
         {/* Priority DX */}

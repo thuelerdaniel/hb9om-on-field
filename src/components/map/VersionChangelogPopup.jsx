@@ -7,6 +7,21 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9003",
+    title: "Hunting-Fixes: Spot-Konsolidierung, mobile Tabelle, QSO aus Spot",
+    changes: [
+      "Spot-Konsolidierung: Gleicher Call + Frequenz = ein Eintrag mit 'Nx' Badge — keine Duplikate mehr",
+      "Mobile Tabelle: 6 Spalten ohne horizontales Scrollen (CALL, FREQ, MODE, DIST, SCORE, ACTIONS)",
+      "DX Opportunity klickbar: Klick scrollt zum Spot in der Tabelle mit gelbem Highlight",
+      "QSO loggen aus Spot-Detail: Grüner Button mit QRZ-Daten-Vorausfüllung + QRZ.com-Link",
+      "Priority DX: Konsolidiert nach Call + Frequenz — max. 5 einzigartige Einträge",
+      "Hear-Score differenziert: Kontinuierliche Distanz, Alter, Confidence, Band — nicht mehr alle 100",
+      "SOTA API: Mehrere Endpunkte + CORS-Proxy Fallback — zuverlässigere Spot-Ladung",
+      "DX-Spot-Backend: Löscht alle Spots vor Neuladen — keine Duplikat-Akkumulation mehr",
+      "Fox-Modus QSO-Button: Verschiebbar wie im Hunting-Modus (gleiche grüne Komponente)",
+    ],
+  },
+  {
     version: "0.9002",
     title: "Karten-Stabilität & Zoom-Fix",
     changes: [
