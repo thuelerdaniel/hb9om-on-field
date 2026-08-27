@@ -39,7 +39,7 @@ function AutoFit({ positions }) {
   useEffect(() => {
     if (done.current) return;
     // invalidateSize: Modal-Container hat beim ersten Render oft falsche Grösse
-    map.invalidateSize();
+    try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) { console.warn('invalidateSize skipped:', e.message); }
     if (positions.length >= 2) {
       const bounds = L.latLngBounds(positions.map(p => [p[0], p[1]]));
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
@@ -206,14 +206,15 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
                 center={positions[0]}
                 zoom={8}
                 className="w-full h-full"
+                zoomControl={false}
                 scrollWheelZoom={true}
                 touchZoom={true}
                 doubleClickZoom={true}
                 dragging={true}
                 minZoom={3}
                 maxZoom={18}
-                zoomSnap={1}
-                zoomDelta={1}
+                zoomSnap={0.5}
+                zoomDelta={0.5}
                 zoomAnimation={false}
                 bounceAtZoomLimits={true}
                 style={{ background: '#0d1720' }}

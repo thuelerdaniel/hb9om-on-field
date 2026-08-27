@@ -667,18 +667,33 @@ export default function Home() {
     });
   }, []);
 
-  // Map refresh when layers change — invalidateSize + layer redraw for clean tiles
+  // Map refresh when layers change — invalidateSize + layer redraw for clean tiles.
+  // Guarded with _panes/_mapPane check + try-catch to prevent _leaflet_pos TypeError
+  // when invalidateSize is called before Leaflet has fully initialized the map panes.
   useEffect(() => {
     if (mapRef.current) {
-      mapRef.current.invalidateSize();
+      const map = mapRef.current;
       setTimeout(() => {
-        if (mapRef.current) {
-          mapRef.current.invalidateSize();
-          mapRef.current.eachLayer(layer => {
-            if (layer.redraw) layer.redraw();
-          });
+        try {
+          if (map._panes && map._mapPane) {
+            map.invalidateSize();
+          }
+        } catch (e) {
+          console.warn('invalidateSize skipped:', e.message);
         }
-      }, 150);
+      }, 100);
+      setTimeout(() => {
+        try {
+          if (map._panes && map._mapPane) {
+            map.invalidateSize();
+            map.eachLayer(layer => {
+              if (layer.redraw) layer.redraw();
+            });
+          }
+        } catch (e) {
+          console.warn('map refresh skipped:', e.message);
+        }
+      }, 300);
     }
   }, [activeLayers]);
 

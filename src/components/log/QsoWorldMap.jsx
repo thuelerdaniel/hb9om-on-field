@@ -9,7 +9,9 @@ function MapResize() {
   const map = useMap();
   useEffect(() => {
     // invalidateSize muss beim Mount immer laufen — auch wenn keine bounds vorhanden
-    const timer = setTimeout(() => map.invalidateSize(), 100);
+    const timer = setTimeout(() => {
+      try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) { console.warn('invalidateSize skipped:', e.message); }
+    }, 100);
     return () => clearTimeout(timer);
   }, [map]);
   return null;
@@ -20,7 +22,7 @@ function AutoFit({ bounds }) {
   const done = useRef(false);
   useEffect(() => {
     if (done.current || !bounds) return;
-    map.invalidateSize();
+    try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) { console.warn('invalidateSize skipped:', e.message); }
     map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
     done.current = true;
   }, [bounds, map]);
@@ -61,15 +63,15 @@ export default function QsoWorldMap({ entries }) {
       center={[20, 0]}
       zoom={2}
       className="w-full h-full"
-      zoomControl={true}
+      zoomControl={false}
       scrollWheelZoom={true}
       touchZoom={true}
       doubleClickZoom={true}
       dragging={true}
       minZoom={2}
       maxZoom={10}
-      zoomSnap={1}
-      zoomDelta={1}
+      zoomSnap={0.5}
+      zoomDelta={0.5}
       zoomAnimation={false}
       worldCopyJump={true}
       style={{ height: '100%', width: '100%', background: '#0a1929' }}

@@ -16,7 +16,7 @@ function AutoFit({ positions }) {
   const [done, setDone] = useState(false);
   useEffect(() => {
     if (done || positions.length === 0) return;
-    map.invalidateSize();
+    try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) { console.warn('invalidateSize skipped:', e.message); }
     if (positions.length === 1) { map.setView(positions[0], 10); setDone(true); return; }
     const bounds = L.latLngBounds(positions);
     map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
@@ -120,14 +120,15 @@ export default function HuntingMap({ gpsPos, stationInfo, onSpotClick }) {
             center={[stationPos.lat, stationPos.lon]}
             zoom={8}
             className="w-full h-full"
+            zoomControl={false}
             scrollWheelZoom={true}
             touchZoom={true}
             doubleClickZoom={true}
             dragging={true}
             minZoom={3}
             maxZoom={18}
-            zoomSnap={1}
-            zoomDelta={1}
+            zoomSnap={0.5}
+            zoomDelta={0.5}
             zoomAnimation={false}
             bounceAtZoomLimits={true}
             style={{ background: "#0d1720" }}
