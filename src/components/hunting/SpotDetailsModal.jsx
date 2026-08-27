@@ -42,10 +42,10 @@ function AutoFit({ positions }) {
     map.invalidateSize();
     if (positions.length >= 2) {
       const bounds = L.latLngBounds(positions.map(p => [p[0], p[1]]));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
       done.current = true;
     } else if (positions.length === 1) {
-      map.setView(positions[0], 10);
+      map.setView(positions[0], 4);
       done.current = true;
     }
   }, [positions, map]);
@@ -186,12 +186,8 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             </div>
           )}
 
-          {/* Leaflet Map — erst nach QRZ-Lookup rendern, damit alle Koordinaten-Quellen genutzt werden */}
-          {qrzLoading ? (
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-8 bg-background rounded-lg border border-border">
-              <Loader2 className="w-3 h-3 animate-spin" /> Koordinaten werden ermittelt…
-            </div>
-          ) : positions.length > 0 ? (
+          {/* Leaflet Map — sofort rendern mit verfuegbaren Koordinaten */}
+          {positions.length > 0 ? (
             <div className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
               <MapContainer
                 key="spot-details-map"

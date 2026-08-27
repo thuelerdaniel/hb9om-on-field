@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Crosshair, RefreshCw, Eye, Target, FileText, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
@@ -139,6 +139,15 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
     return sortDir === 'asc' ? av - bv : bv - av;
   });
 
+  // Unique countries from current spots for dropdown
+  const availableCountries = useMemo(() => {
+    const set = new Set();
+    for (const s of spots) {
+      if (s.country) set.add(s.country);
+    }
+    return Array.from(set).sort();
+  }, [spots]);
+
   const toggleSort = (col) => {
     if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortBy(col); setSortDir('asc'); }
@@ -190,13 +199,10 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
           </select>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          <input
-            type="text"
-            value={countryFilter}
-            onChange={e => setCountryFilter(e.target.value)}
-            placeholder="Land…"
-            className="flex-1 min-w-[80px] px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:border-[#00e5ff] outline-none"
-          />
+          <select value={countryFilter} onChange={e => setCountryFilter(e.target.value)} className="flex-1 min-w-[80px] px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
+            <option value="">Alle Länder</option>
+            {availableCountries.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
           <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
             <option value="All">Alle Quellen</option>
             <option value="DX Summit">DX Summit</option>

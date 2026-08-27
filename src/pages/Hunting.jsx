@@ -10,7 +10,7 @@ import QsoLogModal from "@/components/hunting/QsoLogModal";
 import QrzLookupModal from "@/components/hunting/QrzLookupModal";
 import PriorityDx from "@/components/hunting/PriorityDx";
 import ActivityPanel from "@/components/hunting/ActivityPanel";
-import HuntingMap from "@/components/hunting/HuntingMap";
+import HuntingGlobe from "@/components/hunting/HuntingGlobe";
 import BottomNavigation from "@/components/BottomNavigation";
 
 // Hunting-Seite — DX-Spots, Propagation, QSO-Logging.
@@ -143,8 +143,8 @@ export default function Hunting() {
           gpsPos={gpsPos}
         />
 
-        {/* Hunting Map — alle Spots mit gültigen Koordinaten */}
-        <HuntingMap
+        {/* Hunting Globe — 3D drehbare Weltkugel mit allen Spots */}
+        <HuntingGlobe
           gpsPos={gpsPos}
           stationInfo={stationInfo}
           onSpotClick={setSpotDetails}

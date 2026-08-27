@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Mountain, TreePine, RefreshCw, FileText, MapPin } from "lucide-react";
+import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 // Activity Panel — zeigt aktive SOTA- und POTA-Aktivierungen.
@@ -28,24 +28,32 @@ function formatFreq(kHz) {
 }
 
 export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
-  const [activities, setActivities] = useState({ sota: [], pota: [], total: 0 });
+  const [activities, setActivities] = useState({ sota: [], pota: [], futureSota: [], futurePota: [], total: 0, futureTotal: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('SOTA');
+  const [showFuture, setShowFuture] = useState(false);
 
   const fetchActivities = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await base44.functions.invoke("getActivities", {});
+      const res = await base44.functions.invoke("getActivities", { include_future: showFuture });
       const data = res?.data || res;
       if (data?.success) {
-        setActivities({ sota: data.sota || [], pota: data.pota || [], total: data.total || 0 });
+        setActivities({
+          sota: data.sota || [],
+          pota: data.pota || [],
+          futureSota: data.futureSota || [],
+          futurePota: data.futurePota || [],
+          total: data.total || 0,
+          futureTotal: data.futureTotal || 0,
+        });
       }
     } catch {} finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [showFuture]);
 
   useEffect(() => {
     fetchActivities();
@@ -53,7 +61,9 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
     return () => clearInterval(interval);
   }, [fetchActivities]);
 
-  const spots = tab === 'SOTA' ? activities.sota : activities.pota;
+  const activeSpots = tab === 'SOTA' ? activities.sota : activities.pota;
+  const futureSpots = tab === 'SOTA' ? activities.futureSota : activities.futurePota;
+  const spots = showFuture ? [...activeSpots, ...futureSpots] : activeSpots;
   const accentColor = tab === 'SOTA' ? '#ff9800' : '#8cff00';
   const Icon = tab === 'SOTA' ? Mountain : TreePine;
 
@@ -65,9 +75,23 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
           <Icon className="w-3.5 h-3.5" style={{ color: accentColor }} /> ACTIVE ACTIVATIONS
           <span className="text-[10px] text-muted-foreground font-normal">({activities.total})</span>
         </h2>
-        <button onClick={() => fetchActivities(true)} disabled={refreshing} className="text-muted-foreground hover:text-foreground">
-          <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowFuture(!showFuture)}
+            className={`flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors ${
+              showFuture
+                ? "bg-[#00e5ff]/10 text-[#00e5ff] border-[#00e5ff]/30"
+                : "bg-background text-muted-foreground border-border hover:bg-muted"
+            }`}
+            title="Zukünftige Aktivierungen ein-/ausblenden"
+          >
+            <CalendarClock className="w-3 h-3" />
+            {showFuture ? "Aktiv + Geplant" : "Geplante"}
+          </button>
+          <button onClick={() => fetchActivities(true)} disabled={refreshing} className="text-muted-foreground hover:text-foreground">
+            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -102,7 +126,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
           </div>
         ) : spots.length === 0 ? (
           <div className="p-4 text-center text-xs text-muted-foreground">
-            Keine aktiven {tab}-Aktivierungen.
+            Keine {showFuture ? 'aktiven oder geplanten' : 'aktiven'} {tab}-Aktivierungen.
           </div>
         ) : (
           spots.map((spot, i) => (
@@ -113,6 +137,9 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
             >
               <div className="flex items-center gap-2">
                 <span className="font-bold text-foreground text-sm truncate flex-1">{spot.call}</span>
+                {spot.is_future && (
+                  <span className="text-[7px] px-1 rounded bg-[#00e5ff]/20 text-[#00e5ff] font-bold flex-shrink-0">GEPLANT</span>
+                )}
                 {spot.reference && (
                   <span
                     className="text-[9px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
