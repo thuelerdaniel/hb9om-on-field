@@ -21,6 +21,7 @@ import MyStationSection from "@/components/settings/MyStationSection";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
 const AdminPanel = lazy(() => import("@/components/settings/AdminPanel"));
+// Note: AdminDownloadManager is rendered inside AdminPanel
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",

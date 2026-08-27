@@ -30,6 +30,7 @@ import IllwAdminSection from "@/components/admin/IllwAdminSection";
 import DxSpotReferenceManager from "@/components/admin/DxSpotReferenceManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 import AdminDownloadManager from "@/components/admin/AdminDownloadManager";
+// AdminDownloadManager renders the APK/PDF upload form in the admin area
 
 const TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",

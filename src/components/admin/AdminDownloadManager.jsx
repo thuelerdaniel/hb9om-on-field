@@ -134,10 +134,25 @@ export default function AdminDownloadManager() {
         <div className="p-3 bg-muted/50 border border-border rounded-lg space-y-2">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">Datei (PDF oder APK)</label>
+            {file && (
+              <div className="mt-1 mb-1 text-[10px] text-muted-foreground flex items-center gap-1">
+                <span className="font-mono truncate">{file.name}</span>
+                <span>·</span>
+                <span>{formatSize(file.size)}</span>
+                {file.size > 50 * 1024 * 1024 && <span className="text-orange-500 font-medium">⚠ Groß</span>}
+              </div>
+            )}
             <input
               type="file"
-              accept=".pdf,.apk"
-              onChange={e => setFile(e.target.files?.[0] || null)}
+              accept=".pdf,.apk,application/vnd.android.package-archive,application/pdf"
+              onChange={e => {
+                const f = e.target.files?.[0] || null;
+                setFile(f);
+                if (f) {
+                  const isApk = f.name.toLowerCase().endsWith(".apk") || f.type === "application/vnd.android.package-archive";
+                  setForm(prev => ({ ...prev, type: isApk ? "apk" : "pdf", name: prev.name || f.name.replace(/\.[^.]+$/, "") }));
+                }
+              }}
               className="w-full text-xs mt-1 p-1.5 border border-border rounded-lg bg-background"
             />
           </div>
