@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Upload, Trash2, ToggleLeft, ToggleRight, Loader2, FileText, Smartphone, Plus, X } from "lucide-react";
+import { Upload, Trash2, ToggleLeft, ToggleRight, Loader2, FileText, Smartphone, Plus, X, Archive } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -10,7 +10,8 @@ function formatSize(bytes) {
   if (!bytes) return "—";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function formatDate(dateStr) {
@@ -23,6 +24,7 @@ export default function AdminDownloadManager() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", type: "pdf", version: "", description: "", is_active: true });
   const [file, setFile] = useState(null);
@@ -42,9 +44,22 @@ export default function AdminDownloadManager() {
       return;
     }
     setUploading(true);
+    setUploadProgress(0);
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress = Math.min(progress + 3, 95);
+      setUploadProgress(progress);
+    }, 500);
     try {
+      // Fix 5C: 120s timeout for large files
+      const uploadPromise = base44.integrations.Core.UploadFile({ file });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Upload-Timeout nach 120 Sekunden')), 120000)
+      );
       // 1. Datei hochladen
-      const uploadRes = await base44.integrations.Core.UploadFile({ file });
+      const uploadRes = await Promise.race([uploadPromise, timeoutPromise]);
+      clearInterval(progressInterval);
+      setUploadProgress(100);
       const fileUrl = uploadRes?.file_url || uploadRes?.data?.file_url;
       if (!fileUrl) throw new Error("Upload fehlgeschlagen");
 
@@ -89,8 +104,9 @@ export default function AdminDownloadManager() {
       setShowForm(false);
       fetchItems();
     } catch (e) {
+      clearInterval(progressInterval);
       toast({ title: "Upload fehlgeschlagen", description: e.message, variant: "destructive" });
-    } finally { setUploading(false); }
+    } finally { setUploading(false); setUploadProgress(0); }
   };
 
   const handleToggle = async (item) => {
@@ -133,7 +149,7 @@ export default function AdminDownloadManager() {
       {showForm && (
         <div className="p-3 bg-muted/50 border border-border rounded-lg space-y-2">
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase">Datei (PDF oder APK)</label>
+            <label className="text-[10px] text-muted-foreground uppercase">Datei (PDF, APK oder ZIP)</label>
             {file && (
               <div className="mt-1 mb-1 text-[10px] text-muted-foreground flex items-center gap-1">
                 <span className="font-mono truncate">{file.name}</span>
@@ -144,13 +160,14 @@ export default function AdminDownloadManager() {
             )}
             <input
               type="file"
-              accept=".pdf,.apk,application/vnd.android.package-archive,application/pdf"
+              accept=".pdf,.apk,.zip,application/vnd.android.package-archive,application/pdf,application/zip"
               onChange={e => {
                 const f = e.target.files?.[0] || null;
                 setFile(f);
                 if (f) {
                   const isApk = f.name.toLowerCase().endsWith(".apk") || f.type === "application/vnd.android.package-archive";
-                  setForm(prev => ({ ...prev, type: isApk ? "apk" : "pdf", name: prev.name || f.name.replace(/\.[^.]+$/, "") }));
+                  const isZip = f.name.toLowerCase().endsWith(".zip") || f.type === "application/zip";
+                  setForm(prev => ({ ...prev, type: isApk ? "apk" : isZip ? "zip" : "pdf", name: prev.name || f.name.replace(/\.[^.]+$/, "") }));
                 }
               }}
               className="w-full text-xs mt-1 p-1.5 border border-border rounded-lg bg-background"
@@ -176,6 +193,7 @@ export default function AdminDownloadManager() {
               >
                 <option value="pdf">PDF</option>
                 <option value="apk">APK</option>
+                <option value="zip">ZIP</option>
               </select>
             </div>
           </div>
@@ -212,6 +230,22 @@ export default function AdminDownloadManager() {
               className="w-full text-xs mt-1 p-1.5 border border-border rounded-lg bg-background resize-none"
             />
           </div>
+          {uploading && file?.size > 10 * 1024 * 1024 && (
+            <div className="w-full">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                <span>Upload läuft…</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-[#22c55e] rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+              </div>
+            </div>
+          )}
+          {file && file.size > 50 * 1024 * 1024 && !uploading && (
+            <div className="text-[10px] text-orange-500 font-medium flex items-center gap-1">
+              ⚠ Große Datei ({formatSize(file.size)}) — Upload kann dauern
+            </div>
+          )}
           <button
             onClick={handleUpload}
             disabled={uploading || !file || !form.name}
@@ -238,6 +272,8 @@ export default function AdminDownloadManager() {
             <div key={item.id} className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg">
               {item.type === "apk"
                 ? <Smartphone className="w-4 h-4 text-[#22c55e] flex-shrink-0" />
+                : item.type === "zip"
+                ? <Archive className="w-4 h-4 text-[#f59e0b] flex-shrink-0" />
                 : <FileText className="w-4 h-4 text-[#00e5ff] flex-shrink-0" />}
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium text-foreground truncate">{item.name}</div>

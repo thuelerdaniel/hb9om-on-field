@@ -15,6 +15,34 @@ import CacheDetailView from "@/components/admin/CacheDetailView";
 
 const STALE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+// Fix 3: UTC → Europe/Zurich timezone formatting
+function formatLastSync(dateOrIso) {
+  if (!dateOrIso) return 'Nie';
+  const date = dateOrIso instanceof Date ? dateOrIso : new Date(dateOrIso);
+  return new Intl.DateTimeFormat('de-CH', {
+    timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit',
+    year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(date) + ' Uhr';
+}
+
+// Fix 2: Maidenhead Locator → lat/lng conversion
+function locatorToLatLng(locator) {
+  if (!locator || locator.length < 4) return null;
+  const loc = locator.toUpperCase();
+  const A = 'A'.charCodeAt(0);
+  const lon1 = (loc.charCodeAt(0) - A) * 20 - 180;
+  const lat1 = (loc.charCodeAt(1) - A) * 10 - 90;
+  const lon2 = parseInt(loc[2]) * 2;
+  const lat2 = parseInt(loc[3]) * 1;
+  let lat = lat1 + lat2 + 0.5;
+  let lng = lon1 + lon2 + 1;
+  if (loc.length >= 6) {
+    lat += (loc.charCodeAt(5) - A) * (10 / 24) - (10 / 48);
+    lng += (loc.charCodeAt(4) - A) * (20 / 24) - (20 / 48);
+  }
+  return { lat: Math.round(lat * 10000) / 10000, lng: Math.round(lng * 10000) / 10000 };
+}
+
 const REFERENCE_LAYERS = [
   { key: "sota", label: "SOTA", icon: Mountain, color: "text-red-500", tooltip: "Summits on the Air – Berggipfel ab 150 m Prominenz. Daten von sotadata.org.uk. Gesamtzahl aus ReferenceData.total_count (Backend). Koordinaten aus den Referenzdaten." },
   { key: "pota", label: "POTA", icon: Trees, color: "text-green-500", tooltip: "Parks on the Air – Nationalparks und Schutzgebiete. Daten von pota.app. Gesamtzahl aus ReferenceData.total_count (Backend)." },
@@ -93,7 +121,7 @@ function LayerCard({ label, icon: Icon, color, count, withCoords, total, lastUpd
             ? `Letzte Aktualisierung: ${lastUpdated.toLocaleString("de-CH", { dateStyle: "full", timeStyle: "short" })}.${isStale ? " Status: veraltet (>7 Tage). Eine erneute Aktualisierung wird empfohlen." : " Status: aktuell."}`
             : "Diese Layer wurde noch nie aktualisiert oder das Aktualisierungsdatum ist nicht gespeichert. Bitte manuell über die Daten-Cache-Verwaltung aktualisieren."}
         >
-          {lastUpdated ? lastUpdated.toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "Nie"}
+          {lastUpdated ? formatLastSync(lastUpdated) : "Nie"}
           {isStale ? " ⚠" : ""}
         </p>
         <p className="text-[9px] text-blue-500 dark:text-blue-400 truncate ml-1">→ Details</p>
@@ -107,6 +135,8 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [detailLayer, setDetailLayer] = useState(null);
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeResult, setGeocodeResult] = useState(null);
 
   // Count ALL records in an entity, bypassing the 5000-record platform cap.
   // Uses deterministic _id-sorted skip/offset pagination. Only used as FALLBACK
@@ -124,7 +154,11 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
         const batch = await base44.entities[entityName].list("id", BATCH, skip);
         if (!batch || batch.length === 0) break;
         count += batch.length;
-        withCoords += batch.filter(r => r.lat != null && r.lng != null).length;
+        withCoords += batch.filter(r => {
+          if (r.lat != null && r.lng != null && !isNaN(r.lat) && !isNaN(r.lng)) return true;
+          if ((!r.lat || !r.lng) && r.locator && locatorToLatLng(r.locator)) return true;
+          return false;
+        }).length;
         if (batch.length < BATCH) break;
       }
       return { total: count, withCoords };
@@ -170,6 +204,21 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
     }
   };
 
+  // Fix 2: Koordinaten nachschlagen — geocode repeaters without coordinates
+  const handleGeocodeRepeaters = async () => {
+    setGeocoding(true);
+    setGeocodeResult(null);
+    try {
+      const res = await base44.functions.invoke("geocodeRepeaters", {});
+      setGeocodeResult(res?.data || { message: "Geocodierung abgeschlossen" });
+      fetchExtraCounts();
+    } catch (e) {
+      setGeocodeResult({ error: e.message });
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
   useEffect(() => {
     fetchExtraCounts();
   }, []);
@@ -184,10 +233,13 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
     }
   };
 
-  // Build reference layer data from cacheStatus
+  // Fix 1: Build reference layer data — pick entry with highest total_count per type (deduplicate)
   const refDataMap = {};
   for (const entry of cacheStatus || []) {
-    refDataMap[entry.type] = entry;
+    const existing = refDataMap[entry.type];
+    if (!existing || (entry.total_count || 0) > (existing.total_count || 0)) {
+      refDataMap[entry.type] = entry;
+    }
   }
 
   // Build repeater data from coverageProgress (for coverage stats only, NOT for count)
@@ -386,6 +438,23 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           layerKey="repeaterLinks"
           onClick={() => setDetailLayer({ key: "repeaterLinks", label: "Relais-Verlinkungen" })}
         />
+      </div>
+
+      {/* Fix 2: Koordinaten nachschlagen Button */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={handleGeocodeRepeaters}
+          disabled={geocoding}
+          className="text-[10px] px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 flex items-center gap-1.5"
+        >
+          {geocoding ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
+          Koordinaten nachschlagen
+        </button>
+        {geocodeResult && (
+          <span className={`text-[10px] ${geocodeResult.error ? 'text-red-500' : 'text-green-600'}`}>
+            {geocodeResult.error || geocodeResult.message}
+          </span>
+        )}
       </div>
 
       {/* Repeater coverage summary (compact) */}

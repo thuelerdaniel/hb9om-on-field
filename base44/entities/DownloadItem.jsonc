@@ -10,9 +10,10 @@
       "type": "string",
       "enum": [
         "pdf",
-        "apk"
+        "apk",
+        "zip"
       ],
-      "description": "Dateityp: PDF-Dokument oder Android APK"
+      "description": "Dateityp: PDF-Dokument, Android APK oder ZIP-Archiv"
     },
     "file_url": {
       "type": "string",

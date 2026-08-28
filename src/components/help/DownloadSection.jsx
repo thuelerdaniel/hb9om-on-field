@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Download, FileText, Smartphone, Loader2, AlertCircle } from "lucide-react";
+import { Download, FileText, Smartphone, Loader2, AlertCircle, Archive } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 // Download-Bereich für die Hilfe-Seite.
@@ -9,7 +9,8 @@ function formatSize(bytes) {
   if (!bytes) return "—";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function formatDate(dateStr) {
@@ -36,6 +37,7 @@ export default function DownloadSection() {
 
   const pdfs = items.filter(i => i.type === "pdf");
   const apks = items.filter(i => i.type === "apk");
+  const zips = items.filter(i => i.type === "zip");
 
   if (loading) {
     return (
@@ -60,6 +62,24 @@ export default function DownloadSection() {
           <div className="space-y-2">
             {apks.map(item => (
               <DownloadCard key={item.id} item={item} icon={Smartphone} color="#22c55e" />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ZIP Downloads */}
+      <div>
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5 mb-2">
+          <Archive className="w-4 h-4 text-[#f59e0b]" /> Archive (ZIP)
+        </h3>
+        {zips.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic px-3 py-2 bg-muted/50 rounded-lg border border-border">
+            Keine ZIP-Dateien verfügbar.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {zips.map(item => (
+              <DownloadCard key={item.id} item={item} icon={Archive} color="#f59e0b" />
             ))}
           </div>
         )}
@@ -108,6 +128,12 @@ function DownloadCard({ item, icon: Icon, color }) {
         </div>
         {item.description && (
           <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{item.description}</div>
+        )}
+        {item.type === "apk" && (
+          <div className="text-[9px] text-amber-600 mt-0.5">Android App — Installation aus unbekannten Quellen erlauben</div>
+        )}
+        {item.type === "zip" && (
+          <div className="text-[9px] text-orange-600 mt-0.5">ZIP-Datei — nach Download entpacken</div>
         )}
       </div>
       <Download className="w-4 h-4 text-muted-foreground group-hover:text-foreground flex-shrink-0" />

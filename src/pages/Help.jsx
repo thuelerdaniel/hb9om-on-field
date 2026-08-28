@@ -11,7 +11,7 @@ import { generateAdminHelpPdf } from "@/lib/generateAdminHelpPdf";
 import { base44 } from "@/api/base44Client";
 import { resetChangelog } from "@/components/map/VersionChangelogPopup";
 import { useToast } from "@/components/ui/use-toast";
-import { APP_VERSION, APP_BUILD, DATA_SOURCES } from "@/lib/appVersion";
+import { APP_VERSION, APP_BUILD } from "@/lib/appVersion";
 import { CEPT_COUNTRIES, CEPT_LINKS } from "@/lib/ceptCountries";
 import DownloadSection from "@/components/help/DownloadSection";
 
@@ -1116,27 +1116,6 @@ export default function Help() {
       </header>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 pb-24">
-        {/* Werbe-Flyer Download */}
-        <button
-          onClick={handleDownloadFlyer}
-          disabled={flyerLoading}
-          className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl p-5 flex items-center gap-4 hover:from-slate-700 hover:to-slate-800 transition-all disabled:opacity-60 shadow-lg"
-        >
-          <div className="w-12 h-12 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-            {flyerLoading ? <Loader2 className="w-6 h-6 text-slate-900 animate-spin" /> : <FileText className="w-6 h-6 text-slate-900" />}
-          </div>
-          <div className="text-left flex-1">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              App-Flyer herunterladen
-              <span className="px-2 py-0.5 bg-amber-500 text-slate-900 text-[10px] font-bold rounded-full">PDF</span>
-            </h3>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Promotions-Flyer mit allen Funktionen – exklusiv & einzigartig in der Schweiz
-            </p>
-          </div>
-          <Download className="w-5 h-5 text-slate-400 flex-shrink-0" />
-        </button>
-
         {/* Help PDF Download */}
         <button
           onClick={handleDownloadHelpPdf}
@@ -1295,33 +1274,6 @@ export default function Help() {
             <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Downloads</h3>
           </div>
           <DownloadSection />
-        </div>
-
-        {/* Data Sources Reference */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Database className="w-4 h-4 text-blue-600" />
-            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Datenquellen & Sync-Zeiten</h3>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
-            Alle Referenzdaten werden täglich von den offiziellen Quellen synchronisiert (03:00–07:00 UTC).
-            IOTA-Daten werden täglich von iota-world.org synchronisiert. Repeater-Daten werden aus RepeaterBook und Hearham aggregiert.
-            Bei fehlenden Daten prüfen Sie den Sync-Status im Hamburger-Menü.
-          </p>
-          <div className="space-y-1.5">
-            {DATA_SOURCES.map((src, i) => (
-              <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 dark:border-slate-700/50 last:border-0">
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium text-gray-700 dark:text-slate-300">{src.name}</span>
-                  <span className="text-gray-400 dark:text-slate-500 ml-2 text-[10px]">{src.url}</span>
-                </div>
-                <div className="text-right flex-shrink-0 ml-2">
-                  <span className="text-gray-600 dark:text-slate-400 text-[10px]">{src.count}</span>
-                  <span className="text-gray-400 dark:text-slate-500 ml-2 text-[10px]">{src.schedule}</span>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-4 text-center text-xs text-gray-500 dark:text-slate-400">
