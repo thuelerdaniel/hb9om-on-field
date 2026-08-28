@@ -16,7 +16,18 @@ export default function WavelogSyncButtons({ onSynced }) {
     // Load user's Wavelog settings
     base44.entities.UserHuntingSettings.list()
       .then(data => {
-        if (data && data.length > 0) setSettings(data[0]);
+        if (data && data.length > 0) {
+          const s = data[0];
+          // Auto-Fallback: Wenn Wavelog aktiviert aber keine station_id → "1" setzen
+          if (s.wavelog_enabled && s.logging_backend === "wavelog" && s.wavelog_api_key && (s.wavelog_lan_url || s.wavelog_wan_url) && !s.wavelog_station_id) {
+            console.log('[Wavelog] Auto-setting station_id to "1"');
+            base44.entities.UserHuntingSettings.update(s.id, { wavelog_station_id: "1" })
+              .then(() => setSettings({ ...s, wavelog_station_id: "1" }))
+              .catch(() => setSettings(s));
+          } else {
+            setSettings(s);
+          }
+        }
       })
       .catch(() => {});
   }, []);
@@ -28,7 +39,7 @@ export default function WavelogSyncButtons({ onSynced }) {
     return () => window.removeEventListener("online", update);
   }, []);
 
-  if (!settings?.wavelog_enabled) return null;
+  if (!settings?.wavelog_enabled || settings?.logging_backend !== "wavelog") return null;
 
   const config = {
     wavelog_enabled: settings.wavelog_enabled,

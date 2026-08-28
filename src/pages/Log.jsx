@@ -45,11 +45,16 @@ export default function Log() {
   const [qrzUploading, setQrzUploading] = useState(false);
   const [qrzUploadResult, setQrzUploadResult] = useState(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [loggingBackend, setLoggingBackend] = useState("qrz");
 
   useEffect(() => {
     loadEntries();
     // Check if demo account (point 13)
     base44.auth.me().then(me => setIsDemo(me?.email === DEMO_EMAIL)).catch(() => {});
+    // Load logging_backend setting (Wahlschalter: qrz oder wavelog)
+    base44.entities.UserHuntingSettings.list()
+      .then(data => { if (data && data.length > 0) setLoggingBackend(data[0].logging_backend || "qrz"); })
+      .catch(() => {});
     // Wavelog: Auto-Import + Offline Queue beim Öffnen des Logbuches
     (async () => {
       try {
@@ -459,6 +464,7 @@ export default function Log() {
                 </span>
               ) : (
                 <>
+                  {/* QRZ Club — immer sichtbar (Ausnahme: Club-Log kann immer QRZ verwenden) */}
                   <button
                     onClick={() => handleQrzUpload('club')}
                     disabled={qrzUploading}
@@ -467,14 +473,17 @@ export default function Log() {
                   >
                     {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Club
                   </button>
-                  <button
-                    onClick={() => handleQrzUpload('personal')}
-                    disabled={qrzUploading}
-                    className="px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
-                    title="Gefilterte QSOs zu persönlichem QRZ-Logbuch hochladen"
-                  >
-                    {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Pers.
-                  </button>
+                  {/* QRZ Personal — nur wenn Wahlschalter auf "qrz" (nicht "wavelog") */}
+                  {loggingBackend !== "wavelog" && (
+                    <button
+                      onClick={() => handleQrzUpload('personal')}
+                      disabled={qrzUploading}
+                      className="px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
+                      title="Gefilterte QSOs zu persönlichem QRZ-Logbuch hochladen"
+                    >
+                      {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Pers.
+                    </button>
+                  )}
                 </>
               )}
               {/* Wavelog Sync Buttons — nur wenn Wavelog aktiviert */}

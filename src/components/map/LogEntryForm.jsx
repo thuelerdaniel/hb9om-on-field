@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { createEntry, updateEntry } from "@/lib/localLogStore";
 import { autoCloudBackup } from "@/lib/dataBackup";
+import { uploadToWavelog } from "@/lib/wavelogSync";
 import { X, Search, Loader2, MapPin, Plus, Radio, Pencil, Building, User, Check, Clock, Sun, Globe } from "lucide-react";
 import MobileSelect from "@/components/ui/MobileSelect";
 import ReferenceSearchInput from "@/components/log/ReferenceSearchInput";
@@ -415,6 +416,27 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         if (onSaved) onSaved();
         // Trigger auto cloud backup if enabled
         autoCloudBackup();
+        // Wavelog Auto-Sync: Wenn logging_backend = "wavelog" und auto_sync aktiv,
+        // QSOs nach kurzem Delay (Server-Sync) an Wavelog senden
+        if (navigator.onLine) {
+          try {
+            const hs = await base44.entities.UserHuntingSettings.list();
+            if (hs && hs.length > 0) {
+              const s = hs[0];
+              if (s.wavelog_enabled && s.logging_backend === "wavelog" && s.wavelog_auto_sync) {
+                setTimeout(() => {
+                  uploadToWavelog({
+                    wavelog_enabled: s.wavelog_enabled,
+                    wavelog_lan_url: s.wavelog_lan_url,
+                    wavelog_wan_url: s.wavelog_wan_url,
+                    wavelog_api_key: s.wavelog_api_key,
+                    wavelog_station_id: s.wavelog_station_id,
+                  }).catch(e => console.warn("[Wavelog] Auto-sync failed:", e));
+                }, 1500);
+              }
+            }
+          } catch (e) { /* silent */ }
+        }
         // Reset for next QSO but keep persistent values (freq, band, mode, etc.)
         setCallsign("");
         setCallsignSuffix(safeGetItem(PERSIST_KEYS.callsignSuffix) || "");

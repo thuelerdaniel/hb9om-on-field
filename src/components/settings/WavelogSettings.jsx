@@ -5,7 +5,7 @@ import { testWavelogConnection, getWavelogStations, uploadToWavelog, importFromW
 import { useHuntingSettings } from "@/hooks/useHuntingSettings";
 
 export default function WavelogSettings() {
-  const { settings, loading, saveSettings } = useHuntingSettings();
+  const { settings, loading, saveSettings, flushSave } = useHuntingSettings();
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [stations, setStations] = useState([]);
@@ -36,13 +36,26 @@ export default function WavelogSettings() {
       });
       setTestResult(result);
       if (result.connected) {
-        // Stationen abrufen
-        const stRes = await getWavelogStations({
-          wavelog_lan_url: lanUrl,
-          wavelog_wan_url: wanUrl,
-          wavelog_api_key: apiKey,
-        });
-        if (stRes.stations) setStations(stRes.stations);
+        // Stationen abrufen (kann fehlschlagen — Wavelog 3.1.0 Bug)
+        let stationsList = [];
+        try {
+          const stRes = await getWavelogStations({
+            wavelog_lan_url: lanUrl,
+            wavelog_wan_url: wanUrl,
+            wavelog_api_key: apiKey,
+          });
+          if (stRes.stations && stRes.stations.length > 0) {
+            stationsList = stRes.stations;
+            setStations(stationsList);
+          }
+        } catch (e) {
+          console.log("[Wavelog] station_info failed (known Wavelog 3.1.0 bug)");
+        }
+        // FALLBACK: Wenn station_info leer/fehlschlägt → Station ID "1"
+        if (stationsList.length === 0 && !stationId) {
+          console.log('[Wavelog] Using station_id "1" as fallback');
+          saveSettings({ wavelog_station_id: "1" });
+        }
       }
     } catch (e) {
       setTestResult({ connected: false, error: e.message });
@@ -50,6 +63,15 @@ export default function WavelogSettings() {
       setTesting(false);
     }
   };
+
+  // Auto-Fallback: Wenn Settings geladen werden und Wavelog aktiviert ist
+  // aber keine station_id gesetzt hat → "1" als Fallback
+  useEffect(() => {
+    if (!loading && settings && wavelogEnabled && apiKey && (lanUrl || wanUrl) && !stationId) {
+      console.log('[Wavelog] Auto-setting station_id to "1"');
+      saveSettings({ wavelog_station_id: "1" });
+    }
+  }, [loading, settings, wavelogEnabled, apiKey, lanUrl, wanUrl, stationId]);
 
   const handleUpload = async () => {
     setUploading(true);
@@ -126,8 +148,9 @@ export default function WavelogSettings() {
               <label className="text-xs font-semibold text-gray-500 uppercase">Interne Adresse (LAN)</label>
               <input
                 type="text"
-                value={lanUrl}
+                value={lanUrl || ""}
                 onChange={e => saveSettings({ wavelog_lan_url: e.target.value })}
+                onBlur={flushSave}
                 placeholder="http://192.168.178.146"
                 className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300 font-mono"
               />
@@ -136,8 +159,9 @@ export default function WavelogSettings() {
               <label className="text-xs font-semibold text-gray-500 uppercase">Externe Adresse (WAN)</label>
               <input
                 type="text"
-                value={wanUrl}
+                value={wanUrl || ""}
                 onChange={e => saveSettings({ wavelog_wan_url: e.target.value })}
+                onBlur={flushSave}
                 placeholder="http://hb3ynf.ddns.net:8080"
                 className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300 font-mono"
               />
@@ -150,8 +174,9 @@ export default function WavelogSettings() {
             <label className="text-xs font-semibold text-gray-500 uppercase">API Key (Read+Write)</label>
             <input
               type="password"
-              value={apiKey}
+              value={apiKey || ""}
               onChange={e => saveSettings({ wavelog_api_key: e.target.value })}
+              onBlur={flushSave}
               placeholder="Wavelog API Key"
               className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300 font-mono"
             />
@@ -177,13 +202,14 @@ export default function WavelogSettings() {
             </div>
           )}
 
-          {/* Station Dropdown */}
-          {stations.length > 0 && (
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">Station Profile</label>
+          {/* Station Profile — Dropdown (wenn station_info funktioniert) oder manuelle Eingabe (Fallback) */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase">Station Profile ID</label>
+            {stations.length > 0 ? (
               <select
-                value={stationId}
+                value={stationId || ""}
                 onChange={e => saveSettings({ wavelog_station_id: e.target.value })}
+                onBlur={flushSave}
                 className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300"
               >
                 <option value="">— Station wählen —</option>
@@ -193,8 +219,22 @@ export default function WavelogSettings() {
                   </option>
                 ))}
               </select>
-            </div>
-          )}
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={stationId || ""}
+                  onChange={e => saveSettings({ wavelog_station_id: e.target.value })}
+                  onBlur={flushSave}
+                  placeholder="1"
+                  className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300 font-mono"
+                />
+                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                  Station Info nicht verfügbar (Wavelog 3.1.0 Bug). Station ID "1" funktioniert. Finde die ID in Wavelog unter Station Settings (Nummer in der URL beim Bearbeiten).
+                </p>
+              </>
+            )}
+          </div>
 
           {/* Logging Backend Toggle */}
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

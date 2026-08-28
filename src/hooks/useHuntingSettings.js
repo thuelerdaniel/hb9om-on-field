@@ -37,6 +37,7 @@ export function useHuntingSettings() {
   const [userId, setUserId] = useState(null);
   const saveTimerRef = useRef(null);
   const settingsIdRef = useRef(null);
+  const pendingUpdatesRef = useRef({});
 
   // Load current user + settings on mount
   useEffect(() => {
@@ -71,28 +72,40 @@ export function useHuntingSettings() {
     })();
   }, []);
 
-  // Debounced save
+  // Debounced save — accumulates partials so rapid consecutive changes
+  // (e.g. typing in LAN URL then WAN URL) are ALL saved, not just the last one.
   const saveSettings = useCallback((partial) => {
     if (!userId) return;
-    setSettings(prev => {
-      const updated = { ...prev, ...partial, last_updated: new Date().toISOString() };
-      // Debounce the entity update
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(async () => {
-        try {
-          if (settingsIdRef.current) {
-            await base44.entities.UserHuntingSettings.update(settingsIdRef.current, {
-              ...partial,
-              last_updated: new Date().toISOString(),
-            });
-          }
-        } catch (e) {
-          console.warn("useHuntingSettings: save failed", e);
+    Object.assign(pendingUpdatesRef.current, partial);
+    setSettings(prev => ({ ...prev, ...partial, last_updated: new Date().toISOString() }));
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        if (settingsIdRef.current) {
+          const updates = { ...pendingUpdatesRef.current, last_updated: new Date().toISOString() };
+          pendingUpdatesRef.current = {};
+          await base44.entities.UserHuntingSettings.update(settingsIdRef.current, updates);
         }
-      }, 800);
-      return updated;
-    });
+      } catch (e) {
+        console.warn("useHuntingSettings: save failed", e);
+      }
+    }, 800);
   }, [userId]);
+
+  // Flush pending saves immediately (for onBlur — ensures URL fields are saved
+  // even if the user navigates away before the 800ms debounce fires)
+  const flushSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    if (settingsIdRef.current && Object.keys(pendingUpdatesRef.current).length > 0) {
+      const updates = { ...pendingUpdatesRef.current, last_updated: new Date().toISOString() };
+      pendingUpdatesRef.current = {};
+      base44.entities.UserHuntingSettings.update(settingsIdRef.current, updates)
+        .catch(e => console.warn("useHuntingSettings: flush save failed", e));
+    }
+  }, []);
 
   // Update GPS position in settings
   const updateGpsPosition = useCallback((lat, lng) => {
@@ -113,5 +126,5 @@ export function useHuntingSettings() {
     }, 2000);
   }, [userId]);
 
-  return { settings, loading, saveSettings, updateGpsPosition };
+  return { settings, loading, saveSettings, flushSave, updateGpsPosition };
 }

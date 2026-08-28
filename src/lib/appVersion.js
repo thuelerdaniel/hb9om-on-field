@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9022";
+export const APP_VERSION = "0.9023";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,14 @@ export const APP_BUILD = "202608281714";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Wavelog Fix: URLs (LAN+WAN) werden jetzt zuverlässig gespeichert (Debounce-Akkumulation)",
+  "Wavelog Fix: onBlur Auto-Save beim Verlassen der Eingabefelder",
+  "Wavelog Fix: station_info Fallback auf Station ID '1' (Wavelog 3.1.0 Bug Workaround)",
+  "Wavelog Fix: Manuelle Station-ID Eingabe wenn station_info nicht verfügbar",
+  "Wavelog Fix: Wahlschalter versteckt QRZ-Personal-Button wenn Backend = 'wavelog'",
+  "Wavelog Fix: Club-QRZ-Button bleibt sichtbar (Ausnahme bei Club-Log-Filter)",
+  "Wavelog Fix: Auto-Station-ID '1' wenn Settings geladen und keine Station-ID gesetzt",
+  "Wavelog Fix: QSO-Save respektiert Wahlschalter (Wavelog Auto-Sync nach QSO-Save)",
   "Wavelog-Integration: Pro-User Settings (LAN+WAN URL, API Key, Station)",
   "Wavelog: Wahlschalter QRZ.com ODER Wavelog (nicht beides gleichzeitig)",
   "Wavelog: Ausnahme Club-QRZ bei Club-Log-Filter immer möglich",

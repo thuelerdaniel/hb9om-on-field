@@ -94,9 +94,13 @@ export default async function(req: Request): Promise<Response> {
 
       case 'stations': {
         const baseUrl = await resolveBaseUrl();
-        if (!baseUrl) return Response.json({ error: 'Server nicht erreichbar' }, { status: 502 });
+        if (!baseUrl) return Response.json({ stations: [], baseUrl: null });
         const r = await tryFetch(baseUrl, 'station_info', { key: config.api_key }, 8000);
-        return Response.json({ stations: r.data || [], baseUrl });
+        // station_info kann fehlschlagen (Wavelog 3.1.0 Bug) — leeres Array als Fallback
+        if (!r.ok || r.data?.status === 'failed' || !Array.isArray(r.data)) {
+          return Response.json({ stations: [], baseUrl, stationInfoFailed: true });
+        }
+        return Response.json({ stations: r.data, baseUrl });
       }
 
       case 'upload': {
