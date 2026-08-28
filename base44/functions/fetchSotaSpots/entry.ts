@@ -10,7 +10,7 @@ import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts
 
 const SOTA_BASE = 'https://api-db2.sota.org.uk';
 const DEFAULT_LOCATOR = 'JN36FL';
-const ONE_HOUR_MS = 60 * 60 * 1000;
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const UA = 'HB9OM-On-Field/1.0';
 
 function extractLocator(text: string): string | null {
@@ -130,8 +130,8 @@ export default async function(req: Request): Promise<Response> {
     }
 
     // === LIVE SPOTS MODE ===
-    // Alte SOTA-Spots löschen (> 1 Std)
-    const cutoff = new Date(Date.now() - ONE_HOUR_MS);
+    // Alte SOTA-Spots löschen (> 24 Std) — akkumuliert Spots über den ganzen Tag
+    const cutoff = new Date(Date.now() - TWENTY_FOUR_HOURS_MS);
     try {
       await base44.asServiceRole.entities.ActivitySpot.deleteMany({
         activity_type: 'SOTA',
@@ -141,10 +141,12 @@ export default async function(req: Request): Promise<Response> {
 
     let sotaSpots: any[] = [];
     let apiError: string | null = null;
+    // -24 = spots in last 24 hours (SOTAWatch-Standard), 200 = latest 200 spots (Fallback)
     const sotaUrls = [
+      `${SOTA_BASE}/api/spots/-24/all`,
       `${SOTA_BASE}/api/spots/200/all`,
       `${SOTA_BASE}/api/spots/-1`,
-      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/200/all`)}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/-24/all`)}`,
     ];
     for (const url of sotaUrls) {
       try {
@@ -232,11 +234,21 @@ export default async function(req: Request): Promise<Response> {
       })
       .filter((r: any) => r !== null && r.call && r.frequency);
 
+    // Deduplikation: existierende SOTA-Spots laden, nur neue erstellen
     let savedCount = 0;
     if (records.length > 0) {
       try {
-        await base44.asServiceRole.entities.ActivitySpot.bulkCreate(records);
-        savedCount = records.length;
+        const existing = await base44.asServiceRole.entities.ActivitySpot.filter({ activity_type: 'SOTA' });
+        const existingKeys = new Set(
+          (existing || []).map((e: any) => `${e.call}|${e.frequency}|${e.spot_time}`)
+        );
+        const newRecords = records.filter((r: any) =>
+          !existingKeys.has(`${r.call}|${r.frequency}|${r.spot_time}`)
+        );
+        if (newRecords.length > 0) {
+          await base44.asServiceRole.entities.ActivitySpot.bulkCreate(newRecords);
+          savedCount = newRecords.length;
+        }
       } catch {}
     }
 
