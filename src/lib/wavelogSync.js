@@ -58,7 +58,11 @@ export function qsoToAdif(qso) {
 // === ADIF Parser: ADIF String → QSO-Objekte ===
 export function parseAdif(adifString) {
   const qsos = [];
-  const records = adifString.split('<eor>').filter(r => r.trim());
+  // v0.9031: Remove ADIF header (everything before <EOH>) — case-insensitive
+  const headerEnd = adifString.toUpperCase().indexOf('<EOH>');
+  const data = headerEnd >= 0 ? adifString.substring(headerEnd + 5) : adifString;
+  // v0.9031: Case-insensitive split — Wavelog exports <EOR> (uppercase), not <eor>
+  const records = data.split(/<eor>/i).filter(r => r.trim());
   for (const record of records) {
     const qso = {};
     const regex = /<([^:]+):(\d+)>([^<]*)/gi;
@@ -226,30 +230,46 @@ export async function importFromWavelog(config, onProgress) {
 
   // Bestehende QSOs laden fuer Duplikat-Check
   const existing = await base44.entities.Log.list('-created_date', 500);
-  const dupKeys = new Set(existing.map(e => `${e.callsign}|${e.qso_date}|${e.time_start}`));
+  // v0.9031: Dedup mit frequency — verhindert falsche Duplikat-Erkennung
+  const dupKeys = new Set(existing.map(e => `${e.callsign}|${e.qso_date}|${e.time_start}|${e.frequency}`));
 
-  let imported = 0;
+  // v0.9031: Batch-Import — QSOs sammeln, dann in Chunks von 100 erstellen
+  const toCreate = [];
   let skipped = 0;
-  for (let i = 0; i < qsos.length; i++) {
-    const qso = qsos[i];
-    const key = `${qso.callsign}|${qso.qso_date}|${qso.time_start}`;
+  for (const qso of qsos) {
+    const key = `${qso.callsign}|${qso.qso_date}|${qso.time_start}|${qso.frequency}`;
     if (dupKeys.has(key)) {
       skipped++;
     } else {
-      try {
-        await base44.entities.Log.create({
-          ...qso,
-          wavelog_synced: true,
-          wavelog_imported: true,
-          wavelog_import_date: new Date().toISOString(),
-        });
-        imported++;
-        dupKeys.add(key);
-      } catch (e) {
-        console.error('[Wavelog Import] Create failed:', qso.callsign, e);
+      toCreate.push({
+        ...qso,
+        wavelog_synced: true,
+        wavelog_imported: true,
+        wavelog_import_date: new Date().toISOString(),
+      });
+      dupKeys.add(key);
+    }
+  }
+
+  let imported = 0;
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+    const batch = toCreate.slice(i, i + BATCH_SIZE);
+    try {
+      await base44.entities.Log.bulkCreate(batch);
+      imported += batch.length;
+    } catch (e) {
+      console.error('[Wavelog Import] Batch failed, falling back to individual:', e);
+      for (const qso of batch) {
+        try {
+          await base44.entities.Log.create(qso);
+          imported++;
+        } catch (e2) {
+          console.error('[Wavelog Import] Single create failed:', qso.callsign, e2);
+        }
       }
     }
-    if (onProgress) onProgress(i + 1, qsos.length);
+    if (onProgress) onProgress(Math.min(i + BATCH_SIZE, toCreate.length), qsos.length);
   }
 
   return {

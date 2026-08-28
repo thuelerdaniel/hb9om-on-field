@@ -8,16 +8,19 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9030";
+export const APP_VERSION = "0.9031";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608281948";
+export const APP_BUILD = "202608282003";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9031: Wavelog Import — ADIF-Parser split case-insensitiv (<EOR> vs <eor>), Header-Entfernung, Batch-Import (100 QSOs pro Batch)",
+  "Fix v0.9031: Wavelog Import — Dedup-Prüfung mit Frequency (callsign + qso_date + time_start + frequency)",
+  "Fix v0.9031: Wavelog Import — bulkCreate statt einzelne create-Calls (2130 QSOs in 21 Batches statt 2130 Einzelaufrufen)",
   "Fix v0.9030: Live Spot Activity als eigenständiges Widget wiederhergestellt — zwischen Propagation Overview und SOTA Live-Spots",
   "Fix v0.9030: Auto-Refresh 30s, max 50 Spots angezeigt, Sortierung nach Zeit/Score/Distanz",
   "Fix v0.9029: DX-Cluster Spots im 'Live Spot Activity' Tab — Fallback auf DxSpot Entity wenn fetchDxSpots keine Spots zurückgibt",
