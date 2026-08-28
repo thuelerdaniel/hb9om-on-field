@@ -2,13 +2,28 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { deriveBand } from "../../shared/bandDerivation.ts";
 import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts";
 
-// Lade GMA-Spots (Global Mountain Activity) von cqgma.org.
-// Endpoint: https://cqgma.org/api/spots/dspgma25.php
-// Polling: alle 60 Sekunden.
+// Lade GMA-Spots (Global Mountain Activity) über Spothole API.
+// Die originale cqgma.org API ist rate-limited und liefert HTML-Fehlerseiten.
+// Spothole aggregiert DX-Cluster + GMA-Spots als HTTP-JSON-API.
+// Endpoint: https://spothole.app/api/v2/spots?sig=GMA&limit=100
 
 const DEFAULT_LOCATOR = 'JN36FL';
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const UA = 'HB9OM-On-Field/1.0';
+
+function normalizeMode(apiMode: string, modeType: string): string {
+  const mt = (modeType || '').toUpperCase();
+  if (mt === 'USB' || mt === 'LSB') return 'SSB';
+  if (mt === 'FT8') return 'FT8';
+  if (mt === 'FT4') return 'FT4';
+  if (mt === 'CW') return 'CW';
+  if (mt === 'FM') return 'FM';
+  if (mt) return mt;
+  const m = (apiMode || '').toUpperCase();
+  if (m === 'PHONE') return 'SSB';
+  if (m === 'DIGI') return 'FT8';
+  return apiMode || 'SSB';
+}
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -46,55 +61,79 @@ export default async function(req: Request): Promise<Response> {
       });
     } catch {}
 
-    // GMA API laden
-    let gmaSpots: any[] = [];
-    let apiError: string | null = null;
+    // GMA-Spots von Spothole laden
+    let spotholeSpots: any[] = [];
+    let apiWarning: string | null = null;
     try {
-      const resp = await fetch('https://cqgma.org/api/spots/dspgma25.php', {
-        headers: { 'Accept': 'application/json', 'User-Agent': UA },
-        signal: AbortSignal.timeout(10000),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const resp = await fetch(
+        'https://spothole.app/api/v2/spots?sig=GMA&limit=100',
+        { headers: { 'Accept': 'application/json', 'User-Agent': UA }, signal: controller.signal }
+      );
+      clearTimeout(timeout);
       if (resp.ok) {
         const raw = await resp.json();
-        gmaSpots = Array.isArray(raw) ? raw : (raw.spots || []);
-      } else { apiError = `HTTP ${resp.status}`; }
-    } catch (e: any) { apiError = e.message; }
+        spotholeSpots = Array.isArray(raw) ? raw : [];
+      } else { apiWarning = `Spothole API Status ${resp.status}`; }
+    } catch (e: any) { apiWarning = `Spothole API nicht erreichbar: ${e.message}`; }
 
-    if (gmaSpots.length === 0) {
-      return Response.json({ success: true, fetched: 0, saved: 0, warning: apiError || 'Keine GMA-Spots verfügbar' });
+    if (spotholeSpots.length === 0) {
+      return Response.json({ success: true, fetched: 0, saved: 0, warning: apiWarning || 'Keine GMA-Spots verfügbar' });
     }
 
-    const records = gmaSpots
+    const now = Date.now();
+    const records = spotholeSpots
       .map((s: any) => {
-        const call = s.activator || s.call || s.callsign || '';
-        const ref = s.reference || s.ref || s.summit || '';
-        const freqStr = String(s.frequency || s.freq || '');
-        const frequency = parseFloat(freqStr) * 1000; // MHz → kHz
-        if (!call || !frequency || isNaN(frequency)) return null;
-        const band = deriveBand(frequency);
-        const spotTime = s.time || s.timestamp ? new Date(s.time || s.timestamp) : new Date();
-        const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
-        const lat = s.lat != null ? Number(s.lat) : (s.latitude != null ? Number(s.latitude) : undefined);
-        const lon = s.lon != null ? Number(s.lon) : (s.longitude != null ? Number(s.longitude) : undefined);
+        const freqKHz = Math.round(Number(s.freq || 0) / 1000);
+        const call = s.dx_call || '';
+        if (!freqKHz || !call) return null;
+
+        const spotTime = s.time_iso ? new Date(s.time_iso) : (s.time ? new Date(s.time * 1000) : new Date());
+        const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
+        const comment = s.comment || '';
+        const comments = comment ? [comment] : [];
+
+        const sigRef = s.sig_refs?.[0];
+        const reference = sigRef?.id || '';
+        const refName = sigRef?.name || '';
+        if (refName && !comments.includes(`GMA ${reference}: ${refName}`)) {
+          comments.push(`GMA ${reference}: ${refName}`);
+        }
+
+        const locator = s.dx_grid || '';
+        const dxLat = s.dx_latitude || (sigRef?.latitude ? Number(sigRef.latitude) : 0);
+        const dxLng = s.dx_longitude || (sigRef?.longitude ? Number(sigRef.longitude) : 0);
+
+        let dxPos: { lat: number; lon: number } | null = null;
+        if (dxLat && dxLng) dxPos = { lat: Number(dxLat), lon: Number(dxLng) };
+        else if (locator) dxPos = maidenheadToLatLon(locator);
 
         let distance: number | null = null;
         let azimuth: number | null = null;
-        if (lat != null && lon != null && !isNaN(lat) && !isNaN(lon)) {
-          distance = Math.round(haversine(stationPos.lat, stationPos.lon, lat, lon));
-          azimuth = Math.round(bearing(stationPos.lat, stationPos.lon, lat, lon));
+        let lat: number | undefined = undefined;
+        let lon: number | undefined = undefined;
+        if (dxPos) {
+          distance = Math.round(haversine(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon));
+          azimuth = Math.round(bearing(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon));
+          lat = Math.round(dxPos.lat * 10000) / 10000;
+          lon = Math.round(dxPos.lon * 10000) / 10000;
         }
 
         return {
-          call,
-          activity_type: 'GMA',
-          reference: ref,
-          name: s.name || s.summit_name || '',
-          frequency, band,
-          mode: s.mode || 'SSB',
+          call: String(call).toUpperCase().trim(),
+          activity_type: 'GMA' as const,
+          reference,
+          name: refName,
+          frequency: freqKHz,
+          band: s.band || deriveBand(freqKHz),
+          mode: normalizeMode(s.mode, s.mode_type),
           latitude: lat, longitude: lon,
-          comments: s.comments || s.remarks || '',
-          spotter: s.spotter || '',
-          source: 'GMA-Feed',
+          grid4: locator ? locator.substring(0, 4) : undefined,
+          grid6: locator ? locator.substring(0, 6) : undefined,
+          comments: comments.join(' '),
+          spotter: s.de_call || '',
+          source: 'Spothole (GMA)',
           spot_time: spotTime.toISOString(),
           age_seconds: ageSeconds,
           distance, azimuth,
@@ -108,10 +147,35 @@ export default async function(req: Request): Promise<Response> {
       try {
         await base44.asServiceRole.entities.ActivitySpot.bulkCreate(records);
         savedCount = records.length;
-      } catch {}
+      } catch {
+        for (const r of records) {
+          try { await base44.asServiceRole.entities.ActivitySpot.create(r); savedCount++; } catch {}
+        }
+      }
     }
 
-    return Response.json({ success: true, fetched: gmaSpots.length, saved: savedCount });
+    // DataSourceStatus aktualisieren
+    try {
+      const existing = await base44.asServiceRole.entities.DataSourceStatus.filter({ source_name: 'GMA (Spothole)' });
+      const statusData = {
+        source_name: 'GMA (Spothole)',
+        source_type: 'API' as const,
+        url: 'https://spothole.app/api/v2/spots?sig=GMA',
+        status: savedCount > 0 ? 'OK' as const : 'WARN' as const,
+        last_check: new Date().toISOString(),
+        last_success: savedCount > 0 ? new Date().toISOString() : undefined,
+        spots_received: savedCount,
+        error_message: apiWarning || undefined,
+        is_active: true,
+      };
+      if (existing && existing.length > 0) {
+        await base44.asServiceRole.entities.DataSourceStatus.update(existing[0].id, statusData);
+      } else {
+        await base44.asServiceRole.entities.DataSourceStatus.create(statusData);
+      }
+    } catch {}
+
+    return Response.json({ success: true, fetched: spotholeSpots.length, saved: savedCount, warning: apiWarning });
   } catch (error) {
     return Response.json({ error: error.message || 'Unbekannter Fehler' }, { status: 500 });
   }

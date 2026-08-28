@@ -30,6 +30,7 @@ import IllwAdminSection from "@/components/admin/IllwAdminSection";
 import DxSpotReferenceManager from "@/components/admin/DxSpotReferenceManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 import AdminDownloadManager from "@/components/admin/AdminDownloadManager";
+import DataSourceStatusSection from "@/components/admin/DataSourceStatusSection";
 // AdminDownloadManager renders the APK/PDF upload form in the admin area
 
 const TYPE_LABELS = {
@@ -757,6 +758,15 @@ export default function AdminPanel({
         icon={Upload}
       >
         <AdminDownloadManager />
+      </AdminCollapsibleSection>
+
+      {/* ====== GROUP 9: Datenquellen-Status ====== */}
+      <AdminCollapsibleSection
+        title="Datenquellen-Status"
+        description="Live-Status aller Hunting-Datenquellen (APIs, DX-Cluster, Spothole)"
+        icon={Database}
+      >
+        <DataSourceStatusSection />
       </AdminCollapsibleSection>
     </>
   );

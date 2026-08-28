@@ -19,6 +19,8 @@
         "IOTA",
         "TOTA",
         "LOTA",
+        "MOTA",
+        "HEMA",
         "SOTA-ALERT"
       ],
       "description": "Aktivitaets-Typ"
@@ -73,7 +75,7 @@
     },
     "source": {
       "type": "string",
-      "description": "Datenquelle (SOTA API, POTA API, WWFF-Spotline, WWBOTA-API, GMA-Feed, DX-Cluster)"
+      "description": "Datenquelle (SOTA API, POTA API, WWFF-Spotline, WWBOTA-API, GMA-Feed, Spothole, DX-Cluster)"
     },
     "spot_time": {
       "type": "string",

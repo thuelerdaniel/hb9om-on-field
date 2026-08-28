@@ -9,10 +9,11 @@ import { isInternalCall } from "../../shared/internalAuth.ts";
 
 const DEFAULT_LOCATOR = 'JN36FL';
 
-const SPOTHOLE_SIGS = 'POTA,SOTA,WWFF,WWBOTA,WCA,Towers,IOTA,ARLHS,ILLW';
+const SPOTHOLE_SIGS = 'POTA,SOTA,WWFF,WWBOTA,GMA,WCA,MOTA,Towers,IOTA,ARLHS,ILLW,HEMA';
 const SIG_MAP: Record<string, string> = {
   'SOTA': 'SOTA', 'POTA': 'POTA', 'WWFF': 'WWFF', 'WWBOTA': 'WWBOTA',
-  'WCA': 'WCA', 'Towers': 'TOTA', 'IOTA': 'IOTA', 'ARLHS': 'WLOTA', 'ILLW': 'WLOTA',
+  'GMA': 'GMA', 'WCA': 'WCA', 'MOTA': 'MOTA', 'Towers': 'TOTA',
+  'IOTA': 'IOTA', 'ARLHS': 'LOTA', 'ILLW': 'LOTA', 'HEMA': 'HEMA',
 };
 
 function normalizeMode(apiMode: string, submode: string): string {
@@ -294,6 +295,31 @@ export default async function(req: Request): Promise<Response> {
     const latest = await base44.entities.DxSpot.list('-spot_time', 50);
 
     const warnings = [apiWarning, spotholeWarning].filter(Boolean);
+
+    // DataSourceStatus aktualisieren (jo30.de + Spothole)
+    try {
+      const updateStatus = async (name: string, type: string, url: string, ok: boolean, spots: number, warning: string | null) => {
+        const existing = await base44.asServiceRole.entities.DataSourceStatus.filter({ source_name: name });
+        const statusData = {
+          source_name: name,
+          source_type: type,
+          url,
+          status: ok ? 'OK' : 'FAIL',
+          last_check: new Date().toISOString(),
+          last_success: ok ? new Date().toISOString() : undefined,
+          spots_received: spots,
+          error_message: warning || undefined,
+          is_active: true,
+        };
+        if (existing && existing.length > 0) {
+          await base44.asServiceRole.entities.DataSourceStatus.update(existing[0].id, statusData);
+        } else {
+          await base44.asServiceRole.entities.DataSourceStatus.create(statusData);
+        }
+      };
+      await updateStatus('DX-Cluster (jo30.de)', 'DXCLUSTER', 'https://dxc.jo30.de/dxcache/spots', joSpots.length > 0, joSpots.length, apiWarning);
+      await updateStatus('Spothole (SIG-Filter)', 'API', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
+    } catch {}
 
     return Response.json({
       success: true,

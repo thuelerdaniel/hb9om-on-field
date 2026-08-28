@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock, Filter, ChevronDown, X, Building2 } from "lucide-react";
+import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock, Filter, ChevronDown, X, Building2, Info } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import PotaParkInfoPopup from "@/components/hunting/PotaParkInfoPopup";
 
 // Activity Panel — v0.9010: Zeigt alle Aktivitaets-Typen (SOTA, POTA, WWFF, WWBOTA, GMA, Alerts).
 // Tabs pro Typ, Band-Filter, manueller Refresh.
@@ -44,6 +45,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
   const [tab, setTab] = useState('SOTA');
   const [filterOpen, setFilterOpen] = useState(false);
   const [bandFilter, setBandFilter] = useState('All');
+  const [parkInfoRef, setParkInfoRef] = useState(null);
 
   useEffect(() => { return () => setFilterOpen(false); }, []);
 
@@ -191,12 +193,23 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
                   <span className="text-[7px] px-1 rounded bg-[#0284c7]/20 text-[#0284c7] font-bold flex-shrink-0">GEPLANT</span>
                 )}
                 {spot.reference && (
-                  <span
-                    className="text-[9px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
-                    style={{ background: `${accentColor}20`, color: accentColor }}
-                  >
-                    {spot.reference}
-                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <span
+                      className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                      style={{ background: `${accentColor}20`, color: accentColor }}
+                    >
+                      {spot.reference}
+                    </span>
+                    {tab === 'POTA' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setParkInfoRef(spot.reference); }}
+                        className="text-muted-foreground hover:text-green-600 transition-colors"
+                        title="POTA Park-Info"
+                      >
+                        <Info className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
               {spot.name && (
@@ -241,6 +254,10 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
           {tab}: {spots.length}
         </span>
       </div>
+      {/* POTA Park-Info Popup */}
+      {parkInfoRef && (
+        <PotaParkInfoPopup reference={parkInfoRef} onClose={() => setParkInfoRef(null)} />
+      )}
     </div>
   );
 }
