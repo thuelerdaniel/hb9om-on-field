@@ -21,7 +21,7 @@ const TABS = [
   { id: 'SOTA', label: 'SOTA', color: '#d97706' },
   { id: 'POTA', label: 'POTA', color: '#16a34a' },
   { id: 'WWFF', label: 'WWFF', color: '#0d9488' },
-  // Fix v0.9031: WWBOTA removed — domain wwbota.ch dead, no DNS records
+  { id: 'WWBOTA', label: 'WWBOTA', color: '#dc2626' },
   { id: 'dxcluster', label: 'Live Spot Activity', color: '#06b6d4' },
   { id: 'alerts', label: 'Alerts', color: '#7c3aed' },
 ];
@@ -54,9 +54,8 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const [propagation, setPropagation] = useState(null);
   const [sortBy, setSortBy] = useState('time');
 
-  // Fix v0.9034: Split loadData (fast, reads from DB) from refreshFromApis (slow, fetches
-  // from external APIs). Mount + auto-refresh only call loadData — no hanging/freezing.
-  // Manual refresh button calls refreshFromApis (parallel fetch + loadData).
+  // v0.9028 Rollback: loadData reads from DB (fast) — called on mount + auto-refresh.
+  // refreshData calls refreshHuntingData orchestrator (single call) — manual refresh only.
   // The scheduled automation keeps the DB fresh in the background.
   const loadData = useCallback(async () => {
     try {
@@ -79,17 +78,11 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
     }
   }, []);
 
-  const refreshFromApis = useCallback(async () => {
+  // v0.9028 Rollback: Single refreshHuntingData orchestrator call (not 6 parallel sub-function calls)
+  const refreshData = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.allSettled([
-        base44.functions.invoke("fetchSotaSpots", {}),
-        base44.functions.invoke("fetchSotaSpots", { alerts: true }),
-        base44.functions.invoke("fetchPotaSpots", {}),
-        base44.functions.invoke("fetchWwffSpots", {}),
-        base44.functions.invoke("fetchDxSpots", {}),
-        base44.functions.invoke("fetchPropagation", {}),
-      ]);
+      await base44.functions.invoke("refreshHuntingData", {});
       await loadData();
     } catch {} finally {
       setRefreshing(false);
@@ -98,10 +91,9 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
 
   useEffect(() => {
     loadData();
-    refreshFromApis(); // Background refresh on mount — populates DB without blocking UI
     const interval = setInterval(() => loadData(), REFRESH_MS);
     return () => clearInterval(interval);
-  }, [loadData, refreshFromApis]);
+  }, [loadData]);
 
   const stationPos = useMemo(() => {
     if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
@@ -302,7 +294,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
             </button>
           )}
           <button
-            onClick={() => refreshFromApis()}
+            onClick={() => refreshData()}
             disabled={refreshing}
             className="text-muted-foreground hover:text-foreground disabled:opacity-50"
             title="Aktualisieren"

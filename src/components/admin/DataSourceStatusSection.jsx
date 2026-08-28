@@ -55,18 +55,11 @@ export default function DataSourceStatusSection() {
 
   useEffect(() => { loadStatus(); }, []);
 
-  // Fix v0.9033: Bypass refreshHuntingData orchestrator (403) — call sub-functions directly.
+  // v0.9028 Rollback: Single refreshHuntingData orchestrator call (not 6 parallel sub-function calls)
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.allSettled([
-        base44.functions.invoke('fetchSotaSpots', {}),
-        base44.functions.invoke('fetchSotaSpots', { alerts: true }),
-        base44.functions.invoke('fetchPotaSpots', {}),
-        base44.functions.invoke('fetchWwffSpots', {}),
-        base44.functions.invoke('fetchDxSpots', {}),
-        base44.functions.invoke('fetchPropagation', {}),
-      ]);
+      await base44.functions.invoke('refreshHuntingData', {});
       setTimeout(() => loadStatus(), 2000);
     } catch {} finally { setRefreshing(false); }
   };

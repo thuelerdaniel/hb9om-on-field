@@ -8,16 +8,20 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9034";
+export const APP_VERSION = "0.9028";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608281935";
+export const APP_BUILD = "202608281925";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Rollback v0.9028: Zurück auf publizierten Stand — parallele fetch-Calls entfernt, refreshHuntingData Orchestrator wiederhergestellt",
+  "Rollback v0.9028: Originales useEffect — nur loadData (DB) beim Mount, kein refreshFromApis im Hintergrund",
+  "Rollback v0.9028: WWBOTA-Tab wiederhergestellt (6-Tabs-Struktur wie publiziert)",
+  "Rollback v0.9028: DataSourceStatusSection nutzt wieder refreshHuntingData (keine parallelen Sub-Function-Calls)",
   "Fix v0.9034: Hunting-Seite hängt nicht mehr — loadData (schnell, DB) getrennt von refreshFromApis (langsam, API-Calls)",
   "Fix v0.9034: Mount + Auto-Refresh lesen nur aus DB (sofort sichtbar) — Refresh-Button triggert API-Calls",
   "Fix v0.9034: Kein Endlos-Loop, keine weisse Seite — Layer-Panel rendert sofort",
