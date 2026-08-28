@@ -16,6 +16,10 @@ const DEFAULT_SETTINGS = {
   filter_distance_km: 0,
   auto_refresh_enabled: true,
   auto_refresh_interval_sec: 60,
+  ui_settings: {
+    field_widths: {},
+    button_positions: {},
+  },
 };
 
 export function useHuntingSettings() {

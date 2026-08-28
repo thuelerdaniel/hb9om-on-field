@@ -119,6 +119,20 @@
       "default": 60,
       "description": "Auto-Refresh Intervall in Sekunden"
     },
+    "ui_settings": {
+      "type": "object",
+      "properties": {
+        "field_widths": {
+          "type": "object",
+          "description": "Feldbreiten pro Geraet (desktop/tablet/mobile) \u2014 fieldId -> width%"
+        },
+        "button_positions": {
+          "type": "object",
+          "description": "Button-Positionen pro Geraet (baseKey -> {x, y})"
+        }
+      },
+      "description": "UI-Einstellungen: Feldbreiten und Button-Positionen pro Geraet"
+    },
     "last_user_lat": {
       "type": "number",
       "description": "Letzter Breitengrad des Users"

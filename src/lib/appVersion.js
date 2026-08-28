@@ -8,34 +8,37 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9002";
+export const APP_VERSION = "0.9019";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608270124";
+export const APP_BUILD = "202608281657";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Hunting: 6-Tabs-Struktur (SOTA, POTA, WWFF, WWBOTA, Live Spot Activity, Alerts)",
+  "Hunting: Keine Spot-Limits mehr — alle SOTA/POTA/WWFF/WWBOTA/DX-Spots werden angezeigt",
+  "Hunting: SOTA API mit 200 Spots (3-Segment-URL /api/spots/200/all/all)",
+  "Hunting: DX-Cluster speichert alle Spots (355 statt 100) — keine Slice-Limits",
+  "Hunting: Spothole SIG-Spots limit=500 (war 100)",
+  "Hunting: DxSpot Entity limit=500 (war 50) — merged ohne Slice",
+  "Hunting: SOTA QRT/RBNHOLE-Filter aktiv (Backend + Frontend)",
+  "Hunting: Alerts-Tab kombiniert SOTA-Alerts + WWFF-Agendas (260 geplante Aktivierungen)",
+  "Hunting: POTA/WWBOTA-Hinweis im Alerts-Tab (keine geplante API verfügbar)",
+  "UI: Gerätespezifische QSO-Button-Position (desktop/tablet/mobile getrennt)",
+  "UI: Feldbreiten pro Gerät konfigurierbar (Settings → Feldbreiten pro Gerät)",
+  "UI: UserHuntingSettings.ui_settings Entity-Feld für server-side Sync",
   "Karten-Fix: Stabile Container-Keys verhindern _leaflet_pos-Fehler bei View-Wechseln",
-  "Zoom-Animation deaktiviert: Keine Abstürze mehr beim Schliessen von Modalen oder Seitenwechsel während Zoom",
-  "QSO-Weltkarte: Sauberes Umschalten zwischen Globus und 2D-Karte ohne Karten-Neuaufbau",
-  "Spot-Details und Fox-Hunt-Modal: Karte bleibt stabil beim Zoomen und sofortigen Schliessen",
+  "Zoom-Animation deaktiviert: Keine Abstürze mehr beim Schliessen von Modalen",
+  "QSO-Weltkarte: Sauberes Umschalten zwischen Globus und 2D-Karte",
   "Hunting-Modul: Live DX-Spots mit GPS-basierter Distanz- und Azimuth-Berechnung",
-  "Hunting-Modul: Activity Panel mit Live SOTA- und POTA-Aktivierungen (Auto-Refresh 60s)",
   "Hunting-Modul: Propagation-Dashboard mit Solar Flux, K-Index und Band-Conditions",
   "Hunting-Modul: Fox Hunting mit Peilung, Triangulation und GPS-Position",
-  "Hunting-Modul: QSO direkt aus Spot loggen — Formular wird automatisch vorausgefüllt",
+  "Hunting-Modul: QSO direkt aus Spot loggen — Formular automatisch vorausgefüllt",
   "Hunting-Modul: QRZ-Lookup direkt aus der Spot-Tabelle per Klick auf Rufzeichen",
-  "Hunting-Modul: Priority DX — Top 5 weiteste Spots nach Distanz sortiert",
-  "Hunting-Modul: Theme-aware (Dark/Light Mode) — alle Komponenten folgen dem globalen Theme",
   "GPS-Tracking: Live-Position vom Gerät überschreibt statischen Stations-Locator",
-  "GPS-Tracking: Distanz- und Azimuth-Berechnungen nutzen echte GPS-Koordinaten",
-  "ActivitySpot: Neue Entity für SOTA/POTA-Aktivierungen mit API-Fetchern",
-  "ActivitySpot: POTA API (api.pota.app) und SOTA API (api2.sota.org.uk) Integration",
-  "ActivitySpot: Frequenz-Konvertierung korrigiert (POTA API gibt Hz zurück, nicht MHz)",
-  "SpotDetailsModal: Unterstützt sowohl DxSpot als auch ActivitySpot Datenstrukturen",
   "Build-Optimierung: Vendor-Chunks aufgeteilt für schnelleres Laden",
 ];
 

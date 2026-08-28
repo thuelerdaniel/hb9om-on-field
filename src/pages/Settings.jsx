@@ -19,6 +19,7 @@ import ConfigCompletenessBar from "@/components/settings/ConfigCompletenessBar";
 import GpsPublicConfig from "@/components/settings/GpsPublicConfig";
 import MyStationSection from "@/components/settings/MyStationSection";
 import MonthlyBackup from "@/components/settings/MonthlyBackup";
+import FieldWidthSettings from "@/components/settings/FieldWidthSettings";
 import SetupWizard from "@/components/SetupWizard";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
@@ -929,13 +930,23 @@ export default function Settings() {
           <p className="text-xs text-gray-500 mb-3">Der verschiebbare QSO-Loggen Button auf der Hunting-Seite kann hier zurückgesetzt werden.</p>
           <button
             onClick={() => {
-              try { localStorage.removeItem('qso_btn_pos'); } catch {}
-              alert('QSO-Button Position wurde zurückgesetzt. Beim nächsten Öffnen der Hunting-Seite wird der Button unten rechts angezeigt.');
+              try {
+                ['desktop', 'tablet', 'mobile'].forEach(d => localStorage.removeItem(`qso_btn_pos_${d}`));
+              } catch {}
+              alert('QSO-Button Position wurde für alle Geräte zurückgesetzt.');
             }}
             className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
           >
-            QSO-Button Position zurücksetzen
+            QSO-Button Position zurücksetzen (alle Geräte)
           </button>
+        </section>
+
+        {/* Feldbreiten pro Gerät — v0.9019 */}
+        <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+            <Gauge className="w-4 h-4" /> Feldbreiten pro Gerät
+          </h3>
+          <FieldWidthSettings />
         </section>
         {/* Performance Mode */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
