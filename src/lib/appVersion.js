@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9033";
+export const APP_VERSION = "0.9034";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,9 @@ export const APP_BUILD = "202608281935";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9034: Hunting-Seite hängt nicht mehr — loadData (schnell, DB) getrennt von refreshFromApis (langsam, API-Calls)",
+  "Fix v0.9034: Mount + Auto-Refresh lesen nur aus DB (sofort sichtbar) — Refresh-Button triggert API-Calls",
+  "Fix v0.9034: Kein Endlos-Loop, keine weisse Seite — Layer-Panel rendert sofort",
   "Fix v0.9033: refreshHuntingData Orchestrator umgangen — Frontend ruft Sub-Functions direkt per base44.functions.invoke() auf (kein 403 mehr)",
   "Fix v0.9033: ActivityPanel + DataSourceStatusSection rufen fetchSotaSpots/fetchPotaSpots/fetchWwffSpots/fetchDxSpots/fetchPropagation parallel auf",
   "Fix v0.9033: SOTA-Alerts via fetchSotaSpots({ alerts: true }) — keine separate Function nötig",
