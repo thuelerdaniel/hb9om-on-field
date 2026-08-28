@@ -29,13 +29,12 @@ export default async function(req: Request): Promise<Response> {
     try { body = await req.json(); } catch {}
 
     const isInternal = isInternalCall(body);
+    const action = body.action || 'test';
     let user: any = null;
-    if (!isInternal) {
+    if (!isInternal && action !== 'permanent_sync') {
       user = await base44.auth.me();
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const action = body.action || 'test';
     const config: WavelogConfig = {
       lan_url: body.lan_url || '',
       wan_url: body.wan_url || '',
