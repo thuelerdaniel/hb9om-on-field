@@ -686,9 +686,6 @@ export default function Home() {
         try {
           if (map._panes && map._mapPane) {
             map.invalidateSize();
-            map.eachLayer(layer => {
-              if (layer.redraw) layer.redraw();
-            });
           }
         } catch (e) {
           console.warn('map refresh skipped:', e.message);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
@@ -119,6 +119,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   const [showCountries, setShowCountries] = useState(false);
   const { containerRef } = useDraggablePosition("drag-layer-control");
   const { features } = useAppFeatures();
+  const panelRef = useRef(null);
 
   // Filter layer groups by user's enabled layers
   const visibleLayerGroups = LAYER_GROUPS.filter(group => {
@@ -129,6 +130,26 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   // Support external open control (e.g. from ViewportLimitHint action button)
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const setIsOpen = onOpenChange || setInternalIsOpen;
+
+  // Outside-click handler — closes the panel when clicking outside of it.
+  // Uses a small delay on mount to avoid immediately closing from the opening click.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen, setIsOpen]);
 
   // Countries to display: filtered by selected continents, or all if no continent selected
   const visibleCountries = activeContinents && activeContinents.length > 0
@@ -146,7 +167,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
       </button>
 
       {isOpen && (
-        <div className="absolute top-12 right-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
+        <div ref={panelRef} className="absolute top-12 right-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
           {/* Hintergrundkarte */}
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide">Hintergrundkarte</h3>

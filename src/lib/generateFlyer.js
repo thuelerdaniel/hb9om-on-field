@@ -124,7 +124,7 @@ export async function generateFlyer(options = {}) {
   doc.setTextColor(180, 180, 180);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("hb9om.ch  ·  Amateurfunk Referenzkarte & QSO-Logbuch  ·  v0.9022", W / 2, H - 8, { align: "center" });
+  doc.text("hb9om.ch  ·  Amateurfunk Referenzkarte & QSO-Logbuch  ·  v0.9024", W / 2, H - 8, { align: "center" });
 
   // ========== PAGE 2: FEATURES + SCREENSHOTS ==========
   doc.addPage();
@@ -322,7 +322,7 @@ export async function generateFlyer(options = {}) {
   doc.text("mit dem Aktivieren von Schweizer Referenzen.", W / 2, y + 26, { align: "center" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("hb9om.ch", W / 2, y + 34, { align: "center" });
+  doc.text("hb9om.online", W / 2, y + 34, { align: "center" });
 
   // Contact
   y += 50;

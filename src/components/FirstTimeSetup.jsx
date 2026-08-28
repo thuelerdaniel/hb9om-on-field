@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Radio, Check, AlertCircle, AlertTriangle, KeyRound, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { DEMO_EMAIL } from "@/lib/constants";
+import { safeGetItem, safeSetItem } from "@/lib/safeStorage";
 
 export default function FirstTimeSetup({ onDone }) {
   const [show, setShow] = useState(false);
@@ -17,7 +18,10 @@ export default function FirstTimeSetup({ onDone }) {
   const [missingFields, setMissingFields] = useState([]);
 
   useEffect(() => {
-    const done = localStorage.getItem("hb9om_setup_complete");
+    // Dual-flag check: either hb9om_setup_complete OR hb9om_wizard_completed
+    // prevents the wizard from reappearing after completion via either flow.
+    const done = safeGetItem("hb9om_setup_complete") === "true" ||
+                  safeGetItem("hb9om_wizard_completed") === "true";
     if (!done) {
       setShow(true);
       loadUserInfo();
@@ -41,8 +45,8 @@ export default function FirstTimeSetup({ onDone }) {
   };
 
   const loadSaved = () => {
-    setMyCallsign(localStorage.getItem("hb9om_my_callsign") || "");
-    setQrzEnabled(localStorage.getItem("hb9om_qrz_enabled") !== "false");
+    setMyCallsign(safeGetItem("hb9om_my_callsign") || "");
+    setQrzEnabled(safeGetItem("hb9om_qrz_enabled") !== "false");
   };
 
   const handleSave = async (skipWarning = false) => {
@@ -70,9 +74,11 @@ export default function FirstTimeSetup({ onDone }) {
     }
 
     setSaving(true);
-    localStorage.setItem("hb9om_my_callsign", myCallsign.toUpperCase().trim());
-    localStorage.setItem("hb9om_qrz_enabled", String(qrzEnabled));
-    localStorage.setItem("hb9om_setup_complete", "true");
+    safeSetItem("hb9om_my_callsign", myCallsign.toUpperCase().trim());
+    safeSetItem("hb9om_qrz_enabled", String(qrzEnabled));
+    // Set BOTH flags — prevents reappearing regardless of which component checks
+    safeSetItem("hb9om_setup_complete", "true");
+    safeSetItem("hb9om_wizard_completed", "true");
 
     // Save user profile data for non-club users
     if (!usesClubCredentials) {

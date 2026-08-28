@@ -8,16 +8,26 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9023";
+export const APP_VERSION = "0.9024";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608281714";
+export const APP_BUILD = "202608281918";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Karten-Fix: Layer verschwinden nicht mehr nach Aktivierung (eachLayer redraw entfernt)",
+  "Karten-Fix: invalidateSize nur noch einmal pro Layer-Wechsel — keine Tile-Neuladung mehr",
+  "Layer-Control: Aussenklick schliesst das Panel (Outside-Click Handler)",
+  "Layer-Control: Panel bleibt stabil beim Drag-and-Drop (touchAction: none)",
+  "Setup-Wizard: Dual-Flag-Check (setup_complete + wizard_completed) — erscheint nicht mehr erneut",
+  "Setup-Wizard: safeStorage Wrapper verhindert Crash bei Private Browsing",
+  "Stabilität: Global Error Handler (window.error + unhandledrejection) — kein White-Screen mehr",
+  "Stabilität: ErrorBoundary bereits vorhanden um alle Hauptkomponenten",
+  "Performance: Viewport-basiertes Laden bereits implementiert (ViewportDataLoader)",
+  "Performance: Memoization bereits aktiv (useMemo für gefilterte Marker)",
   "Wavelog Fix: URLs (LAN+WAN) werden jetzt zuverlässig gespeichert (Debounce-Akkumulation)",
   "Wavelog Fix: onBlur Auto-Save beim Verlassen der Eingabefelder",
   "Wavelog Fix: station_info Fallback auf Station ID '1' (Wavelog 3.1.0 Bug Workaround)",

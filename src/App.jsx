@@ -87,7 +87,25 @@ function App() {
         });
       });
     }
-    return () => clearInterval(stop);
+
+    // Global error handlers — prevent white-screen crashes on unhandled errors.
+    // Errors are logged but do NOT crash the app; ErrorBoundary catches React errors.
+    const handleGlobalError = (e) => {
+      console.error('[Global Error]', e.error || e.message);
+      e.preventDefault();
+    };
+    const handleUnhandledRejection = (e) => {
+      console.error('[Unhandled Promise]', e.reason);
+      e.preventDefault();
+    };
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      clearInterval(stop);
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
   }, []);
 
   return (
