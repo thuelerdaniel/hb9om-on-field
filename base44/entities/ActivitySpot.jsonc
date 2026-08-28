@@ -10,17 +10,26 @@
       "type": "string",
       "enum": [
         "SOTA",
-        "POTA"
+        "POTA",
+        "WWFF",
+        "WWBOTA",
+        "GMA",
+        "WCA",
+        "COTA",
+        "IOTA",
+        "TOTA",
+        "LOTA",
+        "SOTA-ALERT"
       ],
       "description": "Aktivitaets-Typ"
     },
     "reference": {
       "type": "string",
-      "description": "Referenz-Code (z.B. HB/VS-001, US-2465)"
+      "description": "Referenz-Code (z.B. HB/VS-001, US-2465, JAFF-0177)"
     },
     "name": {
       "type": "string",
-      "description": "Name des Summits / Parks"
+      "description": "Name des Summits / Parks / Gebiets"
     },
     "locationDesc": {
       "type": "string",
@@ -64,7 +73,7 @@
     },
     "source": {
       "type": "string",
-      "description": "Datenquelle (POTA API, SOTA API)"
+      "description": "Datenquelle (SOTA API, POTA API, WWFF-Spotline, WWBOTA-API, GMA-Feed, DX-Cluster)"
     },
     "spot_time": {
       "type": "string",
@@ -86,6 +95,11 @@
     "count": {
       "type": "number",
       "description": "Anzahl QSOs (POTA)"
+    },
+    "is_future": {
+      "type": "boolean",
+      "default": false,
+      "description": "True bei geplanten Aktivierungen (SOTA-Alerts)"
     },
     "is_active": {
       "type": "boolean",

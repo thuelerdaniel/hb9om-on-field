@@ -1,0 +1,143 @@
+{
+  "name": "UserHuntingSettings",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Eindeutige User-ID"
+    },
+    "selected_activity_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "SOTA",
+          "POTA",
+          "WWFF",
+          "WWBOTA",
+          "WCA",
+          "COTA",
+          "IOTA",
+          "GMA",
+          "TOTA",
+          "LOTA"
+        ]
+      },
+      "default": [
+        "SOTA",
+        "POTA",
+        "WWFF",
+        "WWBOTA"
+      ],
+      "description": "Aktive Aktivitaets-Typen"
+    },
+    "selected_bands": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "80m",
+          "40m",
+          "20m",
+          "15m",
+          "10m",
+          "6m",
+          "2m",
+          "70cm"
+        ]
+      },
+      "default": [
+        "80m",
+        "40m",
+        "20m",
+        "15m",
+        "10m"
+      ],
+      "description": "Aktive Bnder"
+    },
+    "selected_modes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "SSB",
+          "CW",
+          "FT8",
+          "FM"
+        ]
+      },
+      "default": [
+        "SSB",
+        "CW",
+        "FT8",
+        "FM"
+      ],
+      "description": "Aktive Modi"
+    },
+    "max_spot_age_hours": {
+      "type": "number",
+      "default": 2,
+      "description": "Maximales Spot-Alter in Stunden"
+    },
+    "show_only_swiss": {
+      "type": "boolean",
+      "default": false,
+      "description": "Nur Schweizer Spots anzeigen"
+    },
+    "sort_by": {
+      "type": "string",
+      "enum": [
+        "time",
+        "distance",
+        "callsign"
+      ],
+      "default": "time",
+      "description": "Sortierung"
+    },
+    "filter_distance_km": {
+      "type": "number",
+      "default": 0,
+      "description": "Distanz-Filter in km (0 = alle)"
+    },
+    "auto_refresh_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Auto-Refresh aktiviert"
+    },
+    "auto_refresh_interval_sec": {
+      "type": "number",
+      "default": 60,
+      "description": "Auto-Refresh Intervall in Sekunden"
+    },
+    "last_user_lat": {
+      "type": "number",
+      "description": "Letzter Breitengrad des Users"
+    },
+    "last_user_lng": {
+      "type": "number",
+      "description": "Letzter Laengengrad des Users"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Aktualisierung"
+    }
+  },
+  "required": [
+    "user_id"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

@@ -63,7 +63,6 @@ import { isInCountries } from "@/lib/countries";
 // Other components
 import BottomNavigation from "@/components/BottomNavigation";
 import FirstTimeSetup from "@/components/FirstTimeSetup";
-import FoxHuntingSwitch from "@/components/FoxHuntingSwitch";
 import MapMenuDrawer from "@/components/map/MapMenuDrawer";
 import { useAppFeatures, syncFeaturesFromUser } from "@/lib/appFeatures";
 
@@ -1555,11 +1554,6 @@ export default function Home() {
         >
           <Radio className="w-5 h-5 text-orange-500" />
         </button>
-      )}
-
-      {/* Fox/Hunting switch — only if fox_hunt enabled */}
-      {features.tools.fox_hunt !== false && (
-        <FoxHuntingSwitch mode={foxMode} onModeChange={setFoxMode} />
       )}
 
       {/* Loading indicator */}

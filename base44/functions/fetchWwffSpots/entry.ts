@@ -2,11 +2,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { deriveBand } from "../../shared/bandDerivation.ts";
 import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts";
 
-// Lade POTA-Spots von api.pota.app und speichere in ActivitySpot.
-// Löscht vorher POTA-Einträge älter als 1 Stunde.
+// Lade WWFF-Spots von spots.wwff.co und speichere in ActivitySpot.
+// frequency_khz ist bereits in kHz — keine Konvertierung noetig.
+// spot_time ist Unix-Timestamp (Sekunden) — * 1000 fuer JS Date.
+// Polling: alle 30 Sekunden (empfohlen von WWFF).
 
 const DEFAULT_LOCATOR = 'JN36FL';
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const UA = 'HB9OM-On-Field/1.0';
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -19,7 +22,7 @@ export default async function(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Station-Position: GPS vom Client hat Vorrang
+    // Station-Position
     let stationPos: { lat: number; lon: number };
     if (typeof body.station_lat === 'number' && typeof body.station_lng === 'number') {
       stationPos = { lat: body.station_lat, lon: body.station_lng };
@@ -35,62 +38,63 @@ export default async function(req: Request): Promise<Response> {
       stationPos = maidenheadToLatLon(stationLocator) || { lat: 46.5, lon: 6.5 };
     }
 
-    // Alte POTA-Spots löschen (> 1 Std)
+    // Alte WWFF-Spots löschen (> 1 Std)
     const cutoff = new Date(Date.now() - ONE_HOUR_MS);
     try {
       await base44.asServiceRole.entities.ActivitySpot.deleteMany({
-        activity_type: 'POTA',
+        activity_type: 'WWFF',
         spot_time: { $lt: cutoff.toISOString() }
       });
     } catch {}
 
-    // POTA API laden
-    let potaSpots: any[] = [];
+    // WWFF API laden
+    let wwffSpots: any[] = [];
+    let apiError: string | null = null;
     try {
-      const resp = await fetch('https://api.pota.app/spot/activator', {
-        headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-On-Field/1.0' },
+      const resp = await fetch('https://spots.wwff.co/static/spots.json', {
+        headers: { 'Accept': 'application/json', 'User-Agent': UA },
+        signal: AbortSignal.timeout(10000),
       });
       if (resp.ok) {
-        potaSpots = await resp.json();
-      }
-    } catch {}
+        wwffSpots = await resp.json();
+        if (!Array.isArray(wwffSpots)) wwffSpots = [];
+      } else { apiError = `HTTP ${resp.status}`; }
+    } catch (e: any) { apiError = e.message; }
 
-    if (potaSpots.length === 0) {
-      return Response.json({ success: true, fetched: 0, saved: 0, message: 'Keine POTA-Spots verfügbar' });
+    if (wwffSpots.length === 0) {
+      return Response.json({ success: true, fetched: 0, saved: 0, warning: apiError || 'Keine WWFF-Spots verfügbar' });
     }
 
-    // FIX 3: PotaPoint-Koordinaten für Referenzen ohne API-Koordinaten vorab laden
+    // WwffPoint-Koordinaten für Referenzen ohne API-Koordinaten vorab laden
     const refsNeedingCoords = new Set<string>();
-    for (const s of potaSpots) {
+    for (const s of wwffSpots) {
       const lat = Number(s.latitude);
       const lon = Number(s.longitude);
       if ((isNaN(lat) || isNaN(lon)) && s.reference) refsNeedingCoords.add(s.reference);
     }
-    const potaCoordMap = new Map<string, { lat: number; lon: number }>();
+    const wwffCoordMap = new Map<string, { lat: number; lon: number }>();
     for (const ref of refsNeedingCoords) {
       try {
-        const points = await base44.asServiceRole.entities.PotaPoint.filter({ code: ref });
+        const points = await base44.asServiceRole.entities.WwffPoint.filter({ code: ref });
         if (points && points.length > 0 && points[0].lat != null) {
-          potaCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
+          wwffCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
         }
       } catch {}
     }
 
-    // In ActivitySpot speichern
-    const records = potaSpots
-      .filter((s: any) => s.activator && s.frequency)
+    const records = wwffSpots
+      .filter((s: any) => s.activator && s.frequency_khz)
       .map((s: any) => {
-        // FIX 1: POTA API gibt Frequenz als kHz-String zurück (z.B. "14044.0") — keine Konvertierung nötig
-        const frequency = Number(s.frequency);
+        const frequency = Number(s.frequency_khz); // bereits kHz
+        if (!frequency || isNaN(frequency)) return null;
         const band = deriveBand(frequency);
-        const spotTime = s.spotTime ? new Date(s.spotTime) : new Date();
+        const spotTime = s.spot_time ? new Date(s.spot_time * 1000) : (s.spot_time_formatted ? new Date(s.spot_time_formatted) : new Date());
         const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
         let lat = Number(s.latitude);
         let lon = Number(s.longitude);
 
-        // FIX 3: PotaPoint-Fallback falls API keine Koordinaten liefert
         if ((isNaN(lat) || isNaN(lon)) && s.reference) {
-          const fallback = potaCoordMap.get(s.reference);
+          const fallback = wwffCoordMap.get(s.reference);
           if (fallback) { lat = fallback.lat; lon = fallback.lon; }
         }
 
@@ -103,28 +107,23 @@ export default async function(req: Request): Promise<Response> {
 
         return {
           call: s.activator,
-          activity_type: 'POTA',
+          activity_type: 'WWFF',
           reference: s.reference || '',
-          name: s.name || '',
-          locationDesc: s.locationDesc || s.location || '',
-          frequency,
-          band,
+          name: s.reference_name || '',
+          frequency, band,
           mode: s.mode || 'SSB',
           latitude: !isNaN(lat) ? lat : undefined,
           longitude: !isNaN(lon) ? lon : undefined,
-          grid6: s.grid6 || undefined,
-          comments: s.comments || s.comment || '',
+          comments: s.remarks || '',
           spotter: s.spotter || '',
-          source: 'POTA API',
+          source: 'WWFF-Spotline',
           spot_time: spotTime.toISOString(),
           age_seconds: ageSeconds,
-          distance,
-          azimuth,
-          count: s.count != null ? Number(s.count) : undefined,
+          distance, azimuth,
           is_active: true,
         };
       })
-      .filter((r: any) => r.call && r.frequency);
+      .filter((r: any) => r !== null && r.call && r.frequency);
 
     let savedCount = 0;
     if (records.length > 0) {
@@ -134,13 +133,7 @@ export default async function(req: Request): Promise<Response> {
       } catch {}
     }
 
-    return Response.json({
-      success: true,
-      fetched: potaSpots.length,
-      saved: savedCount,
-      stationPos: { lat: stationPos.lat, lon: stationPos.lon },
-      usingGps: typeof body.station_lat === 'number',
-    });
+    return Response.json({ success: true, fetched: wwffSpots.length, saved: savedCount });
   } catch (error) {
     return Response.json({ error: error.message || 'Unbekannter Fehler' }, { status: 500 });
   }

@@ -11,9 +11,9 @@ const REFRESH_MS = 60 * 1000;
 
 function ageColor(age) {
   if (age == null) return 'hsl(var(--muted-foreground))';
-  if (age < 60) return '#8cff00';
-  if (age < 300) return '#ffc400';
-  return '#ff5252';
+  if (age < 60) return '#16a34a';
+  if (age < 300) return '#d97706';
+  return '#dc2626';
 }
 
 function formatFreq(kHz) {
@@ -32,9 +32,9 @@ function workedDot(spot, worked) {
 }
 
 const DOT_COLORS = {
-  green: '#8cff00',
-  blue: '#00e5ff',
-  yellow: '#ffc400',
+  green: '#16a34a',
+  blue: '#0284c7',
+  yellow: '#d97706',
   gray: 'hsl(var(--muted-foreground))',
 };
 

@@ -1,0 +1,85 @@
+{
+  "name": "DataSourceStatus",
+  "type": "object",
+  "properties": {
+    "source_name": {
+      "type": "string",
+      "description": "Name der Datenquelle"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "API",
+        "DXCLUSTER",
+        "DATABASE"
+      ],
+      "description": "Typ der Quelle"
+    },
+    "url": {
+      "type": "string",
+      "description": "URL der Quelle"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "OK",
+        "FAIL",
+        "WARN",
+        "CONNECTED",
+        "DISCONNECTED"
+      ],
+      "default": "DISCONNECTED",
+      "description": "Verbindungsstatus"
+    },
+    "last_check": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Pruefung"
+    },
+    "last_success": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzter erfolgreicher Abruf"
+    },
+    "spots_received": {
+      "type": "number",
+      "default": 0,
+      "description": "Empfangene Spots beim letzten Abruf"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Fehlermeldung"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob die Quelle aktiv ist"
+    }
+  },
+  "required": [
+    "source_name",
+    "source_type"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

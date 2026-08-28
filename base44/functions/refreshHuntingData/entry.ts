@@ -44,6 +44,26 @@ export default async function(req: Request): Promise<Response> {
       results.errors.push(`fetchPropagation: ${e.message || 'failed'}`);
     }
 
+    // Activity-Spots: SOTA, POTA, WWFF, WWBOTA, GMA + SOTA-Alerts
+    results.activities = {};
+    const activityApis = [
+      { name: 'sotaSpots', fn: 'fetchSotaSpots', payload: { scheduled: true, internal_secret: getInternalSecret() } },
+      { name: 'sotaAlerts', fn: 'fetchSotaSpots', payload: { scheduled: true, alerts: true, internal_secret: getInternalSecret() } },
+      { name: 'potaSpots', fn: 'fetchPotaSpots', payload: { scheduled: true, internal_secret: getInternalSecret() } },
+      { name: 'wwffSpots', fn: 'fetchWwffSpots', payload: { scheduled: true, internal_secret: getInternalSecret() } },
+      { name: 'wwbotaSpots', fn: 'fetchWwbotaSpots', payload: { scheduled: true, internal_secret: getInternalSecret() } },
+      { name: 'gmaSpots', fn: 'fetchGmaSpots', payload: { scheduled: true, internal_secret: getInternalSecret() } },
+    ];
+    for (const api of activityApis) {
+      try {
+        const res = await base44.asServiceRole.functions.invoke(api.fn, api.payload);
+        results.activities[api.name] = { success: res?.success ?? true, saved: res?.saved ?? 0, warning: res?.warning || null };
+      } catch (e) {
+        results.activities[api.name] = { success: false, error: e.message || 'failed' };
+        results.errors.push(`${api.name}: ${e.message || 'failed'}`);
+      }
+    }
+
     return Response.json({
       success: results.errors.length === 0,
       ...results,
