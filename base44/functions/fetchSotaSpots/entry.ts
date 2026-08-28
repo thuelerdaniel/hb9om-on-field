@@ -165,13 +165,13 @@ export default async function(req: Request): Promise<Response> {
         });
         if (resp.ok) {
           const raw = await resp.json();
-          // Fix v0.9015: KEINE Deprecation-Warning mehr bei api-db2.
-          // Nur RBNHOLE und type=DEPRECATED filtern
+          // Fix v0.9030: BEIDE Spot-Typen anzeigen — NORMAL (manuell) + RBNHOLE (automatisch).
+          // RBNHole-Spots haben callsign="RBNHOLE" und type=null, comments mit SNR/WPM Info.
+          // Nur DEPRECATED-Typ herausfiltern.
           sotaSpots = Array.isArray(raw) ? raw.filter((s: any) =>
-            s.callsign !== 'RBNHOLE' &&
             s.type !== 'DEPRECATED'
           ) : [];
-          console.log('[SOTA] Spots received:', sotaSpots.length);
+          console.log('[SOTA] Spots received (NORMAL + RBNHOLE):', sotaSpots.length);
           break;
         } else { apiError = `HTTP ${resp.status}`; }
       } catch (e: any) { apiError = e.message; }

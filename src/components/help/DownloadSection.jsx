@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Download, FileText, Smartphone, Loader2, AlertCircle, Archive } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { appParams } from "@/lib/app-params";
+
+// Build the download URL for a DownloadItem.
+// APK files are served via the downloadApk backend function which sets the
+// correct Content-Type (application/vnd.android.package-archive) so Android
+// browsers can install the file directly. Other types use the stored file_url.
+function getDownloadUrl(item) {
+  if (item.type === "apk" && item.id) {
+    return `/api/apps/${appParams.appId}/functions/downloadApk?id=${item.id}`;
+  }
+  return item.file_url;
+}
 
 // Download-Bereich für die Hilfe-Seite.
 // Zeigt alle aktiven DownloadItems (PDFs + APKs) sortiert nach upload_date (neueste zuerst).
@@ -109,7 +121,7 @@ export default function DownloadSection() {
 function DownloadCard({ item, icon: Icon, color }) {
   return (
     <a
-      href={item.file_url}
+      href={getDownloadUrl(item)}
       download
       target="_blank"
       rel="noopener noreferrer"

@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9025";
+export const APP_VERSION = "0.9030";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,10 @@ export const APP_BUILD = "202608281918";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "SOTA-Spots: RBNHOLE-Filter entfernt — jetzt 200 Spots (NORMAL + RBNHole) statt 50",
+  "SOTA-Spots: RBNHole-Spots mit SNR/WPM-Info in den Kommentaren sichtbar",
+  "APK-Download: downloadApk Backend-Function mit korrektem Content-Type (application/vnd.android.package-archive)",
+  "APK-Upload: uploadApk Backend-Function mit Base64-Encoding umgeht Base44 Dateityp-Beschränkung",
   "Layer-Control: touchAction:none nur noch am Button — Panel scrollt wieder auf Mobile!",
   "Layer-Control: Outside-Click prüft containerRef statt panelRef — kein Flicker mehr beim Button-Klick",
   "Layer-Control: overscroll-contain verhindert Scroll-Bubbling zur Karte",

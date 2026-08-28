@@ -48,39 +48,78 @@ export default function AdminDownloadManager() {
     setUploadProgress(0);
 
     try {
-      // Fix 1: Upload via Backend-Function (umgeht Base44 Frontend-Type-Beschränkung für APK/ZIP)
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("name", form.name);
-      formData.append("type", form.type);
-      formData.append("version", form.version || "");
-      formData.append("description", form.description || "");
-      formData.append("is_active", form.is_active ? "true" : "false");
+      let result;
 
-      const token = localStorage.getItem("base44_access_token");
-      const url = `/api/apps/${appParams.appId}/functions/uploadAppFile`;
+      // Fix v0.9030: APK files use uploadApk backend function with base64 encoding.
+      // This bypasses Base44 frontend file-type restrictions and ensures correct
+      // Content-Type on download via the downloadApk function.
+      if (form.type === "apk") {
+        // Read file as base64
+        const base64data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            setUploadProgress(50); // encoding done
+            resolve(reader.result.split(",")[1]); // remove data:application/... prefix
+          };
+          reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden"));
+          reader.readAsDataURL(file);
+        });
 
-      const result = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            setUploadProgress(Math.round((e.loaded / e.total) * 100));
-          }
+        const token = localStorage.getItem("base44_access_token");
+        const url = `/api/apps/${appParams.appId}/functions/uploadApk`;
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            base64data,
+            version: form.version || "",
+            description: form.description || "",
+            uploaded_by: form.uploaded_by || "",
+          }),
         });
-        xhr.addEventListener("load", () => {
-          try {
-            const res = JSON.parse(xhr.responseText);
-            if (xhr.status === 200 && res.success) resolve(res);
-            else reject(new Error(res.error || `Upload failed (HTTP ${xhr.status})`));
-          } catch (e) { reject(new Error("Upload failed — invalid response")); }
+        setUploadProgress(80);
+        const res = await resp.json();
+        if (!resp.ok || !res.success) throw new Error(res.error || `Upload failed (HTTP ${resp.status})`);
+        result = res;
+      } else {
+        // PDF/ZIP: use uploadAppFile with FormData
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("name", form.name);
+        formData.append("type", form.type);
+        formData.append("version", form.version || "");
+        formData.append("description", form.description || "");
+        formData.append("is_active", form.is_active ? "true" : "false");
+
+        const token = localStorage.getItem("base44_access_token");
+        const url = `/api/apps/${appParams.appId}/functions/uploadAppFile`;
+
+        result = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) {
+              setUploadProgress(Math.round((e.loaded / e.total) * 100));
+            }
+          });
+          xhr.addEventListener("load", () => {
+            try {
+              const res = JSON.parse(xhr.responseText);
+              if (xhr.status === 200 && res.success) resolve(res);
+              else reject(new Error(res.error || `Upload failed (HTTP ${xhr.status})`));
+            } catch (e) { reject(new Error("Upload failed — invalid response")); }
+          });
+          xhr.addEventListener("error", () => reject(new Error("Upload failed — network error")));
+          xhr.addEventListener("timeout", () => reject(new Error("Upload-Timeout nach 120 Sekunden")));
+          xhr.timeout = 120000;
+          xhr.open("POST", url);
+          if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+          xhr.send(formData);
         });
-        xhr.addEventListener("error", () => reject(new Error("Upload failed — network error")));
-        xhr.addEventListener("timeout", () => reject(new Error("Upload-Timeout nach 120 Sekunden")));
-        xhr.timeout = 120000;
-        xhr.open("POST", url);
-        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-        xhr.send(formData);
-      });
+      }
 
       // Falls APK: alte APK-Versionen deaktivieren?
       if (form.type === "apk") {
