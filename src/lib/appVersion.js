@@ -8,16 +8,20 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9033";
+export const APP_VERSION = "0.9034";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608282010";
+export const APP_BUILD = "202608282036";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9034: Wavelog Upload — SECURITY: api_key/wan_url/station_id aus Body werden IGNORIERT, Konfiguration kommt AUSSCHLIESSLICH aus UserHuntingSettings",
+  "Fix v0.9034: Wavelog Upload — 403 Forbidden wenn Wavelog nicht aktiviert für diesen Nutzer",
+  "Fix v0.9034: Wavelog Permanent Sync — Importierte QSOs bekommen wavelog_synced=true (werden nicht re-exportiert)",
+  "Fix v0.9034: Wavelog Permanent Sync — Export filtert nach created_by_id + wavelog_imported=false (Per-User Isolation)",
   "Fix v0.9033: Wavelog Upload — akzeptiert mehrere Feldnamen (string, adifString, adif_data, adif, adif_string)",
   "Fix v0.9033: Wavelog Upload — bessere Response mit success, adif_count, adif_errors, message",
   "Fix v0.9033: Wavelog Permanent Sync — neue Action 'permanent_sync' (Import + Export für alle auto_sync User)",

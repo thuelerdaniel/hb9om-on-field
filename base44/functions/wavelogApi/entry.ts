@@ -43,7 +43,7 @@ export default async function(req: Request): Promise<Response> {
       station_id: body.station_id || '',
     };
 
-    if (action !== 'permanent_sync' && !config.api_key) {
+    if (action !== 'permanent_sync' && action !== 'upload' && !config.api_key) {
       return Response.json({ error: 'Kein API-Key angegeben' }, { status: 400 });
     }
 
@@ -110,14 +110,31 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'upload': {
+        // v0.9034 SECURITY: Read Wavelog config from UserHuntingSettings — NEVER from body
+        if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const userSettings = await base44.entities.UserHuntingSettings.filter(
+          { user_id: user.id, wavelog_enabled: true }
+        );
+        if (!userSettings || userSettings.length === 0) {
+          return Response.json({ error: 'Wavelog nicht aktiviert für diesen Nutzer' }, { status: 403 });
+        }
+        const settings = userSettings[0];
+        if (!settings.wavelog_api_key) {
+          return Response.json({ error: 'Kein Wavelog API-Key konfiguriert' }, { status: 400 });
+        }
+        const wavelogUrl = (settings.wavelog_wan_url || settings.wavelog_lan_url || '').replace(/\/+$/, '');
+        if (!wavelogUrl) {
+          return Response.json({ error: 'Keine Wavelog-Server-URL konfiguriert' }, { status: 400 });
+        }
+
+        // ADIF-String from body (QSO data — not server config)
         const adifString = body.string || body.adifString || body.adif_data || body.adif || body.adif_string;
         if (!adifString) return Response.json({ error: 'Kein ADIF-String' }, { status: 400 });
-        if (!config.station_id) return Response.json({ error: 'Keine Station-ID' }, { status: 400 });
-        const baseUrl = await resolveBaseUrl();
-        if (!baseUrl) return Response.json({ error: 'Server nicht erreichbar' }, { status: 502 });
-        const r = await tryFetch(baseUrl, 'qso', {
-          key: config.api_key,
-          station_profile_id: config.station_id,
+
+        const r = await tryFetch(wavelogUrl, 'qso', {
+          key: settings.wavelog_api_key,
+          station_profile_id: settings.wavelog_station_id || '1',
           type: 'adif',
           string: adifString,
         }, 10000);
@@ -389,7 +406,7 @@ export default async function(req: Request): Promise<Response> {
                   notes: fields.COMMENT || undefined,
                   wavelog_imported: true,
                   wavelog_import_date: new Date().toISOString(),
-                  wavelog_synced: false,
+                  wavelog_synced: true,
                   is_clubstation: isClub,
                   club_callsign: fields.STATION_CALLSIGN || undefined,
                   club_operator_callsign: isClub ? fields.OPERATOR : undefined,
@@ -423,11 +440,10 @@ export default async function(req: Request): Promise<Response> {
 
           // Step B: Export unsynced QSOs to Wavelog
           try {
-            const unsyncedQsos = await sr.entities.Log.filter(
-              { created_by_id: userId, wavelog_synced: false },
+            const toExport = await sr.entities.Log.filter(
+              { created_by_id: userId, wavelog_synced: false, wavelog_imported: false },
               '-created_date', 100
             );
-            const toExport = unsyncedQsos.filter(q => !q.wavelog_imported);
 
             if (toExport.length > 0) {
               let adifString = '';
