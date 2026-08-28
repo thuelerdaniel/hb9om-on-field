@@ -67,44 +67,62 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, segments = 64) {
 }
 
 // AutoFit läuft nur EINMAL beim Mount — danach nicht mehr, damit User pan/zoom frei nutzen kann
-// Fix 5: AutoFit re-fitet wenn sich positions ändern (z.B. wenn QRZ-Daten eintreffen)
+// Fix 1+2: AutoFit — userInteracted Flag verhindert auto-fitBounds nach User-Interaktion.
+// 300ms setTimeout + invalidateSize für Leaflet-in-Modal Bug.
 function AutoFit({ positions }) {
   const map = useMap();
   const prevSig = useRef('');
+  const userInteracted = useRef(false);
+  const fitting = useRef(false);
+
+  // Fix 1: Track user interaction (drag/zoom) — ignore programmatic fitBounds
+  useEffect(() => {
+    if (!map) return;
+    const onDragStart = () => { userInteracted.current = true; };
+    const onZoomStart = () => { if (!fitting.current) userInteracted.current = true; };
+    const onMoveStart = () => { if (!fitting.current) userInteracted.current = true; };
+    map.on('dragstart', onDragStart);
+    map.on('zoomstart', onZoomStart);
+    map.on('movestart', onMoveStart);
+    return () => {
+      map.off('dragstart', onDragStart);
+      map.off('zoomstart', onZoomStart);
+      map.off('movestart', onMoveStart);
+    };
+  }, [map]);
+
   useEffect(() => {
     const sig = positions.map(p => p.join(',')).join('|');
-    // Nur re-fit wenn sich positions tatsächlich geändert haben
-    if (sig === prevSig.current) return;
+    // Fix 1: Don't re-fit if user has interacted or positions unchanged
+    if (sig === prevSig.current || userInteracted.current) return;
     prevSig.current = sig;
-    // invalidateSize: Modal-Container hat beim ersten Render oft falsche Grösse.
-    try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) { console.warn('invalidateSize skipped:', e.message); }
-    setTimeout(() => { try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) {} }, 200);
 
-    // Datumsgrenze erkennen: abs(lon1-lon2) > 180
-    const crossesDateline = positions.length === 2 && Math.abs(positions[0][1] - positions[1][1]) > 180;
-    const maxZoomVal = crossesDateline ? 3 : 5;
-    let boundsPositions = positions;
-    if (crossesDateline) {
-      boundsPositions = [
-        positions[0],
-        [positions[1][0], positions[1][1] > 0 ? positions[1][1] - 360 : positions[1][1] + 360],
-      ];
-    }
-
-    if (positions.length >= 2) {
-      const bounds = L.latLngBounds(boundsPositions.map(p => [p[0], p[1]]));
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: maxZoomVal });
-    } else if (positions.length === 1) {
-      map.setView(positions[0], 4);
-    }
-    // Zweiter invalidateSize + fitBounds nach 500ms (Modal-Animation abgeschlossen)
+    // Fix 2: 300ms timeout for invalidateSize (Leaflet in modal needs time to compute size)
+    fitting.current = true;
     setTimeout(() => {
       try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) {}
+
+      // Datumsgrenze erkennen: abs(lon1-lon2) > 180
+      const crossesDateline = positions.length === 2 && Math.abs(positions[0][1] - positions[1][1]) > 180;
+      const maxZoomVal = crossesDateline ? 3 : 5;
+      let boundsPositions = positions;
+      if (crossesDateline) {
+        boundsPositions = [
+          positions[0],
+          [positions[1][0], positions[1][1] > 0 ? positions[1][1] - 360 : positions[1][1] + 360],
+        ];
+      }
+
       if (positions.length >= 2) {
         const bounds = L.latLngBounds(boundsPositions.map(p => [p[0], p[1]]));
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: maxZoomVal });
+      } else if (positions.length === 1) {
+        map.setView(positions[0], 4);
       }
-    }, 500);
+
+      // Reset fitting flag after animation completes
+      setTimeout(() => { fitting.current = false; }, 500);
+    }, 300);
   }, [positions, map]);
   return null;
 }

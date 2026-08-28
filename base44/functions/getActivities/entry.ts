@@ -4,7 +4,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // Gruppiert nach activity_type: { sota, pota, wwff, wwbota, gma, alerts, other, total }
 // Wenn include_future=true: zusaetzlich SOTA-Alerts von der SOTA API.
 
-const SOTA_BASE = 'https://api-db2.sota.org.uk';
+const SOTA_BASE = 'https://api2.sota.org.uk';
 const UA = 'HB9OM-On-Field/1.0';
 
 export default async function(req: Request): Promise<Response> {
@@ -39,10 +39,10 @@ export default async function(req: Request): Promise<Response> {
     let liveSota = sota;
     if (liveSota.length === 0) {
       // Fix 3: 12 Stunden Abruf, RBNHOLE gefiltert
+      // Fix 4: -24 = 24 Stunden (negative Zahl = Stunden, positive = Anzahl)
       const sotaUrls = [
-        `${SOTA_BASE}/api/spots/12/all`,
-        `${SOTA_BASE}/api/spots/24/all`,
-        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/12/all`)}`,
+        `${SOTA_BASE}/api/spots/-24/all`,
+        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/-24/all`)}`,
       ];
       for (const url of sotaUrls) {
         try {

@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { APP_VERSION, APP_BUILD } from "@/lib/appVersion";
 import { CEPT_COUNTRIES, CEPT_LINKS } from "@/lib/ceptCountries";
 import DownloadSection from "@/components/help/DownloadSection";
+import SetupWizard from "@/components/SetupWizard";
 
 // CEPT-Laenderliste fuer die Hilfe-Tabelle
 const CEPT_COUNTRIES_LIST = CEPT_COUNTRIES.map(c => ({
@@ -704,7 +705,7 @@ const SECTIONS = [
     ]
   },
   {
-    id: "hunting",
+    id: "hunting-module",
     icon: Crosshair,
     title: "Hunting (DX-Spots & Fuchsjagd)",
     color: "#ff9800",
@@ -1056,6 +1057,7 @@ export default function Help() {
   const [flyerLoading, setFlyerLoading] = useState(false);
   const [helpPdfLoading, setHelpPdfLoading] = useState(false);
   const [adminPdfLoading, setAdminPdfLoading] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
 
   const handleDownloadFlyer = async () => {
     setFlyerLoading(true);
@@ -1276,6 +1278,27 @@ export default function Help() {
           <DownloadSection />
         </div>
 
+        {/* Setup-Wizard starten */}
+        <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <SettingsIcon className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900 dark:text-blue-200">Setup-Wizard</span>
+            </div>
+            <button
+              onClick={() => {
+                if (confirm('Möchtest du den Wizard neu starten? Deine aktuellen Einstellungen bleiben erhalten.')) {
+                  setShowWizard(true);
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+            >
+              Setup-Wizard starten
+            </button>
+          </div>
+          <p className="text-xs text-blue-700 dark:text-blue-300 mt-1.5">Einrichtungs-Assistent für neue Benutzer — Rufzeichen, Club, QRZ, GPS, Filter.</p>
+        </div>
+
         <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-4 text-center text-xs text-gray-500 dark:text-slate-400">
           <p>HB9OM On Field v{APP_VERSION} (Build {APP_BUILD}) · Amateurfunk Referenzkarte & QSO-Logbuch</p>
           <p className="mt-1">
@@ -1287,6 +1310,7 @@ export default function Help() {
         </div>
       </div>
 
+      {showWizard && <SetupWizard onClose={() => setShowWizard(false)} />}
       <BottomNavigation />
     </div>
   );

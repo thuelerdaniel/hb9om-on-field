@@ -8,7 +8,7 @@ import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts
 // Filtert Deprecation-Warning (id=9999999999999999).
 // User-Agent: "HB9OM-On-Field/1.0"
 
-const SOTA_BASE = 'https://api-db2.sota.org.uk';
+const SOTA_BASE = 'https://api2.sota.org.uk';
 const DEFAULT_LOCATOR = 'JN36FL';
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const UA = 'HB9OM-On-Field/1.0';
@@ -143,10 +143,10 @@ export default async function(req: Request): Promise<Response> {
     let apiError: string | null = null;
     // Fix 3: 12 Stunden Abruf (gleiche Anzahl wie SOTAWatch), 24h Fallback
     // Filtere RBNHOLE und DEPRECATED heraus — keine echten Activations
+    // Fix 4: -24 = 24 Stunden (negative Zahl = Stunden, positive = Anzahl)
     const sotaUrls = [
-      `${SOTA_BASE}/api/spots/12/all`,
-      `${SOTA_BASE}/api/spots/24/all`,
-      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/12/all`)}`,
+      `${SOTA_BASE}/api/spots/-24/all`,
+      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/-24/all`)}`,
     ];
     for (const url of sotaUrls) {
       try {

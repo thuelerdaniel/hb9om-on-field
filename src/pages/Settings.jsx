@@ -18,6 +18,8 @@ import CollapsibleSection from "@/components/settings/CollapsibleSection";
 import ConfigCompletenessBar from "@/components/settings/ConfigCompletenessBar";
 import GpsPublicConfig from "@/components/settings/GpsPublicConfig";
 import MyStationSection from "@/components/settings/MyStationSection";
+import MonthlyBackup from "@/components/settings/MonthlyBackup";
+import SetupWizard from "@/components/SetupWizard";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
 const AdminPanel = lazy(() => import("@/components/settings/AdminPanel"));
@@ -94,6 +96,7 @@ export default function Settings() {
   const [gpsTrackingInterval, setGpsTrackingInterval] = useState(() => parseInt(localStorage.getItem("hb9om_gps_tracking_interval") || "60"));
   const [gpsPublicEnabled, setGpsPublicEnabled] = useState(() => localStorage.getItem("hb9om_gps_public_enabled") !== "false");
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showWizard, setShowWizard] = useState(() => !localStorage.getItem("hb9om_wizard_completed"));
   // Offline management is now handled by <OfflineManager /> component
   const { features: appFeatures } = useAppFeatures();
 
@@ -452,18 +455,18 @@ export default function Settings() {
 
         {/* Admin-Bereich — zuoberst für Admins (Fix 2) */}
         {isAdmin && (
-          <div className="rounded-xl border-2 border-slate-700 overflow-hidden">
+          <div className="rounded-xl border-2 border-red-700 overflow-hidden">
             <button
               onClick={() => setShowAdminPanel(!showAdminPanel)}
-              className="w-full bg-slate-800 text-white p-4 flex items-center justify-between hover:bg-slate-700 transition-colors"
+              className="w-full bg-gradient-to-r from-red-700 to-red-600 text-white p-4 flex items-center justify-between hover:from-red-600 hover:to-red-500 transition-colors"
             >
               <span className="flex items-center gap-2 font-bold text-sm">
-                <Shield className="w-5 h-5" /> Admin-Bereich
+                <Shield className="w-5 h-5" /> ADMIN-BEREICH
               </span>
               <ChevronDown className={`w-5 h-5 transition-transform ${showAdminPanel ? 'rotate-180' : ''}`} />
             </button>
             {showAdminPanel && (
-              <div className="space-y-6 p-4 bg-slate-50 dark:bg-slate-900">
+              <div className="space-y-6 p-4 bg-red-50 dark:bg-red-950/20">
                 <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}>
                 <AdminPanel
                   cacheStatus={cacheStatus}
@@ -507,7 +510,7 @@ export default function Settings() {
         {/* Config Completeness Bar (point 10) */}
         <ConfigCompletenessBar items={configItems} />
 
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Profil & QRZ</h2></div>
+        <CollapsibleSection title="Profil & QRZ" icon={User} defaultOpen={false}>
         {/* User Profile */}
         <section className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
           <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -908,10 +911,12 @@ export default function Settings() {
             </div>
           )}
         </section>
+        </CollapsibleSection>
 
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Club-Rufzeichen</h2></div>
+        <CollapsibleSection title="Clubrufzeichen" icon={Users} defaultOpen={false}>
         {/* Club Callsign Manager — admin only, but component handles its own visibility */}
         <ClubCallsignManager />
+        </CollapsibleSection>
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Karte & Anzeige</h2></div>
         <CollapsibleSection title="Karte & Anzeige" icon={MapPin} defaultOpen={false} helpAnchor="#karte-anzeige" helpLabel="Hilfe zu Karte & Anzeige">
@@ -990,8 +995,9 @@ export default function Settings() {
         </section>
         </CollapsibleSection>
 
-        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">App-Funktionen</h2></div>
+        <CollapsibleSection title="App-Funktionen" icon={Zap} defaultOpen={false}>
         <AppFeaturesSection isAdmin={isAdmin} />
+        </CollapsibleSection>
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Offline & Sicherung</h2></div>
         <CollapsibleSection title="Offline-Modus" icon={WifiOff} defaultOpen={false} helpAnchor="#offline-modus" helpLabel="Hilfe zum Offline-Modus">
@@ -1010,6 +1016,10 @@ export default function Settings() {
           ) : (
             <BackupSection />
           )}
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Monatliches Backup" icon={HardDrive} defaultOpen={false}>
+          <MonthlyBackup />
         </CollapsibleSection>
 
         {(appFeatures.tools.change_requests !== false || appFeatures.tools.feature_requests !== false) && (
@@ -1137,6 +1147,7 @@ export default function Settings() {
 
       <DonationPopup />
       <BottomNavigation />
+      {showWizard && <SetupWizard onClose={() => setShowWizard(false)} />}
     </div>
   );
 }
