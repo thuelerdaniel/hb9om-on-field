@@ -34,7 +34,8 @@ async function loadImageData(url) {
   });
 }
 
-export async function generateFlyer() {
+export async function generateFlyer(options = {}) {
+  const { returnBlob = false } = options;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210, H = 297;
 
@@ -350,5 +351,8 @@ export async function generateFlyer() {
   doc.setFontSize(8);
   doc.text("HB9OM On Field  ·  Made in Switzerland", W / 2, H - 8, { align: "center" });
 
+  if (returnBlob) {
+    return doc.output("blob");
+  }
   doc.save("HB9OM_On_Field_Flyer.pdf");
 }
