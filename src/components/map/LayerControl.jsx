@@ -121,12 +121,8 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   const { features } = useAppFeatures();
   const panelRef = useRef(null);
 
-  // Filter layer groups by user's enabled layers
-  const visibleLayerGroups = LAYER_GROUPS.filter(group => {
-    const featureKey = layerIdToFeatureKey(group.id);
-    if (!featureKey) return true; // Layers without a feature key are always visible
-    return features.layers[featureKey] !== false;
-  });
+  // v0.9029: All layers always visible in panel — feature flags only control map activation, not panel visibility
+  const visibleLayerGroups = LAYER_GROUPS;
   // Support external open control (e.g. from ViewportLimitHint action button)
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const setIsOpen = onOpenChange || setInternalIsOpen;

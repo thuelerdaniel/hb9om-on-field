@@ -8,16 +8,18 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9028";
+export const APP_VERSION = "0.9029";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608281925";
+export const APP_BUILD = "202608281942";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9029: DX-Cluster Spots im 'Live Spot Activity' Tab — Fallback auf DxSpot Entity wenn fetchDxSpots keine Spots zurückgibt",
+  "Fix v0.9029: Layer-Panel OVERLAY-EBENEN — alle Layer sichtbar (Feature-Flag-Filter entfernt, Eye-Toggle steuert Karten-Sichtbarkeit)",
   "Rollback v0.9028: Zurück auf publizierten Stand — parallele fetch-Calls entfernt, refreshHuntingData Orchestrator wiederhergestellt",
   "Rollback v0.9028: Originales useEffect — nur loadData (DB) beim Mount, kein refreshFromApis im Hintergrund",
   "Rollback v0.9028: WWBOTA-Tab wiederhergestellt (6-Tabs-Struktur wie publiziert)",

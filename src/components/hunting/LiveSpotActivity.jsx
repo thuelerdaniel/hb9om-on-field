@@ -137,14 +137,20 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
       const payload = gpsPos ? { station_lat: gpsPos.lat, station_lng: gpsPos.lng } : {};
       const res = await base44.functions.invoke("fetchDxSpots", payload);
       const data = res?.data || res;
-      if (data?.spots) {
+      // v0.9029: If fetchDxSpots returns spots, use them; otherwise fall back to DxSpot entity
+      if (data?.spots && Array.isArray(data.spots) && data.spots.length > 0) {
         setSpots(data.spots);
         setWarning(data.warning || null);
+      } else {
+        // Fallback: load directly from DxSpot entity (DB has fresh data from scheduled automation)
+        const list = await base44.entities.DxSpot.filter({ is_active: true }, '-spot_time', 500);
+        setSpots(list || []);
+        setWarning(data?.warning || null);
       }
     } catch {
       try {
         // Fix 12: Kein Limit — alle Spots laden
-        const list = await base44.entities.DxSpot.list('-spot_time', 500);
+        const list = await base44.entities.DxSpot.filter({ is_active: true }, '-spot_time', 500);
         setSpots(list || []);
       } catch { setWarning("Spots konnten nicht geladen werden"); }
     } finally {
