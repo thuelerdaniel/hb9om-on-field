@@ -10,6 +10,8 @@ import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
 import DonationPopup from "@/components/DonationPopup";
 import LogStats from "@/components/log/LogStats";
+import WavelogSyncButtons from "@/components/log/WavelogSyncButtons";
+import { importFromWavelog, processWavelogOfflineQueue } from "@/lib/wavelogSync";
 import { DEMO_EMAIL } from "@/lib/constants";
 import { loadLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync, syncPending, getPendingCount } from "@/lib/localLogStore";
 
@@ -48,6 +50,38 @@ export default function Log() {
     loadEntries();
     // Check if demo account (point 13)
     base44.auth.me().then(me => setIsDemo(me?.email === DEMO_EMAIL)).catch(() => {});
+    // Wavelog: Auto-Import + Offline Queue beim Öffnen des Logbuches
+    (async () => {
+      try {
+        const me = await base44.auth.me();
+        if (!me) return;
+        const hs = await base44.entities.UserHuntingSettings.list();
+        if (hs && hs.length > 0) {
+          const s = hs[0];
+          if (s.wavelog_enabled && s.logging_backend === "wavelog" && navigator.onLine) {
+            const config = {
+              wavelog_enabled: s.wavelog_enabled,
+              wavelog_lan_url: s.wavelog_lan_url,
+              wavelog_wan_url: s.wavelog_wan_url,
+              wavelog_api_key: s.wavelog_api_key,
+              wavelog_station_id: s.wavelog_station_id,
+              wavelog_last_fetch_id: s.wavelog_last_fetch_id || 0,
+              wavelog_auto_sync: s.wavelog_auto_sync,
+            };
+            // Delta-Import
+            const r = await importFromWavelog(config);
+            if (r.success && r.imported > 0) {
+              await base44.entities.UserHuntingSettings.update(s.id, {
+                wavelog_last_fetch_id: r.lastfetchedid,
+              });
+              loadEntries(); // neu laden
+            }
+            // Offline Queue abarbeiten
+            await processWavelogOfflineQueue(config);
+          }
+        }
+      } catch (e) { /* silent */ }
+    })();
   }, []);
 
   // React to background log-store changes (optimistic sync completions)
@@ -58,7 +92,31 @@ export default function Log() {
       setPendingCount(getPendingCount());
     };
     window.addEventListener("log-cache-changed", handler);
-    return () => window.removeEventListener("log-cache-changed", handler);
+    // Wavelog: Offline Queue bei "online" Event abarbeiten
+    const onlineHandler = async () => {
+      try {
+        const hs = await base44.entities.UserHuntingSettings.list();
+        if (hs && hs.length > 0) {
+          const s = hs[0];
+          if (s.wavelog_enabled && s.wavelog_auto_sync) {
+            const config = {
+              wavelog_enabled: s.wavelog_enabled,
+              wavelog_lan_url: s.wavelog_lan_url,
+              wavelog_wan_url: s.wavelog_wan_url,
+              wavelog_api_key: s.wavelog_api_key,
+              wavelog_station_id: s.wavelog_station_id,
+              wavelog_auto_sync: s.wavelog_auto_sync,
+            };
+            await processWavelogOfflineQueue(config);
+          }
+        }
+      } catch (e) { /* silent */ }
+    };
+    window.addEventListener("online", onlineHandler);
+    return () => {
+      window.removeEventListener("log-cache-changed", handler);
+      window.removeEventListener("online", onlineHandler);
+    };
   }, []);
 
   const loadEntries = async () => {
@@ -393,7 +451,7 @@ export default function Log() {
           </button>
 
           {filtered.length > 0 && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {isDemo ? (
                 <span className="px-3 py-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-1.5" title="QRZ-Upload im Demo-Konto gesperrt">
                   <Upload className="w-4 h-4 opacity-40" />
@@ -419,6 +477,8 @@ export default function Log() {
                   </button>
                 </>
               )}
+              {/* Wavelog Sync Buttons — nur wenn Wavelog aktiviert */}
+              <WavelogSyncButtons onSynced={loadEntries} />
             </div>
           )}
           {qrzUploadResult && (

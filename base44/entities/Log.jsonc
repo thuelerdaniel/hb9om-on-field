@@ -193,6 +193,26 @@
         "archived"
       ],
       "default": "active"
+    },
+    "wavelog_synced": {
+      "type": "boolean",
+      "default": false,
+      "description": "QSO an Wavelog-Server gesendet"
+    },
+    "wavelog_sync_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wann QSO an Wavelog gesendet wurde"
+    },
+    "wavelog_imported": {
+      "type": "boolean",
+      "default": false,
+      "description": "QSO von Wavelog-Server importiert"
+    },
+    "wavelog_import_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wann QSO von Wavelog importiert wurde"
     }
   },
   "required": [

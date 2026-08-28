@@ -8,16 +8,27 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9019";
+export const APP_VERSION = "0.9022";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608281657";
+export const APP_BUILD = "202608281714";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Wavelog-Integration: Pro-User Settings (LAN+WAN URL, API Key, Station)",
+  "Wavelog: Wahlschalter QRZ.com ODER Wavelog (nicht beides gleichzeitig)",
+  "Wavelog: Ausnahme Club-QRZ bei Club-Log-Filter immer möglich",
+  "Wavelog: Upload Button — alle nicht gesendeten QSOs an Wavelog senden",
+  "Wavelog: Import Button — Delta-Sync mit lastfetchedid von Wavelog",
+  "Wavelog: Permanent Sync — QSOs sofort an Wavelog senden (Auto-Sync)",
+  "Wavelog: Offline Queue — QSOs offline loggen, automatisch bei Online gesendet",
+  "Wavelog: Logbuch-Sync beim Öffnen — automatischer Delta-Import",
+  "Wavelog: ADIF Konvertierung (QSO → ADIF → Wavelog API)",
+  "Wavelog: Backend-Proxy vermeidet Mixed-Content Blocking (HTTP Server)",
+  "Wavelog: Duplikat-Check beim Import (callsign + date + time)",
   "Hunting: 6-Tabs-Struktur (SOTA, POTA, WWFF, WWBOTA, Live Spot Activity, Alerts)",
   "Hunting: Keine Spot-Limits mehr — alle SOTA/POTA/WWFF/WWBOTA/DX-Spots werden angezeigt",
   "Hunting: SOTA API mit 200 Spots (3-Segment-URL /api/spots/200/all/all)",

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Info, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap, Shield, Crosshair, ChevronDown, Network } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle, Info, Settings as SettingsIcon, Database, Clock, Radio, User, Check, Search, HelpCircle, Trash2, AlertTriangle, Users, UserPlus, MapPin, Bell, Download, HardDrive, Wifi, WifiOff, ClipboardList, LogOut, KeyRound, Lightbulb, Gauge, Zap, Shield, Crosshair, ChevronDown, Network, Server } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import BackupSection from "@/components/settings/BackupSection";
 import { DEMO_EMAIL } from "@/lib/constants";
@@ -20,6 +20,7 @@ import GpsPublicConfig from "@/components/settings/GpsPublicConfig";
 import MyStationSection from "@/components/settings/MyStationSection";
 import MonthlyBackup from "@/components/settings/MonthlyBackup";
 import FieldWidthSettings from "@/components/settings/FieldWidthSettings";
+import WavelogSettings from "@/components/settings/WavelogSettings";
 import SetupWizard from "@/components/SetupWizard";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
@@ -1004,6 +1005,10 @@ export default function Settings() {
           {/* Öffentliche GPS-Position — unabhängig vom lokalen GPS-Toggle */}
           <GpsPublicConfig />
         </section>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Wavelog-Integration" icon={Server} defaultOpen={false}>
+          <WavelogSettings />
         </CollapsibleSection>
 
         <CollapsibleSection title="App-Funktionen" icon={Zap} defaultOpen={false}>

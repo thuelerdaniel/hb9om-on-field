@@ -20,6 +20,15 @@ const DEFAULT_SETTINGS = {
     field_widths: {},
     button_positions: {},
   },
+  wavelog_lan_url: "",
+  wavelog_wan_url: "",
+  wavelog_api_key: "",
+  wavelog_station_id: "",
+  wavelog_enabled: false,
+  wavelog_auto_sync: false,
+  wavelog_last_fetch_id: 0,
+  logging_backend: "qrz",
+  wavelog_offline_queue: "[]",
 };
 
 export function useHuntingSettings() {
