@@ -45,14 +45,16 @@ function AuthenticatedApp() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/oauth-consent" element={<OAuthConsent />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/log" element={<Log />} />
-        <Route path="/help" element={<Help />} />
+        <Route path="/" element={<ErrorBoundary name="Karte"><Home /></ErrorBoundary>} />
+        <Route path="/settings" element={<ErrorBoundary name="Einstellungen"><Settings /></ErrorBoundary>} />
+        <Route path="/log" element={<ErrorBoundary name="Logbuch"><Log /></ErrorBoundary>} />
+        <Route path="/help" element={<ErrorBoundary name="Hilfe"><Help /></ErrorBoundary>} />
         <Route path="/hunting" element={
-          <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0e17', color: '#4fd1c5', fontFamily: 'monospace' }}>Loading Hunting...</div>}>
-            <HuntingPage />
-          </Suspense>
+          <ErrorBoundary name="Hunting">
+            <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0e17', color: '#4fd1c5', fontFamily: 'monospace' }}>Loading Hunting...</div>}>
+              <HuntingPage />
+            </Suspense>
+          </ErrorBoundary>
         } />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/change-requests" element={<ChangeRequests />} />

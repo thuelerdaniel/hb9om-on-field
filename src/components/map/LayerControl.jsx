@@ -136,7 +136,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
         setIsOpen(false);
       }
     };
@@ -157,17 +157,18 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
     : COUNTRIES;
 
   return (
-    <div ref={containerRef} className="absolute top-16 right-3 z-[10003]" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+    <div ref={containerRef} className="absolute top-16 right-3 z-[10003]" style={{ WebkitTouchCallout: "none", userSelect: "none" }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-white shadow-lg rounded-lg p-2.5 hover:bg-gray-50 transition-colors border border-gray-200"
         title="Ebenen"
+        style={{ touchAction: "none" }}
       >
         <Layers className="w-5 h-5 text-gray-700" />
       </button>
 
       {isOpen && (
-        <div ref={panelRef} className="absolute top-12 right-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
+        <div ref={panelRef} className="absolute top-12 right-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto overscroll-contain">
           {/* Hintergrundkarte */}
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide">Hintergrundkarte</h3>

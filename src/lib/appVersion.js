@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9024";
+export const APP_VERSION = "0.9025";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,11 @@ export const APP_BUILD = "202608281918";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Layer-Control: touchAction:none nur noch am Button — Panel scrollt wieder auf Mobile!",
+  "Layer-Control: Outside-Click prüft containerRef statt panelRef — kein Flicker mehr beim Button-Klick",
+  "Layer-Control: overscroll-contain verhindert Scroll-Bubbling zur Karte",
+  "Error-Boundary: Per-Page Boundaries (Karte, Hunting, Logbuch, Einstellungen, Hilfe)",
+  "Error-Boundary: name-Prop für gezielte Fehleranzeige + Neu-laden-Button pro Seite",
   "Karten-Fix: Layer verschwinden nicht mehr nach Aktivierung (eachLayer redraw entfernt)",
   "Karten-Fix: invalidateSize nur noch einmal pro Layer-Wechsel — keine Tile-Neuladung mehr",
   "Layer-Control: Aussenklick schliesst das Panel (Outside-Click Handler)",
