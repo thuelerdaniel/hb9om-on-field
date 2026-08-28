@@ -97,7 +97,7 @@ export async function generateTrifoldFlyer(options = {}) {
   yc += 5;
   doc.text("hb9om@hb9om.ch", PW / 2, yc, { align: "center" });
   yc += 5;
-  doc.text("hb9om.ch", PW / 2, yc, { align: "center" });
+  doc.text("hb9om.online", PW / 2, yc, { align: "center" });
 
   // CTA box
   yc = 110;
@@ -183,7 +183,7 @@ export async function generateTrifoldFlyer(options = {}) {
   doc.setTextColor(...GOLD);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("hb9om.ch", cx + PW / 2, yf + 10, { align: "center" });
+  doc.text("hb9om.online", cx + PW / 2, yf + 10, { align: "center" });
   doc.setTextColor(180, 180, 180);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
@@ -428,10 +428,10 @@ export async function generateTrifoldFlyer(options = {}) {
   doc.text("Kostenlos starten", rx2 + PW / 2, y6 + 8, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Registrieren unter hb9om.ch", rx2 + PW / 2, y6 + 14, { align: "center" });
+  doc.text("Registrieren unter hb9om.online", rx2 + PW / 2, y6 + 14, { align: "center" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("hb9om.ch", rx2 + PW / 2, y6 + 19, { align: "center" });
+  doc.text("hb9om.online", rx2 + PW / 2, y6 + 19, { align: "center" });
 
   // Footer
   doc.setFillColor(...NAVY);
