@@ -54,9 +54,22 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const [propagation, setPropagation] = useState(null);
   const [sortBy, setSortBy] = useState('time');
 
+  // Fix v0.9033: Bypass refreshHuntingData orchestrator (403 issue) — call sub-functions
+  // directly from frontend via base44.functions.invoke(). The SDK attaches the user's
+  // auth token, so sub-functions pass their auth check. No orchestrator = no 403.
   const fetchActivities = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
+      // 1) Refresh spot data in parallel (allSettled = one failure doesn't block others)
+      await Promise.allSettled([
+        base44.functions.invoke("fetchSotaSpots", {}),
+        base44.functions.invoke("fetchSotaSpots", { alerts: true }),
+        base44.functions.invoke("fetchPotaSpots", {}),
+        base44.functions.invoke("fetchWwffSpots", {}),
+        base44.functions.invoke("fetchDxSpots", {}),
+        base44.functions.invoke("fetchPropagation", {}),
+      ]);
+      // 2) Load aggregated data from DB (now fresh)
       const [actRes, propRes] = await Promise.all([
         base44.functions.invoke("getActivities", { include_future: true }),
         base44.entities.Propagation.list("-updated", 1).catch(() => []),
