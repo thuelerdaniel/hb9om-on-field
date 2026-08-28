@@ -127,7 +127,7 @@ export default async function(req: Request): Promise<Response> {
     let sotaAlerts: any[] = [];
     let sotaAlertsAvailable = false;
     if (includeFuture) {
-      const alertUrl = `${SOTA_BASE}/api/alerts${SPOTS_QUERY}`;
+      const alertUrl = `${SOTA_BASE}/api/alerts/100/all/all${SPOTS_QUERY}`;
       const alertUrls = [
         alertUrl,
         `https://corsproxy.io/?url=${encodeURIComponent(alertUrl)}`,

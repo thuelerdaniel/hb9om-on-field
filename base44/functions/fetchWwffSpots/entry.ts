@@ -105,6 +105,8 @@ export default async function(req: Request): Promise<Response> {
           azimuth = Math.round(bearing(stationPos.lat, stationPos.lon, lat, lon));
         }
 
+        const comments = s.remarks || '';
+        const isQRT = /\bQRT\b/i.test(comments);
         return {
           call: s.activator,
           activity_type: 'WWFF',
@@ -114,13 +116,13 @@ export default async function(req: Request): Promise<Response> {
           mode: s.mode || 'SSB',
           latitude: !isNaN(lat) ? lat : undefined,
           longitude: !isNaN(lon) ? lon : undefined,
-          comments: s.remarks || '',
+          comments,
           spotter: s.spotter || '',
           source: 'WWFF-Spotline',
           spot_time: spotTime.toISOString(),
           age_seconds: ageSeconds,
           distance, azimuth,
-          is_active: true,
+          is_active: !isQRT,
         };
       })
       .filter((r: any) => r !== null && r.call && r.frequency);

@@ -101,6 +101,8 @@ export default async function(req: Request): Promise<Response> {
           azimuth = Math.round(bearing(stationPos.lat, stationPos.lon, lat, lon));
         }
 
+        const comments = s.comments || s.comment || '';
+        const isQRT = /\bQRT\b/i.test(comments);
         return {
           call: s.activator,
           activity_type: 'POTA',
@@ -113,7 +115,7 @@ export default async function(req: Request): Promise<Response> {
           latitude: !isNaN(lat) ? lat : undefined,
           longitude: !isNaN(lon) ? lon : undefined,
           grid6: s.grid6 || undefined,
-          comments: s.comments || s.comment || '',
+          comments,
           spotter: s.spotter || '',
           source: 'POTA API',
           spot_time: spotTime.toISOString(),
@@ -121,7 +123,7 @@ export default async function(req: Request): Promise<Response> {
           distance,
           azimuth,
           count: s.count != null ? Number(s.count) : undefined,
-          is_active: true,
+          is_active: !isQRT,
         };
       })
       .filter((r: any) => r.call && r.frequency);

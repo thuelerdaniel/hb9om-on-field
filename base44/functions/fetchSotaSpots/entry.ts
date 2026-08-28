@@ -58,7 +58,7 @@ export default async function(req: Request): Promise<Response> {
 
       let alerts: any[] = [];
       let apiError: string | null = null;
-      const alertUrl = `${SOTA_BASE}/api/alerts${SPOTS_QUERY}`;
+      const alertUrl = `${SOTA_BASE}/api/alerts/100/all/all${SPOTS_QUERY}`;
       const alertUrls = [
         alertUrl,
         `https://corsproxy.io/?url=${encodeURIComponent(alertUrl)}`,
@@ -107,7 +107,7 @@ export default async function(req: Request): Promise<Response> {
         const coords = refCoordMap.get(ref);
         // Fix v0.9015: frequency bei Alerts ist STRING (z.B. "7.032-cw-7.144-ssb...")
         const freqNum = a.frequency ? parseFloat(String(a.frequency)) : NaN;
-        const frequency = !isNaN(freqNum) ? freqNum * 1000 : null;
+        const frequency = !isNaN(freqNum) ? freqNum * 1000 : 0;
         return {
           call: a.activatingCallsign || '',
           activity_type: 'SOTA-ALERT',
@@ -123,7 +123,7 @@ export default async function(req: Request): Promise<Response> {
           source: 'SOTA-Alerts',
           spot_time: a.dateActivated ? new Date(a.dateActivated).toISOString() : new Date().toISOString(),
           is_future: true,
-          is_active: true,
+          is_active: false,
         };
       }).filter((r: any) => r.call);
 
@@ -213,6 +213,7 @@ export default async function(req: Request): Promise<Response> {
         const spotTime = s.timeStamp ? new Date(s.timeStamp) : new Date();
         const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
         const comments = s.comments || '';
+        const isQRT = /\bQRT\b/i.test(comments);
         const locator = extractLocator(comments);
         // Fix v0.9015: latitude/longitude direkt im Spot verfügbar!
         let lat: number | undefined = s.latitude != null ? Number(s.latitude) : undefined;
@@ -249,7 +250,7 @@ export default async function(req: Request): Promise<Response> {
           spot_time: spotTime.toISOString(),
           age_seconds: ageSeconds,
           distance, azimuth,
-          is_active: true,
+          is_active: !isQRT,
         };
       })
       .filter((r: any) => r !== null && r.call && r.frequency);

@@ -21,7 +21,7 @@ const TABS = [
   { id: 'SOTA', label: 'SOTA', color: '#d97706' },
   { id: 'POTA', label: 'POTA', color: '#16a34a' },
   { id: 'WWFF', label: 'WWFF', color: '#0d9488' },
-  { id: 'WWBOTA', label: 'WWBOTA', color: '#dc2626' },
+  // Fix v0.9031: WWBOTA removed — domain wwbota.ch dead, no DNS records
   { id: 'dxcluster', label: 'Live Spot Activity', color: '#06b6d4' },
   { id: 'alerts', label: 'Alerts', color: '#7c3aed' },
 ];
@@ -315,7 +315,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
         <div className="px-3 py-1.5 bg-[#7c3aed]/5 border-b border-[#7c3aed]/20 flex items-start gap-1.5">
           <AlertCircle className="w-3 h-3 text-[#7c3aed] flex-shrink-0 mt-0.5" />
           <div className="text-[9px] text-muted-foreground">
-            POTA und WWBOTA haben keine geplante API — nur Live-Spots in den jeweiligen Tabs.
+            POTA hat keine geplante API — nur Live-Spots im POTA-Tab. WWBOTA ist nicht mehr verfügbar.
           </div>
         </div>
       )}

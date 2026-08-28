@@ -8,16 +8,21 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9030";
+export const APP_VERSION = "0.9031";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608281918";
+export const APP_BUILD = "202608281935";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9031: refreshHuntingData ruft Sub-Functions direkt auf (keine 403 Fehler mehr)",
+  "Fix v0.9031: SOTA-Alerts Endpoint korrigiert (/api/alerts/100/all/all statt /api/alerts)",
+  "Fix v0.9031: QRT-Stationen werden als is_active: false gespeichert (SOTA, POTA, WWFF, GMA)",
+  "Fix v0.9031: WWBOTA-Tab entfernt (Domain wwbota.ch tot, keine Spots mehr)",
+  "Fix v0.9031: ActivitySpot Cleanup — Records >30min werden bei jedem Refresh gelöscht",
   "SOTA-Spots: RBNHOLE-Filter entfernt — jetzt 200 Spots (NORMAL + RBNHole) statt 50",
   "SOTA-Spots: RBNHole-Spots mit SNR/WPM-Info in den Kommentaren sichtbar",
   "APK-Download: downloadApk Backend-Function mit korrektem Content-Type (application/vnd.android.package-archive)",

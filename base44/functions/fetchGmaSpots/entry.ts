@@ -120,6 +120,7 @@ export default async function(req: Request): Promise<Response> {
           lon = Math.round(dxPos.lon * 10000) / 10000;
         }
 
+        const isQRT = /\bQRT\b/i.test(comments.join(' '));
         return {
           call: String(call).toUpperCase().trim(),
           activity_type: 'GMA' as const,
@@ -137,7 +138,7 @@ export default async function(req: Request): Promise<Response> {
           spot_time: spotTime.toISOString(),
           age_seconds: ageSeconds,
           distance, azimuth,
-          is_active: true,
+          is_active: !isQRT,
         };
       })
       .filter((r: any) => r !== null && r.call && r.frequency);
