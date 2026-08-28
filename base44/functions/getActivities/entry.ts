@@ -1,13 +1,23 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
-// Lade alle ActivitySpot-Einträge (sort -spot_time, limit 500).
-// Gruppiert nach activity_type: { sota, pota, wwff, wwbota, gma, alerts, other, total }
-// Wenn include_future=true: zusaetzlich SOTA-Alerts von der SOTA API.
-// Fix v0.9015: korrekte API-Endpunkte api-db2.sota.org.uk mit ?client=sotawatch&user=anon
+// Lade alle ActivitySpot-Einträge und teile sie in LIVE und ALERTS.
+// Fix v0.9016: Strikte Trennung von Live-Spots und geplanten Aktivierungen.
+//   liveSpots: alle Live-Spots (SOTA, POTA, WWFF, WWBOTA, andere) — QRT gefiltert
+//   alerts:   alle geplanten Aktivierungen (SOTA-Alerts + WWFF-Agendas)
+// WWFF Agendas: spots.wwff.co/static/agendas_active.json
+// SOTA API: api-db2.sota.org.uk mit ?client=sotawatch&user=anon
 
 const SOTA_BASE = 'https://api-db2.sota.org.uk';
+const WWFF_AGENDAS_URL = 'https://spots.wwff.co/static/agendas_active.json';
 const UA = 'HB9OM-On-Field/1.0';
 const SPOTS_QUERY = '?client=sotawatch&user=anon';
+
+function isQRT(spot: any): boolean {
+  const comments = (spot.comments || '').toUpperCase();
+  if (comments.includes('QRT')) return true;
+  if (!spot.frequency || spot.frequency === 0) return true;
+  return false;
+}
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -28,19 +38,22 @@ export default async function(req: Request): Promise<Response> {
       spots = await base44.entities.ActivitySpot.list('-spot_time', 500);
     } catch {}
 
-    // Gruppiere nach activity_type
-    const sota = spots.filter(s => s.activity_type === 'SOTA');
-    const pota = spots.filter(s => s.activity_type === 'POTA');
-    const wwff = spots.filter(s => s.activity_type === 'WWFF');
-    const wwbota = spots.filter(s => s.activity_type === 'WWBOTA');
-    const gma = spots.filter(s => s.activity_type === 'GMA');
-    const alerts = spots.filter(s => s.activity_type === 'SOTA-ALERT');
-    const other = spots.filter(s => !['SOTA', 'POTA', 'WWFF', 'WWBOTA', 'GMA', 'SOTA-ALERT'].includes(s.activity_type));
+    // Fix v0.9016: Strikte Trennung Live vs Alerts
+    // Live: nicht is_future, nicht SOTA-ALERT, nicht QRT, frequency > 0
+    let liveSpots = spots.filter(s =>
+      !s.is_future &&
+      s.activity_type !== 'SOTA-ALERT' &&
+      !isQRT(s)
+    );
 
-    // Falls keine SOTA-Spots in DB: direkt von SOTA API laden
-    let liveSota = sota;
-    if (liveSota.length === 0) {
-      // Fix v0.9015: korrekte URL /api/spots/200/all/all?client=sotawatch&user=anon
+    // Alerts aus DB (is_future oder SOTA-ALERT)
+    const dbAlerts = spots.filter(s =>
+      s.is_future || s.activity_type === 'SOTA-ALERT'
+    );
+
+    // Falls keine Live-SOTA-Spots in DB: direkt von SOTA API laden
+    const hasLiveSota = liveSpots.some(s => s.activity_type === 'SOTA');
+    if (!hasLiveSota) {
       const spotsUrl = `${SOTA_BASE}/api/spots/200/all/all${SPOTS_QUERY}`;
       const sotaUrls = [
         spotsUrl,
@@ -54,14 +67,15 @@ export default async function(req: Request): Promise<Response> {
           });
           if (resp.ok) {
             const raw = await resp.json();
-            // Fix v0.9015: KEINE Deprecation-Warning, nur RBNHOLE filtern
+            // Fix v0.9016: QRT-Filter + RBNHOLE-Filter
             const sotaSpots = Array.isArray(raw) ? raw.filter((s: any) =>
               s.activatorCallsign && s.frequency &&
               s.callsign !== 'RBNHOLE' &&
-              s.type !== 'DEPRECATED'
+              s.type !== 'DEPRECATED' &&
+              !(s.comments && s.comments.toUpperCase().includes('QRT'))
             ) : [];
             console.log('[SOTA] Live spots received:', sotaSpots.length);
-            // Fix v0.9015: SotaPoint-Lookup nur für Spots ohne lat/lon
+            // SotaPoint-Lookup nur für Spots ohne lat/lon
             const refCoordMap = new Map<string, { lat: number; lon: number }>();
             for (const s of sotaSpots) {
               if (s.latitude == null || s.longitude == null) {
@@ -76,8 +90,7 @@ export default async function(req: Request): Promise<Response> {
                 }
               }
             }
-            liveSota = sotaSpots.map((s: any) => {
-              // Fix v0.9015: frequency ist NUMMER, summitCode = komplette Referenz
+            const liveSota = sotaSpots.map((s: any) => {
               const frequency = Number(s.frequency) * 1000;
               const spotTime = s.timeStamp ? new Date(s.timeStamp) : new Date();
               const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
@@ -91,7 +104,6 @@ export default async function(req: Request): Promise<Response> {
                 frequency,
                 band: '',
                 mode: s.mode || 'CW',
-                // Fix v0.9015: lat/lon direkt im Spot
                 latitude: s.latitude != null ? Number(s.latitude) : fallback?.lat,
                 longitude: s.longitude != null ? Number(s.longitude) : fallback?.lon,
                 comments: s.comments || '',
@@ -104,14 +116,15 @@ export default async function(req: Request): Promise<Response> {
                 is_active: true,
               };
             });
+            liveSpots = [...liveSpots, ...liveSota];
             break;
           }
         } catch {}
       }
     }
 
-    // SOTA-Alerts (geplante Aktivierungen)
-    let futureAlerts: any[] = [];
+    // SOTA-Alerts (geplante Aktivierungen) von API
+    let sotaAlerts: any[] = [];
     let sotaAlertsAvailable = false;
     if (includeFuture) {
       const alertUrl = `${SOTA_BASE}/api/alerts${SPOTS_QUERY}`;
@@ -128,12 +141,10 @@ export default async function(req: Request): Promise<Response> {
           if (resp.ok) {
             sotaAlertsAvailable = true;
             const raw = await resp.json();
-            // Fix v0.9015: KEINE Deprecation-Warning, "Unrecognized summit" filtern
             const alertList = Array.isArray(raw) ? raw.filter((a: any) =>
               a.activatingCallsign &&
               a.summitDetails !== 'Unrecognized summit'
             ) : [];
-            // Fix v0.9015: Alerts haben associationCode + summitCode GETRENNT
             const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
             for (const a of alertList.slice(0, 300)) {
               const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
@@ -146,7 +157,7 @@ export default async function(req: Request): Promise<Response> {
                 } catch {}
               }
             }
-            futureAlerts = alertList.slice(0, 300).map((a: any) => {
+            sotaAlerts = alertList.slice(0, 300).map((a: any) => {
               const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
               const coords = refCoordMap.get(ref);
               return {
@@ -161,6 +172,7 @@ export default async function(req: Request): Promise<Response> {
                 latitude: coords?.lat,
                 longitude: coords?.lon,
                 is_active: false,
+                source: 'SOTA-Alerts',
               };
             }).filter((s: any) => s.call);
             break;
@@ -169,36 +181,58 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
-    // Fix 2: SOTA Spots + Alerts kombiniert für SOTA-Tab
-    // LIVE Spots zuerst (nach Zeit absteigend), dann ALERTS (nach dateActivated aufsteigend)
-    const combinedSota = [
-      ...liveSota.map((s: any) => ({ ...s, spot_type: 'LIVE' })),
-      ...futureAlerts.map((a: any) => ({ ...a, spot_type: 'ALERT', is_future: true })),
-    ].sort((a, b) => {
-      const aLive = a.spot_type === 'LIVE';
-      const bLive = b.spot_type === 'LIVE';
-      if (aLive && !bLive) return -1;
-      if (!aLive && bLive) return 1;
-      if (aLive) {
-        return new Date(b.spot_time || 0).getTime() - new Date(a.spot_time || 0).getTime();
+    // Fix v0.9016: WWFF Agendas (geplante WWFF-Aktivierungen)
+    let wwffAgendas: any[] = [];
+    try {
+      const resp = await fetch(WWFF_AGENDAS_URL, {
+        headers: { 'Accept': 'application/json', 'User-Agent': UA },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (resp.ok) {
+        const raw = await resp.json();
+        if (Array.isArray(raw)) {
+          wwffAgendas = raw.map((a: any) => ({
+            call: a.activator_call || '',
+            activity_type: 'WWFF-ALERT',
+            reference: a.reference || '',
+            name: '',
+            frequency: 0,
+            mode: a.mode || '',
+            spot_time: a.utc_start ? new Date(a.utc_start).toISOString() : null,
+            comments: a.remarks || (a.band ? `Band: ${a.band}` : ''),
+            spotter: a.poster || '',
+            source: 'WWFF-Agenda',
+            is_active: false,
+            is_future: true,
+          })).filter((s: any) => s.call && s.reference);
+          console.log('[WWFF] Agendas received:', wwffAgendas.length);
+        }
       }
-      return new Date(a.spot_time || 0).getTime() - new Date(b.spot_time || 0).getTime();
-    });
+    } catch (e: any) {
+      console.log('[WWFF] Agendas fetch failed:', e.message);
+    }
 
-    console.log('[SOTA] Spots:', liveSota.length, 'Alerts:', futureAlerts.length, 'Total:', combinedSota.length);
+    // Alle Alerts kombiniert: DB-Alerts + SOTA-Alerts + WWFF-Agendas
+    const allAlerts = [...dbAlerts, ...sotaAlerts, ...wwffAgendas];
+
+    console.log('[Activities] Live:', liveSpots.length, 'Alerts:', allAlerts.length);
 
     return Response.json({
       success: true,
-      sota: combinedSota,
-      pota,
-      wwff,
-      wwbota,
-      gma,
-      alerts: [...alerts, ...futureAlerts],
-      other,
+      liveSpots,
+      alerts: allAlerts,
+      liveTotal: liveSpots.length,
+      alertsTotal: allAlerts.length,
       sotaAlertsAvailable,
-      total: combinedSota.length,
-      futureTotal: futureAlerts.length,
+      // Backward-compat: keep old fields for any other consumers
+      sota: liveSpots.filter(s => s.activity_type === 'SOTA'),
+      pota: liveSpots.filter(s => s.activity_type === 'POTA'),
+      wwff: liveSpots.filter(s => s.activity_type === 'WWFF'),
+      wwbota: liveSpots.filter(s => s.activity_type === 'WWBOTA'),
+      gma: liveSpots.filter(s => s.activity_type === 'GMA'),
+      other: liveSpots.filter(s => !['SOTA', 'POTA', 'WWFF', 'WWBOTA', 'GMA'].includes(s.activity_type)),
+      total: liveSpots.length,
+      futureTotal: allAlerts.length,
     });
   } catch (error) {
     return Response.json({ error: error.message || 'Unbekannter Fehler' }, { status: 500 });
