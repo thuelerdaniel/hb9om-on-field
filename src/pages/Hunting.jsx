@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Crosshair, MapPin, HelpCircle } from "lucide-react";
+import { Crosshair, MapPin, HelpCircle, WifiOff, RefreshCw, Map as MapIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useHuntingSettings } from "@/hooks/useHuntingSettings";
@@ -29,6 +29,19 @@ export default function Hunting() {
   const [gpsStatus, setGpsStatus] = useState('idle');
   const watchIdRef = useRef(null);
   const { settings, updateGpsPosition } = useHuntingSettings();
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  // Fix 8: Offline-Erkennung
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // GPS-Tracking: Live-Position vom Gerät — Fix 5: GPS als Referenz
   useEffect(() => {
@@ -88,7 +101,36 @@ export default function Hunting() {
         </div>
       </header>
 
-      {/* Content — Fix 2/3/7: Direkt mit ActivityPanel + Spot-Table, kein Globe/CommandStrip/PriorityDx */}
+      {/* Fix 8: Offline-Warnung */}
+      {!isOnline && (
+        <div className="fixed inset-0 z-[9999] bg-[#0a0e17] flex items-center justify-center p-6">
+          <div className="max-w-sm text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-[#1a1e2e] flex items-center justify-center mx-auto">
+              <WifiOff className="w-8 h-8 text-[#ff5252]" />
+            </div>
+            <h2 className="text-lg font-bold text-white">Du bist offline</h2>
+            <p className="text-sm text-[#a0aec0]">
+              Der Hunting-Bereich benötigt eine Netzwerkverbindung um Live-Spots abzurufen.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2.5 bg-[#2e7d32] text-white rounded-lg text-sm font-bold hover:bg-[#1b5e20] transition-colors flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" /> Erneut versuchen
+              </button>
+              <Link
+                to="/"
+                className="px-4 py-2.5 bg-[#1a1e2e] text-[#cbd5e0] rounded-lg text-sm font-medium hover:bg-[#252a3d] transition-colors flex items-center justify-center gap-2"
+              >
+                <MapIcon className="w-4 h-4" /> Zur Karte (Offline-Karten verfügbar)
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content — Fix 11: Live Spot Activity VOR Active Activation */}
       <main className="max-w-2xl mx-auto px-3 py-3 pb-24 space-y-3">
         {/* GPS Status Banner */}
         {gpsStatus === 'locating' && (
@@ -105,20 +147,20 @@ export default function Hunting() {
         {/* Propagation Bar */}
         <PropagationBar stationInfo={stationInfo} />
 
-        {/* Activity Panel — SOTA, POTA, WWFF, WWBOTA, GMA + Alerts */}
-        <ActivityPanel
-          onLogQso={setQsoSpot}
-          onSpotDetails={setSpotDetails}
-          gpsPos={gpsPos}
-        />
-
-        {/* Live Spot Activity — DX-Spots mit Filtern */}
+        {/* Fix 11: Live Spot Activity ERST (aktive Spots) */}
         <LiveSpotActivity
           onSpotDetails={setSpotDetails}
           onLogQso={setQsoSpot}
           onCallClick={setQrzCall}
           gpsPos={gpsPos}
           stationInfo={stationInfo}
+        />
+
+        {/* Fix 11: Active Activation DANN (geplante/aktive Aktivierungen) */}
+        <ActivityPanel
+          onLogQso={setQsoSpot}
+          onSpotDetails={setSpotDetails}
+          gpsPos={gpsPos}
         />
       </main>
 

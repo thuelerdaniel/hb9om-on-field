@@ -197,9 +197,36 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
                 }}
               >{spot.activity_type || spot.activity}</span>
             )}
-            {(spot?.activity_ref || spot?.reference) && (
-              <span className="text-[10px] text-muted-foreground">{spot.activity_ref || spot.reference}</span>
-            )}
+            {(() => {
+              const ref = spot?.activity_ref || spot?.reference;
+              if (!ref) return null;
+              // Fix 16: Referenz klickbar zu Web-Info
+              const actType = spot?.activity_type || spot?.activity;
+              let refUrl = null;
+              try {
+                if (actType === 'SOTA' || ref.match(/^[A-Z0-9]+\/[A-Z0-9]+-[0-9]+$/)) {
+                  const parts = ref.split('/');
+                  if (parts.length >= 2) refUrl = `https://sotl.as/summit/${parts[0]}/${parts.slice(1).join('/')}`;
+                } else if (actType === 'POTA' || ref.match(/^[A-Z]{2}-\d+$/)) {
+                  refUrl = `https://pota.app/#/park/${ref}`;
+                } else if (actType === 'WWFF' || ref.match(/^[A-Z]{2}FF-\d{4}$/)) {
+                  refUrl = `https://www.cqgma.org/wwff/ffref/${ref}`;
+                } else if (actType === 'WWBOTA') {
+                  refUrl = `https://wwbota.org/`;
+                } else if (actType === 'IOTA' || ref.match(/^[A-Z]{2}-\d{3}$/)) {
+                  refUrl = `https://www.iota-world.org/iota-islands/iota-group/${ref}`;
+                }
+              } catch {}
+              if (refUrl) {
+                return (
+                  <a href={refUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] text-[#00e5ff] hover:underline font-bold">
+                    {ref} ↗
+                  </a>
+                );
+              }
+              return <span className="text-[10px] text-muted-foreground">{ref}</span>;
+            })()}
             {spot?.country && <span className="text-xs text-muted-foreground">{spot.country}</span>}
           </div>
 

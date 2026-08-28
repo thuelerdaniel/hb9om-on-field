@@ -1,15 +1,19 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { X, User, MapPin, Mail, Grid3x3, Loader2, Search, Plus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { parseCallsign } from "@/lib/callsignParser";
 
 // QRZ Lookup Modal — Theme-aware.
+// Fix 10: Verwendet Base-Callsign für QRZ-Abfrage (ohne Prefix/Suffix).
 // Prüft zuerst QrzLookup Entity, dann fetchQRZ.
-// Fix 3: "QSO loggen" Button — schliesst QRZ-Popup, öffnet QSO-Formular mit Prefill.
 
 export default function QrzLookupModal({ callsign, spot, onLogQso, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Fix 10: Base-Callsign für QRZ-Abfrage extrahieren
+  const { base, prefix, suffix } = useMemo(() => parseCallsign(callsign), [callsign]);
 
   const lookup = useCallback(async (call) => {
     if (!call) return;
@@ -22,6 +26,7 @@ export default function QrzLookupModal({ callsign, spot, onLogQso, onClose }) {
       } catch {}
       if (existing && existing.name) { setData(existing); setLoading(false); return; }
 
+      // Fix 10: Base-Callsign für QRZ-Abfrage verwenden
       const res = await base44.functions.invoke("fetchQRZ", { callsign: call });
       const qrzData = res?.data || res;
       if (qrzData?.error) { setError(qrzData.error); setLoading(false); return; }
@@ -47,7 +52,8 @@ export default function QrzLookupModal({ callsign, spot, onLogQso, onClose }) {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { lookup(callsign); }, [callsign, lookup]);
+  // Fix 10: Base-Callsign für Lookup verwenden
+  useEffect(() => { lookup(base || callsign); }, [base, callsign, lookup]);
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -62,6 +68,14 @@ export default function QrzLookupModal({ callsign, spot, onLogQso, onClose }) {
           <div className="mb-4">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Rufzeichen</div>
             <div className="text-xl font-bold text-[#00e5ff]">{callsign}</div>
+            {/* Fix 10: Prefix/Suffix Info anzeigen */}
+            {(prefix || suffix) && (
+              <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-2">
+                {prefix && <span>Prefix: <span className="font-mono font-bold text-foreground">{prefix}</span></span>}
+                {suffix && <span>Suffix: <span className="font-mono font-bold text-foreground">/{suffix}</span></span>}
+                <span className="text-muted-foreground/60">· QRZ-Abfrage: <span className="font-mono">{base}</span></span>
+              </div>
+            )}
           </div>
           {loading && (
             <div className="flex items-center gap-2 text-muted-foreground py-4">

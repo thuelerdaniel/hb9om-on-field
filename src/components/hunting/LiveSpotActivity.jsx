@@ -142,7 +142,8 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
       }
     } catch {
       try {
-        const list = await base44.entities.DxSpot.list('-spot_time', 50);
+        // Fix 12: Kein Limit — alle Spots laden
+        const list = await base44.entities.DxSpot.list('-spot_time', 500);
         setSpots(list || []);
       } catch { setWarning("Spots konnten nicht geladen werden"); }
     } finally {
@@ -370,7 +371,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                       <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: DOT_COLORS[dot] }} />
                         {spot.countryCode && <span className="text-sm leading-none">{spot.countryCode}</span>}
-                        <button onClick={() => onCallClick?.(spot)} className="font-bold text-foreground hover:text-[#00e5ff] truncate">
+                        <button onClick={() => onSpotDetails?.(spot)} className="font-bold text-foreground hover:text-[#00e5ff] truncate">
                           {spot.call}
                         </button>
                         {spot.activity && (

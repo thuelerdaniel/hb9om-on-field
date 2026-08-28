@@ -24,7 +24,7 @@ export default function MyStationSection() {
   const [myCallsign, setMyCallsign] = useState("");
   const [licenseClass, setLicenseClass] = useState("full");
   const [countryCode, setCountryCode] = useState("");
-  const [suffix, setSuffix] = useState("/P");
+  const [suffix, setSuffix] = useState("");
   const [clubCallsign, setClubCallsign] = useState("");
   const [clubOperatorName, setClubOperatorName] = useState("");
   const [countryOpen, setCountryOpen] = useState(false);
@@ -35,7 +35,8 @@ export default function MyStationSection() {
     setMyCallsign((safeGetItem("hb9om_my_callsign") || "").toUpperCase());
     setLicenseClass(safeGetItem("hb9om_my_license_class") || "full");
     setCountryCode(safeGetItem("hb9om_my_operating_country") || "");
-    setSuffix(safeGetItem("hb9om_my_suffix") || "/P");
+    const savedSuffix = safeGetItem("hb9om_my_suffix");
+    setSuffix(savedSuffix === null ? "" : savedSuffix);
     setClubCallsign((safeGetItem("hb9om_club_callsign") || "").toUpperCase());
     setClubOperatorName(safeGetItem("hb9om_club_operator_name") || "");
     // Club-Call aus Backend laden (admin-set global default)

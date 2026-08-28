@@ -27,7 +27,6 @@ import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import JsonRepeaterImport from "@/components/admin/JsonRepeaterImport";
 import CoverageScheduleManager from "@/components/admin/CoverageScheduleManager";
 import IllwAdminSection from "@/components/admin/IllwAdminSection";
-import DxSpotReferenceManager from "@/components/admin/DxSpotReferenceManager";
 import MobileSelect from "@/components/ui/MobileSelect";
 import AdminDownloadManager from "@/components/admin/AdminDownloadManager";
 import DataSourceStatusSection from "@/components/admin/DataSourceStatusSection";
@@ -418,8 +417,8 @@ export default function AdminPanel({
         {/* Individual Source Reload */}
         <IndividualSourceReload />
 
-        {/* DX Spot Reference Manager */}
-        <DxSpotReferenceManager />
+        {/* Fix 5: Datenquellen-Status statt DX-Spot-Referenz-Daten */}
+        <DataSourceStatusSection />
       </AdminCollapsibleSection>
 
       {/* ====== GROUP 3: Relais & Verlinkungen ====== */}

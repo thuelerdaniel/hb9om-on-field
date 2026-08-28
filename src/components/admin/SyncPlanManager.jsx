@@ -300,9 +300,14 @@ export default function SyncPlanManager() {
         })}
       </div>
 
-      {/* ─── Schedule editor ─── */}
-      {showScheduleEditor && config && (
-        <ScheduleEditor config={config} onSave={handleSaveSchedule} saving={saving} onCancel={() => setShowScheduleEditor(false)} />
+      {/* ─── Schedule editor ─── Fix 3: Editor öffnet auch ohne config (mit Defaults) */}
+      {showScheduleEditor && (
+        <ScheduleEditor
+          config={config || { full_batch_day: "Monday", full_batch_time: "01:00", full_batch_end_time: "05:00", partial_sync_day: "Thursday", partial_sync_time: "03:00", partial_sync_end_time: "04:00", aprs_stream_time: "06:30" }}
+          onSave={handleSaveSchedule}
+          saving={saving}
+          onCancel={() => setShowScheduleEditor(false)}
+        />
       )}
 
       {/* ─── Global manual trigger buttons ─── */}

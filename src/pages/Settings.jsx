@@ -450,12 +450,7 @@ export default function Settings() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24">
         <ThemeToggle />
 
-        {/* MEINE STATION / LIZENZ — ganz oben (Praefix, Lizenzklasse, Suffix) */}
-        <MyStationSection />
-
-        {/* Config Completeness Bar (point 10) */}
-        <ConfigCompletenessBar items={configItems} />
-
+        {/* Admin-Bereich — zuoberst für Admins (Fix 2) */}
         {isAdmin && (
           <div className="rounded-xl border-2 border-slate-700 overflow-hidden">
             <button
@@ -505,6 +500,12 @@ export default function Settings() {
             )}
           </div>
         )}
+
+        {/* MEINE STATION / LIZENZ — nach Admin-Bereich (Fix 2) */}
+        <MyStationSection />
+
+        {/* Config Completeness Bar (point 10) */}
+        <ConfigCompletenessBar items={configItems} />
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Profil & QRZ</h2></div>
         {/* User Profile */}

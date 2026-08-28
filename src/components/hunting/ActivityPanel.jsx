@@ -1,23 +1,45 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock, Filter, ChevronDown, X, Building2, Info } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock, Filter, ChevronDown, X, Building2, Info, Layers, ArrowUpDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PotaParkInfoPopup from "@/components/hunting/PotaParkInfoPopup";
+import { calcHearScore, scoreColor } from "@/lib/hearScore";
+import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
 
-// Activity Panel — v0.9010: Zeigt alle Aktivitaets-Typen (SOTA, POTA, WWFF, WWBOTA, GMA, Alerts).
-// Tabs pro Typ, Band-Filter, manueller Refresh.
-// Fix 6: Lesbare Farben (#16a34a statt #8cff00 fuer Text).
+// Activity Panel — v0.9011:
+// Fix 9: Sortierung nach Zeit oder Verbindungswahrscheinlichkeit
+// Fix 15: Landesfahne neben Callsign
+// Fix 16: Referenz klickbar zu Web-Info
+// Fix 17: Alerts mit Typ-Markierung (farbige Badges)
+// Fix 18: GMA-Tab ersetzt durch "Weitere"
 
 const REFRESH_MS = 60 * 1000;
 const BAND_OPTIONS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm'];
 
+// Fix 18: GMA-Tab ersetzt durch "Weitere"
 const TABS = [
   { id: 'SOTA', label: 'SOTA', icon: Mountain, color: '#d97706' },
   { id: 'POTA', label: 'POTA', icon: TreePine, color: '#16a34a' },
   { id: 'WWFF', label: 'WWFF', icon: TreePine, color: '#0d9488' },
   { id: 'WWBOTA', label: 'WWBOTA', icon: Building2, color: '#dc2626' },
-  { id: 'GMA', label: 'GMA', icon: Mountain, color: '#7c3aed' },
+  { id: 'OTHER', label: 'Weitere', icon: Layers, color: '#7c3aed' },
   { id: 'ALERTS', label: 'Alerts', icon: CalendarClock, color: '#0284c7' },
 ];
+
+// Fix 17: Alert-Typ Farben
+const ALERT_TYPE_COLORS = {
+  SOTA: '#e8820c',
+  POTA: '#1a9c7c',
+  WWFF: '#4fd1c5',
+  WWBOTA: '#d8443c',
+  WCA: '#8b5cf6',
+  COTA: '#ec4899',
+  IOTA: '#06b6d4',
+  GMA: '#7c3aed',
+  TOTA: '#f97316',
+  LOTA: '#a855f7',
+  MOTA: '#6366f1',
+  HEMA: '#8b5cf6',
+};
 
 function ageColor(age) {
   if (age == null) return 'hsl(var(--muted-foreground))';
@@ -38,22 +60,131 @@ function formatFreq(kHz) {
   return `${(kHz / 1000).toFixed(3)}`;
 }
 
+// Fix 16: Referenz-URL generieren
+function getReferenceUrl(activityType, reference) {
+  if (!reference) return null;
+  try {
+    if (activityType === 'SOTA' || reference.match(/^[A-Z0-9]+\/[A-Z0-9]+-[0-9]+$/)) {
+      const parts = reference.split('/');
+      if (parts.length >= 2) return `https://sotl.as/summit/${parts[0]}/${parts.slice(1).join('/')}`;
+    }
+    if (activityType === 'POTA' || reference.match(/^[A-Z]{2}-\d+$/)) {
+      return `https://pota.app/#/park/${reference}`;
+    }
+    if (activityType === 'WWFF' || reference.match(/^[A-Z]{2}FF-\d{4}$/)) {
+      return `https://www.cqgma.org/wwff/ffref/${reference}`;
+    }
+    if (activityType === 'WWBOTA') return `https://wwbota.org/`;
+    if (activityType === 'IOTA' || reference.match(/^[A-Z]{2}-\d{3}$/)) {
+      return `https://www.iota-world.org/iota-islands/iota-group/${reference}`;
+    }
+    if (activityType === 'WCA') return `https://www.castlesandcities.com/`;
+  } catch {}
+  return null;
+}
+
+// Fix 17: Alert-Typ aus Referenz extrahieren
+function getAlertType(alert) {
+  if (alert.activity_type && alert.activity_type !== 'SOTA-ALERT') return alert.activity_type;
+  const ref = alert.reference || '';
+  if (ref.match(/^[A-Z0-9]+\/[A-Z0-9]+-[0-9]+$/)) return 'SOTA';
+  if (ref.match(/^[A-Z]{2}-\d+$/)) return 'POTA';
+  if (ref.match(/^[A-Z]{2}FF-\d{4}$/)) return 'WWFF';
+  if (ref.match(/^[A-Z]{2}BOTA-/)) return 'WWBOTA';
+  if (ref.match(/^[A-Z]{2}-\d{3}$/)) return 'IOTA';
+  if (ref.match(/WCA/i)) return 'WCA';
+  if (ref.match(/COTA/i)) return 'COTA';
+  if (alert.activity_type === 'SOTA-ALERT') return 'SOTA';
+  return 'SOTA';
+}
+
+// Fix 15: Landesfahne aus Prefix extrahieren
+function getCountryFlag(call) {
+  if (!call) return null;
+  // Versuche Prefix zu erkennen (1-2 Zeichen vor der ersten Ziffer)
+  const match = call.match(/^([A-Z]{1,2}|\d[A-Z]|[A-Z]\d)/i);
+  if (!match) return null;
+  const prefix = match[1].toUpperCase();
+  // Mapping der häufigsten Prefixe zu Flag-Emojis
+  const flagMap = {
+    'HB': '🇨🇭', 'HB9': '🇨🇭', 'HB0': '🇱🇮',
+    'DL': '🇩🇪', 'DA': '🇩🇪', 'DB': '🇩🇪', 'DC': '🇩🇪', 'DD': '🇩🇪', 'DE': '🇩🇪', 'DF': '🇩🇪', 'DG': '🇩🇪', 'DH': '🇩🇪', 'DI': '🇩🇪', 'DJ': '🇩🇪', 'DK': '🇩🇪', 'DL': '🇩🇪', 'DM': '🇩🇪', 'DN': '🇩🇪', 'DO': '🇩🇪', 'DP': '🇩🇪', 'DQ': '🇩🇪', 'DR': '🇩🇪', 'DS': '🇩🇪', 'DT': '🇩🇪', 'DU': '🇩🇪', 'DV': '🇩🇪', 'DW': '🇩🇪',
+    'OE': '🇦🇹', 'OK': '🇨🇿', 'OM': '🇸🇰',
+    'F': '🇫🇷', 'TM': '🇫🇷', 'TH': '🇫🇷', 'HW': '🇫🇷', 'HX': '🇫🇷',
+    'I': '🇮🇹', 'II': '🇮🇹', 'IK': '🇮🇹', 'IN': '🇮🇹', 'IQ': '🇮🇹', 'IR': '🇮🇹', 'IT': '🇮🇹', 'IU': '🇮🇹', 'IV': '🇮🇹', 'IW': '🇮🇹', 'IX': '🇮🇹', 'IY': '🇮🇹', 'IZ': '🇮🇹',
+    'G': '🇬🇧', 'M': '🇬🇧', '2E': '🇬🇧', 'GM': '🇬🇧', 'GW': '🇬🇧', 'GI': '🇬🇧', 'GD': '🇬🇧', 'GU': '🇬🇧', 'GJ': '🇬🇧',
+    'PA': '🇳🇱', 'PB': '🇳🇱', 'PC': '🇳🇱', 'PD': '🇳🇱', 'PE': '🇳🇱', 'PF': '🇳🇱', 'PG': '🇳🇱', 'PH': '🇳🇱', 'PI': '🇳🇱', 'PJ': '🇳🇱', 'PK': '🇳🇱', 'PL': '🇳🇱', 'PM': '🇳🇱', 'PN': '🇳🇱', 'PO': '🇳🇱', 'PP': '🇳🇱', 'PQ': '🇳🇱', 'PR': '🇳🇱', 'PS': '🇳🇱', 'PT': '🇳🇱', 'PU': '🇳🇱', 'PV': '🇳🇱', 'PW': '🇳🇱', 'PX': '🇳🇱', 'PY': '🇳🇱', 'PZ': '🇳🇱',
+    'LA': '🇳🇴', 'LB': '🇳🇴', 'LC': '🇳🇴', 'LD': '🇳🇴', 'LE': '🇳🇴', 'LF': '🇳🇴', 'LG': '🇳🇴', 'LH': '🇳🇴', 'LI': '🇳🇴', 'LJ': '🇳🇴', 'LK': '🇳🇴', 'LL': '🇳🇴', 'LM': '🇳🇴', 'LN': '🇳🇴', 'LO': '🇳🇴',
+    'SM': '🇸🇪', 'SA': '🇸🇪', 'SB': '🇸🇪', 'SC': '🇸🇪', 'SD': '🇸🇪', 'SE': '🇸🇪', 'SF': '🇸🇪', 'SG': '🇸🇪', 'SH': '🇸🇪', 'SI': '🇸🇪', 'SJ': '🇸🇪', 'SK': '🇸🇪', 'SL': '🇸🇪',
+    'OH': '🇫🇮', 'OF': '🇫🇮', 'OG': '🇫🇮', 'OI': '🇫🇮',
+    'OZ': '🇩🇰', 'OU': '🇩🇰', 'OV': '🇩🇰', 'OW': '🇩🇰', 'OX': '🇩🇰', 'OY': '🇩🇰',
+    'EA': '🇪🇸', 'EB': '🇪🇸', 'EC': '🇪🇸', 'ED': '🇪🇸', 'EE': '🇪🇸', 'EF': '🇪🇸', 'EG': '🇪🇸', 'EH': '🇪🇸',
+    'CT': '🇵🇹', 'CQ': '🇵🇹', 'CR': '🇵🇹', 'CS': '🇵🇹',
+    'ON': '🇧🇪', 'OO': '🇧🇪', 'OP': '🇧🇪', 'OQ': '🇧🇪', 'OR': '🇧🇪', 'OS': '🇧🇪', 'OT': '🇧🇪', 'OU': '🇧🇪', 'OV': '🇧🇪', 'OW': '🇧🇪', 'OX': '🇧🇪', 'OY': '🇧🇪',
+    'LX': '🇱🇺',
+    'F': '🇫🇷',
+    'HA': '🇭🇺', 'HG': '🇭🇺',
+    'SP': '🇵🇱', 'SN': '🇵🇱', 'SO': '🇵🇱', 'SQ': '🇵🇱', 'SR': '🇵🇱', '3Z': '🇵🇱', 'HF': '🇵🇱',
+    'OK': '🇨🇿',
+    '9A': '🇭🇷',
+    'S5': '🇸🇮',
+    'S7': '🇸🇲',
+    '4O': '🇲🇪',
+    'YT': '🇷🇸', 'YU': '🇷🇸',
+    'SV': '🇬🇷', 'SW': '🇬🇷', 'SX': '🇬🇷', 'SY': '🇬🇷', 'SZ': '🇬🇷',
+    'TA': '🇹🇷', 'TB': '🇹🇷', 'TC': '🇹🇷',
+    'UR': '🇺🇦', 'US': '🇺🇦', 'UU': '🇺🇦', 'UV': '🇺🇦', 'UW': '🇺🇦', 'UX': '🇺🇦', 'UY': '🇺🇦', 'UZ': '🇺🇦',
+    'RA': '🇷🇺', 'RB': '🇷🇺', 'RC': '🇷🇺', 'RD': '🇷🇺', 'RE': '🇷🇺', 'RF': '🇷🇺', 'RG': '🇷🇺', 'RH': '🇷🇺', 'RI': '🇷🇺', 'RJ': '🇷🇺', 'RK': '🇷🇺', 'RL': '🇷🇺', 'RM': '🇷🇺', 'RN': '🇷🇺', 'RO': '🇷🇺', 'RP': '🇷🇺', 'RQ': '🇷🇺', 'RR': '🇷🇺', 'RS': '🇷🇺', 'RT': '🇷🇺', 'RU': '🇷🇺', 'RV': '🇷🇺', 'RW': '🇷🇺', 'RX': '🇷🇺', 'RY': '🇷🇺', 'RZ': '🇷🇺',
+    'JA': '🇯🇵', 'JE': '🇯🇵', 'JF': '🇯🇵', 'JG': '🇯🇵', 'JH': '🇯🇵', 'JI': '🇯🇵', 'JJ': '🇯🇵', 'JK': '🇯🇵', 'JL': '🇯🇵', 'JM': '🇯🇵', 'JN': '🇯🇵', 'JO': '🇯🇵', 'JP': '🇯🇵', 'JQ': '🇯🇵', 'JR': '🇯🇵', 'JS': '🇯🇵', 'JT': '🇯🇵', 'JU': '🇯🇵', 'JV': '🇯🇵', 'JW': '🇯🇵', 'JX': '🇯🇵', 'JY': '🇯🇵',
+    'VK': '🇦🇺', 'AX': '🇦🇺',
+    'ZL': '🇳🇿', 'ZK': '🇳🇿',
+    'K': '🇺🇸', 'W': '🇺🇸', 'N': '🇺🇸', 'AA': '🇺🇸', 'AB': '🇺🇸', 'AC': '🇺🇸', 'AD': '🇺🇸', 'AE': '🇺🇸', 'AF': '🇺🇸', 'AG': '🇺🇸', 'AH': '🇺🇸', 'AI': '🇺🇸', 'AJ': '🇺🇸', 'AK': '🇺🇸', 'AL': '🇺🇸', 'KA': '🇺🇸', 'KB': '🇺🇸', 'KC': '🇺🇸', 'KD': '🇺🇸', 'KE': '🇺🇸', 'KF': '🇺🇸', 'KG': '🇺🇸', 'KH': '🇺🇸', 'KI': '🇺🇸', 'KJ': '🇺🇸', 'KK': '🇺🇸', 'KL': '🇺🇸', 'KM': '🇺🇸', 'KN': '🇺🇸', 'KO': '🇺🇸', 'KP': '🇺🇸', 'KQ': '🇺🇸', 'KR': '🇺🇸', 'KS': '🇺🇸', 'KT': '🇺🇸', 'KU': '🇺🇸', 'KV': '🇺🇸', 'KW': '🇺🇸', 'KX': '🇺🇸', 'KY': '🇺🇸', 'KZ': '🇺🇸', 'NA': '🇺🇸', 'NB': '🇺🇸', 'NC': '🇺🇸', 'ND': '🇺🇸', 'NE': '🇺🇸', 'NF': '🇺🇸', 'NG': '🇺🇸', 'NH': '🇺🇸', 'NI': '🇺🇸', 'NJ': '🇺🇸', 'NK': '🇺🇸', 'NL': '🇺🇸', 'NM': '🇺🇸', 'NN': '🇺🇸', 'NO': '🇺🇸', 'NP': '🇺🇸', 'NQ': '🇺🇸', 'NR': '🇺🇸', 'NS': '🇺🇸', 'NT': '🇺🇸', 'NU': '🇺🇸', 'NV': '🇺🇸', 'NW': '🇺🇸', 'NX': '🇺🇸', 'NY': '🇺🇸', 'NZ': '🇺🇸', 'WA': '🇺🇸', 'WB': '🇺🇸', 'WC': '🇺🇸', 'WD': '🇺🇸', 'WE': '🇺🇸', 'WF': '🇺🇸', 'WG': '🇺🇸', 'WH': '🇺🇸', 'WI': '🇺🇸', 'WJ': '🇺🇸', 'WK': '🇺🇸', 'WL': '🇺🇸', 'WM': '🇺🇸', 'WN': '🇺🇸', 'WO': '🇺🇸', 'WP': '🇺🇸', 'WQ': '🇺🇸', 'WR': '🇺🇸', 'WS': '🇺🇸', 'WT': '🇺🇸', 'WU': '🇺🇸', 'WV': '🇺🇸', 'WW': '🇺🇸', 'WX': '🇺🇸', 'WY': '🇺🇸', 'WZ': '🇺🇸',
+    'VE': '🇨🇦', 'VA': '🇨🇦', 'VO': '🇨🇦', 'VY': '🇨🇦', 'CY': '🇨🇦',
+    'XE': '🇲🇽', 'XF': '🇲🇽', 'XG': '🇲🇽', 'XH': '🇲🇽', 'XI': '🇲🇽',
+    'LU': '🇦🇷', 'LO': '🇦🇷', 'LP': '🇦🇷', 'LQ': '🇦🇷', 'LR': '🇦🇷', 'LS': '🇦🇷', 'LT': '🇦🇷', 'LV': '🇦🇷', 'LW': '🇦🇷', 'LX': '🇦🇷',
+    'PY': '🇧🇷', 'PP': '🇧🇷', 'PQ': '🇧🇷', 'PR': '🇧🇷', 'PS': '🇧🇷', 'PT': '🇧🇷', 'PU': '🇧🇷', 'PV': '🇧🇷', 'PW': '🇧🇷', 'PX': '🇧🇷', 'ZV': '🇧🇷', 'ZW': '🇧🇷', 'ZZ': '🇧🇷', 'ZY': '🇧🇷', 'ZZ': '🇧🇷',
+    'CE': '🇨🇱', 'CA': '🇨🇱', 'CB': '🇨🇱', 'CC': '🇨🇱', 'CD': '🇨🇱', 'XQ': '🇨🇱', 'XR': '🇨🇱', '3G': '🇨🇱',
+    'CX': '🇺🇾', 'CV': '🇺🇾', 'CW': '🇺🇾',
+    'AY': '🇿🇦', 'AZ': '🇿🇦',
+    '5R': '🇲🇬', '6W': '🇸🇳', '5N': '🇳🇬', '5H': '🇹🇿', '5Z': '🇰🇪', '3B': '🇲🇺', '3B8': '🇲🇺', '3B9': '🇲🇺',
+    'VU': '🇮🇳', 'AT': '🇮🇳', 'AU': '🇮🇳', 'AV': '🇮🇳', 'AW': '🇮🇳',
+    '4S': '🇱🇰', '8S': '🇱🇰',
+    'HS': '🇹🇭', 'E2': '🇹🇭',
+    '9M': '🇲🇾', '9W': '🇲🇾',
+    'DU': '🇵🇭', 'DV': '🇵🇭', 'DW': '🇵🇭', 'DX': '🇵🇭', 'DY': '🇵🇭', 'DZ': '🇵🇭',
+    'YB': '🇮🇩', 'YC': '🇮🇩', 'YD': '🇮🇩', 'YE': '🇮🇩', 'YF': '🇮🇩', 'YG': '🇮🇩', 'YH': '🇮🇩',
+    'ZS': '🇿🇦', 'ZR': '🇿🇦', 'ZT': '🇿🇦', 'ZU': '🇿🇦',
+  };
+  // Versuche 2-Zeichen Prefix zuerst, dann 1-Zeichen
+  if (prefix.length >= 2 && flagMap[prefix.substring(0, 2)]) return flagMap[prefix.substring(0, 2)];
+  if (flagMap[prefix]) return flagMap[prefix];
+  return null;
+}
+
 export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
-  const [activities, setActivities] = useState({ sota: [], pota: [], wwff: [], wwbota: [], gma: [], alerts: [], total: 0 });
+  const [activities, setActivities] = useState({ sota: [], pota: [], wwff: [], wwbota: [], gma: [], alerts: [], other: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('SOTA');
   const [filterOpen, setFilterOpen] = useState(false);
   const [bandFilter, setBandFilter] = useState('All');
   const [parkInfoRef, setParkInfoRef] = useState(null);
+  // Fix 9: Sortierung
+  const [sortBy, setSortBy] = useState('time'); // 'time' | 'score'
+  // Fix 17: Alert-Typ Filter
+  const [alertTypeFilter, setAlertTypeFilter] = useState('All');
+  const [propagation, setPropagation] = useState(null);
 
   useEffect(() => { return () => setFilterOpen(false); }, []);
 
   const fetchActivities = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await base44.functions.invoke("getActivities", { include_future: true });
-      const data = res?.data || res;
+      const [actRes, propRes] = await Promise.all([
+        base44.functions.invoke("getActivities", { include_future: true }),
+        base44.entities.Propagation.list("-updated", 1).catch(() => []),
+      ]);
+      const data = actRes?.data || actRes;
       if (data?.success) {
         setActivities({
           sota: data.sota || [],
@@ -62,9 +193,11 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
           wwbota: data.wwbota || [],
           gma: data.gma || [],
           alerts: data.alerts || [],
+          other: data.other || [],
           total: data.total || 0,
         });
       }
+      if (propRes && propRes.length > 0) setPropagation(propRes[0]);
     } catch {} finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,12 +210,65 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
     return () => clearInterval(interval);
   }, [fetchActivities]);
 
+  // Station-Position für Score-Berechnung
+  const stationPos = useMemo(() => {
+    if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
+    return null;
+  }, [gpsPos]);
+
+  // Fix 18: "Weitere" Tab — alle Spots die nicht SOTA/POTA/WWFF/WWBOTA sind
+  const otherSpots = useMemo(() => {
+    return activities.other || [];
+  }, [activities.other]);
+
   const tabKey = tab.toLowerCase();
-  const activeSpots = activities[tabKey] || [];
-  const spots = bandFilter === 'All' ? activeSpots : activeSpots.filter(s => s.band === bandFilter);
+  let activeSpots;
+  if (tab === 'OTHER') {
+    activeSpots = otherSpots;
+  } else {
+    activeSpots = activities[tabKey] || [];
+  }
+
+  // Fix 9: Sortierung + Score-Berechnung
+  const sortedSpots = useMemo(() => {
+    let spots = bandFilter === 'All' ? [...activeSpots] : activeSpots.filter(s => s.band === bandFilter);
+
+    if (sortBy === 'score') {
+      spots = spots.map(s => {
+        const score = calcHearScore(s, stationPos, propagation);
+        return { ...s, _hearScore: score };
+      }).sort((a, b) => (b._hearScore || 0) - (a._hearScore || 0));
+    } else {
+      spots = spots.sort((a, b) => {
+        const aTime = a.spot_time ? new Date(a.spot_time).getTime() : 0;
+        const bTime = b.spot_time ? new Date(b.spot_time).getTime() : 0;
+        return bTime - aTime;
+      });
+    }
+    return spots;
+  }, [activeSpots, bandFilter, sortBy, stationPos, propagation]);
+
+  // Fix 17: Alerts nach Typ filtern
+  const filteredAlerts = useMemo(() => {
+    if (tab !== 'ALERTS') return sortedSpots;
+    if (alertTypeFilter === 'All') return sortedSpots;
+    return sortedSpots.filter(a => getAlertType(a) === alertTypeFilter);
+  }, [sortedSpots, tab, alertTypeFilter]);
+
+  const spots = filteredAlerts;
   const currentTab = TABS.find(t => t.id === tab) || TABS[0];
   const accentColor = currentTab.color;
   const Icon = currentTab.icon;
+
+  // Fix 17: Verfügbare Alert-Typen
+  const availableAlertTypes = useMemo(() => {
+    if (!activities.alerts) return [];
+    const types = new Set();
+    for (const a of activities.alerts) {
+      types.add(getAlertType(a));
+    }
+    return Array.from(types).sort();
+  }, [activities.alerts]);
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -93,6 +279,15 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
           <span className="text-[10px] text-muted-foreground font-normal">({activities.total})</span>
         </h2>
         <div className="flex items-center gap-1.5">
+          {/* Fix 9: Sortier-Button */}
+          <button
+            onClick={() => setSortBy(sortBy === 'time' ? 'score' : 'time')}
+            className="flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors bg-background text-muted-foreground border-border hover:bg-muted"
+            title="Sortierung: nach Zeit oder Verbindungswahrscheinlichkeit"
+          >
+            <ArrowUpDown className="w-3 h-3" />
+            {sortBy === 'time' ? 'Zeit' : 'Score'}
+          </button>
           <div className="relative">
             <button
               onClick={() => setFilterOpen(!filterOpen)}
@@ -151,7 +346,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
       {/* Tabs — scrollable for all activity types */}
       <div className="flex border-b border-border overflow-x-auto">
         {TABS.map(t => {
-          const count = (activities[t.id.toLowerCase()] || []).length;
+          const count = t.id === 'OTHER' ? (activities.other || []).length : (activities[t.id.toLowerCase()] || []).length;
           const TabIcon = t.icon;
           return (
             <button
@@ -170,6 +365,36 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
         })}
       </div>
 
+      {/* Fix 17: Alert-Typ Filter (nur im Alerts-Tab) */}
+      {tab === 'ALERTS' && availableAlertTypes.length > 0 && (
+        <div className="flex gap-1 px-3 py-1.5 border-b border-border overflow-x-auto">
+          <button
+            onClick={() => setAlertTypeFilter('All')}
+            className={`px-2 py-0.5 text-[10px] rounded-md border whitespace-nowrap transition-colors ${
+              alertTypeFilter === 'All'
+                ? "bg-foreground text-background border-foreground"
+                : "bg-background text-muted-foreground border-border hover:bg-muted"
+            }`}
+          >
+            Alle
+          </button>
+          {availableAlertTypes.map(t => (
+            <button
+              key={t}
+              onClick={() => setAlertTypeFilter(t)}
+              className={`px-2 py-0.5 text-[10px] rounded-md border whitespace-nowrap transition-colors ${
+                alertTypeFilter === t
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-background text-muted-foreground border-border hover:bg-muted"
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full inline-block mr-1" style={{ background: ALERT_TYPE_COLORS[t] || '#718096' }} />
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* List */}
       <div className="max-h-[40vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
@@ -178,77 +403,130 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
           </div>
         ) : spots.length === 0 ? (
           <div className="p-4 text-center text-xs text-muted-foreground">
-            Keine {tab}-Aktivierungen.
+            Keine {tab === 'OTHER' ? 'weiteren' : tab}-Aktivierungen.
           </div>
         ) : (
-          spots.map((spot, i) => (
-            <div
-              key={spot.id || i}
-              className="px-3 py-2 border-b border-border/50 hover:bg-muted cursor-pointer"
-              onClick={() => onSpotDetails?.(spot)}
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground text-sm truncate flex-1">{spot.call}</span>
-                {spot.is_future && (
-                  <span className="text-[7px] px-1 rounded bg-[#0284c7]/20 text-[#0284c7] font-bold flex-shrink-0">GEPLANT</span>
-                )}
-                {spot.reference && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
+          spots.map((spot, i) => {
+            // Fix 17: Alert-Typ Badge
+            const isAlert = tab === 'ALERTS' || spot.is_future;
+            const alertType = isAlert ? getAlertType(spot) : null;
+            const alertColor = alertType ? (ALERT_TYPE_COLORS[alertType] || '#718096') : null;
+            // Fix 15: Landesfahne
+            const flag = getCountryFlag(spot.call);
+            // Fix 16: Referenz-URL
+            const refUrl = getReferenceUrl(spot.activity_type || (isAlert ? alertType : tab), spot.reference);
+            // Fix 9: Score-Anzeige
+            const score = spot._hearScore != null ? spot._hearScore : null;
+
+            return (
+              <div
+                key={spot.id || i}
+                className="px-3 py-2 border-b border-border/50 hover:bg-muted cursor-pointer"
+                onClick={() => onSpotDetails?.(spot)}
+              >
+                <div className="flex items-center gap-2">
+                  {/* Fix 17: Alert-Typ Badge */}
+                  {isAlert && alertType && (
                     <span
-                      className="text-[9px] px-1.5 py-0.5 rounded font-bold"
-                      style={{ background: `${accentColor}20`, color: accentColor }}
+                      className="text-[8px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                      style={{ background: `${alertColor}20`, color: alertColor }}
                     >
-                      {spot.reference}
+                      {alertType}
                     </span>
-                    {tab === 'POTA' && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setParkInfoRef(spot.reference); }}
-                        className="text-muted-foreground hover:text-green-600 transition-colors"
-                        title="POTA Park-Info"
-                      >
-                        <Info className="w-3 h-3" />
-                      </button>
-                    )}
+                  )}
+                  {/* Fix 15: Landesfahne */}
+                  {flag && <span className="text-sm leading-none flex-shrink-0">{flag}</span>}
+                  <span className="font-bold text-foreground text-sm truncate flex-1">{spot.call}</span>
+                  {spot.is_future && !isAlert && (
+                    <span className="text-[7px] px-1 rounded bg-[#0284c7]/20 text-[#0284c7] font-bold flex-shrink-0">GEPLANT</span>
+                  )}
+                  {spot.reference && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Fix 16: Referenz klickbar */}
+                      {refUrl ? (
+                        <a
+                          href={refUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[9px] px-1.5 py-0.5 rounded font-bold hover:underline"
+                          style={{ background: `${accentColor}20`, color: accentColor }}
+                        >
+                          {spot.reference} ↗
+                        </a>
+                      ) : (
+                        <span
+                          className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                          style={{ background: `${accentColor}20`, color: accentColor }}
+                        >
+                          {spot.reference}
+                        </span>
+                      )}
+                      {tab === 'POTA' && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setParkInfoRef(spot.reference); }}
+                          className="text-muted-foreground hover:text-green-600 transition-colors"
+                          title="POTA Park-Info"
+                        >
+                          <Info className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {spot.name && (
+                  <div className="text-[10px] text-muted-foreground truncate mt-0.5">{spot.name}</div>
+                )}
+                <div className="flex items-center gap-2 mt-1 text-[10px]">
+                  {spot.frequency > 0 && (
+                    <span className="text-[#0284c7] font-mono">{formatFreq(spot.frequency)}</span>
+                  )}
+                  <span className="text-muted-foreground">{spot.mode || '—'}</span>
+                  {spot.distance > 0 && (
+                    <span className="text-muted-foreground font-mono">{spot.distance} km · {spot.azimuth}°</span>
+                  )}
+                  {/* Fix 9: Score-Anzeige */}
+                  {score != null && (
+                    <span
+                      className="text-[9px] font-bold px-1 rounded"
+                      style={{ background: scoreColor(score) + '20', color: scoreColor(score) }}
+                    >
+                      {score}%
+                    </span>
+                  )}
+                  {spot.is_future && spot.spot_time && (
+                    <span className="text-[#0284c7] font-mono ml-auto">
+                      {new Date(spot.spot_time).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' })}
+                    </span>
+                  )}
+                  {!spot.is_future && (
+                    <span className="ml-auto font-mono" style={{ color: ageColor(spot.age_seconds) }}>
+                      {ageText(spot.age_seconds)}
+                    </span>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onLogQso?.(spot); }}
+                    className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                    title="Log QSO"
+                  >
+                    <FileText className="w-3 h-3" />
+                  </button>
+                </div>
+                {/* Fix 18: Quelle anzeigen bei "Weitere"-Tab */}
+                {tab === 'OTHER' && spot.source && (
+                  <div className="text-[9px] text-muted-foreground mt-0.5 truncate">
+                    Quelle: {spot.source}{spot.comments ? ` · ${spot.comments}` : ''}
                   </div>
                 )}
               </div>
-              {spot.name && (
-                <div className="text-[10px] text-muted-foreground truncate mt-0.5">{spot.name}</div>
-              )}
-              <div className="flex items-center gap-2 mt-1 text-[10px]">
-                {spot.frequency > 0 && (
-                  <span className="text-[#0284c7] font-mono">{formatFreq(spot.frequency)}</span>
-                )}
-                <span className="text-muted-foreground">{spot.mode || '—'}</span>
-                {spot.distance > 0 && (
-                  <span className="text-muted-foreground font-mono">{spot.distance} km · {spot.azimuth}°</span>
-                )}
-                {spot.is_future && spot.spot_time && (
-                  <span className="text-[#0284c7] font-mono ml-auto">
-                    {new Date(spot.spot_time).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' })}
-                  </span>
-                )}
-                {!spot.is_future && (
-                  <span className="ml-auto font-mono" style={{ color: ageColor(spot.age_seconds) }}>
-                    {ageText(spot.age_seconds)}
-                  </span>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); onLogQso?.(spot); }}
-                  className="text-muted-foreground hover:text-foreground flex-shrink-0"
-                  title="Log QSO"
-                >
-                  <FileText className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
       {/* Footer */}
       <div className="px-3 py-1.5 border-t border-border text-[8px] text-muted-foreground flex justify-between">
-        <span>Auto-Refresh 60s</span>
+        <span>Auto-Refresh 60s · Sort: {sortBy === 'time' ? 'Zeit' : 'Score'}</span>
         <span className="flex items-center gap-1">
           {gpsPos ? <MapPin className="w-2 h-2 text-[#16a34a]" /> : null}
           {tab}: {spots.length}
