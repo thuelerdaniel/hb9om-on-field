@@ -69,7 +69,10 @@ export default async function(req: Request): Promise<Response> {
       return Response.json({ success: true, fetched: 0, saved: 0, warning: apiError || 'Keine WWBOTA-Spots verfügbar' });
     }
 
-    // Pro Referenz ein ActivitySpot (references[] ist ein Array)
+    // Fix 8: Ein Record pro Spot (NICHT pro Referenz) — verhindert Duplikate.
+    // Alle Referenzen werden kommasepariert im reference-Feld gespeichert.
+    // Deduplikation: call + freq (gerundet) + sortierte Referenzen
+    const seenKeys = new Set<string>();
     const records: any[] = [];
     for (const s of wwbotaSpots) {
       if (!s.call || !s.freq) continue;
@@ -82,34 +85,48 @@ export default async function(req: Request): Promise<Response> {
       const refs = Array.isArray(s.references) ? s.references : [];
       if (refs.length === 0) continue;
 
-      for (const ref of refs) {
-        const lat = ref.lat != null ? Number(ref.lat) : undefined;
-        const lon = ref.long != null ? Number(ref.long) : undefined;
-        let distance: number | null = null;
-        let azimuth: number | null = null;
-        if (lat != null && lon != null && !isNaN(lat) && !isNaN(lon)) {
-          distance = Math.round(haversine(stationPos.lat, stationPos.lon, lat, lon));
-          azimuth = Math.round(bearing(stationPos.lat, stationPos.lon, lat, lon));
-        }
-        records.push({
-          call: s.call,
-          activity_type: 'WWBOTA',
-          reference: ref.reference || '',
-          name: ref.name || '',
-          locationDesc: ref.type || '',
-          frequency, band,
-          mode: s.mode || '',
-          latitude: lat, longitude: lon,
-          grid6: ref.locator || undefined,
-          comments: s.comment || '',
-          spotter: s.spotter || '',
-          source: 'WWBOTA-API',
-          spot_time: spotTime.toISOString(),
-          age_seconds: ageSeconds,
-          distance, azimuth,
-          is_active: isActive,
-        });
+      // Alle Referenzen sammeln
+      const refStrings = refs.map((r: any) => r.reference || '').filter(Boolean);
+      const allRefs = refStrings.join(', ');
+      const freqRounded = Math.round(frequency);
+      const dedupKey = `${s.call}_${freqRounded}_${refStrings.sort().join(',')}`;
+
+      // Fix 8: Duplikatserkennung — gleicher Call + gleiche Freq + gleiche Referenzen = 1x
+      if (seenKeys.has(dedupKey)) continue;
+      seenKeys.add(dedupKey);
+
+      // Erste Referenz für Koordinaten (alle Referenzen im reference-Feld)
+      const firstRef = refs[0];
+      const lat = firstRef?.lat != null ? Number(firstRef.lat) : undefined;
+      const lon = firstRef?.long != null ? Number(firstRef.long) : undefined;
+      let distance: number | null = null;
+      let azimuth: number | null = null;
+      if (lat != null && lon != null && !isNaN(lat) && !isNaN(lon)) {
+        distance = Math.round(haversine(stationPos.lat, stationPos.lon, lat, lon));
+        azimuth = Math.round(bearing(stationPos.lat, stationPos.lon, lat, lon));
       }
+
+      // Namen aller Referenzen sammeln
+      const allNames = refs.map((r: any) => r.name || '').filter(Boolean).join('; ');
+
+      records.push({
+        call: s.call,
+        activity_type: 'WWBOTA',
+        reference: allRefs,
+        name: allNames || firstRef?.name || '',
+        locationDesc: firstRef?.type || '',
+        frequency, band,
+        mode: s.mode || '',
+        latitude: lat, longitude: lon,
+        grid6: firstRef?.locator || undefined,
+        comments: s.comment || '',
+        spotter: s.spotter || '',
+        source: 'WWBOTA-API',
+        spot_time: spotTime.toISOString(),
+        age_seconds: ageSeconds,
+        distance, azimuth,
+        is_active: isActive,
+      });
     }
 
     let savedCount = 0;

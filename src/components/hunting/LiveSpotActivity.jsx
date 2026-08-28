@@ -3,6 +3,7 @@ import { Crosshair, RefreshCw, Eye, Target, FileText, Search, ChevronUp, Chevron
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
 import { calcHearScore, scoreColor } from "@/lib/hearScore";
+import { isQRT, getFlagImg } from "@/lib/spotUtils";
 
 // Live Spot Activity — Hauptbereich mit Filtern, Worked-Status, sortierbar.
 // Theme-aware: bg-card, border-border, text-foreground, text-muted-foreground.
@@ -180,10 +181,12 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
   // Fix 3: Duplicate Spots konsolidieren — gleicher Call + gleiche Frequenz = ein Eintrag
   const consolidatedSpots = useMemo(() => {
     if (!spots.length) return [];
+    // Fix 1: QRT-Stationen herausfiltern
+    const nonQrt = spots.filter(s => !isQRT(s));
     // 1. Exakte Duplikate entfernen (gleicher Call, Freq, Spotter, Zeit innerhalb 60s)
     const deduped = [];
     const seen = new Set();
-    for (const s of spots) {
+    for (const s of nonQrt) {
       const time = s.spot_time ? new Date(s.spot_time).getTime() : 0;
       const key = `${s.call}_${Math.round(s.frequency)}_${s.spotter || ''}_${Math.floor(time / 60000)}`;
       if (!seen.has(key)) { seen.add(key); deduped.push(s); }
@@ -370,7 +373,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                     <td className="px-2 py-1.5">
                       <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: DOT_COLORS[dot] }} />
-                        {spot.countryCode && <span className="text-sm leading-none">{spot.countryCode}</span>}
+                        {(() => { const flag = getFlagImg(spot.call); return flag ? <img src={flag.url} alt={flag.code} className="w-4 h-3 flex-shrink-0" loading="lazy" /> : (spot.countryCode ? <span className="text-sm leading-none">{spot.countryCode}</span> : null); })()}
                         <button onClick={() => onSpotDetails?.(spot)} className="font-bold text-foreground hover:text-[#00e5ff] truncate">
                           {spot.call}
                         </button>
@@ -384,8 +387,10 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{formatFreq(spot.frequency)}</td>
                     <td className="px-2 py-1.5 text-[#00e5ff]">{spot.mode || '—'}</td>
-                    <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[140px] hidden md:table-cell" title={spot._allComments?.length > 1 ? spot._allComments.join('\n---\n') : comment}>
-                      {comment || '—'}
+                    <td className="px-2 py-1.5 hidden md:table-cell" style={{ minWidth: '120px', maxWidth: '200px' }}>
+                      <div className="spot-comments text-muted-foreground" title={spot._allComments?.length > 1 ? spot._allComments.join('\n---\n') : comment}>
+                        {comment || '—'}
+                      </div>
                     </td>
                     <td className="px-2 py-1.5 text-muted-foreground hidden md:table-cell">
                       {spot._allSpotters?.length > 1

@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from "reac
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
+import { isQRT, getFlagImg, getReferenceUrl } from "@/lib/spotUtils";
 
 // Spot Details Modal — zeigt Spot-Details mit Leaflet-Karte.
 // Verwendet spot.lat/lng (DXCC-Koordinaten) oder Locator für DX-Marker.
@@ -66,11 +67,15 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, segments = 64) {
 }
 
 // AutoFit läuft nur EINMAL beim Mount — danach nicht mehr, damit User pan/zoom frei nutzen kann
+// Fix 5: AutoFit re-fitet wenn sich positions ändern (z.B. wenn QRZ-Daten eintreffen)
 function AutoFit({ positions }) {
   const map = useMap();
-  const done = useRef(false);
+  const prevSig = useRef('');
   useEffect(() => {
-    if (done.current) return;
+    const sig = positions.map(p => p.join(',')).join('|');
+    // Nur re-fit wenn sich positions tatsächlich geändert haben
+    if (sig === prevSig.current) return;
+    prevSig.current = sig;
     // invalidateSize: Modal-Container hat beim ersten Render oft falsche Grösse.
     try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) { console.warn('invalidateSize skipped:', e.message); }
     setTimeout(() => { try { if (map._panes && map._mapPane) map.invalidateSize(); } catch (e) {} }, 200);
@@ -80,7 +85,6 @@ function AutoFit({ positions }) {
     const maxZoomVal = crossesDateline ? 3 : 5;
     let boundsPositions = positions;
     if (crossesDateline) {
-      // Longitude um ±360 verschieben für korrekten Viewport
       boundsPositions = [
         positions[0],
         [positions[1][0], positions[1][1] > 0 ? positions[1][1] - 360 : positions[1][1] + 360],
@@ -90,10 +94,8 @@ function AutoFit({ positions }) {
     if (positions.length >= 2) {
       const bounds = L.latLngBounds(boundsPositions.map(p => [p[0], p[1]]));
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: maxZoomVal });
-      done.current = true;
     } else if (positions.length === 1) {
       map.setView(positions[0], 4);
-      done.current = true;
     }
     // Zweiter invalidateSize + fitBounds nach 500ms (Modal-Animation abgeschlossen)
     setTimeout(() => {
@@ -184,9 +186,17 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
 
         {/* Body */}
         <div className="p-4 space-y-3">
+          {/* Fix 6: + QSO Loggen Button zuoberst — vollbreit, grün, immer sichtbar */}
+          <button
+            onClick={() => { onLogQso?.({ ...spot, _qrzData: qrzData }); onClose(); }}
+            className="w-full py-2.5 bg-[#1a9c7c] text-white rounded-lg text-sm font-bold hover:bg-[#158665] transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> QSO loggen
+          </button>
+
           {/* Call + Activity */}
           <div className="flex items-center gap-2">
-            {spot?.countryCode && <span className="text-xl leading-none">{spot.countryCode}</span>}
+            {(() => { const flag = getFlagImg(spot?.call); return flag ? <img src={flag.url} alt={flag.code} className="w-5 h-3.5 flex-shrink-0" loading="lazy" /> : (spot?.countryCode ? <span className="text-xl leading-none">{spot.countryCode}</span> : null); })()}
             <span className="text-xl font-bold text-[#00e5ff]">{spot?.call}</span>
             {(spot?.activity || spot?.activity_type) && (
               <span
@@ -200,23 +210,9 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             {(() => {
               const ref = spot?.activity_ref || spot?.reference;
               if (!ref) return null;
-              // Fix 16: Referenz klickbar zu Web-Info
+              // Fix 7 + 9: Referenz-URL via shared utility (WWFF → wwff.co/directory/, WWBOTA → scheme-basiert)
               const actType = spot?.activity_type || spot?.activity;
-              let refUrl = null;
-              try {
-                if (actType === 'SOTA' || ref.match(/^[A-Z0-9]+\/[A-Z0-9]+-[0-9]+$/)) {
-                  const parts = ref.split('/');
-                  if (parts.length >= 2) refUrl = `https://sotl.as/summit/${parts[0]}/${parts.slice(1).join('/')}`;
-                } else if (actType === 'POTA' || ref.match(/^[A-Z]{2}-\d+$/)) {
-                  refUrl = `https://pota.app/#/park/${ref}`;
-                } else if (actType === 'WWFF' || ref.match(/^[A-Z]{2}FF-\d{4}$/)) {
-                  refUrl = `https://www.cqgma.org/wwff/ffref/${ref}`;
-                } else if (actType === 'WWBOTA') {
-                  refUrl = `https://wwbota.org/`;
-                } else if (actType === 'IOTA' || ref.match(/^[A-Z]{2}-\d{3}$/)) {
-                  refUrl = `https://www.iota-world.org/iota-islands/iota-group/${ref}`;
-                }
-              } catch {}
+              const refUrl = getReferenceUrl(actType, ref);
               if (refUrl) {
                 return (
                   <a href={refUrl} target="_blank" rel="noopener noreferrer"
@@ -257,7 +253,7 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             return (
               <div className="bg-background rounded-lg p-2 border border-border">
                 <div className="text-[9px] text-muted-foreground uppercase mb-1">Kommentare</div>
-                {commentList.map((c, i) => <div key={i} className="text-xs text-foreground">{c}</div>)}
+                {commentList.map((c, i) => <div key={i} className="text-xs text-foreground break-words">{c}</div>)}
               </div>
             );
           })()}
@@ -331,24 +327,16 @@ export default function SpotDetailsModal({ spot, stationInfo, gpsPos, onClose, o
             </div>
           )}
 
-          {/* Fix 2: QSO Log Button + QRZ Button — prominent, grün, vorausgefüllt */}
-          <div className="flex gap-2">
+          {/* QRZ Button — separat vom QSO-Log-Button (Fix 6: QSO-Button ist zuoberst) */}
+          {qrzData && (
             <button
-              onClick={() => { onLogQso?.({ ...spot, _qrzData: qrzData }); onClose(); }}
-              className="flex-1 py-2.5 bg-[#22c55e] text-white rounded-lg text-sm font-bold hover:bg-[#16a34a] transition-colors flex items-center justify-center gap-1.5"
+              onClick={() => window.open(`https://www.qrz.com/db/${spot?.call}`, '_blank')}
+              className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5"
+              title="QRZ.com Detail-Seite öffnen"
             >
-              <Plus className="w-4 h-4" /> QSO loggen
+              <Eye className="w-4 h-4" /> QRZ.com öffnen
             </button>
-            {qrzData && (
-              <button
-                onClick={() => window.open(`https://www.qrz.com/db/${spot?.call}`, '_blank')}
-                className="px-3 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5"
-                title="QRZ.com Detail-Seite öffnen"
-              >
-                <Eye className="w-4 h-4" /> QRZ
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>

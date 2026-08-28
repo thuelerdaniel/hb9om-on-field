@@ -38,11 +38,11 @@ export default async function(req: Request): Promise<Response> {
     // Falls keine SOTA-Spots in DB: direkt von SOTA API laden
     let liveSota = sota;
     if (liveSota.length === 0) {
+      // Fix 3: 12 Stunden Abruf, RBNHOLE gefiltert
       const sotaUrls = [
-        `${SOTA_BASE}/api/spots/-24/all`,
-        `${SOTA_BASE}/api/spots/200/all`,
-        `${SOTA_BASE}/api/spots/-1`,
-        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/-24/all`)}`,
+        `${SOTA_BASE}/api/spots/12/all`,
+        `${SOTA_BASE}/api/spots/24/all`,
+        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/12/all`)}`,
       ];
       for (const url of sotaUrls) {
         try {
@@ -52,7 +52,14 @@ export default async function(req: Request): Promise<Response> {
           });
           if (resp.ok) {
             const raw = await resp.json();
-            const sotaSpots = Array.isArray(raw) ? raw.filter((s: any) => s.id !== 9999999999999999 && s.activatorCallsign && s.frequency) : [];
+            const sotaSpots = Array.isArray(raw) ? raw.filter((s: any) =>
+              s.id !== 9999999999999999 &&
+              s.activatorCallsign && s.frequency &&
+              s.activatorCallsign !== 'RBNHOLE' &&
+              s.callsign !== 'RBNHOLE' &&
+              s.callsign !== 'DEPRECATED'
+            ) : [];
+            console.log('[SOTA] Live spots received:', sotaSpots.length);
             const refCoordMap = new Map<string, { lat: number; lon: number }>();
             for (const s of sotaSpots) {
               const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';

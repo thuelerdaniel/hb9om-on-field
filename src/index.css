@@ -280,3 +280,23 @@
 .hunting-globe-container {
   background-color: #000511 !important;
 }
+
+/* Fix 2: Spot-Bemerkungen komplett lesbar — kein Abschneiden */
+.spot-comments {
+  font-size: 8px;
+  line-height: 1.3;
+  white-space: normal;
+  word-break: break-word;
+  max-width: 200px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: visible;
+}
+
+@media (max-width: 768px) {
+  .spot-comments {
+    font-size: 9px;
+    max-width: 160px;
+  }
+}

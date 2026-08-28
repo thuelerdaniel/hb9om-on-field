@@ -141,12 +141,12 @@ export default async function(req: Request): Promise<Response> {
 
     let sotaSpots: any[] = [];
     let apiError: string | null = null;
-    // -24 = spots in last 24 hours (SOTAWatch-Standard), 200 = latest 200 spots (Fallback)
+    // Fix 3: 12 Stunden Abruf (gleiche Anzahl wie SOTAWatch), 24h Fallback
+    // Filtere RBNHOLE und DEPRECATED heraus — keine echten Activations
     const sotaUrls = [
-      `${SOTA_BASE}/api/spots/-24/all`,
-      `${SOTA_BASE}/api/spots/200/all`,
-      `${SOTA_BASE}/api/spots/-1`,
-      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/-24/all`)}`,
+      `${SOTA_BASE}/api/spots/12/all`,
+      `${SOTA_BASE}/api/spots/24/all`,
+      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/12/all`)}`,
     ];
     for (const url of sotaUrls) {
       try {
@@ -156,7 +156,14 @@ export default async function(req: Request): Promise<Response> {
         });
         if (resp.ok) {
           const raw = await resp.json();
-          sotaSpots = Array.isArray(raw) ? raw.filter((s: any) => s.id !== 9999999999999999 && s.callsign !== 'DEPRECATED' && s.activatorCallsign !== 'DEPRECATED') : [];
+          sotaSpots = Array.isArray(raw) ? raw.filter((s: any) =>
+            s.id !== 9999999999999999 &&
+            s.callsign !== 'DEPRECATED' &&
+            s.activatorCallsign !== 'DEPRECATED' &&
+            s.activatorCallsign !== 'RBNHOLE' &&
+            s.callsign !== 'RBNHOLE'
+          ) : [];
+          console.log('[SOTA] Spots received:', sotaSpots.length);
           break;
         } else { apiError = `HTTP ${resp.status}`; }
       } catch (e: any) { apiError = e.message; }

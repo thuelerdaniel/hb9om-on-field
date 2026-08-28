@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import PotaParkInfoPopup from "@/components/hunting/PotaParkInfoPopup";
 import { calcHearScore, scoreColor } from "@/lib/hearScore";
 import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
+import { isQRT, getFlagImg, getReferenceUrl } from "@/lib/spotUtils";
 
 // Activity Panel — v0.9011:
 // Fix 9: Sortierung nach Zeit oder Verbindungswahrscheinlichkeit
@@ -60,28 +61,7 @@ function formatFreq(kHz) {
   return `${(kHz / 1000).toFixed(3)}`;
 }
 
-// Fix 16: Referenz-URL generieren
-function getReferenceUrl(activityType, reference) {
-  if (!reference) return null;
-  try {
-    if (activityType === 'SOTA' || reference.match(/^[A-Z0-9]+\/[A-Z0-9]+-[0-9]+$/)) {
-      const parts = reference.split('/');
-      if (parts.length >= 2) return `https://sotl.as/summit/${parts[0]}/${parts.slice(1).join('/')}`;
-    }
-    if (activityType === 'POTA' || reference.match(/^[A-Z]{2}-\d+$/)) {
-      return `https://pota.app/#/park/${reference}`;
-    }
-    if (activityType === 'WWFF' || reference.match(/^[A-Z]{2}FF-\d{4}$/)) {
-      return `https://www.cqgma.org/wwff/ffref/${reference}`;
-    }
-    if (activityType === 'WWBOTA') return `https://wwbota.org/`;
-    if (activityType === 'IOTA' || reference.match(/^[A-Z]{2}-\d{3}$/)) {
-      return `https://www.iota-world.org/iota-islands/iota-group/${reference}`;
-    }
-    if (activityType === 'WCA') return `https://www.castlesandcities.com/`;
-  } catch {}
-  return null;
-}
+// Fix 7 + 9: getReferenceUrl aus spotUtils importiert (WWFF → wwff.co/directory/, WWBOTA → scheme-basiert)
 
 // Fix 17: Alert-Typ aus Referenz extrahieren
 function getAlertType(alert) {
@@ -98,68 +78,7 @@ function getAlertType(alert) {
   return 'SOTA';
 }
 
-// Fix 15: Landesfahne aus Prefix extrahieren
-function getCountryFlag(call) {
-  if (!call) return null;
-  // Versuche Prefix zu erkennen (1-2 Zeichen vor der ersten Ziffer)
-  const match = call.match(/^([A-Z]{1,2}|\d[A-Z]|[A-Z]\d)/i);
-  if (!match) return null;
-  const prefix = match[1].toUpperCase();
-  // Mapping der häufigsten Prefixe zu Flag-Emojis
-  const flagMap = {
-    'HB': '🇨🇭', 'HB9': '🇨🇭', 'HB0': '🇱🇮',
-    'DL': '🇩🇪', 'DA': '🇩🇪', 'DB': '🇩🇪', 'DC': '🇩🇪', 'DD': '🇩🇪', 'DE': '🇩🇪', 'DF': '🇩🇪', 'DG': '🇩🇪', 'DH': '🇩🇪', 'DI': '🇩🇪', 'DJ': '🇩🇪', 'DK': '🇩🇪', 'DL': '🇩🇪', 'DM': '🇩🇪', 'DN': '🇩🇪', 'DO': '🇩🇪', 'DP': '🇩🇪', 'DQ': '🇩🇪', 'DR': '🇩🇪', 'DS': '🇩🇪', 'DT': '🇩🇪', 'DU': '🇩🇪', 'DV': '🇩🇪', 'DW': '🇩🇪',
-    'OE': '🇦🇹', 'OK': '🇨🇿', 'OM': '🇸🇰',
-    'F': '🇫🇷', 'TM': '🇫🇷', 'TH': '🇫🇷', 'HW': '🇫🇷', 'HX': '🇫🇷',
-    'I': '🇮🇹', 'II': '🇮🇹', 'IK': '🇮🇹', 'IN': '🇮🇹', 'IQ': '🇮🇹', 'IR': '🇮🇹', 'IT': '🇮🇹', 'IU': '🇮🇹', 'IV': '🇮🇹', 'IW': '🇮🇹', 'IX': '🇮🇹', 'IY': '🇮🇹', 'IZ': '🇮🇹',
-    'G': '🇬🇧', 'M': '🇬🇧', '2E': '🇬🇧', 'GM': '🇬🇧', 'GW': '🇬🇧', 'GI': '🇬🇧', 'GD': '🇬🇧', 'GU': '🇬🇧', 'GJ': '🇬🇧',
-    'PA': '🇳🇱', 'PB': '🇳🇱', 'PC': '🇳🇱', 'PD': '🇳🇱', 'PE': '🇳🇱', 'PF': '🇳🇱', 'PG': '🇳🇱', 'PH': '🇳🇱', 'PI': '🇳🇱', 'PJ': '🇳🇱', 'PK': '🇳🇱', 'PL': '🇳🇱', 'PM': '🇳🇱', 'PN': '🇳🇱', 'PO': '🇳🇱', 'PP': '🇳🇱', 'PQ': '🇳🇱', 'PR': '🇳🇱', 'PS': '🇳🇱', 'PT': '🇳🇱', 'PU': '🇳🇱', 'PV': '🇳🇱', 'PW': '🇳🇱', 'PX': '🇳🇱', 'PY': '🇳🇱', 'PZ': '🇳🇱',
-    'LA': '🇳🇴', 'LB': '🇳🇴', 'LC': '🇳🇴', 'LD': '🇳🇴', 'LE': '🇳🇴', 'LF': '🇳🇴', 'LG': '🇳🇴', 'LH': '🇳🇴', 'LI': '🇳🇴', 'LJ': '🇳🇴', 'LK': '🇳🇴', 'LL': '🇳🇴', 'LM': '🇳🇴', 'LN': '🇳🇴', 'LO': '🇳🇴',
-    'SM': '🇸🇪', 'SA': '🇸🇪', 'SB': '🇸🇪', 'SC': '🇸🇪', 'SD': '🇸🇪', 'SE': '🇸🇪', 'SF': '🇸🇪', 'SG': '🇸🇪', 'SH': '🇸🇪', 'SI': '🇸🇪', 'SJ': '🇸🇪', 'SK': '🇸🇪', 'SL': '🇸🇪',
-    'OH': '🇫🇮', 'OF': '🇫🇮', 'OG': '🇫🇮', 'OI': '🇫🇮',
-    'OZ': '🇩🇰', 'OU': '🇩🇰', 'OV': '🇩🇰', 'OW': '🇩🇰', 'OX': '🇩🇰', 'OY': '🇩🇰',
-    'EA': '🇪🇸', 'EB': '🇪🇸', 'EC': '🇪🇸', 'ED': '🇪🇸', 'EE': '🇪🇸', 'EF': '🇪🇸', 'EG': '🇪🇸', 'EH': '🇪🇸',
-    'CT': '🇵🇹', 'CQ': '🇵🇹', 'CR': '🇵🇹', 'CS': '🇵🇹',
-    'ON': '🇧🇪', 'OO': '🇧🇪', 'OP': '🇧🇪', 'OQ': '🇧🇪', 'OR': '🇧🇪', 'OS': '🇧🇪', 'OT': '🇧🇪', 'OU': '🇧🇪', 'OV': '🇧🇪', 'OW': '🇧🇪', 'OX': '🇧🇪', 'OY': '🇧🇪',
-    'LX': '🇱🇺',
-    'F': '🇫🇷',
-    'HA': '🇭🇺', 'HG': '🇭🇺',
-    'SP': '🇵🇱', 'SN': '🇵🇱', 'SO': '🇵🇱', 'SQ': '🇵🇱', 'SR': '🇵🇱', '3Z': '🇵🇱', 'HF': '🇵🇱',
-    'OK': '🇨🇿',
-    '9A': '🇭🇷',
-    'S5': '🇸🇮',
-    'S7': '🇸🇲',
-    '4O': '🇲🇪',
-    'YT': '🇷🇸', 'YU': '🇷🇸',
-    'SV': '🇬🇷', 'SW': '🇬🇷', 'SX': '🇬🇷', 'SY': '🇬🇷', 'SZ': '🇬🇷',
-    'TA': '🇹🇷', 'TB': '🇹🇷', 'TC': '🇹🇷',
-    'UR': '🇺🇦', 'US': '🇺🇦', 'UU': '🇺🇦', 'UV': '🇺🇦', 'UW': '🇺🇦', 'UX': '🇺🇦', 'UY': '🇺🇦', 'UZ': '🇺🇦',
-    'RA': '🇷🇺', 'RB': '🇷🇺', 'RC': '🇷🇺', 'RD': '🇷🇺', 'RE': '🇷🇺', 'RF': '🇷🇺', 'RG': '🇷🇺', 'RH': '🇷🇺', 'RI': '🇷🇺', 'RJ': '🇷🇺', 'RK': '🇷🇺', 'RL': '🇷🇺', 'RM': '🇷🇺', 'RN': '🇷🇺', 'RO': '🇷🇺', 'RP': '🇷🇺', 'RQ': '🇷🇺', 'RR': '🇷🇺', 'RS': '🇷🇺', 'RT': '🇷🇺', 'RU': '🇷🇺', 'RV': '🇷🇺', 'RW': '🇷🇺', 'RX': '🇷🇺', 'RY': '🇷🇺', 'RZ': '🇷🇺',
-    'JA': '🇯🇵', 'JE': '🇯🇵', 'JF': '🇯🇵', 'JG': '🇯🇵', 'JH': '🇯🇵', 'JI': '🇯🇵', 'JJ': '🇯🇵', 'JK': '🇯🇵', 'JL': '🇯🇵', 'JM': '🇯🇵', 'JN': '🇯🇵', 'JO': '🇯🇵', 'JP': '🇯🇵', 'JQ': '🇯🇵', 'JR': '🇯🇵', 'JS': '🇯🇵', 'JT': '🇯🇵', 'JU': '🇯🇵', 'JV': '🇯🇵', 'JW': '🇯🇵', 'JX': '🇯🇵', 'JY': '🇯🇵',
-    'VK': '🇦🇺', 'AX': '🇦🇺',
-    'ZL': '🇳🇿', 'ZK': '🇳🇿',
-    'K': '🇺🇸', 'W': '🇺🇸', 'N': '🇺🇸', 'AA': '🇺🇸', 'AB': '🇺🇸', 'AC': '🇺🇸', 'AD': '🇺🇸', 'AE': '🇺🇸', 'AF': '🇺🇸', 'AG': '🇺🇸', 'AH': '🇺🇸', 'AI': '🇺🇸', 'AJ': '🇺🇸', 'AK': '🇺🇸', 'AL': '🇺🇸', 'KA': '🇺🇸', 'KB': '🇺🇸', 'KC': '🇺🇸', 'KD': '🇺🇸', 'KE': '🇺🇸', 'KF': '🇺🇸', 'KG': '🇺🇸', 'KH': '🇺🇸', 'KI': '🇺🇸', 'KJ': '🇺🇸', 'KK': '🇺🇸', 'KL': '🇺🇸', 'KM': '🇺🇸', 'KN': '🇺🇸', 'KO': '🇺🇸', 'KP': '🇺🇸', 'KQ': '🇺🇸', 'KR': '🇺🇸', 'KS': '🇺🇸', 'KT': '🇺🇸', 'KU': '🇺🇸', 'KV': '🇺🇸', 'KW': '🇺🇸', 'KX': '🇺🇸', 'KY': '🇺🇸', 'KZ': '🇺🇸', 'NA': '🇺🇸', 'NB': '🇺🇸', 'NC': '🇺🇸', 'ND': '🇺🇸', 'NE': '🇺🇸', 'NF': '🇺🇸', 'NG': '🇺🇸', 'NH': '🇺🇸', 'NI': '🇺🇸', 'NJ': '🇺🇸', 'NK': '🇺🇸', 'NL': '🇺🇸', 'NM': '🇺🇸', 'NN': '🇺🇸', 'NO': '🇺🇸', 'NP': '🇺🇸', 'NQ': '🇺🇸', 'NR': '🇺🇸', 'NS': '🇺🇸', 'NT': '🇺🇸', 'NU': '🇺🇸', 'NV': '🇺🇸', 'NW': '🇺🇸', 'NX': '🇺🇸', 'NY': '🇺🇸', 'NZ': '🇺🇸', 'WA': '🇺🇸', 'WB': '🇺🇸', 'WC': '🇺🇸', 'WD': '🇺🇸', 'WE': '🇺🇸', 'WF': '🇺🇸', 'WG': '🇺🇸', 'WH': '🇺🇸', 'WI': '🇺🇸', 'WJ': '🇺🇸', 'WK': '🇺🇸', 'WL': '🇺🇸', 'WM': '🇺🇸', 'WN': '🇺🇸', 'WO': '🇺🇸', 'WP': '🇺🇸', 'WQ': '🇺🇸', 'WR': '🇺🇸', 'WS': '🇺🇸', 'WT': '🇺🇸', 'WU': '🇺🇸', 'WV': '🇺🇸', 'WW': '🇺🇸', 'WX': '🇺🇸', 'WY': '🇺🇸', 'WZ': '🇺🇸',
-    'VE': '🇨🇦', 'VA': '🇨🇦', 'VO': '🇨🇦', 'VY': '🇨🇦', 'CY': '🇨🇦',
-    'XE': '🇲🇽', 'XF': '🇲🇽', 'XG': '🇲🇽', 'XH': '🇲🇽', 'XI': '🇲🇽',
-    'LU': '🇦🇷', 'LO': '🇦🇷', 'LP': '🇦🇷', 'LQ': '🇦🇷', 'LR': '🇦🇷', 'LS': '🇦🇷', 'LT': '🇦🇷', 'LV': '🇦🇷', 'LW': '🇦🇷', 'LX': '🇦🇷',
-    'PY': '🇧🇷', 'PP': '🇧🇷', 'PQ': '🇧🇷', 'PR': '🇧🇷', 'PS': '🇧🇷', 'PT': '🇧🇷', 'PU': '🇧🇷', 'PV': '🇧🇷', 'PW': '🇧🇷', 'PX': '🇧🇷', 'ZV': '🇧🇷', 'ZW': '🇧🇷', 'ZZ': '🇧🇷', 'ZY': '🇧🇷', 'ZZ': '🇧🇷',
-    'CE': '🇨🇱', 'CA': '🇨🇱', 'CB': '🇨🇱', 'CC': '🇨🇱', 'CD': '🇨🇱', 'XQ': '🇨🇱', 'XR': '🇨🇱', '3G': '🇨🇱',
-    'CX': '🇺🇾', 'CV': '🇺🇾', 'CW': '🇺🇾',
-    'AY': '🇿🇦', 'AZ': '🇿🇦',
-    '5R': '🇲🇬', '6W': '🇸🇳', '5N': '🇳🇬', '5H': '🇹🇿', '5Z': '🇰🇪', '3B': '🇲🇺', '3B8': '🇲🇺', '3B9': '🇲🇺',
-    'VU': '🇮🇳', 'AT': '🇮🇳', 'AU': '🇮🇳', 'AV': '🇮🇳', 'AW': '🇮🇳',
-    '4S': '🇱🇰', '8S': '🇱🇰',
-    'HS': '🇹🇭', 'E2': '🇹🇭',
-    '9M': '🇲🇾', '9W': '🇲🇾',
-    'DU': '🇵🇭', 'DV': '🇵🇭', 'DW': '🇵🇭', 'DX': '🇵🇭', 'DY': '🇵🇭', 'DZ': '🇵🇭',
-    'YB': '🇮🇩', 'YC': '🇮🇩', 'YD': '🇮🇩', 'YE': '🇮🇩', 'YF': '🇮🇩', 'YG': '🇮🇩', 'YH': '🇮🇩',
-    'ZS': '🇿🇦', 'ZR': '🇿🇦', 'ZT': '🇿🇦', 'ZU': '🇿🇦',
-  };
-  // Versuche 2-Zeichen Prefix zuerst, dann 1-Zeichen
-  if (prefix.length >= 2 && flagMap[prefix.substring(0, 2)]) return flagMap[prefix.substring(0, 2)];
-  if (flagMap[prefix]) return flagMap[prefix];
-  return null;
-}
+// Fix 4: getCountryFlag durch getFlagImg aus spotUtils ersetzt (flagcdn.com Bilder)
 
 export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
   const [activities, setActivities] = useState({ sota: [], pota: [], wwff: [], wwbota: [], gma: [], alerts: [], other: [], total: 0 });
@@ -231,7 +150,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
 
   // Fix 9: Sortierung + Score-Berechnung
   const sortedSpots = useMemo(() => {
-    let spots = bandFilter === 'All' ? [...activeSpots] : activeSpots.filter(s => s.band === bandFilter);
+    let spots = (bandFilter === 'All' ? [...activeSpots] : activeSpots.filter(s => s.band === bandFilter)).filter(s => !isQRT(s));
 
     if (sortBy === 'score') {
       spots = spots.map(s => {
@@ -411,8 +330,8 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
             const isAlert = tab === 'ALERTS' || spot.is_future;
             const alertType = isAlert ? getAlertType(spot) : null;
             const alertColor = alertType ? (ALERT_TYPE_COLORS[alertType] || '#718096') : null;
-            // Fix 15: Landesfahne
-            const flag = getCountryFlag(spot.call);
+            // Fix 4: Landesfahne via flagcdn.com
+            const flagInfo = getFlagImg(spot.call);
             // Fix 16: Referenz-URL
             const refUrl = getReferenceUrl(spot.activity_type || (isAlert ? alertType : tab), spot.reference);
             // Fix 9: Score-Anzeige
@@ -434,8 +353,8 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
                       {alertType}
                     </span>
                   )}
-                  {/* Fix 15: Landesfahne */}
-                  {flag && <span className="text-sm leading-none flex-shrink-0">{flag}</span>}
+                  {/* Fix 4: Landesfahne via flagcdn.com */}
+                  {flagInfo && <img src={flagInfo.url} alt={flagInfo.code} className="w-4 h-3 flex-shrink-0" loading="lazy" />}
                   <span className="font-bold text-foreground text-sm truncate flex-1">{spot.call}</span>
                   {spot.is_future && !isAlert && (
                     <span className="text-[7px] px-1 rounded bg-[#0284c7]/20 text-[#0284c7] font-bold flex-shrink-0">GEPLANT</span>
