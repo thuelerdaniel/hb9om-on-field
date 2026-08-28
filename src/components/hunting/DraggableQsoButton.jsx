@@ -1,32 +1,23 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
+import { loadDevicePosition, saveDevicePosition, detectDeviceType } from "@/lib/deviceUtils";
 
-// Verschiebbarer QSO-Loggen Button — position: fixed, draggable per Pointer-Events.
-// Long-Press (500ms) startet Drag-Modus, normaler Klick öffnet das QSO-Formular.
-// Position wird in LocalStorage unter "qso_btn_pos" gespeichert (x, y).
-// Clamp an Viewport-Grenzen — Button darf nicht aus dem Bildschirm geschoben werden.
+// Verschiebbarer QSO-Loggen Button — v0.9019: gerätespezifische Position.
+// Position wird pro Gerät (desktop/tablet/mobile) gespeichert.
+// QSO-Formular hat eigene Position — Button springt NICHT beim Schließen des Formulars.
 
-const STORAGE_KEY = "qso_btn_pos";
+const STORAGE_BASE_KEY = "qso_btn_pos";
 const LONG_PRESS_MS = 500;
 const BUTTON_WIDTH = 140;
 const BUTTON_HEIGHT = 56;
 
 function loadPosition() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const pos = JSON.parse(raw);
-      if (typeof pos.x === "number" && typeof pos.y === "number") return pos;
-    }
-  } catch {}
-  return null;
+  return loadDevicePosition(STORAGE_BASE_KEY, null);
 }
 
 function savePosition(x, y) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ x, y }));
-  } catch {}
+  saveDevicePosition(STORAGE_BASE_KEY, { x, y });
 }
 
 function clampToViewport(x, y) {
@@ -39,9 +30,11 @@ function clampToViewport(x, y) {
 }
 
 export function resetQsoButtonPosition() {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {}
+  // v0.9019: Reset für alle Geräte
+  const devices = ['desktop', 'tablet', 'mobile'];
+  for (const d of devices) {
+    try { localStorage.removeItem(`${STORAGE_BASE_KEY}_${d}`); } catch {}
+  }
 }
 
 export default function DraggableQsoButton({ onClick }) {

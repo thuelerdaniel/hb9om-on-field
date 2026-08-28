@@ -5,7 +5,6 @@ import { base44 } from "@/api/base44Client";
 import { useHuntingSettings } from "@/hooks/useHuntingSettings";
 import DraggableQsoButton from "@/components/hunting/DraggableQsoButton";
 import PropagationBar from "@/components/hunting/PropagationBar";
-import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
 import SpotDetailsModal from "@/components/hunting/SpotDetailsModal";
 import QsoLogModal from "@/components/hunting/QsoLogModal";
 import QrzLookupModal from "@/components/hunting/QrzLookupModal";
@@ -147,20 +146,13 @@ export default function Hunting() {
         {/* Propagation Bar */}
         <PropagationBar stationInfo={stationInfo} />
 
-        {/* Fix 11: Live Spot Activity ERST (aktive Spots) */}
-        <LiveSpotActivity
-          onSpotDetails={setSpotDetails}
-          onLogQso={setQsoSpot}
-          onCallClick={setQrzCall}
-          gpsPos={gpsPos}
-          stationInfo={stationInfo}
-        />
-
-        {/* Fix 11: Active Activation DANN (geplante/aktive Aktivierungen) */}
+        {/* v0.9019: Unified ActivityPanel with 6 tabs (SOTA/POTA/WWFF/WWBOTA/Live Spot Activity/Alerts) */}
         <ActivityPanel
           onLogQso={setQsoSpot}
           onSpotDetails={setSpotDetails}
+          onCallClick={setQrzCall}
           gpsPos={gpsPos}
+          stationInfo={stationInfo}
         />
       </main>
 

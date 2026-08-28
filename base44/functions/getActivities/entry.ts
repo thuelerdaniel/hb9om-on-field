@@ -146,7 +146,7 @@ export default async function(req: Request): Promise<Response> {
               a.summitDetails !== 'Unrecognized summit'
             ) : [];
             const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
-            for (const a of alertList.slice(0, 300)) {
+            for (const a of alertList) {
               const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
               if (ref && !refCoordMap.has(ref)) {
                 try {
@@ -157,7 +157,7 @@ export default async function(req: Request): Promise<Response> {
                 } catch {}
               }
             }
-            sotaAlerts = alertList.slice(0, 300).map((a: any) => {
+            sotaAlerts = alertList.map((a: any) => {
               const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
               const coords = refCoordMap.get(ref);
               return {

@@ -1,40 +1,30 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Mountain, TreePine, RefreshCw, FileText, MapPin, CalendarClock, Filter, ChevronDown, X, Building2, Info, Radio, AlertCircle } from "lucide-react";
+import { RefreshCw, FileText, MapPin, CalendarClock, AlertCircle, Info } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PotaParkInfoPopup from "@/components/hunting/PotaParkInfoPopup";
+import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
 import { calcHearScore, scoreColor } from "@/lib/hearScore";
-import { maidenheadToLatLon, haversine, bearing } from "@/lib/geoUtilsFrontend";
 import { isQRT, getFlagImg, getReferenceUrl } from "@/lib/spotUtils";
 
-// Activity Panel — v0.9016:
-// Fix: Strikte Trennung von Live-Spots und geplanten Aktivierungen (Alerts)
-// Tab 1 "Live":  Nur Live-Spots (SOTA, POTA, WWFF, WWBOTA, Weitere) — QRT gefiltert
-// Tab 2 "Alerts": Nur geplante Aktivierungen (SOTA-Alerts, WWFF-Agendas) + Hinweise
+// Activity Panel — v0.9019: 6 Tabs (keine Vermischung der Live-Spots!)
+// Tab 1 "SOTA":   NUR SOTA Live-Spots (ALLE, QRT gefiltert, kein Limit!)
+// Tab 2 "POTA":   NUR POTA Live-Spots (ALLE, kein Limit!)
+// Tab 3 "WWFF":   NUR WWFF Live-Spots (ALLE, kein Limit!)
+// Tab 4 "WWBOTA": NUR WWBOTA Live-Spots (ALLE, kein Limit!)
+// Tab 5 "Live Spot Activity": DX-Cluster Spots (ALLE, kein Limit!)
+// Tab 6 "Alerts": KOMBINIERT alle geplanten Aktivierungen (SOTA-Alerts + WWFF-Agendas)
+// Default-Tab: SOTA
 
 const REFRESH_MS = 60 * 1000;
-const BAND_OPTIONS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm'];
 
-// Fix v0.9016: Zwei Haupt-Tabs statt 6 Quellen-Tabs
 const TABS = [
-  { id: 'live', label: 'Live', icon: Radio, color: '#16a34a' },
-  { id: 'alerts', label: 'Alerts', icon: CalendarClock, color: '#0284c7' },
+  { id: 'SOTA', label: 'SOTA', color: '#d97706' },
+  { id: 'POTA', label: 'POTA', color: '#16a34a' },
+  { id: 'WWFF', label: 'WWFF', color: '#0d9488' },
+  { id: 'WWBOTA', label: 'WWBOTA', color: '#dc2626' },
+  { id: 'dxcluster', label: 'Live Spot Activity', color: '#06b6d4' },
+  { id: 'alerts', label: 'Alerts', color: '#7c3aed' },
 ];
-
-// Quellen-Farben für Badges
-const SOURCE_COLORS = {
-  SOTA: '#d97706',
-  POTA: '#16a34a',
-  WWFF: '#0d9488',
-  WWBOTA: '#dc2626',
-  GMA: '#7c3aed',
-  WCA: '#8b5cf6',
-  COTA: '#ec4899',
-  IOTA: '#06b6d4',
-  TOTA: '#f97316',
-  LOTA: '#a855f7',
-  MOTA: '#6366f1',
-  HEMA: '#8b5cf6',
-};
 
 function ageColor(age) {
   if (age == null) return 'hsl(var(--muted-foreground))';
@@ -55,27 +45,14 @@ function formatFreq(kHz) {
   return `${(kHz / 1000).toFixed(3)}`;
 }
 
-// Quellen-Typ aus Spot extrahieren
-function getSourceType(spot) {
-  if (spot.activity_type === 'SOTA-ALERT') return 'SOTA';
-  if (spot.activity_type === 'WWFF-ALERT') return 'WWFF';
-  if (spot.activity_type) return spot.activity_type;
-  return 'SOTA';
-}
-
-export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
+export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gpsPos, stationInfo }) {
   const [data, setData] = useState({ liveSpots: [], alerts: [], liveTotal: 0, alertsTotal: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState('live');
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [bandFilter, setBandFilter] = useState('All');
-  const [sourceFilter, setSourceFilter] = useState('All');
+  const [tab, setTab] = useState('SOTA');
   const [parkInfoRef, setParkInfoRef] = useState(null);
-  const [sortBy, setSortBy] = useState('time');
   const [propagation, setPropagation] = useState(null);
-
-  useEffect(() => { return () => setFilterOpen(false); }, []);
+  const [sortBy, setSortBy] = useState('time');
 
   const fetchActivities = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -111,187 +88,63 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
     return null;
   }, [gpsPos]);
 
-  // Verfügbare Quellen im aktuellen Tab
-  const availableSources = useMemo(() => {
-    const spots = tab === 'live' ? data.liveSpots : data.alerts;
-    const sources = new Set();
-    for (const s of spots) {
-      sources.add(getSourceType(s));
+  const tabCounts = useMemo(() => {
+    const counts = {};
+    for (const t of TABS) {
+      if (t.id === 'alerts') counts[t.id] = data.alertsTotal;
+      else if (t.id === 'dxcluster') counts[t.id] = '—';
+      else counts[t.id] = data.liveSpots.filter(s => s.activity_type === t.id).length;
     }
-    return Array.from(sources).sort();
-  }, [data, tab]);
+    return counts;
+  }, [data]);
 
-  // Gefilterte + sortierte Spots
   const displaySpots = useMemo(() => {
-    let spots = tab === 'live' ? data.liveSpots : data.alerts;
-
-    // Band-Filter
-    if (bandFilter !== 'All') {
-      spots = spots.filter(s => s.band === bandFilter);
-    }
-
-    // Quellen-Filter
-    if (sourceFilter !== 'All') {
-      spots = spots.filter(s => getSourceType(s) === sourceFilter);
-    }
-
-    // QRT-Filter (zusätzlich zum Backend-Filter)
-    spots = spots.filter(s => !isQRT(s));
-
-    // Sortierung
-    if (tab === 'live') {
-      // Live: nach Zeit absteigend (neueste zuerst)
-      if (sortBy === 'score') {
-        spots = spots.map(s => ({
-          ...s,
-          _hearScore: calcHearScore(s, stationPos, propagation),
-        })).sort((a, b) => (b._hearScore || 0) - (a._hearScore || 0));
-      } else {
-        spots = [...spots].sort((a, b) =>
-          new Date(b.spot_time || 0).getTime() - new Date(a.spot_time || 0).getTime()
-        );
-      }
-    } else {
-      // Alerts: nach planned_time aufsteigend (nächste zuerst)
-      spots = [...spots].sort((a, b) =>
+    if (tab === 'alerts') {
+      return [...data.alerts].sort((a, b) =>
         new Date(a.spot_time || 0).getTime() - new Date(b.spot_time || 0).getTime()
       );
     }
+    let spots = data.liveSpots.filter(s => s.activity_type === tab && !isQRT(s));
+    if (sortBy === 'score') {
+      spots = spots.map(s => ({
+        ...s,
+        _hearScore: calcHearScore(s, stationPos, propagation),
+      })).sort((a, b) => (b._hearScore || 0) - (a._hearScore || 0));
+    } else {
+      spots = [...spots].sort((a, b) =>
+        new Date(b.spot_time || 0).getTime() - new Date(a.spot_time || 0).getTime()
+      );
+    }
     return spots;
-  }, [data, tab, bandFilter, sourceFilter, sortBy, stationPos, propagation]);
+  }, [data, tab, sortBy, stationPos, propagation]);
 
   const currentTab = TABS.find(t => t.id === tab) || TABS[0];
   const accentColor = currentTab.color;
-  const Icon = currentTab.icon;
-  const totalCount = tab === 'live' ? data.liveTotal : data.alertsTotal;
+  const isAlertsTab = tab === 'alerts';
+  const isDxClusterTab = tab === 'dxcluster';
 
-  return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <h2 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-          <Icon className="w-3.5 h-3.5" style={{ color: accentColor }} />
-          {tab === 'live' ? 'LIVE SPOTS' : 'GEPLANTE AKTIVIERUNGEN'}
-          <span className="text-[10px] text-muted-foreground font-normal">({totalCount})</span>
-        </h2>
-        <div className="flex items-center gap-1.5">
-          {tab === 'live' && (
-            <button
-              onClick={() => setSortBy(sortBy === 'time' ? 'score' : 'time')}
-              className="flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors bg-background text-muted-foreground border-border hover:bg-muted"
-              title="Sortierung: nach Zeit oder Verbindungswahrscheinlichkeit"
-            >
-              {sortBy === 'time' ? 'Zeit' : 'Score'}
-            </button>
-          )}
-          {/* Quellen-Filter */}
-          {availableSources.length > 1 && (
-            <select
-              value={sourceFilter}
-              onChange={e => setSourceFilter(e.target.value)}
-              className="text-[9px] rounded-md border bg-background text-muted-foreground border-border px-1.5 py-0.5"
-            >
-              <option value="All">Alle Quellen</option>
-              {availableSources.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          )}
-          {/* Band-Filter */}
-          {tab === 'live' && (
-            <div className="relative">
-              <button
-                onClick={() => setFilterOpen(!filterOpen)}
-                className={`flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors ${
-                  bandFilter !== 'All'
-                    ? "bg-foreground/10 text-foreground border-foreground/30"
-                    : "bg-background text-muted-foreground border-border hover:bg-muted"
-                }`}
-              >
-                {bandFilter === 'All' ? 'Alle' : bandFilter}
-                <ChevronDown className={`w-2.5 h-2.5 transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {filterOpen && (
-                <>
-                  <div onClick={() => setFilterOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
-                  <div
-                    className="absolute top-full right-0 mt-1 bg-card border border-border rounded-lg shadow-2xl min-w-[120px] max-h-[200px] overflow-y-auto"
-                    style={{ zIndex: 9999 }}
-                  >
-                    {BAND_OPTIONS.map(b => (
-                      <button
-                        key={b}
-                        onClick={() => { setBandFilter(b); setFilterOpen(false); }}
-                        className={`w-full text-left px-2 py-1.5 text-[10px] transition-colors ${
-                          bandFilter === b ? 'bg-foreground/10 text-foreground font-bold' : 'text-foreground hover:bg-muted'
-                        }`}
-                      >
-                        {b === 'All' ? 'Alle' : b}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          <button
-            onClick={() => fetchActivities(true)}
-            disabled={refreshing}
-            className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-            title="Aktualisieren"
-          >
-            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs — Live vs Alerts */}
-      <div className="flex border-b border-border">
-        {TABS.map(t => {
-          const count = t.id === 'live' ? data.liveTotal : data.alertsTotal;
-          const TabIcon = t.icon;
-          return (
-            <button
-              key={t.id}
-              onClick={() => { setTab(t.id); setSourceFilter('All'); setBandFilter('All'); }}
-              className={`flex-1 px-3 py-2 text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
-                tab === t.id
-                  ? "bg-foreground/5 text-foreground border-b-2"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              style={tab === t.id ? { borderBottomColor: t.color, color: t.color } : {}}
-            >
-              <TabIcon className="w-3 h-3" /> {t.label} ({count})
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Alerts-Tab: Hinweis für POTA/WWBOTA */}
-      {tab === 'alerts' && (
-        <div className="px-3 py-1.5 bg-[#0284c7]/5 border-b border-[#0284c7]/20 flex items-start gap-1.5">
-          <AlertCircle className="w-3 h-3 text-[#0284c7] flex-shrink-0 mt-0.5" />
-          <div className="text-[9px] text-muted-foreground">
-            POTA und WWBOTA haben keine geplante API — nur Live-Spots im "Live"-Tab.
-          </div>
-        </div>
-      )}
-
-      {/* List */}
-      <div className="max-h-[40vh] overflow-y-auto overflow-x-hidden">
+  const renderSpotList = () => (
+    <>
+      <div className="max-h-[45vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
           <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-            <RefreshCw className="w-3 h-3 animate-spin" /> {tab === 'live' ? 'Live-Spots' : 'Aktivierungen'} werden geladen…
+            <RefreshCw className="w-3 h-3 animate-spin" /> {isAlertsTab ? 'Aktivierungen' : `${tab}-Spots`} werden geladen…
           </div>
         ) : displaySpots.length === 0 ? (
           <div className="p-4 text-center text-xs text-muted-foreground">
-            {tab === 'live' ? 'Keine Live-Spots.' : 'Keine geplanten Aktivierungen.'}
+            {isAlertsTab ? 'Keine geplanten Aktivierungen.' : `Keine ${tab} Live-Spots.`}
           </div>
         ) : (
           displaySpots.map((spot, i) => {
-            const sourceType = getSourceType(spot);
-            const sourceColor = SOURCE_COLORS[sourceType] || '#718096';
-            const isAlert = tab === 'alerts' || spot.is_future;
+            const sourceType = spot.activity_type === 'SOTA-ALERT' ? 'SOTA'
+              : spot.activity_type === 'WWFF-ALERT' ? 'WWFF'
+              : spot.activity_type || 'SOTA';
+            const sourceColor = sourceType === 'SOTA' ? '#d97706'
+              : sourceType === 'POTA' ? '#16a34a'
+              : sourceType === 'WWFF' ? '#0d9488'
+              : sourceType === 'WWBOTA' ? '#dc2626'
+              : '#718096';
+            const isAlert = isAlertsTab || spot.is_future;
             const flagInfo = getFlagImg(spot.call);
             const refUrl = getReferenceUrl(spot.activity_type || sourceType, spot.reference);
             const score = spot._hearScore != null ? spot._hearScore : null;
@@ -303,7 +156,6 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
                 onClick={() => onSpotDetails?.(spot)}
               >
                 <div className="flex items-center gap-2">
-                  {/* Quellen-Badge */}
                   <span
                     className="text-[8px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
                     style={{ background: `${sourceColor}20`, color: sourceColor }}
@@ -313,7 +165,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
                   {flagInfo && <img src={flagInfo.url} alt={flagInfo.code} className="w-4 h-3 flex-shrink-0" loading="lazy" />}
                   <span className="font-bold text-foreground text-sm truncate flex-1">{spot.call}</span>
                   {isAlert && (
-                    <span className="text-[7px] px-1 rounded bg-[#0284c7]/20 text-[#0284c7] font-bold flex-shrink-0">GEPLANT</span>
+                    <span className="text-[7px] px-1 rounded bg-[#7c3aed]/20 text-[#7c3aed] font-bold flex-shrink-0">GEPLANT</span>
                   )}
                   {spot.reference && (
                     <div className="flex items-center gap-1 flex-shrink-0">
@@ -368,7 +220,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
                     </span>
                   )}
                   {isAlert && spot.spot_time && (
-                    <span className="text-[#0284c7] font-mono ml-auto">
+                    <span className="text-[#7c3aed] font-mono ml-auto">
                       {new Date(spot.spot_time).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' })} {new Date(spot.spot_time).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   )}
@@ -393,14 +245,92 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
 
       {/* Footer */}
       <div className="px-3 py-1.5 border-t border-border text-[8px] text-muted-foreground flex justify-between">
-        <span>Auto-Refresh 60s{tab === 'live' ? ` · Sort: ${sortBy === 'time' ? 'Zeit' : 'Score'}` : ''}</span>
+        <span>Auto-Refresh 60s{!isAlertsTab ? ` · Sort: ${sortBy === 'time' ? 'Zeit' : 'Score'}` : ' · Alerts 5min'}</span>
         <span className="flex items-center gap-1">
           {gpsPos ? <MapPin className="w-2 h-2 text-[#16a34a]" /> : null}
           {tab}: {displaySpots.length}
         </span>
       </div>
+
       {parkInfoRef && (
         <PotaParkInfoPopup reference={parkInfoRef} onClose={() => setParkInfoRef(null)} />
+      )}
+    </>
+  );
+
+  return (
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <h2 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+          {isAlertsTab
+            ? <><CalendarClock className="w-3.5 h-3.5" style={{ color: accentColor }} /> GEPLANTE AKTIVIERUNGEN</>
+            : isDxClusterTab
+            ? <><RefreshCw className="w-3.5 h-3.5" style={{ color: accentColor }} /> LIVE SPOT ACTIVITY</>
+            : <><span className="w-2 h-2 rounded-full" style={{ background: accentColor }} /> {tab} LIVE-SPOTS</>
+          }
+          <span className="text-[10px] text-muted-foreground font-normal">({tabCounts[tab]})</span>
+        </h2>
+        <div className="flex items-center gap-1.5">
+          {!isAlertsTab && !isDxClusterTab && (
+            <button
+              onClick={() => setSortBy(sortBy === 'time' ? 'score' : 'time')}
+              className="flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors bg-background text-muted-foreground border-border hover:bg-muted"
+              title="Sortierung: nach Zeit oder Score"
+            >
+              {sortBy === 'time' ? 'Zeit' : 'Score'}
+            </button>
+          )}
+          <button
+            onClick={() => fetchActivities(true)}
+            disabled={refreshing}
+            className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+            title="Aktualisieren"
+          >
+            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs — SOTA / POTA / WWFF / WWBOTA / Live Spot Activity / Alerts */}
+      <div className="flex border-b border-border overflow-x-auto">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex-shrink-0 px-3 py-2 text-xs font-medium flex items-center gap-1 transition-colors whitespace-nowrap ${
+              tab === t.id
+                ? "bg-foreground/5 text-foreground border-b-2"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            style={tab === t.id ? { borderBottomColor: t.color, color: t.color } : {}}
+          >
+            {t.label} ({tabCounts[t.id]})
+          </button>
+        ))}
+      </div>
+
+      {/* Alerts-Tab: Hinweis für POTA/WWBOTA */}
+      {isAlertsTab && (
+        <div className="px-3 py-1.5 bg-[#7c3aed]/5 border-b border-[#7c3aed]/20 flex items-start gap-1.5">
+          <AlertCircle className="w-3 h-3 text-[#7c3aed] flex-shrink-0 mt-0.5" />
+          <div className="text-[9px] text-muted-foreground">
+            POTA und WWBOTA haben keine geplante API — nur Live-Spots in den jeweiligen Tabs.
+          </div>
+        </div>
+      )}
+
+      {/* Content: DX-Cluster embeds LiveSpotActivity, other tabs show spot list */}
+      {isDxClusterTab ? (
+        <LiveSpotActivity
+          onSpotDetails={onSpotDetails}
+          onLogQso={onLogQso}
+          onCallClick={onCallClick}
+          gpsPos={gpsPos}
+          stationInfo={stationInfo}
+        />
+      ) : (
+        renderSpotList()
       )}
     </div>
   );

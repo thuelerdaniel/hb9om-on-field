@@ -101,7 +101,7 @@ export default async function(req: Request): Promise<Response> {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       const resp = await fetch(
-        `https://spothole.app/api/v2/spots?sig=${SPOTHOLE_SIGS}&limit=100`,
+        `https://spothole.app/api/v2/spots?sig=${SPOTHOLE_SIGS}&limit=500`,
         { headers: { 'Accept': 'application/json' }, signal: controller.signal }
       );
       clearTimeout(timeout);
@@ -120,7 +120,7 @@ export default async function(req: Request): Promise<Response> {
 
     // === 3. jo30.de Spots normalisieren ===
     const joNormalized: any[] = [];
-    for (const s of joSpots.slice(0, 50)) {
+    for (const s of joSpots) {
       const freqKHz = Number(s.frequency || s.freq || 0);
       const call = s.spotted || s.call || s.dxcallsign;
       if (!freqKHz || !call) continue;
@@ -278,7 +278,7 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
-    const merged = Array.from(mergeMap.values()).slice(0, 100);
+    const merged = Array.from(mergeMap.values());
 
     let savedCount = 0;
     if (merged.length > 0) {
@@ -292,7 +292,7 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
-    const latest = await base44.entities.DxSpot.list('-spot_time', 50);
+    const latest = await base44.entities.DxSpot.list('-spot_time', 500);
 
     const warnings = [apiWarning, spotholeWarning].filter(Boolean);
 
