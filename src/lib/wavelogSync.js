@@ -205,6 +205,7 @@ export async function uploadToWavelog(config, onProgress) {
 }
 
 // === Import: QSOs von Wavelog importieren (Delta-Sync) ===
+// v0.9032: Backend does ADIF parsing and entity creation — frontend just calls and returns result
 export async function importFromWavelog(config, onProgress) {
   if (!config?.wavelog_enabled || !config?.wavelog_api_key) {
     return { success: false, message: 'Wavelog nicht konfiguriert' };
@@ -218,66 +219,14 @@ export async function importFromWavelog(config, onProgress) {
     return { success: false, message: 'Wavelog Import fehlgeschlagen: ' + e.message };
   }
 
-  const data = result?.result;
-  if (!data || data.exported_qsos === 0 || !data.adif) {
-    return { success: true, message: 'Keine neuen QSOs bei Wavelog', imported: 0, lastfetchedid: lastFetchId };
-  }
-
-  const qsos = parseAdif(data.adif);
-  if (qsos.length === 0) {
-    return { success: true, message: 'Keine QSOs im ADIF gefunden', imported: 0, lastfetchedid: data.lastfetchedid };
-  }
-
-  // Bestehende QSOs laden fuer Duplikat-Check
-  const existing = await base44.entities.Log.list('-created_date', 500);
-  // v0.9031: Dedup mit frequency — verhindert falsche Duplikat-Erkennung
-  const dupKeys = new Set(existing.map(e => `${e.callsign}|${e.qso_date}|${e.time_start}|${e.frequency}`));
-
-  // v0.9031: Batch-Import — QSOs sammeln, dann in Chunks von 100 erstellen
-  const toCreate = [];
-  let skipped = 0;
-  for (const qso of qsos) {
-    const key = `${qso.callsign}|${qso.qso_date}|${qso.time_start}|${qso.frequency}`;
-    if (dupKeys.has(key)) {
-      skipped++;
-    } else {
-      toCreate.push({
-        ...qso,
-        wavelog_synced: true,
-        wavelog_imported: true,
-        wavelog_import_date: new Date().toISOString(),
-      });
-      dupKeys.add(key);
-    }
-  }
-
-  let imported = 0;
-  const BATCH_SIZE = 100;
-  for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
-    const batch = toCreate.slice(i, i + BATCH_SIZE);
-    try {
-      await base44.entities.Log.bulkCreate(batch);
-      imported += batch.length;
-    } catch (e) {
-      console.error('[Wavelog Import] Batch failed, falling back to individual:', e);
-      for (const qso of batch) {
-        try {
-          await base44.entities.Log.create(qso);
-          imported++;
-        } catch (e2) {
-          console.error('[Wavelog Import] Single create failed:', qso.callsign, e2);
-        }
-      }
-    }
-    if (onProgress) onProgress(Math.min(i + BATCH_SIZE, toCreate.length), qsos.length);
-  }
-
+  // v0.9032: Backend now returns import statistics directly
   return {
-    success: true,
-    message: `${imported} QSOs von Wavelog importiert, ${skipped} Duplikate übersprungen`,
-    imported,
-    skipped,
-    lastfetchedid: data.lastfetchedid,
+    success: result?.success ?? false,
+    message: result?.message ?? 'Import abgeschlossen',
+    imported: result?.imported ?? 0,
+    errors: result?.errors ?? 0,
+    skipped: 0,
+    lastfetchedid: result?.lastfetchedid ?? lastFetchId,
   };
 }
 

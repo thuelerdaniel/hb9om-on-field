@@ -8,16 +8,20 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9031";
+export const APP_VERSION = "0.9032";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608282003";
+export const APP_BUILD = "202608282010";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9032: Wavelog Import — ADIF-Parsing und Entity-Erstellung ins Backend verlagert (wavelogApi Function)",
+  "Fix v0.9032: Wavelog Import — bulkCreate in 100er-Batches, kein Dedup (alle QSOs werden importiert)",
+  "Fix v0.9032: Wavelog Import — lastfetchedid wird im Backend direkt in UserHuntingSettings aktualisiert",
+  "Fix v0.9032: Wavelog Import — Frontend ruft nur noch Backend auf und zeigt Resultat an",
   "Fix v0.9031: Wavelog Import — ADIF-Parser split case-insensitiv (<EOR> vs <eor>), Header-Entfernung, Batch-Import (100 QSOs pro Batch)",
   "Fix v0.9031: Wavelog Import — Dedup-Prüfung mit Frequency (callsign + qso_date + time_start + frequency)",
   "Fix v0.9031: Wavelog Import — bulkCreate statt einzelne create-Calls (2130 QSOs in 21 Batches statt 2130 Einzelaufrufen)",

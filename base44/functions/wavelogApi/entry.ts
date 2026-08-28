@@ -127,7 +127,156 @@ export default async function(req: Request): Promise<Response> {
           station_id: config.station_id,
           fetchfromid,
         }, 15000);
-        return Response.json({ result: r.data, ok: r.ok });
+
+        // v0.9032: ADIF parsing and import in backend (not frontend)
+        const wavelogData = r.data;
+        if (!r.ok || !wavelogData) {
+          return Response.json({ success: false, error: 'Wavelog API Fehler', ok: r.ok });
+        }
+        if (!wavelogData.adif || wavelogData.exported_qsos === 0) {
+          return Response.json({
+            success: true, imported: 0, skipped: 0, errors: 0,
+            message: 'Keine neuen QSOs bei Wavelog',
+            lastfetchedid: wavelogData.lastfetchedid || fetchfromid,
+          });
+        }
+
+        const adif = wavelogData.adif;
+        const exported_qsos = wavelogData.exported_qsos || 0;
+        const lastfetchedid = wavelogData.lastfetchedid || '0';
+
+        // Remove ADIF header (everything before <EOH>) — case-insensitive
+        const eohIndex = adif.toUpperCase().indexOf('<EOH>');
+        let adifData = adif;
+        if (eohIndex >= 0) adifData = adif.substring(eohIndex + 5);
+
+        // Split into individual QSO records by <EOR> — case-insensitive
+        const records = adifData.split(/<EOR>/i).filter(rec => rec.trim().length > 0);
+        console.log(`[Wavelog] Parsing ${records.length} ADIF records (exported: ${exported_qsos})`);
+
+        // ADIF field parser: <FIELDNAME:LENGTH>VALUE (optional :TYPE specifier)
+        function parseAdifRecord(record: string): Record<string, string> {
+          const fields: Record<string, string> = {};
+          const regex = /<([A-Z_]+):(\d+)(?::[A-Z]+)?>([^<]*)/gi;
+          let match;
+          while ((match = regex.exec(record)) !== null) {
+            const name = match[1].toUpperCase();
+            const length = parseInt(match[2]);
+            let value = match[3] || '';
+            if (length > 0 && value.length > length) value = value.substring(0, length);
+            value = value.replace(/[\r\n]+/g, '').trim();
+            fields[name] = value;
+          }
+          return fields;
+        }
+
+        function formatDate(d: string): string {
+          if (!d || d.length !== 8) return d || '';
+          return d.substring(0, 4) + '-' + d.substring(4, 6) + '-' + d.substring(6, 8);
+        }
+
+        function formatTime(t: string): string {
+          if (!t) return '';
+          const p = t.padStart(6, '0');
+          return p.substring(0, 2) + ':' + p.substring(2, 4) + ':' + p.substring(4, 6);
+        }
+
+        // Parse ALL records — NO early return, NO break
+        const qsos: any[] = [];
+        const parseErrors: string[] = [];
+
+        for (let i = 0; i < records.length; i++) {
+          try {
+            const f = parseAdifRecord(records[i]);
+            if (!f.CALL) { parseErrors.push(`Record ${i}: No CALL field`); continue; }
+            const freq = parseFloat(f.FREQ || '0');
+            const isClub = !!(f.STATION_CALLSIGN && f.OPERATOR && f.OPERATOR !== f.STATION_CALLSIGN);
+            qsos.push({
+              callsign: f.CALL,
+              frequency: freq || undefined,
+              band: f.BAND || undefined,
+              mode: f.MODE || undefined,
+              qso_date: formatDate(f.QSO_DATE || ''),
+              time_start: formatTime(f.TIME_ON || ''),
+              time_end: formatTime(f.TIME_OFF || '') || undefined,
+              rst_sent: f.RST_SENT || undefined,
+              rst_received: f.RST_RCVD || undefined,
+              power: parseFloat(f.TX_PWR || '0') || undefined,
+              operator_name: f.NAME || undefined,
+              operator_email: f.EMAIL || undefined,
+              operator_country: f.COUNTRY || undefined,
+              operator_grid: f.GRIDSQUARE || undefined,
+              operator_address: f.QTH || undefined,
+              notes: f.COMMENT || undefined,
+              wavelog_imported: true,
+              wavelog_import_date: new Date().toISOString(),
+              wavelog_synced: false,
+              is_clubstation: isClub,
+              club_callsign: f.STATION_CALLSIGN || undefined,
+              club_operator_callsign: isClub ? f.OPERATOR : undefined,
+              my_grid: f.MY_GRIDSQUARE || undefined,
+              my_reference_name: f.MY_CITY || undefined,
+              my_country_name: f.MY_COUNTRY || undefined,
+              my_country_prefix: f.MY_STATE || undefined,
+            });
+          } catch (err: any) {
+            parseErrors.push(`Record ${i}: ${err.message || 'parse error'}`);
+          }
+        }
+
+        console.log(`[Wavelog] Parsed ${qsos.length} QSOs, ${parseErrors.length} parse errors`);
+
+        // v0.9032: Batch import using bulkCreate (100 per batch) — NO dedup, import ALL
+        let importedCount = 0;
+        let errorCount = 0;
+        const importErrors: string[] = [];
+        const BATCH_SIZE = 100;
+
+        for (let i = 0; i < qsos.length; i += BATCH_SIZE) {
+          const batch = qsos.slice(i, i + BATCH_SIZE);
+          try {
+            await base44.entities.Log.bulkCreate(batch);
+            importedCount += batch.length;
+            console.log(`[Wavelog] Imported ${importedCount}/${qsos.length}`);
+          } catch (err: any) {
+            // Fallback: create individually
+            for (const qso of batch) {
+              try {
+                await base44.entities.Log.create(qso);
+                importedCount++;
+              } catch (e2: any) {
+                errorCount++;
+                if (importErrors.length < 10) {
+                  importErrors.push(`${qso.callsign} ${qso.qso_date}: ${e2.message || 'create error'}`);
+                }
+              }
+            }
+          }
+        }
+
+        // Update last_fetch_id in UserHuntingSettings
+        try {
+          const settings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
+          if (settings && settings.length > 0) {
+            await base44.entities.UserHuntingSettings.update(settings[0].id, {
+              wavelog_last_fetch_id: parseInt(lastfetchedid),
+            });
+          }
+        } catch (e: any) {
+          console.log('[Wavelog] Could not update last_fetch_id:', e.message);
+        }
+
+        return Response.json({
+          success: true,
+          imported: importedCount,
+          errors: errorCount,
+          total_parsed: qsos.length,
+          total_from_wavelog: exported_qsos,
+          lastfetchedid,
+          parse_errors: parseErrors.slice(0, 5),
+          import_errors: importErrors,
+          message: `Imported ${importedCount} QSOs from Wavelog (${errorCount} errors)`,
+        });
       }
 
       default:
