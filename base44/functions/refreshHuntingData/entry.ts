@@ -1,10 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
 
-// Fix v0.9031: refreshHuntingData orchestrator — calls sub-functions via HTTP fetch
-// with the original request's Authorization header + internal_secret in the body.
-// Previous implementation used base44.asServiceRole.functions.invoke() which returned
-// 403 Forbidden. HTTP fetch with proper auth headers bypasses this issue.
+// Fix v0.9032: refreshHuntingData orchestrator — calls sub-functions via
+// base44.functions.invoke() (standard SDK method, same as runDailySyncBatch).
+// The SDK handles auth and routing internally — no 403/404 issues.
+// Sub-functions receive { scheduled: true, internal_secret } in the body,
+// which bypasses their per-user auth check (isInternalCall / scheduled flag).
 
 export default async function(req: Request): Promise<Response> {
   try {

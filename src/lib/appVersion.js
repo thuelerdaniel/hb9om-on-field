@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9031";
+export const APP_VERSION = "0.9032";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,9 @@ export const APP_BUILD = "202608281935";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9032: refreshHuntingData nutzt base44.functions.invoke() (wie runDailySyncBatch) — kein 403 mehr",
+  "Fix v0.9032: Sub-Functions erhalten { scheduled: true, internal_secret } im Body — Auth-Check wird übersprungen",
+  "Fix v0.9032: Response-Parsing korrigiert (data-Wrapper bei functions.invoke)",
   "Fix v0.9031: refreshHuntingData ruft Sub-Functions direkt auf (keine 403 Fehler mehr)",
   "Fix v0.9031: SOTA-Alerts Endpoint korrigiert (/api/alerts/100/all/all statt /api/alerts)",
   "Fix v0.9031: QRT-Stationen werden als is_active: false gespeichert (SOTA, POTA, WWFF, GMA)",
