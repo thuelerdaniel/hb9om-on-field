@@ -148,21 +148,35 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
     activeSpots = activities[tabKey] || [];
   }
 
-  // Fix 9: Sortierung + Score-Berechnung
+  // Fix 2 + 9: Sortierung — LIVE-Spots zuerst, dann ALERTS (nach Datum aufsteigend)
   const sortedSpots = useMemo(() => {
     let spots = (bandFilter === 'All' ? [...activeSpots] : activeSpots.filter(s => s.band === bandFilter)).filter(s => !isQRT(s));
+
+    const isLive = (s) => s.spot_type === 'LIVE' || (!s.is_future && !s.spot_type);
+    const liveFirstCompare = (a, b) => {
+      const aLive = isLive(a);
+      const bLive = isLive(b);
+      if (aLive && !bLive) return -1;
+      if (!aLive && bLive) return 1;
+      if (aLive) {
+        return new Date(b.spot_time || 0).getTime() - new Date(a.spot_time || 0).getTime();
+      }
+      return new Date(a.spot_time || 0).getTime() - new Date(b.spot_time || 0).getTime();
+    };
 
     if (sortBy === 'score') {
       spots = spots.map(s => {
         const score = calcHearScore(s, stationPos, propagation);
         return { ...s, _hearScore: score };
-      }).sort((a, b) => (b._hearScore || 0) - (a._hearScore || 0));
-    } else {
-      spots = spots.sort((a, b) => {
-        const aTime = a.spot_time ? new Date(a.spot_time).getTime() : 0;
-        const bTime = b.spot_time ? new Date(b.spot_time).getTime() : 0;
-        return bTime - aTime;
+      }).sort((a, b) => {
+        const aLive = isLive(a);
+        const bLive = isLive(b);
+        if (aLive && !bLive) return -1;
+        if (!aLive && bLive) return 1;
+        return (b._hearScore || 0) - (a._hearScore || 0);
       });
+    } else {
+      spots = spots.sort(liveFirstCompare);
     }
     return spots;
   }, [activeSpots, bandFilter, sortBy, stationPos, propagation]);
@@ -356,7 +370,14 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, gpsPos }) {
                   {/* Fix 4: Landesfahne via flagcdn.com */}
                   {flagInfo && <img src={flagInfo.url} alt={flagInfo.code} className="w-4 h-3 flex-shrink-0" loading="lazy" />}
                   <span className="font-bold text-foreground text-sm truncate flex-1">{spot.call}</span>
-                  {spot.is_future && !isAlert && (
+                  {/* Fix 2: LIVE/GEPLANT Badge — SOTA-Tab zeigt kombinierte Spots+Alerts */}
+                  {spot.spot_type === 'LIVE' && (
+                    <span className="text-[7px] px-1 rounded bg-green-500/20 text-green-600 font-bold flex-shrink-0">LIVE</span>
+                  )}
+                  {spot.spot_type === 'ALERT' && (
+                    <span className="text-[7px] px-1 rounded bg-[#0284c7]/20 text-[#0284c7] font-bold flex-shrink-0">GEPLANT</span>
+                  )}
+                  {!spot.spot_type && spot.is_future && !isAlert && (
                     <span className="text-[7px] px-1 rounded bg-[#0284c7]/20 text-[#0284c7] font-bold flex-shrink-0">GEPLANT</span>
                   )}
                   {spot.reference && (

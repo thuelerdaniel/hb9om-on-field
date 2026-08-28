@@ -145,8 +145,8 @@ export default async function(req: Request): Promise<Response> {
     // Filtere RBNHOLE und DEPRECATED heraus — keine echten Activations
     // Fix 4: -24 = 24 Stunden (negative Zahl = Stunden, positive = Anzahl)
     const sotaUrls = [
-      `${SOTA_BASE}/api/spots/-24/all`,
-      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/-24/all`)}`,
+      `${SOTA_BASE}/api/spots/200/all`,
+      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/200/all`)}`,
     ];
     for (const url of sotaUrls) {
       try {

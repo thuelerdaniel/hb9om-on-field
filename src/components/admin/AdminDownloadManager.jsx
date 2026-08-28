@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Upload, Trash2, ToggleLeft, ToggleRight, Loader2, FileText, Smartphone, Plus, X, Archive } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { appParams } from "@/lib/app-params";
 import { useToast } from "@/components/ui/use-toast";
 
 // Admin Download Manager — Upload, Liste, Aktivieren/Deaktivieren, Löschen von DownloadItems.
@@ -45,45 +46,43 @@ export default function AdminDownloadManager() {
     }
     setUploading(true);
     setUploadProgress(0);
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-      progress = Math.min(progress + 3, 95);
-      setUploadProgress(progress);
-    }, 500);
+
     try {
-      // Fix 5C: 120s timeout for large files
-      const uploadPromise = base44.integrations.Core.UploadFile({ file });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Upload-Timeout nach 120 Sekunden')), 120000)
-      );
-      // 1. Datei hochladen
-      const uploadRes = await Promise.race([uploadPromise, timeoutPromise]);
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      const fileUrl = uploadRes?.file_url || uploadRes?.data?.file_url;
-      if (!fileUrl) throw new Error("Upload fehlgeschlagen");
+      // Fix 1: Upload via Backend-Function (umgeht Base44 Frontend-Type-Beschränkung für APK/ZIP)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", form.name);
+      formData.append("type", form.type);
+      formData.append("version", form.version || "");
+      formData.append("description", form.description || "");
+      formData.append("is_active", form.is_active ? "true" : "false");
 
-      // 2. User-Info für uploaded_by
-      let uploadedBy = "Admin";
-      try {
-        const me = await base44.auth.me();
-        uploadedBy = me?.full_name || me?.email || "Admin";
-      } catch {}
+      const token = localStorage.getItem("base44_access_token");
+      const url = `/api/apps/${appParams.appId}/functions/uploadAppFile`;
 
-      // 3. DownloadItem erstellen
-      await base44.entities.DownloadItem.create({
-        name: form.name,
-        type: form.type,
-        file_url: fileUrl,
-        file_size: file.size,
-        version: form.version || undefined,
-        description: form.description || undefined,
-        upload_date: new Date().toISOString(),
-        uploaded_by: uploadedBy,
-        is_active: form.is_active,
+      const result = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        });
+        xhr.addEventListener("load", () => {
+          try {
+            const res = JSON.parse(xhr.responseText);
+            if (xhr.status === 200 && res.success) resolve(res);
+            else reject(new Error(res.error || `Upload failed (HTTP ${xhr.status})`));
+          } catch (e) { reject(new Error("Upload failed — invalid response")); }
+        });
+        xhr.addEventListener("error", () => reject(new Error("Upload failed — network error")));
+        xhr.addEventListener("timeout", () => reject(new Error("Upload-Timeout nach 120 Sekunden")));
+        xhr.timeout = 120000;
+        xhr.open("POST", url);
+        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(formData);
       });
 
-      // 4. Falls APK: alte APK-Versionen deaktivieren?
+      // Falls APK: alte APK-Versionen deaktivieren?
       if (form.type === "apk") {
         const oldApks = items.filter(i => i.type === "apk" && i.id !== undefined);
         if (oldApks.length > 0) {
@@ -104,7 +103,6 @@ export default function AdminDownloadManager() {
       setShowForm(false);
       fetchItems();
     } catch (e) {
-      clearInterval(progressInterval);
       toast({ title: "Upload fehlgeschlagen", description: e.message, variant: "destructive" });
     } finally { setUploading(false); setUploadProgress(0); }
   };
@@ -160,15 +158,25 @@ export default function AdminDownloadManager() {
             )}
             <input
               type="file"
-              accept=".pdf,.apk,.zip,application/vnd.android.package-archive,application/pdf,application/zip"
               onChange={e => {
                 const f = e.target.files?.[0] || null;
-                setFile(f);
-                if (f) {
-                  const isApk = f.name.toLowerCase().endsWith(".apk") || f.type === "application/vnd.android.package-archive";
-                  const isZip = f.name.toLowerCase().endsWith(".zip") || f.type === "application/zip";
-                  setForm(prev => ({ ...prev, type: isApk ? "apk" : isZip ? "zip" : "pdf", name: prev.name || f.name.replace(/\.[^.]+$/, "") }));
+                if (!f) { setFile(null); return; }
+                // Fix 1: Validierung im Frontend (kein accept-Attribut das Base44 blockiert)
+                const ext = f.name.split('.').pop()?.toLowerCase();
+                if (!['apk', 'zip', 'pdf'].includes(ext)) {
+                  toast({ title: "Dateityp nicht erlaubt", description: "Nur .apk, .zip und .pdf erlaubt", variant: "destructive" });
+                  e.target.value = '';
+                  setFile(null);
+                  return;
                 }
+                if (f.size > 200 * 1024 * 1024) {
+                  toast({ title: "Datei zu gross", description: "Max 200MB", variant: "destructive" });
+                  e.target.value = '';
+                  setFile(null);
+                  return;
+                }
+                setFile(f);
+                setForm(prev => ({ ...prev, type: ext, name: prev.name || f.name.replace(/\.[^.]+$/, "") }));
               }}
               className="w-full text-xs mt-1 p-1.5 border border-border rounded-lg bg-background"
             />

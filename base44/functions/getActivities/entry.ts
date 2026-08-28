@@ -41,8 +41,8 @@ export default async function(req: Request): Promise<Response> {
       // Fix 3: 12 Stunden Abruf, RBNHOLE gefiltert
       // Fix 4: -24 = 24 Stunden (negative Zahl = Stunden, positive = Anzahl)
       const sotaUrls = [
-        `${SOTA_BASE}/api/spots/-24/all`,
-        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/-24/all`)}`,
+        `${SOTA_BASE}/api/spots/200/all`,
+        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/200/all`)}`,
       ];
       for (const url of sotaUrls) {
         try {
@@ -161,9 +161,27 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
+    // Fix 2: SOTA Spots + Alerts kombiniert für SOTA-Tab
+    // LIVE Spots zuerst (nach Zeit absteigend), dann ALERTS (nach dateActivated aufsteigend)
+    const combinedSota = [
+      ...liveSota.map((s: any) => ({ ...s, spot_type: 'LIVE' })),
+      ...futureAlerts.map((a: any) => ({ ...a, spot_type: 'ALERT', is_future: true })),
+    ].sort((a, b) => {
+      const aLive = a.spot_type === 'LIVE';
+      const bLive = b.spot_type === 'LIVE';
+      if (aLive && !bLive) return -1;
+      if (!aLive && bLive) return 1;
+      if (aLive) {
+        return new Date(b.spot_time || 0).getTime() - new Date(a.spot_time || 0).getTime();
+      }
+      return new Date(a.spot_time || 0).getTime() - new Date(b.spot_time || 0).getTime();
+    });
+
+    console.log('[SOTA] Spots:', liveSota.length, 'Alerts:', futureAlerts.length, 'Total:', combinedSota.length);
+
     return Response.json({
       success: true,
-      sota: liveSota,
+      sota: combinedSota,
       pota,
       wwff,
       wwbota,
@@ -171,7 +189,7 @@ export default async function(req: Request): Promise<Response> {
       alerts: [...alerts, ...futureAlerts],
       other,
       sotaAlertsAvailable,
-      total: spots.length,
+      total: combinedSota.length,
       futureTotal: futureAlerts.length,
     });
   } catch (error) {
