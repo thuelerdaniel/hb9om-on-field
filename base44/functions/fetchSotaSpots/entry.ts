@@ -2,16 +2,19 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { deriveBand } from "../../shared/bandDerivation.ts";
 import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts";
 
-// Lade SOTA-Spots von api-db2.sota.org.uk (NEUE Domain — api2 ist DEPRECATED).
-// Mode 1 (default): Live Spots von /api/spots/2/all (letzte 2 Stunden)
-// Mode 2 (body.alerts=true): SOTA Alerts von /api/alerts (geplante Aktivierungen)
-// Filtert Deprecation-Warning (id=9999999999999999).
+// Lade SOTA-Spots von api-db2.sota.org.uk (NEUE korrekte Domain — api2 ist DEPRECATED).
+// Fix v0.9015: korrekte API-Endpunkte aus SOTAWatch3 Source-Code extrahiert.
+//   Spots:  /api/spots/200/all/all?client=sotawatch&user=anon
+//   Alerts: /api/alerts?client=sotawatch&user=anon
+// Mode 1 (default): Live Spots
+// Mode 2 (body.alerts=true): SOTA Alerts (geplante Aktivierungen)
 // User-Agent: "HB9OM-On-Field/1.0"
 
-const SOTA_BASE = 'https://api2.sota.org.uk';
+const SOTA_BASE = 'https://api-db2.sota.org.uk';
 const DEFAULT_LOCATOR = 'JN36FL';
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const UA = 'HB9OM-On-Field/1.0';
+const SPOTS_QUERY = '?client=sotawatch&user=anon';
 
 function extractLocator(text: string): string | null {
   if (!text) return null;
@@ -55,9 +58,10 @@ export default async function(req: Request): Promise<Response> {
 
       let alerts: any[] = [];
       let apiError: string | null = null;
+      const alertUrl = `${SOTA_BASE}/api/alerts${SPOTS_QUERY}`;
       const alertUrls = [
-        `${SOTA_BASE}/api/alerts`,
-        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/alerts`)}`,
+        alertUrl,
+        `https://corsproxy.io/?url=${encodeURIComponent(alertUrl)}`,
       ];
       for (const url of alertUrls) {
         try {
@@ -67,7 +71,12 @@ export default async function(req: Request): Promise<Response> {
           });
           if (resp.ok) {
             const raw = await resp.json();
-            alerts = Array.isArray(raw) ? raw.filter((s: any) => s.id !== 9999999999999999 && s.callsign !== 'DEPRECATED') : [];
+            // Fix v0.9015: api-db2 hat KEINE Deprecation-Warning mehr.
+            // Filter nur RBNHOLE und "Unrecognized summit"
+            alerts = Array.isArray(raw) ? raw.filter((a: any) =>
+              a.activatingCallsign &&
+              a.summitDetails !== 'Unrecognized summit'
+            ) : [];
             break;
           } else { apiError = `HTTP ${resp.status}`; }
         } catch (e: any) { apiError = e.message; }
@@ -77,12 +86,11 @@ export default async function(req: Request): Promise<Response> {
         return Response.json({ success: false, warning: apiError || 'Keine SOTA-Alerts verfügbar', alerts: [] });
       }
 
-      // SotaPoint-Koordinaten vorab laden
+      // SotaPoint-Koordinaten vorab laden (Alerts haben KEINE lat/lon im Response)
       const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
-      for (const a of alerts.slice(0, 200)) {
-        const summitCode = a.summitCode || a.summit_code || '';
-        const assocCode = a.associationCode || a.association_code || '';
-        const ref = summitCode ? `${assocCode}/${summitCode}` : '';
+      for (const a of alerts.slice(0, 300)) {
+        // Fix v0.9015: Alerts haben associationCode + summitCode GETRENNT
+        const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
         if (ref && !refCoordMap.has(ref)) {
           try {
             const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
@@ -93,17 +101,18 @@ export default async function(req: Request): Promise<Response> {
         }
       }
 
-      const records = alerts.slice(0, 200).map((a: any) => {
-        const summitCode = a.summitCode || a.summit_code || '';
-        const assocCode = a.associationCode || a.association_code || '';
-        const ref = summitCode ? `${assocCode}/${summitCode}` : '';
+      const records = alerts.slice(0, 300).map((a: any) => {
+        // Fix v0.9015: Alerts haben associationCode + summitCode GETRENNT
+        const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
         const coords = refCoordMap.get(ref);
-        const frequency = a.frequency ? Number(a.frequency) * 1000 : null;
+        // Fix v0.9015: frequency bei Alerts ist STRING (z.B. "7.032-cw-7.144-ssb...")
+        const freqNum = a.frequency ? parseFloat(String(a.frequency)) : NaN;
+        const frequency = !isNaN(freqNum) ? freqNum * 1000 : null;
         return {
-          call: a.activatingCallsign || a.activator_callsign || a.callsign || '',
+          call: a.activatingCallsign || '',
           activity_type: 'SOTA-ALERT',
           reference: ref,
-          name: a.summitDetails || a.summit_details || coords?.name || '',
+          name: a.summitDetails || coords?.name || '',
           frequency,
           band: frequency ? deriveBand(frequency) : '',
           mode: a.mode || '',
@@ -141,12 +150,12 @@ export default async function(req: Request): Promise<Response> {
 
     let sotaSpots: any[] = [];
     let apiError: string | null = null;
-    // Fix 3: 12 Stunden Abruf (gleiche Anzahl wie SOTAWatch), 24h Fallback
-    // Filtere RBNHOLE und DEPRECATED heraus — keine echten Activations
-    // Fix 4: -24 = 24 Stunden (negative Zahl = Stunden, positive = Anzahl)
+    // Fix v0.9015: korrekte URL /api/spots/200/all/all?client=sotawatch&user=anon
+    // DREI Pfadsegmente: count/filter/sort + Query-Parameter erforderlich
+    const spotsUrl = `${SOTA_BASE}/api/spots/200/all/all${SPOTS_QUERY}`;
     const sotaUrls = [
-      `${SOTA_BASE}/api/spots/200/all`,
-      `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/200/all`)}`,
+      spotsUrl,
+      `https://corsproxy.io/?url=${encodeURIComponent(spotsUrl)}`,
     ];
     for (const url of sotaUrls) {
       try {
@@ -156,12 +165,11 @@ export default async function(req: Request): Promise<Response> {
         });
         if (resp.ok) {
           const raw = await resp.json();
+          // Fix v0.9015: KEINE Deprecation-Warning mehr bei api-db2.
+          // Nur RBNHOLE und type=DEPRECATED filtern
           sotaSpots = Array.isArray(raw) ? raw.filter((s: any) =>
-            s.id !== 9999999999999999 &&
-            s.callsign !== 'DEPRECATED' &&
-            s.activatorCallsign !== 'DEPRECATED' &&
-            s.activatorCallsign !== 'RBNHOLE' &&
-            s.callsign !== 'RBNHOLE'
+            s.callsign !== 'RBNHOLE' &&
+            s.type !== 'DEPRECATED'
           ) : [];
           console.log('[SOTA] Spots received:', sotaSpots.length);
           break;
@@ -173,13 +181,17 @@ export default async function(req: Request): Promise<Response> {
       return Response.json({ success: true, fetched: 0, saved: 0, warning: apiError || 'Keine SOTA-Spots verfügbar' });
     }
 
-    // SotaPoint-Koordinaten vorab laden
+    // Fix v0.9015: api-db2 liefert latitude/longitude FÜR DEN SUMMIT direkt im Spot.
+    // SotaPoint-Lookup nur noch als Fallback falls Koordinaten fehlen.
     const refsNeedingCoords = new Set<string>();
     for (const s of sotaSpots) {
-      const comments = s.comments || '';
-      const locator = extractLocator(comments);
-      const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';
-      if (!locator && ref) refsNeedingCoords.add(ref);
+      if (s.latitude == null || s.longitude == null) {
+        const comments = s.comments || '';
+        const locator = extractLocator(comments);
+        // Fix v0.9015: summitCode bei Spots = KOMPLETTE Referenz (z.B. "DM/BW-015")
+        const ref = s.summitCode || '';
+        if (!locator && ref) refsNeedingCoords.add(ref);
+      }
     }
     const sotaCoordMap = new Map<string, { lat: number; lon: number }>();
     for (const ref of refsNeedingCoords) {
@@ -194,6 +206,7 @@ export default async function(req: Request): Promise<Response> {
     const records = sotaSpots
       .filter((s: any) => s.activatorCallsign && s.frequency)
       .map((s: any) => {
+        // Fix v0.9015: frequency ist NUMMER (z.B. 144.31)
         const frequency = Number(s.frequency) * 1000;
         if (!frequency || isNaN(frequency)) return null;
         const band = deriveBand(frequency);
@@ -201,19 +214,17 @@ export default async function(req: Request): Promise<Response> {
         const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
         const comments = s.comments || '';
         const locator = extractLocator(comments);
-        let lat: number | undefined;
-        let lon: number | undefined;
+        // Fix v0.9015: latitude/longitude direkt im Spot verfügbar!
+        let lat: number | undefined = s.latitude != null ? Number(s.latitude) : undefined;
+        let lon: number | undefined = s.longitude != null ? Number(s.longitude) : undefined;
         let grid6: string | undefined;
-        if (locator) {
+        if ((lat == null || lon == null) && locator) {
           const pos = maidenheadToLatLon(locator);
           if (pos) { lat = pos.lat; lon = pos.lon; grid6 = locator; }
         }
-        if (lat == null || lon == null) {
-          const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';
-          if (ref) {
-            const fallback = sotaCoordMap.get(ref);
-            if (fallback) { lat = fallback.lat; lon = fallback.lon; }
-          }
+        if ((lat == null || lon == null) && s.summitCode) {
+          const fallback = sotaCoordMap.get(s.summitCode);
+          if (fallback) { lat = fallback.lat; lon = fallback.lon; }
         }
         let distance: number | null = null;
         let azimuth: number | null = null;
@@ -224,14 +235,16 @@ export default async function(req: Request): Promise<Response> {
         return {
           call: s.activatorCallsign,
           activity_type: 'SOTA',
-          reference: s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '',
-          name: s.summitDetails || '',
+          // Fix v0.9015: summitCode = KOMPLETTE Referenz (z.B. "DM/BW-015")
+          reference: s.summitCode || '',
+          // Fix v0.9015: summitName ist separates Feld
+          name: s.summitName || s.summitDetails || '',
           locationDesc: s.associationName || '',
           frequency, band,
           mode: s.mode || 'CW',
           latitude: lat, longitude: lon, grid6,
           comments,
-          spotter: s.spotterCallsign || '',
+          spotter: s.callsign || '',
           source: 'SOTA API',
           spot_time: spotTime.toISOString(),
           age_seconds: ageSeconds,

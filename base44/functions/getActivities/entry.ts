@@ -3,9 +3,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // Lade alle ActivitySpot-Einträge (sort -spot_time, limit 500).
 // Gruppiert nach activity_type: { sota, pota, wwff, wwbota, gma, alerts, other, total }
 // Wenn include_future=true: zusaetzlich SOTA-Alerts von der SOTA API.
+// Fix v0.9015: korrekte API-Endpunkte api-db2.sota.org.uk mit ?client=sotawatch&user=anon
 
-const SOTA_BASE = 'https://api2.sota.org.uk';
+const SOTA_BASE = 'https://api-db2.sota.org.uk';
 const UA = 'HB9OM-On-Field/1.0';
+const SPOTS_QUERY = '?client=sotawatch&user=anon';
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -38,11 +40,11 @@ export default async function(req: Request): Promise<Response> {
     // Falls keine SOTA-Spots in DB: direkt von SOTA API laden
     let liveSota = sota;
     if (liveSota.length === 0) {
-      // Fix 3: 12 Stunden Abruf, RBNHOLE gefiltert
-      // Fix 4: -24 = 24 Stunden (negative Zahl = Stunden, positive = Anzahl)
+      // Fix v0.9015: korrekte URL /api/spots/200/all/all?client=sotawatch&user=anon
+      const spotsUrl = `${SOTA_BASE}/api/spots/200/all/all${SPOTS_QUERY}`;
       const sotaUrls = [
-        `${SOTA_BASE}/api/spots/200/all`,
-        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/200/all`)}`,
+        spotsUrl,
+        `https://corsproxy.io/?url=${encodeURIComponent(spotsUrl)}`,
       ];
       for (const url of sotaUrls) {
         try {
@@ -52,44 +54,48 @@ export default async function(req: Request): Promise<Response> {
           });
           if (resp.ok) {
             const raw = await resp.json();
+            // Fix v0.9015: KEINE Deprecation-Warning, nur RBNHOLE filtern
             const sotaSpots = Array.isArray(raw) ? raw.filter((s: any) =>
-              s.id !== 9999999999999999 &&
               s.activatorCallsign && s.frequency &&
-              s.activatorCallsign !== 'RBNHOLE' &&
               s.callsign !== 'RBNHOLE' &&
-              s.callsign !== 'DEPRECATED'
+              s.type !== 'DEPRECATED'
             ) : [];
             console.log('[SOTA] Live spots received:', sotaSpots.length);
+            // Fix v0.9015: SotaPoint-Lookup nur für Spots ohne lat/lon
             const refCoordMap = new Map<string, { lat: number; lon: number }>();
             for (const s of sotaSpots) {
-              const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';
-              if (ref && !refCoordMap.has(ref)) {
-                try {
-                  const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
-                  if (points && points.length > 0 && points[0].lat != null) {
-                    refCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
-                  }
-                } catch {}
+              if (s.latitude == null || s.longitude == null) {
+                const ref = s.summitCode || '';
+                if (ref && !refCoordMap.has(ref)) {
+                  try {
+                    const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
+                    if (points && points.length > 0 && points[0].lat != null) {
+                      refCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
+                    }
+                  } catch {}
+                }
               }
             }
             liveSota = sotaSpots.map((s: any) => {
+              // Fix v0.9015: frequency ist NUMMER, summitCode = komplette Referenz
               const frequency = Number(s.frequency) * 1000;
               const spotTime = s.timeStamp ? new Date(s.timeStamp) : new Date();
               const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
-              const ref = s.summitCode ? `${s.associationCode || ''}/${s.summitCode}` : '';
-              const coords = ref ? refCoordMap.get(ref) : undefined;
+              const ref = s.summitCode || '';
+              const fallback = ref ? refCoordMap.get(ref) : undefined;
               return {
                 call: s.activatorCallsign,
                 activity_type: 'SOTA',
                 reference: ref,
-                name: s.summitDetails || '',
+                name: s.summitName || s.summitDetails || '',
                 frequency,
                 band: '',
                 mode: s.mode || 'CW',
-                latitude: coords?.lat,
-                longitude: coords?.lon,
+                // Fix v0.9015: lat/lon direkt im Spot
+                latitude: s.latitude != null ? Number(s.latitude) : fallback?.lat,
+                longitude: s.longitude != null ? Number(s.longitude) : fallback?.lon,
                 comments: s.comments || '',
-                spotter: s.spotterCallsign || '',
+                spotter: s.callsign || '',
                 source: 'SOTA API (live)',
                 spot_time: spotTime.toISOString(),
                 age_seconds: ageSeconds,
@@ -108,9 +114,10 @@ export default async function(req: Request): Promise<Response> {
     let futureAlerts: any[] = [];
     let sotaAlertsAvailable = false;
     if (includeFuture) {
+      const alertUrl = `${SOTA_BASE}/api/alerts${SPOTS_QUERY}`;
       const alertUrls = [
-        `${SOTA_BASE}/api/alerts`,
-        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/alerts`)}`,
+        alertUrl,
+        `https://corsproxy.io/?url=${encodeURIComponent(alertUrl)}`,
       ];
       for (const url of alertUrls) {
         try {
@@ -121,12 +128,15 @@ export default async function(req: Request): Promise<Response> {
           if (resp.ok) {
             sotaAlertsAvailable = true;
             const raw = await resp.json();
-            const alertList = Array.isArray(raw) ? raw.filter((s: any) => s.id !== 9999999999999999 && s.callsign !== 'DEPRECATED') : [];
+            // Fix v0.9015: KEINE Deprecation-Warning, "Unrecognized summit" filtern
+            const alertList = Array.isArray(raw) ? raw.filter((a: any) =>
+              a.activatingCallsign &&
+              a.summitDetails !== 'Unrecognized summit'
+            ) : [];
+            // Fix v0.9015: Alerts haben associationCode + summitCode GETRENNT
             const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
-            for (const a of alertList.slice(0, 200)) {
-              const summitCode = a.summitCode || a.summit_code || '';
-              const assocCode = a.associationCode || a.association_code || '';
-              const ref = summitCode ? `${assocCode}/${summitCode}` : '';
+            for (const a of alertList.slice(0, 300)) {
+              const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
               if (ref && !refCoordMap.has(ref)) {
                 try {
                   const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
@@ -136,16 +146,14 @@ export default async function(req: Request): Promise<Response> {
                 } catch {}
               }
             }
-            futureAlerts = alertList.slice(0, 200).map((a: any) => {
-              const summitCode = a.summitCode || a.summit_code || '';
-              const assocCode = a.associationCode || a.association_code || '';
-              const ref = summitCode ? `${assocCode}/${summitCode}` : '';
+            futureAlerts = alertList.slice(0, 300).map((a: any) => {
+              const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
               const coords = refCoordMap.get(ref);
               return {
-                call: a.activatingCallsign || a.activator_callsign || a.callsign || '',
+                call: a.activatingCallsign || '',
                 activity_type: 'SOTA-ALERT',
                 reference: ref,
-                name: coords?.name || a.summitDetails || a.summit_details || '',
+                name: coords?.name || a.summitDetails || '',
                 frequency: 0,
                 mode: a.mode || '',
                 spot_time: a.dateActivated ? new Date(a.dateActivated).toISOString() : null,
