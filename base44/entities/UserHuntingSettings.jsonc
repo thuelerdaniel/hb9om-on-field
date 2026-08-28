@@ -29,7 +29,15 @@
         "SOTA",
         "POTA",
         "WWFF",
-        "WWBOTA"
+        "WWBOTA",
+        "WCA",
+        "COTA",
+        "IOTA",
+        "GMA",
+        "TOTA",
+        "LOTA",
+        "MOTA",
+        "HEMA"
       ],
       "description": "Aktive Aktivitaets-Typen"
     },

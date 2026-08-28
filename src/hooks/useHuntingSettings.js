@@ -7,7 +7,7 @@ import { base44 } from "@/api/base44Client";
 // Debounced Speichern bei Aenderungen.
 
 const DEFAULT_SETTINGS = {
-  selected_activity_types: ["SOTA", "POTA", "WWFF", "WWBOTA"],
+  selected_activity_types: ["SOTA", "POTA", "WWFF", "WWBOTA", "WCA", "COTA", "IOTA", "GMA", "TOTA", "LOTA", "MOTA", "HEMA"],
   selected_bands: ["80m", "40m", "20m", "15m", "10m"],
   selected_modes: ["SSB", "CW", "FT8", "FM"],
   max_spot_age_hours: 2,
