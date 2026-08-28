@@ -181,7 +181,7 @@ export async function uploadToWavelog(config, onProgress) {
     try {
       const adifString = qsoToAdif(qso);
       const result = await callWavelogApi('upload', config, { adif_string: adifString });
-      if (result.ok && result.result?.status !== 'failed') {
+      if (result.success || (result.ok && result.result?.status !== 'failed')) {
         await base44.entities.Log.update(qso.id, {
           wavelog_synced: true,
           wavelog_sync_time: new Date().toISOString(),
@@ -238,14 +238,14 @@ export async function sendQsoToWavelog(qso, config) {
   try {
     const adifString = qsoToAdif(qso);
     const result = await callWavelogApi('upload', config, { adif_string: adifString });
-    if (result.ok && result.result?.status !== 'failed') {
+    if (result.success || (result.ok && result.result?.status !== 'failed')) {
       await base44.entities.Log.update(qso.id, {
         wavelog_synced: true,
         wavelog_sync_time: new Date().toISOString(),
       });
       return { success: true };
     }
-    return { success: false, reason: result.result?.reason || 'API-Fehler' };
+    return { success: false, reason: result.error || result.result?.reason || 'API-Fehler' };
   } catch (e) {
     return { success: false, reason: e.message };
   }

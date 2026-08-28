@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9032";
+export const APP_VERSION = "0.9033";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,11 @@ export const APP_BUILD = "202608282010";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9033: Wavelog Upload — akzeptiert mehrere Feldnamen (string, adifString, adif_data, adif, adif_string)",
+  "Fix v0.9033: Wavelog Upload — bessere Response mit success, adif_count, adif_errors, message",
+  "Fix v0.9033: Wavelog Permanent Sync — neue Action 'permanent_sync' (Import + Export für alle auto_sync User)",
+  "Fix v0.9033: Wavelog Permanent Sync — Scheduled Automation alle 15 Minuten ruft permanent_sync auf",
+  "Fix v0.9033: Wavelog Permanent Sync — verwendet asServiceRole für Multi-User-Zugriff",
   "Fix v0.9032: Wavelog Import — ADIF-Parsing und Entity-Erstellung ins Backend verlagert (wavelogApi Function)",
   "Fix v0.9032: Wavelog Import — bulkCreate in 100er-Batches, kein Dedup (alle QSOs werden importiert)",
   "Fix v0.9032: Wavelog Import — lastfetchedid wird im Backend direkt in UserHuntingSettings aktualisiert",

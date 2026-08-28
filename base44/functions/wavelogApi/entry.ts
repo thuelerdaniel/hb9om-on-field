@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { isInternalCall } from '../../shared/internalAuth.ts';
 
 // Wavelog API Proxy — v0.9022
 // Vermeidet Mixed-Content Blocking (App ist HTTPS, Wavelog-Server ist HTTP).
@@ -23,11 +24,16 @@ interface WavelogConfig {
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     let body: any = {};
     try { body = await req.json(); } catch {}
+
+    const isInternal = isInternalCall(body);
+    let user: any = null;
+    if (!isInternal) {
+      user = await base44.auth.me();
+      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const action = body.action || 'test';
     const config: WavelogConfig = {
@@ -37,7 +43,7 @@ export default async function(req: Request): Promise<Response> {
       station_id: body.station_id || '',
     };
 
-    if (!config.api_key) {
+    if (action !== 'permanent_sync' && !config.api_key) {
       return Response.json({ error: 'Kein API-Key angegeben' }, { status: 400 });
     }
 
@@ -104,7 +110,8 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'upload': {
-        if (!body.adif_string) return Response.json({ error: 'Kein ADIF-String' }, { status: 400 });
+        const adifString = body.string || body.adifString || body.adif_data || body.adif || body.adif_string;
+        if (!adifString) return Response.json({ error: 'Kein ADIF-String' }, { status: 400 });
         if (!config.station_id) return Response.json({ error: 'Keine Station-ID' }, { status: 400 });
         const baseUrl = await resolveBaseUrl();
         if (!baseUrl) return Response.json({ error: 'Server nicht erreichbar' }, { status: 502 });
@@ -112,9 +119,27 @@ export default async function(req: Request): Promise<Response> {
           key: config.api_key,
           station_profile_id: config.station_id,
           type: 'adif',
-          string: body.adif_string,
+          string: adifString,
         }, 10000);
-        return Response.json({ result: r.data, ok: r.ok });
+        if (r.ok && r.data?.status !== 'failed') {
+          return Response.json({
+            success: true,
+            ok: true,
+            result: r.data,
+            status: r.data?.status,
+            adif_count: r.data?.adif_count || 0,
+            adif_errors: r.data?.adif_errors || 0,
+            messages: r.data?.messages || [],
+            message: `${r.data?.adif_count || 0} QSOs an Wavelog gesendet`,
+          });
+        }
+        return Response.json({
+          success: false,
+          ok: false,
+          result: r.data,
+          error: r.data?.reason || r.data?.message || 'Upload fehlgeschlagen',
+          status: r.status,
+        }, { status: 400 });
       }
 
       case 'import': {
@@ -276,6 +301,188 @@ export default async function(req: Request): Promise<Response> {
           parse_errors: parseErrors.slice(0, 5),
           import_errors: importErrors,
           message: `Imported ${importedCount} QSOs from Wavelog (${errorCount} errors)`,
+        });
+      }
+
+      case 'permanent_sync': {
+        if (!isInternal) {
+          return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const sr = base44.asServiceRole;
+        const settings = await sr.entities.UserHuntingSettings.filter(
+          { wavelog_enabled: true, wavelog_auto_sync: true },
+          '-updated_date', 50
+        );
+
+        const results: any[] = [];
+
+        for (const setting of settings) {
+          if (!setting.wavelog_api_key) continue;
+          const userId = setting.user_id || setting.created_by_id;
+          const syncBaseUrl = (setting.wavelog_wan_url || setting.wavelog_lan_url || '').replace(/\/+$/, '');
+          if (!syncBaseUrl) {
+            results.push({ user_id: userId, error: 'Keine Server-URL', status: 'skipped' });
+            continue;
+          }
+
+          const lastFetchId = setting.wavelog_last_fetch_id || 0;
+          let importedCount = 0;
+          let exportedCount = 0;
+
+          // Step A: Import new QSOs from Wavelog (delta load)
+          try {
+            const importResp = await fetch(`${syncBaseUrl}/index.php/api/get_contacts_adif`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({
+                key: setting.wavelog_api_key,
+                station_id: setting.wavelog_station_id || '1',
+                fetchfromid: lastFetchId,
+              }),
+            });
+            const importData = await importResp.json();
+
+            if (importData?.adif && importData.exported_qsos > 0) {
+              const adif = importData.adif;
+              const newLastFetchId = importData.lastfetchedid || lastFetchId;
+
+              const eohIdx = adif.toUpperCase().indexOf('<EOH>');
+              let adifData = adif;
+              if (eohIdx >= 0) adifData = adif.substring(eohIdx + 5);
+              const records = adifData.split(/<EOR>/i).filter(r => r.trim().length > 0);
+
+              const qsos: any[] = [];
+              for (const record of records) {
+                const fields: Record<string, string> = {};
+                const regex = /<([A-Z_]+):(\d+)(?::[A-Z]+)?>([^<]*)/gi;
+                let m;
+                while ((m = regex.exec(record)) !== null) {
+                  const name = m[1].toUpperCase();
+                  const len = parseInt(m[2]);
+                  let val = m[3] || '';
+                  if (len > 0 && val.length > len) val = val.substring(0, len);
+                  val = val.replace(/[\r\n]+/g, '').trim();
+                  fields[name] = val;
+                }
+                if (!fields.CALL) continue;
+
+                const freq = parseFloat(fields.FREQ || '0');
+                const d = fields.QSO_DATE || '';
+                const qsoDate = d.length === 8 ? `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}` : '';
+                const t = (fields.TIME_ON || '').padStart(6, '0');
+                const timeStart = t.length >= 6 ? `${t.substring(0,2)}:${t.substring(2,4)}:${t.substring(4,6)}` : '';
+                const isClub = !!(fields.STATION_CALLSIGN && fields.OPERATOR && fields.OPERATOR !== fields.STATION_CALLSIGN);
+
+                qsos.push({
+                  callsign: fields.CALL,
+                  frequency: freq || undefined,
+                  band: fields.BAND || undefined,
+                  mode: fields.MODE || undefined,
+                  qso_date: qsoDate,
+                  time_start: timeStart,
+                  rst_sent: fields.RST_SENT || undefined,
+                  rst_received: fields.RST_RCVD || undefined,
+                  operator_name: fields.NAME || undefined,
+                  operator_country: fields.COUNTRY || undefined,
+                  operator_grid: fields.GRIDSQUARE || undefined,
+                  notes: fields.COMMENT || undefined,
+                  wavelog_imported: true,
+                  wavelog_import_date: new Date().toISOString(),
+                  wavelog_synced: false,
+                  is_clubstation: isClub,
+                  club_callsign: fields.STATION_CALLSIGN || undefined,
+                  club_operator_callsign: isClub ? fields.OPERATOR : undefined,
+                  my_grid: fields.MY_GRIDSQUARE || undefined,
+                  created_by_id: userId,
+                });
+              }
+
+              const BATCH = 100;
+              for (let i = 0; i < qsos.length; i += BATCH) {
+                const batch = qsos.slice(i, i + BATCH);
+                try {
+                  await sr.entities.Log.bulkCreate(batch);
+                  importedCount += batch.length;
+                } catch (e: any) {
+                  console.log(`[Wavelog Sync] Import batch failed for ${userId}: ${e.message}`);
+                }
+              }
+
+              try {
+                await sr.entities.UserHuntingSettings.update(setting.id, {
+                  wavelog_last_fetch_id: parseInt(newLastFetchId),
+                });
+              } catch (e: any) {
+                console.log(`[Wavelog Sync] Could not update last_fetch_id: ${e.message}`);
+              }
+            }
+          } catch (importErr: any) {
+            console.log(`[Wavelog Sync] Import failed for ${userId}: ${importErr.message}`);
+          }
+
+          // Step B: Export unsynced QSOs to Wavelog
+          try {
+            const unsyncedQsos = await sr.entities.Log.filter(
+              { created_by_id: userId, wavelog_synced: false },
+              '-created_date', 100
+            );
+            const toExport = unsyncedQsos.filter(q => !q.wavelog_imported);
+
+            if (toExport.length > 0) {
+              let adifString = '';
+              for (const qso of toExport) {
+                const fullCall = (qso.callsign || '') + (qso.callsign_suffix || '');
+                if (fullCall) adifString += `<CALL:${fullCall.length}>${fullCall}`;
+                if (qso.band) adifString += `<BAND:${qso.band.length}>${qso.band}`;
+                if (qso.mode) adifString += `<MODE:${qso.mode.length}>${qso.mode}`;
+                if (qso.frequency) { const f = String(qso.frequency); adifString += `<FREQ:${f.length}>${f}`; }
+                if (qso.qso_date) { const d = qso.qso_date.replace(/-/g, ''); adifString += `<QSO_DATE:8>${d}`; }
+                if (qso.time_start) { const t = qso.time_start.replace(/:/g, '').substring(0, 6); adifString += `<TIME_ON:6>${t}`; }
+                if (qso.rst_sent) adifString += `<RST_SENT:${qso.rst_sent.length}>${qso.rst_sent}`;
+                if (qso.rst_received) adifString += `<RST_RCVD:${qso.rst_received.length}>${qso.rst_received}`;
+                if (qso.operator_name) adifString += `<NAME:${qso.operator_name.length}>${qso.operator_name}`;
+                if (qso.notes) adifString += `<COMMENT:${qso.notes.length}>${qso.notes}`;
+                if (qso.is_clubstation && qso.club_callsign) adifString += `<STATION_CALLSIGN:${qso.club_callsign.length}>${qso.club_callsign}`;
+                if (qso.is_clubstation && qso.club_operator_callsign) adifString += `<OPERATOR:${qso.club_operator_callsign.length}>${qso.club_operator_callsign}`;
+                adifString += '<EOR>';
+              }
+
+              const uploadResp = await fetch(`${syncBaseUrl}/index.php/api/qso`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                  key: setting.wavelog_api_key,
+                  station_profile_id: setting.wavelog_station_id || '1',
+                  type: 'adif',
+                  string: adifString,
+                }),
+              });
+
+              if (uploadResp.status === 201 || uploadResp.ok) {
+                for (const qso of toExport) {
+                  try {
+                    await sr.entities.Log.update(qso.id, {
+                      wavelog_synced: true,
+                      wavelog_sync_time: new Date().toISOString(),
+                    });
+                    exportedCount++;
+                  } catch (e: any) {}
+                }
+              }
+            }
+          } catch (exportErr: any) {
+            console.log(`[Wavelog Sync] Export failed for ${userId}: ${exportErr.message}`);
+          }
+
+          results.push({ user_id: userId, imported: importedCount, exported: exportedCount, status: 'success' });
+        }
+
+        return Response.json({
+          success: true,
+          synced_users: results.length,
+          results,
+          message: `Sync abgeschlossen für ${results.length} Nutzer`,
         });
       }
 
