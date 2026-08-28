@@ -39,9 +39,9 @@ export default async function(req: Request): Promise<Response> {
     let liveSota = sota;
     if (liveSota.length === 0) {
       const sotaUrls = [
-        `${SOTA_BASE}/api/spots/2/all`,
+        `${SOTA_BASE}/api/spots/200/all`,
         `${SOTA_BASE}/api/spots/-1`,
-        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/2/all`)}`,
+        `https://corsproxy.io/?url=${encodeURIComponent(`${SOTA_BASE}/api/spots/200/all`)}`,
       ];
       for (const url of sotaUrls) {
         try {
