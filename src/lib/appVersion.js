@@ -8,16 +8,18 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9029";
+export const APP_VERSION = "0.9030";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608281942";
+export const APP_BUILD = "202608281948";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9030: Live Spot Activity als eigenständiges Widget wiederhergestellt — zwischen Propagation Overview und SOTA Live-Spots",
+  "Fix v0.9030: Auto-Refresh 30s, max 50 Spots angezeigt, Sortierung nach Zeit/Score/Distanz",
   "Fix v0.9029: DX-Cluster Spots im 'Live Spot Activity' Tab — Fallback auf DxSpot Entity wenn fetchDxSpots keine Spots zurückgibt",
   "Fix v0.9029: Layer-Panel OVERLAY-EBENEN — alle Layer sichtbar (Feature-Flag-Filter entfernt, Eye-Toggle steuert Karten-Sichtbarkeit)",
   "Rollback v0.9028: Zurück auf publizierten Stand — parallele fetch-Calls entfernt, refreshHuntingData Orchestrator wiederhergestellt",

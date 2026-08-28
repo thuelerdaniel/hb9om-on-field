@@ -9,6 +9,7 @@ import SpotDetailsModal from "@/components/hunting/SpotDetailsModal";
 import QsoLogModal from "@/components/hunting/QsoLogModal";
 import QrzLookupModal from "@/components/hunting/QrzLookupModal";
 import ActivityPanel from "@/components/hunting/ActivityPanel";
+import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
 import BottomNavigation from "@/components/BottomNavigation";
 
 // Hunting-Seite — v0.9010 Major Overhaul:
@@ -145,6 +146,15 @@ export default function Hunting() {
 
         {/* Propagation Bar */}
         <PropagationBar stationInfo={stationInfo} />
+
+        {/* v0.9030: Standalone Live Spot Activity widget — DX-Cluster Spots */}
+        <LiveSpotActivity
+          onSpotDetails={setSpotDetails}
+          onLogQso={setQsoSpot}
+          onCallClick={setQrzCall}
+          gpsPos={gpsPos}
+          stationInfo={stationInfo}
+        />
 
         {/* v0.9019: Unified ActivityPanel with 6 tabs (SOTA/POTA/WWFF/WWBOTA/Live Spot Activity/Alerts) */}
         <ActivityPanel
