@@ -17,6 +17,7 @@ import MapPositionControls from "@/components/map/MapPositionControls";
 import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
 import CountryAggregateLayer from "@/components/map/CountryAggregateLayer";
+import ActivityZoneLayer from "@/components/map/ActivityZoneLayer";
 import ViewportDataLoader from "@/components/map/ViewportDataLoader";
 import MapErrorBoundary from "@/components/MapErrorBoundary";
 import RepeaterLayer from "@/components/map/RepeaterLayer";
@@ -1265,6 +1266,13 @@ export default function Home() {
           markers={allMarkers}
           activeLayers={activeLayers}
         />
+        {activeLayers.includes("activity_zones") && (
+          <ActivityZoneLayer
+            markers={allMarkers}
+            activeLayers={activeLayers}
+            zoneRadiusKm={1}
+          />
+        )}
         {activeLayers.includes("lighthouse") && (
           <LighthouseLayer
             lighthouses={data.lighthouse || []}

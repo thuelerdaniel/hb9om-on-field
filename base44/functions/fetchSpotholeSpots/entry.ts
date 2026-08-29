@@ -265,7 +265,53 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Fetch solar/propagation data
+    // 3. Fetch APRS-like stations from Spothole (alternative APRS source)
+    // Spothole spots with dx_latitude/dx_longitude but no sig are position-bearing stations
+    // that can supplement the aprs.fi data as an alternative APRS source.
+    if (!body.skip_aprs) {
+      try {
+        const allSpots: SpotholeSpot[] = await fetchJson(
+          `${SPOTHOLE_BASE}/spots?limit=500`,
+          15000
+        );
+        // Filter spots that have position but no sig (APRS-like, not activity-based)
+        const aprsLike = allSpots.filter(s =>
+          s.dx_latitude != null && s.dx_longitude != null &&
+          (!s.sig || s.sig === '') &&
+          !(s.sig_refs && s.sig_refs.length > 0)
+        );
+        if (aprsLike.length > 0) {
+          const aprsEntity = base44.asServiceRole.entities.AprsStation;
+          let aprsSaved = 0;
+          for (const spot of aprsLike.slice(0, 100)) {
+            try {
+              // Check if station already exists by callsign
+              const existing = await aprsEntity.filter({ callsign: spot.dx_call });
+              const stationData: any = {
+                callsign: spot.dx_call || '',
+                lat: spot.dx_latitude,
+                lng: spot.dx_longitude,
+                comment: spot.dx_qth || spot.comment || '',
+                last_heard: spot.time_iso || new Date().toISOString(),
+                source_callsign: spot.de_call || '',
+                is_swiss: (spot.dx_call || '').startsWith('HB9') || (spot.dx_call || '').startsWith('HB9'),
+              };
+              if (existing && existing.length > 0) {
+                await aprsEntity.update(existing[0].id, stationData);
+              } else {
+                await aprsEntity.create(stationData);
+              }
+              aprsSaved++;
+            } catch { /* skip individual failures */ }
+          }
+          results.aprs_stations = aprsSaved;
+        }
+      } catch (e: any) {
+        results.aprs_error = e.message;
+      }
+    }
+
+    // 4. Fetch solar/propagation data
     if (!skip_solar) {
       try {
         const solar = await fetchJson(`${SPOTHOLE_BASE}/solar`, 10000);

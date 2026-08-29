@@ -136,6 +136,24 @@ export const SECTIONS = [
         mockup: "layers"
       },
       {
+        title: "Zoom-Aggregation (Länder-Badges)",
+        body: "Bei weiter Kartenansicht (Zoom < 6) werden statt zehntausender einzelner Marker farbige Länder-Badges mit der Anzahl Referenzpunkte pro Land angezeigt. Dies verbessert die Performance erheblich und gibt einen schnellen Überblick. Klicken Sie auf ein Länder-Badge, um in das jeweilige Land zu zoomen und die einzelnen Marker zu sehen.",
+        steps: [
+          { icon: "globe2", text: "Weit herauszoomen (Zoom < 6) — Länder-Badges erscheinen automatisch" },
+          { icon: "mapPin", text: "Auf ein Länder-Badge klicken — Karte zoomt ins jeweilige Land" },
+          { icon: "check", text: "Ab Zoom >= 6 werden wieder einzelne Marker angezeigt" }
+        ]
+      },
+      {
+        title: "Aktivitätszonen (Radius-Kreise)",
+        body: "Aktivitätszonen zeigen den Bereich um Referenzpunkte (SOTA, POTA, WCA, IOTA, TOTA) als halbtransparente Kreise mit konfigurierbarem Radius (Standard: 1 km). Dies hilft bei der Planung von Aktivierungen und beim Abschätzen des Aktionsradius.",
+        steps: [
+          { icon: "layers", text: "Im Ebenen-Menü 'Aktivitätszonen' aktivieren" },
+          { icon: "ruler", text: "Kreise erscheinen um alle sichtbaren Referenzpunkte" },
+          { icon: "check", text: "Radius ist standardmässig 1 km" }
+        ]
+      },
+      {
         title: "Bestätigung bei vielen Datenpunkten",
         body: "Wenn Sie einen Layer mit sehr vielen Datenpunkten aktivieren (SOTA ~180'000 Gipfel, POTA ~89'000 Parks, Relais, APRS-Nodes), erscheint ein Bestätigungsdialog vor dem Laden. Der Dialog zeigt eine Schätzung der Punkte, Datenmenge (MB) und Ladezeit. Bei Bestätigung lädt die App alle Daten weltweit. Bei Abbruch wird der Layer aktiviert, aber nur der sichtbare Kartenausschnitt geladen – deutlich schneller. Für alle Daten später: Layer deaktivieren und reaktivieren.",
         steps: [

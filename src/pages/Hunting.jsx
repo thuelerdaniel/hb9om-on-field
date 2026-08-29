@@ -10,6 +10,7 @@ import QsoLogModal from "@/components/hunting/QsoLogModal";
 import QrzLookupModal from "@/components/hunting/QrzLookupModal";
 import ActivityPanel from "@/components/hunting/ActivityPanel";
 import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
+import LiveSpotStream from "@/components/hunting/LiveSpotStream";
 import BottomNavigation from "@/components/BottomNavigation";
 
 // Hunting-Seite — v0.9010 Major Overhaul:
@@ -154,6 +155,12 @@ export default function Hunting() {
           onCallClick={setQrzCall}
           gpsPos={gpsPos}
           stationInfo={stationInfo}
+        />
+
+        {/* v0.91001: Spothole Live Spot Stream — real-time spots every 30s */}
+        <LiveSpotStream
+          onSpotClick={(spot) => setSpotDetails(spot)}
+          gpsPos={gpsPos}
         />
 
         {/* v0.9019: Unified ActivityPanel with 6 tabs (SOTA/POTA/WWFF/WWBOTA/Live Spot Activity/Alerts) */}

@@ -8,16 +8,21 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.91";
+export const APP_VERSION = "0.91001";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608291606";
+export const APP_BUILD = "202608291852";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.91001: Activity Zone Overlays — Aktivitätszonen (SOTA/POTA/WCA/IOTA/TOTA) als konfigurierbare Radius-Kreise auf der Karte",
+  "v0.91001: Spothole Live Spot Stream — Live-Spots alle 30s via Spothole API ( Hunting-Seite)",
+  "v0.91001: Offline-Cache TTL — Cached Daten verfallen nach 10 Minuten (automatische Aktualisierung)",
+  "v0.91001: Alternative APRS-Quelle via Spothole — Positionsbasierte Stationen als Ergänzung zu aprs.fi",
+  "v0.91001: Help-Dokumentation auf v0.91 aktualisiert (Zoom-Aggregation, Spothole, Activity Zones)",
   "v0.91: Zoom-Aggregation — bei Weitansicht (Zoom < 6) werden Länder-Badges mit Anzahlen gezeigt statt 10'000 einzelner Marker",
   "v0.91: Spothole API Integration — primäre Datenquelle für Spots und Propagation (kein API-Key nötig)",
   "v0.91: getReferencesInBounds repariert — entityType Parameter wird jetzt respektiert (AprsStation liefert APRS-Daten, nicht SOTA)",
@@ -167,6 +172,7 @@ export const APP_CHANGELOG = [
 
 // Data sources reference — used by Help page and menu.
 export const DATA_SOURCES = [
+  { name: "Spothole (Spots & Propagation)", url: "spothole.app/api/v2", count: "Live-Spots + Solar", schedule: "alle 30s (Live Stream)" },
   { name: "SOTA", url: "api2.sota.org.uk", count: "~181.658 Gipfel", schedule: "täglich 03:00 UTC" },
   { name: "POTA", url: "api.pota.app", count: "~89.650 Parks", schedule: "täglich 03:30 UTC" },
   { name: "WWFF", url: "wwff.co/wwff-data/wwff_directory.csv", count: ">1.000 Gebiete", schedule: "täglich 04:00 UTC" },

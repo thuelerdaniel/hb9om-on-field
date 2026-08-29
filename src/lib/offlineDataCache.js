@@ -8,6 +8,26 @@ const OVERRIDES_KEY = "hb9om_offline_overrides";
 const QRZ_CACHE_KEY = "hb9om_offline_qrz";
 const TIMESTAMP_KEY = "hb9om_offline_cached_at";
 
+// Cache TTL — 10 minutes. Cached reference data expires after this period,
+// forcing a re-fetch from the server to ensure data freshness.
+const CACHE_TTL_MS = 10 * 60 * 1000;
+
+// Check if the cache has expired (older than TTL). Returns true if expired or no timestamp.
+export function isCacheExpired() {
+  const cachedAt = safeGetItem(TIMESTAMP_KEY);
+  if (!cachedAt) return true;
+  const ageMs = Date.now() - new Date(cachedAt).getTime();
+  return ageMs > CACHE_TTL_MS;
+}
+
+// Get remaining cache age in minutes (for UI display)
+export function getCacheAgeMinutes() {
+  const cachedAt = safeGetItem(TIMESTAMP_KEY);
+  if (!cachedAt) return null;
+  const ageMs = Date.now() - new Date(cachedAt).getTime();
+  return Math.floor(ageMs / 60000);
+}
+
 // Per-type cache keys — splitting the giant JSON into per-type keys avoids a single
 // 100k+ element JSON.parse that blocks the main thread for 100-200ms on startup.
 const TYPE_CACHE_KEYS = {
@@ -66,6 +86,9 @@ export async function cacheReferenceType(type, refs) {
 }
 
 export async function loadCachedReferenceData() {
+  // TTL check — if cache is older than 10 minutes, return null (force re-fetch)
+  if (isCacheExpired()) return null;
+
   // Use loadCachedReferenceType which handles per-country keys (now async, IndexedDB)
   try {
     const result = {};
@@ -666,7 +689,9 @@ export async function cacheTotaFromServer() {
 }
 
 // Load cached TOTA points (IndexedDB)
+// TTL: returns empty array if cache is older than 10 minutes
 export async function loadCachedTota() {
+  if (isCacheExpired()) return [];
   const countries = getCachedCountriesForType("tota");
   if (countries.length > 0) {
     const merged = [];
@@ -849,7 +874,9 @@ export async function cacheQrzFromServer() {
 }
 
 // Load cached repeaters — merges per-country keys if present (IndexedDB)
+// TTL: returns empty array if cache is older than 10 minutes
 export async function loadCachedRepeaters() {
+  if (isCacheExpired()) return [];
   const countries = getCachedCountriesForType("repeater");
   if (countries.length > 0) {
     const merged = [];
@@ -864,7 +891,9 @@ export async function loadCachedRepeaters() {
 }
 
 // Load cached private nodes — merges per-country keys if present (IndexedDB)
+// TTL: returns empty array if cache is older than 10 minutes
 export async function loadCachedPrivateNodes() {
+  if (isCacheExpired()) return [];
   const countries = getCachedCountriesForType("private_nodes");
   if (countries.length > 0) {
     const merged = [];

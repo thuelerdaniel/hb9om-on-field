@@ -98,6 +98,13 @@ const LAYER_GROUPS = [
     icon: Network,
     color: "#14b8a6",
     description: "DMR-Relais und Hotspots im BrandMeister-Netzwerk mit Talkgroups (TG) und DMR-IDs — eigenständiges Netzwerk, nicht APRS"
+  },
+  {
+    id: "activity_zones",
+    label: "Aktivitätszonen (Radius-Kreise)",
+    icon: Ruler,
+    color: "#f59e0b",
+    description: "Aktivitätszonen um Referenzpunkte (SOTA/POTA/WCA/IOTA/TOTA) als konfigurierbare Radius-Kreise"
   }
 ];
 
