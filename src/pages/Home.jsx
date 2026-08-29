@@ -53,6 +53,10 @@ import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
 import LighthouseFilter from "@/components/map/LighthouseFilter";
 import LighthouseLayer from "@/components/map/LighthouseLayer";
 import ReferenceSearchFilter from "@/components/map/ReferenceSearchFilter";
+import SotaFilter from "@/components/map/SotaFilter";
+import PotaFilter from "@/components/map/PotaFilter";
+import WwffFilter from "@/components/map/WwffFilter";
+import IotaFilter from "@/components/map/IotaFilter";
 import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
 
 // Safe storage wrappers (prevent QuotaExceededError crashes)
@@ -382,6 +386,30 @@ export default function Home() {
     safeSetJSON("hb9om_ref_search", refSearchQueries, 2048);
   }, [refSearchQueries]);
 
+  // PUNKT 12: Full-featured filter state for SOTA, POTA, WWFF, IOTA
+  const [sotaFilterCountries, setSotaFilterCountries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_sota_filter_countries")) || []; } catch { return []; }
+  });
+  const [potaFilterCountries, setPotaFilterCountries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_pota_filter_countries")) || []; } catch { return []; }
+  });
+  const [wwffFilterCountries, setWwffFilterCountries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_wwff_filter_countries")) || []; } catch { return []; }
+  });
+  const [iotaFilterCountries, setIotaFilterCountries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_iota_filter_countries")) || []; } catch { return []; }
+  });
+  const [sotaFilterPoints, setSotaFilterPoints] = useState([]);
+  const [sotaAltitudeRange, setSotaAltitudeRange] = useState("all");
+  const [iotaStatusFilter, setIotaStatusFilter] = useState("all");
+  const [iotaRegionFilter, setIotaRegionFilter] = useState("all");
+  useEffect(() => {
+    safeSetJSON("hb9om_sota_filter_countries", sotaFilterCountries, 2048);
+    safeSetJSON("hb9om_pota_filter_countries", potaFilterCountries, 2048);
+    safeSetJSON("hb9om_wwff_filter_countries", wwffFilterCountries, 2048);
+    safeSetJSON("hb9om_iota_filter_countries", iotaFilterCountries, 2048);
+  }, [sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries]);
+
   // Save filter state to localStorage — debounced + size-limited + safeSetJSON.
   // Debounce (500ms) prevents rapid writes on every filter keystroke.
   // safeSetJSON checks size (< 10KB) and uses safeSetItem which catches quota errors.
@@ -569,8 +597,58 @@ export default function Home() {
         );
       }
     }
+    // PUNKT 12: Apply country filters for SOTA, POTA, WWFF, IOTA
+    const countryFilters = {
+      sota: sotaFilterCountries, pota: potaFilterCountries,
+      hbff: wwffFilterCountries, iota: iotaFilterCountries,
+    };
+    for (const [type, countries] of Object.entries(countryFilters)) {
+      if (countries && countries.length > 0) {
+        markers = markers.filter(m => {
+          if (m.layerType !== type) return true;
+          const cc = m.country_code || (m.code || "").split(/[/ -]/)[0] || "";
+          return countries.includes(cc);
+        });
+      }
+    }
+    // SOTA: altitude range filter
+    if (sotaAltitudeRange !== "all") {
+      const ranges = { lt500: [0, 499], "500-1000": [500, 1000], "1000-2000": [1000, 2000], gt2000: [2001, 99999] };
+      const [min, max] = ranges[sotaAltitudeRange] || [0, 99999];
+      markers = markers.filter(m => {
+        if (m.layerType !== "sota") return true;
+        const alt = m.altitude || m.elevation || 0;
+        return alt >= min && alt <= max;
+      });
+    }
+    // SOTA: points filter
+    if (sotaFilterPoints.length > 0) {
+      markers = markers.filter(m => {
+        if (m.layerType !== "sota") return true;
+        const pts = m.points || 0;
+        return sotaFilterPoints.includes(pts);
+      });
+    }
+    // IOTA: status filter
+    if (iotaStatusFilter !== "all") {
+      markers = markers.filter(m => {
+        if (m.layerType !== "iota") return true;
+        const status = (m.status || "").toLowerCase();
+        if (iotaStatusFilter === "active") return status === "active";
+        if (iotaStatusFilter === "not_activated") return status !== "active";
+        return true;
+      });
+    }
+    // IOTA: region filter
+    if (iotaRegionFilter !== "all") {
+      markers = markers.filter(m => {
+        if (m.layerType !== "iota") return true;
+        const code = m.code || "";
+        return code.startsWith(iotaRegionFilter + "-");
+      });
+    }
     return markers;
-  }, [mapData, activeLayers, refSearchQueries]);
+  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, iotaStatusFilter, iotaRegionFilter]);
   // All loaded markers regardless of active layers — used by QSO form for reference selection
   const allMarkersUnfiltered = useMemo(() => {
     const markers = buildMarkers(data, null);
@@ -1518,20 +1596,81 @@ export default function Home() {
         return null;
       })}
 
-      {/* Reference search filters (SOTA, POTA, HBFF, WWBOTA, WCA, IOTA) */}
-      {features.tools.filter !== false && filterButtons.reference.map(btn => (
-        <ReferenceSearchFilter
-          key={`ref-filter-${btn.type}`}
-          layerType={btn.type}
-          label={btn.label}
-          color={btn.color}
-          query={btn.query}
-          onQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, [btn.type]: q }))}
-          leftPx={btn.leftPx}
-          bottomPx={btn.bottomPx}
-          markerCount={btn.count}
-        />
-      ))}
+      {/* Reference filters — full-featured for SOTA/POTA/WWFF/IOTA, search-only for WCA/WWBOTA */}
+      {features.tools.filter !== false && filterButtons.reference.map(btn => {
+        const visibleCount = allMarkers.filter(m => m.layerType === btn.type).length;
+        const commonProps = { key: `ref-filter-${btn.type}`, leftPx: btn.leftPx, bottomPx: btn.bottomPx };
+        if (btn.type === "sota") {
+          return (
+            <SotaFilter {...commonProps}
+              searchQuery={refSearchQueries.sota || ""}
+              onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, sota: q }))}
+              pointCount={btn.count} visibleCount={visibleCount}
+              points={mapData.sota || []}
+              filterCountries={sotaFilterCountries}
+              onFilterCountriesChange={setSotaFilterCountries}
+              filterPoints={sotaFilterPoints}
+              onFilterPointsChange={setSotaFilterPoints}
+              altitudeRange={sotaAltitudeRange}
+              onAltitudeRangeChange={setSotaAltitudeRange}
+            />
+          );
+        }
+        if (btn.type === "pota") {
+          return (
+            <PotaFilter {...commonProps}
+              searchQuery={refSearchQueries.pota || ""}
+              onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, pota: q }))}
+              pointCount={btn.count} visibleCount={visibleCount}
+              points={mapData.pota || []}
+              filterCountries={potaFilterCountries}
+              onFilterCountriesChange={setPotaFilterCountries}
+            />
+          );
+        }
+        if (btn.type === "hbff") {
+          return (
+            <WwffFilter {...commonProps}
+              searchQuery={refSearchQueries.hbff || ""}
+              onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, hbff: q }))}
+              pointCount={btn.count} visibleCount={visibleCount}
+              points={mapData.hbff || []}
+              filterCountries={wwffFilterCountries}
+              onFilterCountriesChange={setWwffFilterCountries}
+            />
+          );
+        }
+        if (btn.type === "iota") {
+          return (
+            <IotaFilter {...commonProps}
+              searchQuery={refSearchQueries.iota || ""}
+              onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, iota: q }))}
+              pointCount={btn.count} visibleCount={visibleCount}
+              points={mapData.iota || []}
+              filterCountries={iotaFilterCountries}
+              onFilterCountriesChange={setIotaFilterCountries}
+              statusFilter={iotaStatusFilter}
+              onStatusFilterChange={setIotaStatusFilter}
+              regionFilter={iotaRegionFilter}
+              onRegionFilterChange={setIotaRegionFilter}
+            />
+          );
+        }
+        // WCA, WWBOTA: keep simple search filter
+        return (
+          <ReferenceSearchFilter
+            key={`ref-filter-${btn.type}`}
+            layerType={btn.type}
+            label={btn.label}
+            color={btn.color}
+            query={btn.query}
+            onQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, [btn.type]: q }))}
+            leftPx={btn.leftPx}
+            bottomPx={btn.bottomPx}
+            markerCount={visibleCount}
+          />
+        );
+      })}
 
       {/* Legend — only if enabled */}
       {features.tools.legende !== false && (

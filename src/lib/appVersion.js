@@ -8,16 +8,20 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9025";
+export const APP_VERSION = "0.9026";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608291252";
+export const APP_BUILD = "202608291300";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Build v0.9026: PUNKT 12 — Vollwertige Filter für SOTA (Höhe+Punkte+Land), POTA (Land), WWFF (Land), IOTA (Status+Region+Land) — alle verschiebbar",
+  "Build v0.9026: PUNKT 5 — Leuchtturm-Quellen von 13 regionalen auf 1 globale ILLW-Quelle konsolidiert",
+  "Build v0.9026: PUNKT 10 — DailyRefreshSchedule bereinigt: stale repeater entfernt, hbff+repeater_na_us deaktiviert, 15 regionale Leuchttürme gelöscht, WWBOTA deaktiviert",
+  "Build v0.9026: PUNKT 11 — Alle Filter-Popups verwenden useDraggablePosition (long-press verschiebbar)",
   "Build v0.9025: refreshHuntingData NEU GESCHRIEBEN — Fetch-Logic INLINE (keine 403 Fehler mehr)",
   "Build v0.9025: Shared huntingFetchers.ts Modul — DX/Propagation/SOTA/POTA/WWFF/GMA Fetch-Logic zentral",
   "Build v0.9025: fetchPOTA — SDK aktualisiert + isInternalCall Support + PotaPoint Schreibung bestätigt",
