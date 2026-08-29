@@ -334,9 +334,9 @@ export default async function(req: Request): Promise<Response> {
           url,
           status: !ok ? 'FAIL' : warning ? 'WARN' : 'OK',
           last_check: new Date().toISOString(),
-          last_success: ok ? new Date().toISOString() : undefined,
+          last_success: ok ? new Date().toISOString() : null,
           spots_received: spots,
-          error_message: warning || undefined,
+          error_message: warning || null,
           is_active: true,
         };
         if (existing && existing.length > 0) {

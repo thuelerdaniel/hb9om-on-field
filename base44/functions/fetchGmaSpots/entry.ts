@@ -164,9 +164,9 @@ export default async function(req: Request): Promise<Response> {
         url: 'https://spothole.app/api/v2/spots?sig=GMA',
         status: apiWarning ? 'WARN' as const : (savedCount > 0 ? 'OK' as const : 'FAIL' as const),
         last_check: new Date().toISOString(),
-        last_success: savedCount > 0 ? new Date().toISOString() : undefined,
+        last_success: savedCount > 0 ? new Date().toISOString() : null,
         spots_received: savedCount,
-        error_message: apiWarning || undefined,
+        error_message: apiWarning || null,
         is_active: true,
       };
       if (existing && existing.length > 0) {
