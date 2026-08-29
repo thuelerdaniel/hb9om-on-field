@@ -44,10 +44,11 @@ export async function fetchPotaParks(
       }
     } catch { /* API entity list broken — use hardcoded fallback */ }
 
-    // Use API entities if available, otherwise use hardcoded list
-    entityCodes = apiEntities.length > 0 ? apiEntities : POTA_ENTITIES;
-    // Deduplicate
-    entityCodes = [...new Set(entityCodes)];
+    // Always use the full hardcoded POTA_ENTITIES list as the base, then add any
+    // additional entities from the API. The API entity list endpoint is unreliable
+    // and sometimes returns only a few entities (e.g. only GB/CH/IE), which causes
+    // worldwide POTA data to be incomplete.
+    entityCodes = [...new Set([...POTA_ENTITIES, ...apiEntities])];
 
     if (maxEntities && maxEntities > 0) {
       entityCodes = entityCodes.slice(0, maxEntities);

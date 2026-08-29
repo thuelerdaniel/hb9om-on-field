@@ -32,7 +32,10 @@ Deno.serve(async (req) => {
             .filter((c: any) => typeof c === 'string' && c.length > 0);
         }
       } catch { /* API entity list broken — use hardcoded fallback */ }
-      entityCodes = apiEntities.length > 0 ? [...new Set(apiEntities)] : POTA_ENTITIES;
+      // Always use the full hardcoded POTA_ENTITIES list as the base, then add any
+      // additional entities from the API. The API entity list endpoint is unreliable
+      // and sometimes returns only a few entities (e.g. only GB/CH/IE).
+      entityCodes = [...new Set([...POTA_ENTITIES, ...apiEntities])];
     } else if (Array.isArray(entities)) {
       entityCodes = entities;
     } else {

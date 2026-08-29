@@ -8,16 +8,22 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9027";
+export const APP_VERSION = "0.9028";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608291620";
+export const APP_BUILD = "202608291720";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9028: POTA worldwide — fetchPOTA verwendet immer vollständige POTA_ENTITIES Liste (API-Entity-Liste unzuverlässig, lieferte nur GB/CH/IE)",
+  "Fix v0.9028: POTA/WWFF/SOTA — Deduplikation nach Code vor Cap, Sortierung nach Ländercode für geografische Diversität",
+  "Fix v0.9028: POTA/WWFF — Per-Type Timeout 10s→25s, MAX_PAGES 4→20 (100k Records), MAX_PER_TYPE 10k→20k",
+  "Fix v0.9028: Layer-Ausschaltung — Referenz-Typen (SOTA/POTA/WWFF/etc) werden beim Deaktivieren des Layers von der Karte gelöscht",
+  "Fix v0.9028: WWFF — Italien/Schweden/Dänemark/Finnland/Norwegen jetzt sichtbar (Sortierung nach Ländercode vor Cap)",
+  "Fix v0.9028: Karten-Verschiebung — Layer werden bei moveend/zoomend nachgeladen (ViewportDataLoader mit 25s Timeout)",
   "Build v0.9027: PUNKT 2 — SOTA weltweit ladbar: loadPointsInBounds ohne Sortierung + Fallback bei Timeout",
   "Build v0.9027: PUNKT 4 — POTA weltweit ladbar: ViewportDataLoader Bounds-Caching entfernt, Timeout 30s",
   "Build v0.9027: PUNKT 9 — TOTA weltweit ladbar: Sortierung entfernt, CH-Filter auf Standard true",

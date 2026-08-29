@@ -161,7 +161,7 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
   return refs;
 }
 
-const MAX_PER_TYPE = 10000;
+const MAX_PER_TYPE = 20000;
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -190,7 +190,7 @@ export default async function(req: Request): Promise<Response> {
       allTypes.map(async (type) => {
         try {
           const typeTimeout = new Promise<any[]>((_, reject) =>
-            setTimeout(() => reject(new Error('type_timeout')), 10000)
+            setTimeout(() => reject(new Error('type_timeout')), 25000)
           );
           const refs = await Promise.race([
             loadType(base44, type, bounds),
@@ -199,12 +199,30 @@ export default async function(req: Request): Promise<Response> {
           if (!refs || refs.length === 0) return { type, filtered: [] };
 
           const filtered: any[] = [];
+          const seenCodes = new Set<string>(); // Deduplicate by code — WwffPoint has 40k+ records with duplicates
           for (const ref of refs) {
             if (ref.lat == null || ref.lng == null) continue;
             if (ref.lat <= bounds.north && ref.lat >= bounds.south &&
                 ref.lng >= bounds.west && ref.lng <= bounds.east) {
+              // Deduplicate by code for point types (sota, pota, hbff, tota, iota) —
+              // the WwffPoint entity has massive duplicates from repeated sync runs
+              const dedupKey = ref.code || ref.reference;
+              if (dedupKey && (type === 'sota' || type === 'pota' || type === 'hbff' || type === 'tota' || type === 'iota')) {
+                if (seenCodes.has(dedupKey)) continue;
+                seenCodes.add(dedupKey);
+              }
               filtered.push(ref);
             }
+          }
+          // Sort by country code before capping — ensures geographic diversity when the cap is hit.
+          // Without this, MongoDB's natural order groups records by sync run, and the cap cuts off
+          // later countries (e.g. Italy, Nordic) while over-representing earlier ones (e.g. Ireland).
+          if (filtered.length > effectiveMax && (type === 'sota' || type === 'pota' || type === 'hbff' || type === 'tota' || type === 'iota')) {
+            filtered.sort((a, b) => {
+              const ccA = a.country_code || (a.code || '').split(/[/ -]/)[0] || '';
+              const ccB = b.country_code || (b.code || '').split(/[/ -]/)[0] || '';
+              return ccA.localeCompare(ccB);
+            });
           }
           return { type, filtered: filtered.length > effectiveMax ? filtered.slice(0, effectiveMax) : filtered };
         } catch {

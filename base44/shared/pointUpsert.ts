@@ -145,23 +145,40 @@ export async function loadPointsInBounds(
   };
 
   const LIMIT = 5000;
-  const MAX_PAGES = 4; // 4 pages = 20k records — enough for worldwide view at low zoom
+  const MAX_PAGES = 20; // 20 pages = 100k records — WwffPoint has 40k+ with duplicates; need deep scan to reach all countries
   const allPoints: any[] = [];
+  const seenCodes = new Set<string>();
+  let noNewCodesStreak = 0;
 
   // Strategy: Try bounds filter with NO sort first (sort causes MongoDB timeout on large
   // collections like SotaPoint with 140k+ records and no lat/lng index).
-  // If bounds filter times out, fall back to no-query filter with skip pagination
-  // from evenly spaced offsets (gives geographic diversity without sort).
+  // Early stopping: if 3 consecutive batches yield no new unique codes, we've seen all records.
   try {
     for (let page = 0; page < MAX_PAGES; page++) {
       // NO sort — sorting by 'code' causes MongoDB timeout on large collections
       const result: any[] = await entity.filter(query, undefined, LIMIT, page * LIMIT);
       if (!Array.isArray(result) || result.length === 0) break;
+      let newCodesInBatch = 0;
+      for (const r of result) {
+        if (r.code) {
+          if (!seenCodes.has(r.code)) {
+            seenCodes.add(r.code);
+            newCodesInBatch++;
+          }
+        }
+      }
       allPoints.push(...result);
+      // Early stopping: 3 consecutive batches with no new unique codes = we've seen all
+      if (newCodesInBatch === 0) {
+        noNewCodesStreak++;
+        if (noNewCodesStreak >= 3) break;
+      } else {
+        noNewCodesStreak = 0;
+      }
       if (result.length < LIMIT) break;
     }
     if (allPoints.length > 0) {
-      console.log(`[loadPointsInBounds] ${entityName}: loaded ${allPoints.length} points in bounds`);
+      console.log(`[loadPointsInBounds] ${entityName}: loaded ${allPoints.length} points in bounds (${seenCodes.size} unique codes)`);
       return allPoints;
     }
   } catch (e: any) {
@@ -174,7 +191,7 @@ export async function loadPointsInBounds(
   // This is slower but reliable — we scan the entire collection in 500-record batches.
   try {
     const BATCH_SIZE = 500;
-    const MAX_BATCHES = 40; // 40 * 500 = 20000 records max (within 25s timeout)
+    const MAX_BATCHES = 80; // 80 * 500 = 40000 records max (within 25s timeout)
     let totalScanned = 0;
 
     for (let page = 0; page < MAX_BATCHES; page++) {

@@ -8,7 +8,7 @@ import { base44 } from "@/api/base44Client";
 // Accumulates visited areas so panning back doesn't re-fetch.
 // Also loads repeaters viewport-based (not all 48k at once).
 const DEBOUNCE_MS = 350;
-const MAX_PER_TYPE = 10000;
+const MAX_PER_TYPE = 20000;
 const REQUEST_TIMEOUT_MS = 30000;
 const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "aprs", "brandmeister"];
 

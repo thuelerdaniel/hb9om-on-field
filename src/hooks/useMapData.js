@@ -119,6 +119,22 @@ export function useMapData(activeLayers) {
       setAdminLinks([]);
     }
 
+    // Clear reference types (sota, pota, hbff, wwbota, castle, iota, lighthouse) when their layer is turned off.
+    // Without this, points stay on the map after the layer is toggled off because onViewportData
+    // only updates types present in the response — it doesn't clear types that are no longer active.
+    const refTypes = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"];
+    setData(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const type of refTypes) {
+        if (!activeLayers.includes(type) && next[type] && next[type].length > 0) {
+          next[type] = [];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
     // No data layers active — ensure loading indicator is off
     if (!needRepeaters && !needPrivateNodes) {
       setLoading(false);
