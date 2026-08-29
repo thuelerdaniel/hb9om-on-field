@@ -168,26 +168,20 @@ export async function loadPointsInBounds(
     console.error(`[loadPointsInBounds] bounds filter error for ${entityName}: ${e?.message || String(e)} — trying fallback`);
   }
 
-  // Fallback: no-query filter with skip pagination from evenly spaced offsets.
-  // This avoids the slow bounds query by loading records without a lat/lng predicate
-  // and filtering in-memory. Used when the bounds query times out (e.g. SotaPoint).
+  // Fallback: paginated full scan with in-memory bounds filtering.
+  // Used when the bounds query times out (e.g. PotaPoint with 89k records, no lat/lng index).
+  // Strategy: load records in sequential pages (skip=0, 500, 1000, ...) and filter in-memory.
+  // This is slower but reliable — we scan the entire collection in 500-record batches.
   try {
-    // First, get total count by loading one record
-    const sample = await entity.filter({}, undefined, 1, 0);
-    if (!sample || sample.length === 0) return [];
-
-    // Load from evenly spaced skip offsets to get geographic diversity.
-    // Estimate total records by trying large skip values.
     const BATCH_SIZE = 500;
-    const NUM_BATCHES = 10; // 10 * 500 = 5000 records
-    const estimatedTotal = 150000; // Conservative estimate for large collections
-    const step = Math.floor(estimatedTotal / NUM_BATCHES);
+    const MAX_BATCHES = 40; // 40 * 500 = 20000 records max (within 25s timeout)
+    let totalScanned = 0;
 
-    for (let i = 0; i < NUM_BATCHES; i++) {
-      const skip = i * step;
+    for (let page = 0; page < MAX_BATCHES; page++) {
       try {
-        const batch = await entity.filter({}, undefined, BATCH_SIZE, skip);
+        const batch = await entity.filter({}, undefined, BATCH_SIZE, page * BATCH_SIZE);
         if (!Array.isArray(batch) || batch.length === 0) break;
+        totalScanned += batch.length;
         // Filter in-memory by bounds
         const inBounds = batch.filter(r =>
           r.lat != null && r.lng != null &&
@@ -195,11 +189,12 @@ export async function loadPointsInBounds(
           r.lng >= bounds.west && r.lng <= bounds.east
         );
         allPoints.push(...inBounds);
+        if (batch.length < BATCH_SIZE) break; // End of collection
       } catch (e: any) {
         // Continue with next batch — partial data is better than none
       }
     }
-    console.log(`[loadPointsInBounds] ${entityName} fallback: loaded ${allPoints.length} points in bounds (from ${NUM_BATCHES} batches)`);
+    console.log(`[loadPointsInBounds] ${entityName} fallback: scanned ${totalScanned} records, found ${allPoints.length} in bounds`);
   } catch (e: any) {
     console.error(`[loadPointsInBounds] fallback error for ${entityName}:`, e?.message || String(e));
   }

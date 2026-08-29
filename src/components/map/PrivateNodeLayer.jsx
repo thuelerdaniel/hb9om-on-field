@@ -194,7 +194,7 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
   const paddedBounds = bounds.pad(0.3);
   const cappedNodes = visibleNodes.filter(n => paddedBounds.contains([n.lat, n.lng]));
 
-  const MAX = 2000;
+  const MAX = 5000;
   const renderNodes = cappedNodes.length > MAX ? cappedNodes.slice(0, MAX) : cappedNodes;
 
   // Custom SVG icon for private nodes — square with double lightning bolt

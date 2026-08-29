@@ -8,8 +8,8 @@ import { base44 } from "@/api/base44Client";
 // Accumulates visited areas so panning back doesn't re-fetch.
 // Also loads repeaters viewport-based (not all 48k at once).
 const DEBOUNCE_MS = 350;
-const MAX_PER_TYPE = 3000;
-const REQUEST_TIMEOUT_MS = 10000;
+const MAX_PER_TYPE = 10000;
+const REQUEST_TIMEOUT_MS = 30000;
 const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "repeater", "aprs", "brandmeister"];
 
 export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline, reloadTrigger }) {
@@ -75,11 +75,8 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
       const types = REF_TYPES.filter(t => activeLayers.includes(t));
       if (types.length === 0) return;
 
-      // Skip re-fetch if current bounds are fully contained in previously fetched bounds
-      if (fetchedBoundsRef.current && fetchedBoundsRef.current.contains(bounds)) {
-        return;
-      }
-
+      // Always re-fetch on map change — bounds caching prevented worldwide data from loading
+      // when panning to new areas (e.g. POTA only showed CH because old CH bounds were cached)
       loadBounds(bounds, types);
     }, DEBOUNCE_MS);
   }, [map, activeLayers, loadBounds, isOffline]);

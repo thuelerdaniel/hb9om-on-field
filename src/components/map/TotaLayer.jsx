@@ -32,7 +32,7 @@ const TOTA_TYPE_ICONS = {
 };
 
 const DEBOUNCE_MS = 300;
-const MIN_ZOOM = 5; // Lowered from 8 to 5 — allows TOTA points at wider zoom
+const MIN_ZOOM = 3; // Lowered to 3 — allows TOTA points at worldwide zoom
 const MID_ZOOM = 12;
 const MID_ZOOM_LIMIT = 2000;
 const QUERY_LIMIT = 5000;
@@ -73,7 +73,7 @@ export default function TotaLayer({
     if (zoom < MIN_ZOOM) {
       setRawPoints([]);
       onCountsChange?.(0, 0);
-      showWarning("zoom", "Zoomen Sie hinein (min. Zoom 8) um TOTA-Punkte zu sehen");
+      showWarning("zoom", "Zoomen Sie hinein (min. Zoom 3) um TOTA-Punkte zu sehen");
       return;
     }
 
@@ -88,10 +88,12 @@ export default function TotaLayer({
         lng: { $gte: padded.getWest(), $lte: padded.getEast() },
       };
 
-      const points = await base44.entities.TotaPoint.filter(query, "code", limit);
+      // NO sort — sorting by 'code' causes MongoDB timeout on large collections
+      const points = await base44.entities.TotaPoint.filter(query, undefined, limit);
       console.log(`[TotaLayer] Fetched ${points?.length || 0} TOTA points (zoom=${zoom}, limit=${limit}, showChTota=${showChTota})`);
 
-      // Filter out CH points if showChTota is false
+      // PUNKT 9: Show ALL TOTA points by default (including Swiss) — CH filter was hiding them
+      // showChTota now defaults to true; the toggle in TotaFilter can still hide CH if needed
       let filtered = points || [];
       if (!showChTota) {
         filtered = filtered.filter(

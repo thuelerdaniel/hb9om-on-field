@@ -143,9 +143,9 @@ function LighthouseLayerInner({
   }, [lighthouses, illwStatus, onlyIllwActive, illwYear, searchQuery, filterCountries]);
 
   // Zoom-based visibility:
-  // - ILLW active: always visible (even at zoom < 8)
-  // - ILLW registered: visible from zoom 8
-  // - Non-ILLW: visible from zoom 10
+  // - ILLW active: always visible (even at zoom < 5)
+  // - ILLW registered: visible from zoom 5 (was 8 — now shows all registered lighthouses worldwide)
+  // - Non-ILLW: visible from zoom 8 (was 10 — shows inactive/non-ILLW lighthouses at moderate zoom)
   const visibleLighthouses = useMemo(() => {
     return filteredLighthouses.filter((l) => {
       const illwNo = l.code || l.illw_number;
@@ -154,8 +154,8 @@ function LighthouseLayerInner({
       const hasIllw = !!illwNo;
 
       if (isActive) return true;
-      if (hasIllw) return zoom >= 8;
-      return zoom >= 10;
+      if (hasIllw) return zoom >= 5;
+      return zoom >= 8;
     });
   }, [filteredLighthouses, illwStatus, zoom]);
 

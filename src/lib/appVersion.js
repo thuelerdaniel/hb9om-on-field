@@ -8,16 +8,22 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9026";
+export const APP_VERSION = "0.9027";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608291300";
+export const APP_BUILD = "202608291620";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Build v0.9027: PUNKT 2 — SOTA weltweit ladbar: loadPointsInBounds ohne Sortierung + Fallback bei Timeout",
+  "Build v0.9027: PUNKT 4 — POTA weltweit ladbar: ViewportDataLoader Bounds-Caching entfernt, Timeout 30s",
+  "Build v0.9027: PUNKT 9 — TOTA weltweit ladbar: Sortierung entfernt, CH-Filter auf Standard true",
+  "Build v0.9027: PUNKT 10 — WLOTA: Alle Leuchttürme sichtbar (ILLW ab Zoom 5, Non-ILLW ab Zoom 8)",
+  "Build v0.9027: PUNKT 11 — APRS: PrivateNode MAX 5000, AprsStation als eigene Quelle in getReferencesInBounds",
+  "Build v0.9027: Live Spot Activity — 60s Refresh, alle Spots (kein 50er Limit mehr)",
   "Build v0.9026: PUNKT 12 — Vollwertige Filter für SOTA (Höhe+Punkte+Land), POTA (Land), WWFF (Land), IOTA (Status+Region+Land) — alle verschiebbar",
   "Build v0.9026: PUNKT 5 — Leuchtturm-Quellen von 13 regionalen auf 1 globale ILLW-Quelle konsolidiert",
   "Build v0.9026: PUNKT 10 — DailyRefreshSchedule bereinigt: stale repeater entfernt, hbff+repeater_na_us deaktiviert, 15 regionale Leuchttürme gelöscht, WWBOTA deaktiviert",

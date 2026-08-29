@@ -8,7 +8,7 @@ import { isQRT, getFlagImg } from "@/lib/spotUtils";
 // Live Spot Activity — Hauptbereich mit Filtern, Worked-Status, sortierbar.
 // Theme-aware: bg-card, border-border, text-foreground, text-muted-foreground.
 
-const REFRESH_MS = 30 * 1000;
+const REFRESH_MS = 60 * 1000;
 
 function ageColor(age) {
   if (age == null) return 'hsl(var(--muted-foreground))';
@@ -246,7 +246,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
     }
     if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
     return sortDir === 'asc' ? av - bv : bv - av;
-  }).slice(0, 50);
+  });
 
   // Unique countries from current spots for dropdown
   const availableCountries = useMemo(() => {
@@ -442,7 +442,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
 
       {/* Footer */}
       <div className="px-3 py-1.5 border-t border-border text-[8px] text-muted-foreground flex justify-between">
-        <span>Auto-Refresh 30s · max 50 angezeigt</span>
+        <span>Auto-Refresh 60s · alle Spots</span>
         <span>{filtered.length} / {spots.length} Spots</span>
       </div>
     </div>
