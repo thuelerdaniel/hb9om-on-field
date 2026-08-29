@@ -18,6 +18,9 @@ export const APP_BUILD = "202608290520";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9035: Log-Schema — wavelog_sync_time zu wavelog_sync_date umbenannt (Schema + wavelogApi + wavelogSync.js)",
+  "Fix v0.9035: QRZ-Credentials — aus AppSetting club_callsign_config in Environment-Secrets verschoben (QRZ_USERNAME, QRZ_PASSWORD, QRZ_API_KEY)",
+  "Fix v0.9035: UserHuntingSettings — WWBOTA aus selected_activity_types Default-Array und Enum entfernt",
   "Fix v0.9035: Datenbereinigung — 2 TEST3-Logeinträge, 16 restore_point AppSettings, 184 mobile PrivateNodes, 7 mobile PublicPositions gelöscht",
   "Fix v0.9035: ActivityPanel — 5 Tabs (WWBOTA entfernt, Live Spot Activity als erster Tab zwischen Propagation Overview und SOTA)",
   "Fix v0.9035: UserHuntingSettings — wavelog_last_sync Feld hinzugefügt (date-time)",

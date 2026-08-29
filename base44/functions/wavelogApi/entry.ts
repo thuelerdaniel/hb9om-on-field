@@ -479,7 +479,7 @@ export default async function(req: Request): Promise<Response> {
                   try {
                     await sr.entities.Log.update(qso.id, {
                       wavelog_synced: true,
-                      wavelog_sync_time: new Date().toISOString(),
+                      wavelog_sync_date: new Date().toISOString(),
                     });
                     exportedCount++;
                   } catch (e: any) {}

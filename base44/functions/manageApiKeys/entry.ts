@@ -96,8 +96,10 @@ export default async function(req: Request): Promise<Response> {
           const config = JSON.parse(settings[0].value || '{}');
           // Mask sensitive values
           const masked = { ...config };
-          if (masked.qrz_password) masked.qrz_password = '***';
-          if (masked.qrz_api_key) masked.qrz_api_key = '***';
+          // QRZ credentials now come from environment secrets, not AppSetting
+          masked.qrz_username = process.env.QRZ_USERNAME ? '*** (env)' : '';
+          masked.qrz_password = process.env.QRZ_PASSWORD ? '*** (env)' : '';
+          masked.qrz_api_key = process.env.QRZ_API_KEY ? '*** (env)' : '';
           if (masked.aprs_fi_api_key) masked.aprs_fi_api_key = '***';
           if (masked.brandmeister_api_key) masked.brandmeister_api_key = '***';
           if (masked.repeaterbook_api_token) masked.repeaterbook_api_token = '***';
@@ -113,10 +115,13 @@ export default async function(req: Request): Promise<Response> {
         const existing = await base44.asServiceRole.entities.AppSetting.filter({ key: CLUB_CALLSIGN_KEY });
         // If password/api_key fields are masked ('***'), preserve existing values
         let finalConfig = { ...config };
+        // QRZ credentials are now stored in environment secrets, not AppSetting
+        delete finalConfig.qrz_username;
+        delete finalConfig.qrz_password;
+        delete finalConfig.qrz_api_key;
         if (existing && existing.length > 0) {
           const oldConfig = JSON.parse(existing[0].value || '{}');
-          if (finalConfig.qrz_password === '***') finalConfig.qrz_password = oldConfig.qrz_password || '';
-          if (finalConfig.qrz_api_key === '***') finalConfig.qrz_api_key = oldConfig.qrz_api_key || '';
+          if (finalConfig.aprs_fi_api_key === '***') finalConfig.aprs_fi_api_key = oldConfig.aprs_fi_api_key || '';
           if (finalConfig.aprs_fi_api_key === '***') finalConfig.aprs_fi_api_key = oldConfig.aprs_fi_api_key || '';
           if (finalConfig.brandmeister_api_key === '***') finalConfig.brandmeister_api_key = oldConfig.brandmeister_api_key || '';
           if (finalConfig.repeaterbook_api_token === '***') finalConfig.repeaterbook_api_token = oldConfig.repeaterbook_api_token || '';

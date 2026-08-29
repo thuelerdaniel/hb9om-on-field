@@ -184,7 +184,7 @@ export async function uploadToWavelog(config, onProgress) {
       if (result.success || (result.ok && result.result?.status !== 'failed')) {
         await base44.entities.Log.update(qso.id, {
           wavelog_synced: true,
-          wavelog_sync_time: new Date().toISOString(),
+          wavelog_sync_date: new Date().toISOString(),
         });
         success++;
       } else {
@@ -241,7 +241,7 @@ export async function sendQsoToWavelog(qso, config) {
     if (result.success || (result.ok && result.result?.status !== 'failed')) {
       await base44.entities.Log.update(qso.id, {
         wavelog_synced: true,
-        wavelog_sync_time: new Date().toISOString(),
+        wavelog_sync_date: new Date().toISOString(),
       });
       return { success: true };
     }

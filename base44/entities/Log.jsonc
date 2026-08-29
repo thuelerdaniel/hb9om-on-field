@@ -199,7 +199,7 @@
       "default": false,
       "description": "QSO an Wavelog-Server gesendet"
     },
-    "wavelog_sync_time": {
+    "wavelog_sync_date": {
       "type": "string",
       "format": "date-time",
       "description": "Wann QSO an Wavelog gesendet wurde"

@@ -1,9 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 
-const CLUB_CALLSIGN_KEY = 'club_callsign_config';
-
 // Uploads ADIF data to QRZ.com logbook.
-// Uses personal QRZ API key (if target=personal) or club API key (if target=club).
+// Uses personal QRZ API key (if target=personal) or club API key from environment secret.
 // QRZ Logbook API: https://logbook.qrz.com/api.php
 
 export default async function(req: Request): Promise<Response> {
@@ -24,14 +22,8 @@ export default async function(req: Request): Promise<Response> {
     }
 
     if (!apiKey) {
-      // Fall back to club config API key
-      try {
-        const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: CLUB_CALLSIGN_KEY });
-        if (settings?.length > 0) {
-          const config = JSON.parse(settings[0].value || '{}');
-          apiKey = config.qrz_api_key || '';
-        }
-      } catch {}
+      // Fall back to club API key from environment secret (QRZ_API_KEY)
+      apiKey = Deno.env.get('QRZ_API_KEY') || '';
     }
 
     if (!apiKey) {

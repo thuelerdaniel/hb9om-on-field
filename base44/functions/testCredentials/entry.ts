@@ -42,13 +42,12 @@ export default async function(req: Request): Promise<Response> {
 
     // === QRZ Login Test ===
     if (service === 'qrz') {
-      const clubConfig = await getClubConfig();
       const pUser = (user as any).qrz_username || '';
       const pPass = (user as any).qrz_password || '';
-      const cUser = clubConfig.qrz_username || '';
-      const cPass = clubConfig.qrz_password || '';
-      const eUser = process.env.QRZ_USERNAME || '';
-      const ePass = process.env.QRZ_PASSWORD || '';
+      const cUser = process.env.QRZ_USERNAME || '';
+      const cPass = process.env.QRZ_PASSWORD || '';
+      const eUser = cUser;
+      const ePass = cPass;
 
       let qrzUser = '', qrzPass = '', sourceLabel = '';
       if (scope === 'personal') { qrzUser = pUser; qrzPass = pPass; sourceLabel = 'persönlich'; }
@@ -104,9 +103,8 @@ export default async function(req: Request): Promise<Response> {
 
     // === QRZ API Key Test (logbook upload) ===
     if (service === 'qrz_apikey') {
-      const clubConfig = await getClubConfig();
       const pKey = (user as any).qrz_api_key || '';
-      const cKey = clubConfig.qrz_api_key || '';
+      const cKey = process.env.QRZ_API_KEY || '';
       let apiKey = '', sourceLabel = '';
       if (scope === 'personal') { apiKey = pKey; sourceLabel = 'persönlich'; }
       else if (scope === 'club') { apiKey = cKey; sourceLabel = 'Club'; }
@@ -244,9 +242,8 @@ export default async function(req: Request): Promise<Response> {
 
     // === Club Credential Tests ===
     if (service === 'club_qrz') {
-      const clubConfig = await getClubConfig();
-      const qrzUser = clubConfig.qrz_username || '';
-      const qrzPass = clubConfig.qrz_password || '';
+      const qrzUser = process.env.QRZ_USERNAME || '';
+      const qrzPass = process.env.QRZ_PASSWORD || '';
       if (!qrzUser || !qrzPass) return Response.json({ success: false, message: 'Keine Club QRZ-Anmeldedaten hinterlegt', source: 'Club' });
       const loginUrl = `https://xmldata.qrz.com/xml/current/?username=${encodeURIComponent(qrzUser)};password=${encodeURIComponent(qrzPass)};agent=hb9om-onfield`;
       const loginResp = await fetch(loginUrl);
@@ -259,8 +256,7 @@ export default async function(req: Request): Promise<Response> {
     }
 
     if (service === 'club_qrz_apikey') {
-      const clubConfig = await getClubConfig();
-      const apiKey = clubConfig.qrz_api_key || '';
+      const apiKey = process.env.QRZ_API_KEY || '';
       if (!apiKey) return Response.json({ success: false, message: 'Kein Club QRZ API-Key hinterlegt', source: 'Club' });
       try {
         const resp = await fetch(`https://logbook.qrz.com/api?KEY=${encodeURIComponent(apiKey)}&ACTION=STATUS`);
