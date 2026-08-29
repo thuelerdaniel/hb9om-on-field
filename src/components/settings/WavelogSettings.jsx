@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { Loader2, CheckCircle2, XCircle, Server, Wifi, RefreshCw, Upload, Download, CloudOff, Radio } from "lucide-react";
-import { testWavelogConnection, getWavelogStations, uploadToWavelog, importFromWavelog, getOfflineQueueLength } from "@/lib/wavelogSync";
+import { testWavelogConnection, getWavelogStations, uploadToWavelog, importFromWavelog, resetWavelogFetchId, getOfflineQueueLength } from "@/lib/wavelogSync";
 import { useHuntingSettings } from "@/hooks/useHuntingSettings";
 
 export default function WavelogSettings() {
@@ -13,6 +13,7 @@ export default function WavelogSettings() {
   const [uploadResult, setUploadResult] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [resetting, setResetting] = useState(false);
   const [queueLength, setQueueLength] = useState(getOfflineQueueLength());
 
   const wavelogEnabled = settings?.wavelog_enabled || false;
@@ -114,7 +115,52 @@ export default function WavelogSettings() {
       setImportResult({ success: false, message: e.message });
     } finally {
       setImporting(false);
-      setTimeout(() => setImportResult(null), 5000);
+      setTimeout(() => setImportResult(null), 6000);
+    }
+  };
+
+  // v0.9036: Voll-Neuimport — setzt last_fetch_id auf 0 und importiert alle QSOs neu
+  // Dedup im Backend verhindert Duplikate bei bereits importierten QSOs
+  const handleFullReimport = async () => {
+    if (!confirm('Voll-Neuimport starten? Alle QSOs werden neu von Wavelog abgerufen. Bereits importierte QSOs werden als Duplikate erkannt und übersprungen.')) return;
+    setResetting(true);
+    setImportResult(null);
+    try {
+      // Step 1: Reset last_fetch_id to 0
+      const resetResult = await resetWavelogFetchId({
+        wavelog_enabled: true,
+        wavelog_lan_url: lanUrl,
+        wavelog_wan_url: wanUrl,
+        wavelog_api_key: apiKey,
+        wavelog_station_id: stationId,
+      });
+      if (!resetResult?.success) {
+        setImportResult({ success: false, message: 'Reset fehlgeschlagen: ' + (resetResult?.error || 'Unbekannt') });
+        return;
+      }
+      // Update local settings
+      saveSettings({ wavelog_last_fetch_id: 0 });
+
+      // Step 2: Trigger fresh import from ID 0
+      setImporting(true);
+      const result = await importFromWavelog({
+        wavelog_enabled: true,
+        wavelog_lan_url: lanUrl,
+        wavelog_wan_url: wanUrl,
+        wavelog_api_key: apiKey,
+        wavelog_station_id: stationId,
+        wavelog_last_fetch_id: 0,
+      });
+      setImportResult(result);
+      if (result.lastfetchedid != null) {
+        saveSettings({ wavelog_last_fetch_id: result.lastfetchedid });
+      }
+    } catch (e) {
+      setImportResult({ success: false, message: e.message });
+    } finally {
+      setResetting(false);
+      setImporting(false);
+      setTimeout(() => setImportResult(null), 8000);
     }
   };
 
@@ -304,13 +350,26 @@ export default function WavelogSettings() {
             </button>
             <button
               onClick={handleImport}
-              disabled={!wavelogConfigured || !stationId || importing}
+              disabled={!wavelogConfigured || !stationId || importing || resetting}
               className="flex-1 px-3 py-2 text-sm font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
             >
               {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               Von Wavelog importieren
             </button>
           </div>
+
+          {/* v0.9036: Voll-Neuimport — setzt last_fetch_id zurück und importiert alle QSOs neu */}
+          <button
+            onClick={handleFullReimport}
+            disabled={!wavelogConfigured || !stationId || importing || resetting}
+            className="w-full px-3 py-2 text-sm font-medium text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
+          >
+            {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Voll-Neuimport (alle QSOs neu abrufen)
+          </button>
+          <p className="text-[10px] text-gray-400 leading-relaxed -mt-2">
+            Setzt den Delta-Sync-Zeiger zurück. Bereits importierte QSOs werden als Duplikate erkannt und übersprungen. Nützlich wenn QSOs fehlen.
+          </p>
 
           {uploadResult && (
             <div className={`text-xs font-medium px-2 py-1 rounded ${uploadResult.success ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"}`}>

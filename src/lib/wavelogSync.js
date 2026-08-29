@@ -219,11 +219,12 @@ export async function importFromWavelog(config, onProgress) {
     return { success: false, message: 'Wavelog Import fehlgeschlagen: ' + e.message };
   }
 
-  // v0.9032: Backend now returns import statistics directly
+  // v0.9036: Backend now returns import statistics with dedup info
   return {
     success: result?.success ?? false,
     message: result?.message ?? 'Import abgeschlossen',
     imported: result?.imported ?? 0,
+    duplicates: result?.duplicates ?? 0,
     errors: result?.errors ?? 0,
     skipped: 0,
     lastfetchedid: result?.lastfetchedid ?? lastFetchId,
@@ -279,6 +280,16 @@ export async function processWavelogOfflineQueue(config) {
 
   localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
   return { synced, remaining: remaining.length };
+}
+
+// === Reset Fetch-ID (für Voll-Neuimport) ===
+export async function resetWavelogFetchId(config) {
+  try {
+    const result = await callWavelogApi('reset_fetch_id', config);
+    return result;
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
 // === Test Connection ===

@@ -43,7 +43,7 @@ export default async function(req: Request): Promise<Response> {
       station_id: body.station_id || '',
     };
 
-    if (action !== 'permanent_sync' && action !== 'upload' && !config.api_key) {
+    if (action !== 'permanent_sync' && action !== 'upload' && action !== 'reset_fetch_id' && !config.api_key) {
       return Response.json({ error: 'Kein API-Key angegeben' }, { status: 400 });
     }
 
@@ -268,18 +268,34 @@ export default async function(req: Request): Promise<Response> {
 
         console.log(`[Wavelog] Parsed ${qsos.length} QSOs, ${parseErrors.length} parse errors`);
 
-        // v0.9032: Batch import using bulkCreate (100 per batch) — NO dedup, import ALL
+        // v0.9036: Dedup — fetch existing wavelog_imported logs and skip duplicates
+        // Prevents duplicate QSOs when retrying failed imports (last_fetch_id not updated on error)
+        const existingLogs = await base44.entities.Log.filter(
+          { wavelog_imported: true },
+          '-created_date', 5000
+        );
+        const existingKeys = new Set(
+          existingLogs.map(l => `${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}`)
+        );
+        const newQsos = qsos.filter(q => {
+          const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}`;
+          return !existingKeys.has(key);
+        });
+        const duplicateCount = qsos.length - newQsos.length;
+        console.log(`[Wavelog] Dedup: ${newQsos.length} new, ${duplicateCount} duplicates skipped`);
+
+        // v0.9036: Batch import using bulkCreate (100 per batch) with dedup
         let importedCount = 0;
         let errorCount = 0;
         const importErrors: string[] = [];
         const BATCH_SIZE = 100;
 
-        for (let i = 0; i < qsos.length; i += BATCH_SIZE) {
-          const batch = qsos.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < newQsos.length; i += BATCH_SIZE) {
+          const batch = newQsos.slice(i, i + BATCH_SIZE);
           try {
             await base44.entities.Log.bulkCreate(batch);
             importedCount += batch.length;
-            console.log(`[Wavelog] Imported ${importedCount}/${qsos.length}`);
+            console.log(`[Wavelog] Imported ${importedCount}/${newQsos.length}`);
           } catch (err: any) {
             // Fallback: create individually
             for (const qso of batch) {
@@ -296,28 +312,34 @@ export default async function(req: Request): Promise<Response> {
           }
         }
 
-        // Update last_fetch_id in UserHuntingSettings
-        try {
-          const settings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
-          if (settings && settings.length > 0) {
-            await base44.entities.UserHuntingSettings.update(settings[0].id, {
-              wavelog_last_fetch_id: parseInt(lastfetchedid),
-            });
+        // v0.9036: Only update last_fetch_id if NO DB errors — failed QSOs get retried next sync.
+        // Parse errors (no CALL field) don't count — those QSOs will never import anyway.
+        if (errorCount === 0) {
+          try {
+            const settings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
+            if (settings && settings.length > 0) {
+              await base44.entities.UserHuntingSettings.update(settings[0].id, {
+                wavelog_last_fetch_id: parseInt(lastfetchedid),
+              });
+            }
+          } catch (e: any) {
+            console.log('[Wavelog] Could not update last_fetch_id:', e.message);
           }
-        } catch (e: any) {
-          console.log('[Wavelog] Could not update last_fetch_id:', e.message);
+        } else {
+          console.log(`[Wavelog] ${errorCount} DB errors — last_fetch_id NOT updated, will retry next sync`);
         }
 
         return Response.json({
           success: true,
           imported: importedCount,
+          duplicates: duplicateCount,
           errors: errorCount,
           total_parsed: qsos.length,
           total_from_wavelog: exported_qsos,
-          lastfetchedid,
+          lastfetchedid: errorCount === 0 ? lastfetchedid : String(fetchfromid),
           parse_errors: parseErrors.slice(0, 5),
           import_errors: importErrors,
-          message: `Imported ${importedCount} QSOs from Wavelog (${errorCount} errors)`,
+          message: `Importiert: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler`,
         });
       }
 
@@ -412,23 +434,50 @@ export default async function(req: Request): Promise<Response> {
                 });
               }
 
+              // v0.9036: Dedup — skip QSOs that already exist (prevents duplicates on retry)
+              const existingSyncLogs = await sr.entities.Log.filter(
+                { created_by_id: userId, wavelog_imported: true },
+                '-created_date', 5000
+              );
+              const existingSyncKeys = new Set(
+                existingSyncLogs.map(l => `${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}`)
+              );
+              const newSyncQsos = qsos.filter(q => {
+                const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}`;
+                return !existingSyncKeys.has(key);
+              });
+
               const BATCH = 100;
-              for (let i = 0; i < qsos.length; i += BATCH) {
-                const batch = qsos.slice(i, i + BATCH);
+              let syncErrorCount = 0;
+              for (let i = 0; i < newSyncQsos.length; i += BATCH) {
+                const batch = newSyncQsos.slice(i, i + BATCH);
                 try {
                   await sr.entities.Log.bulkCreate(batch);
                   importedCount += batch.length;
                 } catch (e: any) {
-                  console.log(`[Wavelog Sync] Import batch failed for ${userId}: ${e.message}`);
+                  // Fallback: create individually
+                  for (const qso of batch) {
+                    try {
+                      await sr.entities.Log.create(qso);
+                      importedCount++;
+                    } catch (e2: any) {
+                      syncErrorCount++;
+                    }
+                  }
                 }
               }
 
-              try {
-                await sr.entities.UserHuntingSettings.update(setting.id, {
-                  wavelog_last_fetch_id: parseInt(newLastFetchId),
-                });
-              } catch (e: any) {
-                console.log(`[Wavelog Sync] Could not update last_fetch_id: ${e.message}`);
+              // v0.9036: Only update last_fetch_id if NO DB errors — retry failed QSOs next sync
+              if (syncErrorCount === 0) {
+                try {
+                  await sr.entities.UserHuntingSettings.update(setting.id, {
+                    wavelog_last_fetch_id: parseInt(newLastFetchId),
+                  });
+                } catch (e: any) {
+                  console.log(`[Wavelog Sync] Could not update last_fetch_id: ${e.message}`);
+                }
+              } else {
+                console.log(`[Wavelog Sync] ${syncErrorCount} DB errors for ${userId} — last_fetch_id NOT updated, will retry`);
               }
             }
           } catch (importErr: any) {
@@ -497,6 +546,22 @@ export default async function(req: Request): Promise<Response> {
           results,
           message: `Sync abgeschlossen für ${results.length} Nutzer`,
         });
+      }
+
+      case 'reset_fetch_id': {
+        // v0.9036: Reset wavelog_last_fetch_id to 0 — allows full reimport from Wavelog
+        if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        try {
+          const settings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
+          if (settings && settings.length > 0) {
+            await base44.entities.UserHuntingSettings.update(settings[0].id, {
+              wavelog_last_fetch_id: 0,
+            });
+          }
+          return Response.json({ success: true, message: 'Fetch-ID zurückgesetzt — Voll-Neuimport möglich' });
+        } catch (e: any) {
+          return Response.json({ error: e.message }, { status: 500 });
+        }
       }
 
       default:
