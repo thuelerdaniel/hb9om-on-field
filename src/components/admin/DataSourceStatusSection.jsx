@@ -86,11 +86,22 @@ export default function DataSourceStatusSection() {
     } catch {} finally { setRefreshing(false); }
   };
 
-  // Manuelle Abfrage für einen einzelnen DX-Cluster-Eintrag
+  // Mapping: Source-Name → Backend-Funktion für manuelle Abfrage
+  const getFunctionForSource = (sourceName) => {
+    const name = (sourceName || '').toLowerCase();
+    if (name.includes('spothole')) return 'fetchSpotholeSpots';
+    if (name.includes('gma')) return 'fetchGmaSpots';
+    if (name.includes('dx') || name.includes('cluster')) return 'fetchDxSpots';
+    return null;
+  };
+
+  // Manuelle Abfrage für eine einzelne Live-Quelle (DX-Cluster, Spothole, GMA)
   const handleManualQuery = async (sourceName) => {
+    const fnName = getFunctionForSource(sourceName);
+    if (!fnName) return;
     setRefreshingSource(sourceName);
     try {
-      await base44.functions.invoke('fetchDxSpots', {});
+      await base44.functions.invoke(fnName, {});
       await loadStatus();
     } catch {} finally { setRefreshingSource(null); }
   };
@@ -257,11 +268,11 @@ export default function DataSourceStatusSection() {
                           {s.error_message || '—'}
                         </td>
                         <td className="py-1.5 text-right">
-                          {s.source_type === 'DXCLUSTER' && (
+                          {getFunctionForSource(s.source_name) && (
                             <button
                               onClick={() => handleManualQuery(s.source_name)}
                               disabled={refreshingSource === s.source_name}
-                              title="Manuelle Abfrage — DX-Cluster Spots neu laden"
+                              title={`Manuelle Abfrage — ${s.source_name} neu laden`}
                               className="px-2 py-1 text-[10px] font-medium text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-700/50 rounded-md hover:bg-cyan-50 dark:hover:bg-cyan-900/20 disabled:opacity-40 inline-flex items-center gap-1"
                             >
                               {refreshingSource === s.source_name
