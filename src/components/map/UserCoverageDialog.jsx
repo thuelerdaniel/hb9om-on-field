@@ -329,9 +329,10 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     const newHistory = history.filter(h => h.id !== id);
     saveHistory(newHistory);
     setHistory(newHistory);
-    // If the deleted item is the current result, clear it
+    // If the deleted item is the current result, clear it AND remove coverage from map
     if (lastResult && history.length > 0 && history[0]?.id === id) {
       setLastResult(null);
+      onCoverageResult(null);
     }
     toast({ title: "Berechnung gelöscht" });
   };
