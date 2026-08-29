@@ -6,23 +6,21 @@ import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
 import { calcHearScore, scoreColor } from "@/lib/hearScore";
 import { isQRT, getFlagImg, getReferenceUrl } from "@/lib/spotUtils";
 
-// Activity Panel — v0.9019: 6 Tabs (keine Vermischung der Live-Spots!)
-// Tab 1 "SOTA":   NUR SOTA Live-Spots (ALLE, QRT gefiltert, kein Limit!)
-// Tab 2 "POTA":   NUR POTA Live-Spots (ALLE, kein Limit!)
-// Tab 3 "WWFF":   NUR WWFF Live-Spots (ALLE, kein Limit!)
-// Tab 4 "WWBOTA": NUR WWBOTA Live-Spots (ALLE, kein Limit!)
-// Tab 5 "Live Spot Activity": DX-Cluster Spots (ALLE, kein Limit!)
-// Tab 6 "Alerts": KOMBINIERT alle geplanten Aktivierungen (SOTA-Alerts + WWFF-Agendas)
-// Default-Tab: SOTA
+// Activity Panel — v0.9035: 5 Tabs (WWBOTA entfernt — Domain tot)
+// Tab 1 "Live Spot Activity": DX-Cluster Spots (ALLE, kein Limit!) — eigenstaendiges Widget
+// Tab 2 "SOTA":   NUR SOTA Live-Spots (ALLE, QRT gefiltert, kein Limit!)
+// Tab 3 "POTA":   NUR POTA Live-Spots (ALLE, kein Limit!)
+// Tab 4 "WWFF":   NUR WWFF Live-Spots (ALLE, kein Limit!)
+// Tab 5 "Alerts": KOMBINIERT alle geplanten Aktivierungen (SOTA-Alerts + WWFF-Agendas)
+// Default-Tab: Live Spot Activity (zwischen Propagation Overview und SOTA)
 
 const REFRESH_MS = 60 * 1000;
 
 const TABS = [
+  { id: 'dxcluster', label: 'Live Spot Activity', color: '#06b6d4' },
   { id: 'SOTA', label: 'SOTA', color: '#d97706' },
   { id: 'POTA', label: 'POTA', color: '#16a34a' },
   { id: 'WWFF', label: 'WWFF', color: '#0d9488' },
-  { id: 'WWBOTA', label: 'WWBOTA', color: '#dc2626' },
-  { id: 'dxcluster', label: 'Live Spot Activity', color: '#06b6d4' },
   { id: 'alerts', label: 'Alerts', color: '#7c3aed' },
 ];
 
@@ -49,7 +47,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const [data, setData] = useState({ liveSpots: [], alerts: [], liveTotal: 0, alertsTotal: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState('SOTA');
+  const [tab, setTab] = useState('dxcluster');
   const [parkInfoRef, setParkInfoRef] = useState(null);
   const [propagation, setPropagation] = useState(null);
   const [sortBy, setSortBy] = useState('time');

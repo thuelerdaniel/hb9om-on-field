@@ -177,6 +177,11 @@
       "default": 0,
       "description": "Letzte importierte QSO-ID von Wavelog (fuer Delta-Sync)"
     },
+    "wavelog_last_sync": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzter erfolgreicher Permanent-Sync Zeitstempel"
+    },
     "logging_backend": {
       "type": "string",
       "enum": [
