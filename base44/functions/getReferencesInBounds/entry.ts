@@ -14,7 +14,7 @@ const typeCache: Record<string, { refs: any[]; time: number }> = {};
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Types stored as individual point entities (not in ReferenceData.references)
-const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'Repeater' | 'PrivateNode'; normalize: (r: any) => any; sourceFilter?: (r: any) => boolean }> = {
+const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'Repeater' | 'PrivateNode' | 'Lighthouse' | 'AprsStation'; normalize: (r: any) => any; sourceFilter?: (r: any) => boolean }> = {
   sota: {
     entity: 'SotaPoint',
     normalize: (r) => ({
@@ -83,6 +83,31 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
       return src.includes('brandmeister');
     },
   },
+  lighthouse: {
+    entity: 'Lighthouse',
+    normalize: (r) => ({
+      name: r.name, lat: r.lat, lng: r.lng,
+      country: r.country, country_code: r.country_code,
+      continent: r.continent,
+      code: r.illw_number, illw_number: r.illw_number,
+      illw_active: r.illw_active, illw_year_active: r.illw_year_active,
+      illw_callsign: r.illw_callsign, illw_country: r.illw_country,
+      dxcc: r.dxcc, source: r.source, link: r.link,
+    })
+  },
+  aprs_station: {
+    entity: 'AprsStation',
+    normalize: (r) => ({
+      callsign: r.callsign, lat: r.lat, lng: r.lng,
+      symbol: r.symbol, symbol_description: r.symbol_description,
+      station_type: r.station_type, comment: r.comment,
+      last_heard: r.last_heard, source_callsign: r.source_callsign,
+      is_swiss: r.is_swiss,
+      source: 'aprs.fi',
+      node_type: r.station_type || 'other',
+      country_code: r.is_swiss ? 'CH' : undefined,
+    })
+  },
 };
 
 async function loadReferenceData(base44, type: string): Promise<any[]> {
@@ -121,8 +146,9 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
     return [];
   }
 
-  // Non-point types (wwbota, castle, iota, lighthouse) use ReferenceData arrays —
+  // Non-point types (wwbota, castle, iota) use ReferenceData arrays —
   // these are slower to load, so keep the 10-minute cache.
+  // Note: lighthouse is now a point type (Lighthouse entity) — not cached here.
   const cached = typeCache[type];
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
@@ -153,7 +179,7 @@ export default async function(req: Request): Promise<Response> {
 
     const allTypes = Array.isArray(types) && types.length > 0
       ? types
-      : ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota'];
+      : ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota', 'aprs_station'];
 
     // max_per_type overrides the default cap — used by offline cache downloads to get all points
     const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;

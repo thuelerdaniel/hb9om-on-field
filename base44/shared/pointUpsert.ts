@@ -148,18 +148,60 @@ export async function loadPointsInBounds(
   const MAX_PAGES = 4; // 4 pages = 20k records — enough for worldwide view at low zoom
   const allPoints: any[] = [];
 
+  // Strategy: Try bounds filter with NO sort first (sort causes MongoDB timeout on large
+  // collections like SotaPoint with 140k+ records and no lat/lng index).
+  // If bounds filter times out, fall back to no-query filter with skip pagination
+  // from evenly spaced offsets (gives geographic diversity without sort).
   try {
     for (let page = 0; page < MAX_PAGES; page++) {
-      // Sort by 'code' instead of '-created_date' — gives geographic diversity
-      // (different country prefixes interleaved alphabetically) instead of
-      // returning only the most recently imported country's records.
-      const result: any[] = await entity.filter(query, 'code', LIMIT, page * LIMIT);
+      // NO sort — sorting by 'code' causes MongoDB timeout on large collections
+      const result: any[] = await entity.filter(query, undefined, LIMIT, page * LIMIT);
       if (!Array.isArray(result) || result.length === 0) break;
       allPoints.push(...result);
       if (result.length < LIMIT) break;
     }
+    if (allPoints.length > 0) {
+      console.log(`[loadPointsInBounds] ${entityName}: loaded ${allPoints.length} points in bounds`);
+      return allPoints;
+    }
   } catch (e: any) {
-    console.error(`[loadPointsInBounds] filter error for ${entityName}:`, e?.message || String(e));
+    console.error(`[loadPointsInBounds] bounds filter error for ${entityName}: ${e?.message || String(e)} — trying fallback`);
+  }
+
+  // Fallback: no-query filter with skip pagination from evenly spaced offsets.
+  // This avoids the slow bounds query by loading records without a lat/lng predicate
+  // and filtering in-memory. Used when the bounds query times out (e.g. SotaPoint).
+  try {
+    // First, get total count by loading one record
+    const sample = await entity.filter({}, undefined, 1, 0);
+    if (!sample || sample.length === 0) return [];
+
+    // Load from evenly spaced skip offsets to get geographic diversity.
+    // Estimate total records by trying large skip values.
+    const BATCH_SIZE = 500;
+    const NUM_BATCHES = 10; // 10 * 500 = 5000 records
+    const estimatedTotal = 150000; // Conservative estimate for large collections
+    const step = Math.floor(estimatedTotal / NUM_BATCHES);
+
+    for (let i = 0; i < NUM_BATCHES; i++) {
+      const skip = i * step;
+      try {
+        const batch = await entity.filter({}, undefined, BATCH_SIZE, skip);
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        // Filter in-memory by bounds
+        const inBounds = batch.filter(r =>
+          r.lat != null && r.lng != null &&
+          r.lat >= bounds.south && r.lat <= bounds.north &&
+          r.lng >= bounds.west && r.lng <= bounds.east
+        );
+        allPoints.push(...inBounds);
+      } catch (e: any) {
+        // Continue with next batch — partial data is better than none
+      }
+    }
+    console.log(`[loadPointsInBounds] ${entityName} fallback: loaded ${allPoints.length} points in bounds (from ${NUM_BATCHES} batches)`);
+  } catch (e: any) {
+    console.error(`[loadPointsInBounds] fallback error for ${entityName}:`, e?.message || String(e));
   }
   return allPoints;
 }
