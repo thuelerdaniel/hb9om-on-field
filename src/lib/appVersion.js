@@ -18,6 +18,7 @@ export const APP_BUILD = "202608291606";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.91: Zoom-Aggregation — bei Weitansicht (Zoom < 6) werden Länder-Badges mit Anzahlen gezeigt statt 10'000 einzelner Marker",
   "v0.91: Spothole API Integration — primäre Datenquelle für Spots und Propagation (kein API-Key nötig)",
   "v0.91: getReferencesInBounds repariert — entityType Parameter wird jetzt respektiert (AprsStation liefert APRS-Daten, nicht SOTA)",
   "v0.91: Deduplizierung nach Record-ID/Callsign (vorher: derselbe Punkt dutzende Male)",

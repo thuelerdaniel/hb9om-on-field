@@ -4,6 +4,7 @@ import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import DraggablePopup from "@/components/map/DraggablePopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
+import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
 
 // Hard cap on markers rendered at once — prevents "page not responding" on extreme loads.
 // Canvas mode (CircleMarkers) is far cheaper than SVG divIcons, so allow 5x more.
@@ -69,6 +70,10 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
+  // Zoom-based aggregation: when zoomed out below threshold, skip individual markers
+  // — CountryAggregateLayer shows country-level badges instead for performance
+  const isAggregated = zoom < AGGREGATE_THRESHOLD && markers.length > 200;
+
   // Viewport culling: only render markers within current bounds + 30% buffer
   const paddedBounds = bounds.pad(0.3);
   const visibleMarkers = markers.filter(m =>
@@ -104,6 +109,9 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
       });
     }
   }, [visibleMarkers.length, maxRender, markers.length, onViewportLimitChange]);
+
+  // Aggregation active — CountryAggregateLayer takes over, skip individual markers
+  if (isAggregated) return null;
 
   // Drag mode: always use draggable markers
   if (dragMode) {

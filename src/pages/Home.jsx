@@ -16,6 +16,7 @@ import MapControls from "@/components/map/MapControls";
 import MapPositionControls from "@/components/map/MapPositionControls";
 import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
+import CountryAggregateLayer from "@/components/map/CountryAggregateLayer";
 import ViewportDataLoader from "@/components/map/ViewportDataLoader";
 import MapErrorBoundary from "@/components/MapErrorBoundary";
 import RepeaterLayer from "@/components/map/RepeaterLayer";
@@ -1259,6 +1260,10 @@ export default function Home() {
           performanceMode={performanceMode}
           userPosition={currentPosition}
           onViewportLimitChange={setViewportLimit}
+        />
+        <CountryAggregateLayer
+          markers={allMarkers}
+          activeLayers={activeLayers}
         />
         {activeLayers.includes("lighthouse") && (
           <LighthouseLayer
