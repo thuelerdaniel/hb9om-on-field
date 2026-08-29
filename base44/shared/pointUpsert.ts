@@ -2,14 +2,16 @@
 // Avoids MongoDB's 16MB BSON document limit by storing one record per point
 // instead of a giant array inside a single ReferenceData document.
 //
-// Strategy: full refresh — delete all existing records, then bulkCreate in batches.
-// This is idempotent: if the function times out mid-create, re-running starts clean.
+// Strategy: SAFE full refresh — create new records FIRST, then delete old ones.
+// This prevents data loss if the function times out during bulkCreate.
+// Parallel bulkCreate (5 concurrent batches) speeds up creation of 90K+ records.
 
 const BATCH_SIZE = 500; // SDK bulkCreate max is 500 records per call
+const PARALLEL_BATCHES = 5; // Number of concurrent bulkCreate calls
 
 /**
  * Upsert points for a given entity type.
- * Deletes all existing records, then bulkCreates all new points in batches.
+ * Creates all new records FIRST (in parallel batches), then deletes old records.
  * Also updates the corresponding ReferenceData metadata record (references: []).
  *
  * @param base44 - The Base44 SDK client (with asServiceRole)
@@ -32,25 +34,39 @@ export async function upsertPoints(
 
   const entity = base44.asServiceRole.entities[entityName];
 
-  // 1. Delete all existing records (full refresh)
-  try {
-    await entity.deleteMany({});
-  } catch (e) {
-    // Non-fatal — bulkCreate will still work, just might create duplicates
-    // if delete failed (but deleteMany({}) is reliable for admin-managed entities)
-  }
+  // Record sync start time — used to identify old records for deletion AFTER new ones are saved
+  const syncStartTime = new Date();
 
-  // 2. Bulk create in batches of 500
+  // 1. Create all new records FIRST (in parallel batches) — old data stays intact if this fails
   let created = 0;
   let lastError: string | undefined;
+  const batches: any[][] = [];
   for (let i = 0; i < points.length; i += BATCH_SIZE) {
-    const batch = points.slice(i, i + BATCH_SIZE);
+    batches.push(points.slice(i, i + BATCH_SIZE));
+  }
+
+  // Process batches in parallel groups of PARALLEL_BATCHES
+  for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
+    const group = batches.slice(i, i + PARALLEL_BATCHES);
+    const results = await Promise.allSettled(
+      group.map(batch => entity.bulkCreate(batch))
+    );
+    for (let j = 0; j < results.length; j++) {
+      const r = results[j];
+      if (r.status === 'fulfilled') {
+        created += group[j].length;
+      } else {
+        lastError = r.reason?.message || String(r.reason);
+      }
+    }
+  }
+
+  // 2. Delete old records ONLY if at least some new records were created
+  if (created > 0) {
     try {
-      await entity.bulkCreate(batch);
-      created += batch.length;
-    } catch (e: any) {
-      lastError = e.message || String(e);
-      // Continue with next batch — partial data is better than no data
+      await entity.deleteMany({ created_date: { $lt: syncStartTime.toISOString() } });
+    } catch (e) {
+      // Non-fatal — old records remain but new ones are saved
     }
   }
 
@@ -61,7 +77,7 @@ export async function upsertPoints(
     if (existing && existing.length > 0) {
       await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
         references: [],
-        total_count: points.length,
+        total_count: created,
         source,
         last_updated: now
       });
@@ -69,7 +85,7 @@ export async function upsertPoints(
       await base44.asServiceRole.entities.ReferenceData.create({
         type: refType,
         references: [],
-        total_count: points.length,
+        total_count: created,
         source,
         last_updated: now
       });
