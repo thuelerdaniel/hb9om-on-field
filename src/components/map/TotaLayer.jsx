@@ -32,7 +32,7 @@ const TOTA_TYPE_ICONS = {
 };
 
 const DEBOUNCE_MS = 300;
-const MIN_ZOOM = 8;
+const MIN_ZOOM = 5; // Lowered from 8 to 5 — allows TOTA points at wider zoom
 const MID_ZOOM = 12;
 const MID_ZOOM_LIMIT = 2000;
 const QUERY_LIMIT = 5000;
@@ -88,7 +88,8 @@ export default function TotaLayer({
         lng: { $gte: padded.getWest(), $lte: padded.getEast() },
       };
 
-      const points = await base44.entities.TotaPoint.filter(query, "id", limit);
+      const points = await base44.entities.TotaPoint.filter(query, "code", limit);
+      console.log(`[TotaLayer] Fetched ${points?.length || 0} TOTA points (zoom=${zoom}, limit=${limit}, showChTota=${showChTota})`);
 
       // Filter out CH points if showChTota is false
       let filtered = points || [];

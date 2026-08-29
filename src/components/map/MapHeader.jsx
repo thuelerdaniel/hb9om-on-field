@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Search, Menu, X, HelpCircle } from "lucide-react";
+import { APP_VERSION, APP_BUILD } from "@/lib/appVersion";
 
 export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar, sidebarOpen, showSearch = true }) {
   return (
@@ -45,6 +46,9 @@ export default function MapHeader({ searchQuery, onSearchChange, onToggleSidebar
         >
           <HelpCircle className="w-4 h-4" />
         </Link>
+        <span className="hidden sm:block text-[10px] text-gray-400 dark:text-slate-500 font-mono whitespace-nowrap" title={`Build ${APP_BUILD}`}>
+          v{APP_VERSION} | Build {APP_BUILD}
+        </span>
       </div>
     </header>
   );

@@ -145,12 +145,15 @@ export async function loadPointsInBounds(
   };
 
   const LIMIT = 5000;
-  const MAX_PAGES = 1; // Viewport-based loading: 1 page (5000 records) is enough for visible area
+  const MAX_PAGES = 4; // 4 pages = 20k records — enough for worldwide view at low zoom
   const allPoints: any[] = [];
 
   try {
     for (let page = 0; page < MAX_PAGES; page++) {
-      const result: any[] = await entity.filter(query, '-created_date', LIMIT, page * LIMIT);
+      // Sort by 'code' instead of '-created_date' — gives geographic diversity
+      // (different country prefixes interleaved alphabetically) instead of
+      // returning only the most recently imported country's records.
+      const result: any[] = await entity.filter(query, 'code', LIMIT, page * LIMIT);
       if (!Array.isArray(result) || result.length === 0) break;
       allPoints.push(...result);
       if (result.length < LIMIT) break;

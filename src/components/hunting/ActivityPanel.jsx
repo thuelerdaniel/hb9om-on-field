@@ -2,22 +2,19 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { RefreshCw, FileText, MapPin, CalendarClock, AlertCircle, Info } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PotaParkInfoPopup from "@/components/hunting/PotaParkInfoPopup";
-import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
 import { calcHearScore, scoreColor } from "@/lib/hearScore";
 import { isQRT, getFlagImg, getReferenceUrl } from "@/lib/spotUtils";
 
-// Activity Panel — v0.9035: 5 Tabs (WWBOTA entfernt — Domain tot)
-// Tab 1 "Live Spot Activity": DX-Cluster Spots (ALLE, kein Limit!) — eigenstaendiges Widget
-// Tab 2 "SOTA":   NUR SOTA Live-Spots (ALLE, QRT gefiltert, kein Limit!)
-// Tab 3 "POTA":   NUR POTA Live-Spots (ALLE, kein Limit!)
-// Tab 4 "WWFF":   NUR WWFF Live-Spots (ALLE, kein Limit!)
-// Tab 5 "Alerts": KOMBINIERT alle geplanten Aktivierungen (SOTA-Alerts + WWFF-Agendas)
-// Default-Tab: Live Spot Activity (zwischen Propagation Overview und SOTA)
+// Activity Panel — v0.9026: 4 Tabs (Live Spot Activity Tab entfernt)
+// Tab 1 "SOTA":   NUR SOTA Live-Spots (ALLE, QRT gefiltert, kein Limit!)
+// Tab 2 "POTA":   NUR POTA Live-Spots (ALLE, kein Limit!)
+// Tab 3 "WWFF":   NUR WWFF Live-Spots (ALLE, kein Limit!)
+// Tab 4 "Alerts": KOMBINIERT alle geplanten Aktivierungen (SOTA-Alerts + WWFF-Agendas)
+// Default-Tab: SOTA
 
 const REFRESH_MS = 60 * 1000;
 
 const TABS = [
-  { id: 'dxcluster', label: 'Live Spot Activity', color: '#06b6d4' },
   { id: 'SOTA', label: 'SOTA', color: '#d97706' },
   { id: 'POTA', label: 'POTA', color: '#16a34a' },
   { id: 'WWFF', label: 'WWFF', color: '#0d9488' },
@@ -47,7 +44,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const [data, setData] = useState({ liveSpots: [], alerts: [], liveTotal: 0, alertsTotal: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState('dxcluster');
+  const [tab, setTab] = useState('SOTA');
   const [parkInfoRef, setParkInfoRef] = useState(null);
   const [propagation, setPropagation] = useState(null);
   const [sortBy, setSortBy] = useState('time');
@@ -102,7 +99,6 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
     const counts = {};
     for (const t of TABS) {
       if (t.id === 'alerts') counts[t.id] = data.alertsTotal;
-      else if (t.id === 'dxcluster') counts[t.id] = '—';
       else counts[t.id] = data.liveSpots.filter(s => s.activity_type === t.id).length;
     }
     return counts;
@@ -131,7 +127,6 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const currentTab = TABS.find(t => t.id === tab) || TABS[0];
   const accentColor = currentTab.color;
   const isAlertsTab = tab === 'alerts';
-  const isDxClusterTab = tab === 'dxcluster';
 
   const renderSpotList = () => (
     <>
@@ -275,14 +270,12 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
         <h2 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
           {isAlertsTab
             ? <><CalendarClock className="w-3.5 h-3.5" style={{ color: accentColor }} /> GEPLANTE AKTIVIERUNGEN</>
-            : isDxClusterTab
-            ? <><RefreshCw className="w-3.5 h-3.5" style={{ color: accentColor }} /> LIVE SPOT ACTIVITY</>
             : <><span className="w-2 h-2 rounded-full" style={{ background: accentColor }} /> {tab} LIVE-SPOTS</>
           }
           <span className="text-[10px] text-muted-foreground font-normal">({tabCounts[tab]})</span>
         </h2>
         <div className="flex items-center gap-1.5">
-          {!isAlertsTab && !isDxClusterTab && (
+          {!isAlertsTab && (
             <button
               onClick={() => setSortBy(sortBy === 'time' ? 'score' : 'time')}
               className="flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors bg-background text-muted-foreground border-border hover:bg-muted"
@@ -330,18 +323,8 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
         </div>
       )}
 
-      {/* Content: DX-Cluster embeds LiveSpotActivity, other tabs show spot list */}
-      {isDxClusterTab ? (
-        <LiveSpotActivity
-          onSpotDetails={onSpotDetails}
-          onLogQso={onLogQso}
-          onCallClick={onCallClick}
-          gpsPos={gpsPos}
-          stationInfo={stationInfo}
-        />
-      ) : (
-        renderSpotList()
-      )}
+      {/* Content: spot list for all tabs */}
+      {renderSpotList()}
     </div>
   );
 }

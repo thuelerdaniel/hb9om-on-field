@@ -17,15 +17,33 @@ const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'Repeater' | 'PrivateNode'; normalize: (r: any) => any; sourceFilter?: (r: any) => boolean }> = {
   sota: {
     entity: 'SotaPoint',
-    normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng })
+    normalize: (r) => ({
+      code: r.code, name: r.name, lat: r.lat, lng: r.lng,
+      altitude: r.altitude_m, points: r.points,
+      // Extract country_code from SOTA code prefix (e.g. "HB/VS-001" → "HB", "I/LO-001" → "I", "W7Y/TT-161" → "W7")
+      country_code: r.code ? r.code.split('/')[0] : undefined,
+      country: r.code ? r.code.split('/')[0] : undefined,
+    })
   },
   pota: {
     entity: 'PotaPoint',
-    normalize: (r) => ({ code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng, parkType: r.parkType, active: r.active })
+    normalize: (r) => ({
+      code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng,
+      parkType: r.parkType, active: r.active,
+      // Extract country_code from POTA code prefix (e.g. "US-1504" → "US", "IE-0231" → "IE")
+      country_code: r.code ? r.code.split('-')[0] : undefined,
+      country: r.code ? r.code.split('-')[0] : undefined,
+    })
   },
   hbff: {
     entity: 'WwffPoint',
-    normalize: (r) => ({ code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link })
+    normalize: (r) => ({
+      code: r.code, name: r.name, lat: r.lat, lng: r.lng, link: r.link,
+      // WWFF codes: "DLFF-0001" → "DL", "ZSFF-0439" → "ZS", "HBFF-0001" → "HB"
+      // Strip "FF" suffix from prefix to get country code
+      country_code: r.code ? r.code.replace(/FF.*/, '').replace(/-.*$/, '') : undefined,
+      country: r.code ? r.code.replace(/FF.*/, '').replace(/-.*$/, '') : undefined,
+    })
   },
   tota: {
     entity: 'TotaPoint',
