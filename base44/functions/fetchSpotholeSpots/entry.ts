@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
     if (!skip_spots) {
       try {
         const spots: SpotholeSpot[] = await fetchJson(
-          `${SPOTHOLE_BASE}/spots?needs_sig=true&limit=500`,
+          `${SPOTHOLE_BASE}/spots?needs_sig=true&limit=10000`,
           15000
         );
         results.spots = spots.length;
@@ -256,7 +256,7 @@ Deno.serve(async (req) => {
     if (!skip_cluster) {
       try {
         const clusterSpots: SpotholeSpot[] = await fetchJson(
-          `${SPOTHOLE_BASE}/spots?source=Cluster&limit=200`,
+          `${SPOTHOLE_BASE}/spots?source=Cluster&limit=10000`,
           15000
         );
         results.cluster_spots = await saveClusterSpots(base44, clusterSpots);
@@ -271,7 +271,7 @@ Deno.serve(async (req) => {
     if (!body.skip_aprs) {
       try {
         const allSpots: SpotholeSpot[] = await fetchJson(
-          `${SPOTHOLE_BASE}/spots?limit=500`,
+          `${SPOTHOLE_BASE}/spots?limit=10000`,
           15000
         );
         // Filter spots that have position but no sig (APRS-like, not activity-based)

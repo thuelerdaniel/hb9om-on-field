@@ -68,7 +68,7 @@ export default async function(req: Request): Promise<Response> {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       const resp = await fetch(
-        'https://spothole.app/api/v2/spots?sig=GMA&limit=100',
+        'https://spothole.app/api/v2/spots?sig=GMA&limit=10000',
         { headers: { 'Accept': 'application/json', 'User-Agent': UA }, signal: controller.signal }
       );
       clearTimeout(timeout);
