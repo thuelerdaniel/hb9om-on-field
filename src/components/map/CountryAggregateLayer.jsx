@@ -51,7 +51,7 @@ function getBadgeIcon(count, color, countryCode) {
   return icon;
 }
 
-function CountryAggregateLayerInner({ markers, activeLayers }) {
+function CountryAggregateLayerInner({ markers, extraMarkers, activeLayers }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
 
@@ -63,13 +63,19 @@ function CountryAggregateLayerInner({ markers, activeLayers }) {
     zoomend: updateZoom,
   });
 
+  // Merge extra markers (e.g. TOTA points from TotaLayer) into the main markers array
+  const allMarkers = useMemo(() => {
+    if (!extraMarkers || extraMarkers.length === 0) return markers || [];
+    return [...(markers || []), ...extraMarkers];
+  }, [markers, extraMarkers]);
+
   // Group markers by country_code when zoomed out
   const countryBatches = useMemo(() => {
     if (zoom >= AGGREGATE_THRESHOLD) return [];
-    if (!markers || markers.length === 0) return [];
+    if (!allMarkers || allMarkers.length === 0) return [];
 
     const groups = {};
-    for (const m of markers) {
+    for (const m of allMarkers) {
       if (m.lat == null || m.lng == null) continue;
       const cc = m.country_code || (m.code || "").split(/[/ -]/)[0] || "?";
       if (!groups[cc]) {
@@ -98,7 +104,7 @@ function CountryAggregateLayerInner({ markers, activeLayers }) {
       const color = LAYER_COLORS[dominantType] || "#6b7280";
       return { code: g.code, lat, lng, count: g.count, color, typeCounts: g.typeCounts };
     }).sort((a, b) => b.count - a.count);
-  }, [markers, zoom]);
+  }, [allMarkers, zoom]);
 
   // Don't render anything when zoomed in — individual markers take over
   if (zoom >= AGGREGATE_THRESHOLD || countryBatches.length === 0) return null;
@@ -122,7 +128,7 @@ function CountryAggregateLayerInner({ markers, activeLayers }) {
 }
 
 function arePropsEqual(prev, next) {
-  return prev.markers === next.markers && prev.activeLayers === next.activeLayers;
+  return prev.markers === next.markers && prev.extraMarkers === next.extraMarkers && prev.activeLayers === next.activeLayers;
 }
 
 const CountryAggregateLayer = memo(CountryAggregateLayerInner, arePropsEqual);

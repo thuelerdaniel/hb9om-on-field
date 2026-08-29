@@ -7,6 +7,7 @@ import { isInContinents } from "@/lib/continents";
 import { isInCountries } from "@/lib/countries";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import DraggablePopup from "@/components/map/DraggablePopup";
+import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
 
 // ─── Viewport-based TOTA Layer ───
 // Loads TOTA points only within the current map viewport, with zoom-level checks:
@@ -51,11 +52,13 @@ export default function TotaLayer({
   filterCountries = [],
   showChTota = false,
   onCountsChange,
+  onPointsLoaded,
 }) {
   const map = useMap();
   const [rawPoints, setRawPoints] = useState([]);
   const [loading, setLoading] = useState(false);
   const [warning, setWarning] = useState(null);
+  const [zoom, setZoom] = useState(map.getZoom());
   const debounceRef = useRef(null);
   const warningTimerRef = useRef(null);
 
@@ -129,7 +132,7 @@ export default function TotaLayer({
 
   useMapEvents({
     moveend: handleMapChange,
-    zoomend: handleMapChange,
+    zoomend: () => { setZoom(map.getZoom()); handleMapChange(); },
   });
 
   // Fetch on mount (deferred so map renders first) and when showChTota changes
@@ -191,6 +194,23 @@ export default function TotaLayer({
     onCountsChange?.(filteredPoints.length, rawPoints.length);
   }, [filteredPoints.length, rawPoints.length, onCountsChange]);
 
+  // Pass filtered points to parent for country-level aggregation at low zoom.
+  // TotaLayer renders individual markers only at zoom >= AGGREGATE_THRESHOLD;
+  // below that, CountryAggregateLayer shows country badges (including TOTA).
+  useEffect(() => {
+    if (!onPointsLoaded) return;
+    if (zoom >= AGGREGATE_THRESHOLD) {
+      onPointsLoaded([]);
+      return;
+    }
+    const totaMarkers = filteredPoints.map((p) => ({
+      ...p,
+      layerType: "tota",
+      country_code: p.country_code || (p.source === "swiss_csv" ? "CH" : "?"),
+    }));
+    onPointsLoaded(totaMarkers);
+  }, [filteredPoints, zoom, onPointsLoaded]);
+
   // Viewport bounds filtering (client-side, for already-fetched points)
   const visiblePoints = useMemo(() => {
     if (!map) return filteredPoints;
@@ -219,6 +239,28 @@ export default function TotaLayer({
     iconCache.set(cacheKey, icon);
     return icon;
   };
+
+  // Skip individual marker rendering at low zoom — CountryAggregateLayer
+  // shows country-level badges (including TOTA) for better performance.
+  if (zoom < AGGREGATE_THRESHOLD) {
+    return (
+      <>
+        {warning && (
+          <div
+            className="fixed top-16 left-1/2 -translate-x-1/2 z-[1100] px-4 py-2 rounded-lg shadow-lg border text-xs font-medium flex items-center gap-2 max-w-[90vw]"
+            style={{
+              background: "#f0f9ff",
+              borderColor: "#3b82f6",
+              color: "#1e40af",
+            }}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>TOTA: {filteredPoints.length} Punkte — zoomen für Details</span>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <>

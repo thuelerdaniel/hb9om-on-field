@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil, ChevronDown, ChevronUp, Navigation } from "lucide-react";
+import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil, ChevronDown, ChevronUp, Navigation, MapPinned } from "lucide-react";
 import { getWwbotaLink, getWwbotaCountryName } from "@/lib/wwbotaSchemes";
 
 const LAYER_META = {
@@ -27,10 +27,15 @@ function formatDistance(km) {
   return `${Math.round(km)} km`;
 }
 
-export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode, userPosition }) {
+// Layer types that support boundary display (radius circle around the point)
+const BOUNDARY_LAYERS = new Set(["sota", "pota", "hbff", "castle", "iota", "lighthouse"]);
+
+export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode, userPosition, isBoundaryShown, onToggleBoundary }) {
   const [showDetails, setShowDetails] = useState(!performanceMode);
   const meta = LAYER_META[layerType] || {};
   const Icon = meta.icon || MapPin;
+
+  const canShowBoundary = BOUNDARY_LAYERS.has(layerType) && data.lat != null && data.lng != null;
 
   const hasCoords = data.lat != null && data.lng != null;
   const navUrl = hasCoords
@@ -141,6 +146,20 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
               </a>
             );
           })()}
+
+          {canShowBoundary && onToggleBoundary && (
+            <button
+              onClick={() => onToggleBoundary(data, layerType)}
+              className={`mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                isBoundaryShown
+                  ? "text-white bg-amber-500 border-amber-600 hover:bg-amber-600"
+                  : "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
+              }`}
+            >
+              <MapPinned className="w-3 h-3" />
+              {isBoundaryShown ? "Grenze ausblenden" : "Grenze anzeigen"}
+            </button>
+          )}
 
           {navUrl && (
             <a

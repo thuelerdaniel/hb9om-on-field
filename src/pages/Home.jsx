@@ -18,6 +18,7 @@ import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
 import CountryAggregateLayer from "@/components/map/CountryAggregateLayer";
 import ActivityZoneLayer from "@/components/map/ActivityZoneLayer";
+import BoundaryLayer from "@/components/map/BoundaryLayer";
 import ViewportDataLoader from "@/components/map/ViewportDataLoader";
 import MapErrorBoundary from "@/components/MapErrorBoundary";
 import RepeaterLayer from "@/components/map/RepeaterLayer";
@@ -290,6 +291,25 @@ export default function Home() {
 
   // Public positions — shared GPS positions visible to all users
   const [publicPositions, setPublicPositions] = useState([]);
+
+  // TOTA points from TotaLayer — passed to CountryAggregateLayer for zoom < 6 aggregation
+  const [totaAggregationPoints, setTotaAggregationPoints] = useState([]);
+
+  // Boundary circles — toggled per-popup, shows radius circle around reference points
+  // Map of key -> { data, layerType } — default OFF, user toggles in popup
+  const [boundaryPoints, setBoundaryPoints] = useState([]);
+  const boundaryKeys = useMemo(() => new Set(boundaryPoints.map(bp => `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}`)), [boundaryPoints]);
+
+  const handleToggleBoundary = useCallback((data, layerType) => {
+    const key = `${layerType}-${data.code || data.reference || data.id || ""}`;
+    setBoundaryPoints(prev => {
+      const existing = prev.findIndex(bp => `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key);
+      if (existing >= 0) {
+        return prev.filter((_, i) => i !== existing);
+      }
+      return [...prev, { data, layerType }];
+    });
+  }, []);
 
   // Load public positions periodically (every 60s) and on mount
   useEffect(() => {
@@ -1261,9 +1281,12 @@ export default function Home() {
           performanceMode={performanceMode}
           userPosition={currentPosition}
           onViewportLimitChange={setViewportLimit}
+          boundaryKeys={boundaryKeys}
+          onToggleBoundary={handleToggleBoundary}
         />
         <CountryAggregateLayer
           markers={allMarkers}
+          extraMarkers={totaAggregationPoints}
           activeLayers={activeLayers}
         />
         {activeLayers.includes("activity_zones") && (
@@ -1273,6 +1296,7 @@ export default function Home() {
             zoneRadiusKm={1}
           />
         )}
+        <BoundaryLayer boundaryPoints={boundaryPoints} />
         {activeLayers.includes("lighthouse") && (
           <LighthouseLayer
             lighthouses={data.lighthouse || []}
@@ -1317,6 +1341,7 @@ export default function Home() {
             filterCountries={totaFilterCountries}
             showChTota={showChTota}
             onCountsChange={(visible, total) => setTotaViewportCount({ visible, total })}
+            onPointsLoaded={setTotaAggregationPoints}
           />
         )}
         {activeLayers.includes("aprs") && (

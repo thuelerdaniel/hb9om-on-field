@@ -48,7 +48,7 @@ function getDraggableIcon(color) {
   return icon;
 }
 
-function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive, userPosition, onViewportLimitChange }) {
+function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive, userPosition, onViewportLimitChange, boundaryKeys, onToggleBoundary }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
@@ -161,7 +161,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
               }}
             >
               <DraggablePopup>
-                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} />
+                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} isBoundaryShown={boundaryKeys?.has(`${m.layerType}-${m.code || m.reference || m.id || ""}`)} onToggleBoundary={onToggleBoundary} />
               </DraggablePopup>
             </CircleMarker>
           );
@@ -182,7 +182,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
             icon={getShapeIcon(m.layerType, m.color)}
           >
             <DraggablePopup>
-              <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} />
+              <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} isBoundaryShown={boundaryKeys?.has(`${m.layerType}-${m.code || m.reference || m.id || ""}`)} onToggleBoundary={onToggleBoundary} />
             </DraggablePopup>
           </Marker>
         );
@@ -201,7 +201,9 @@ function arePropsEqual(prev, next) {
     prev.performanceMode === next.performanceMode &&
     prev.autoCanvasActive === next.autoCanvasActive &&
     prev.userPosition === next.userPosition &&
-    prev.onViewportLimitChange === next.onViewportLimitChange
+    prev.onViewportLimitChange === next.onViewportLimitChange &&
+    prev.boundaryKeys === next.boundaryKeys &&
+    prev.onToggleBoundary === next.onToggleBoundary
   );
 }
 
