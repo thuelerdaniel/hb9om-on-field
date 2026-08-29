@@ -223,7 +223,7 @@ export default function Home() {
   });
 
   // Data loading — gated by activeLayers (only loads data for enabled layers)
-  const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData } = useMapData(activeLayers);
+  const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData, updateRepeater } = useMapData(activeLayers);
   const [baseLayer, setBaseLayer] = useState(() => safeGetItem("hb9om_base_layer") || "osm");
   const [lockedScale, setLockedScale] = useState(() => {
     const saved = safeGetItem("hb9om_locked_scale");
@@ -1325,6 +1325,7 @@ export default function Home() {
             onSuggestLink={handleSuggestLink}
             individualCoverage={individualCoverage}
             onToggleCoverage={handleToggleCoverage}
+            onRepeaterUpdate={updateRepeater}
             activeContinents={activeContinents}
             activeCountries={activeCountries}
             isAdmin={isAdmin}

@@ -61,7 +61,7 @@ const LINE_DASH_ARRAYS = {
   dotted: "3 6",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, activeContinents, activeCountries, isAdmin }) {
+function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, onRepeaterUpdate, activeContinents, activeCountries, isAdmin }) {
   const map = useMap();
 
   // Build a map of linkKey → Set of sources ('repeaterbook', 'uska', 'admin').
@@ -577,6 +577,7 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
             userPosition={userPosition}
             onSuggestLink={onSuggestLink}
             onToggleCoverage={onToggleCoverage}
+            onRepeaterUpdate={onRepeaterUpdate}
             showCoverageForThis={individualCoverage && individualCoverage.has(r.id)}
             isAdmin={isAdmin}
           />
@@ -633,6 +634,7 @@ function arePropsEqual(prev, next) {
     prev.onSuggestLink === next.onSuggestLink &&
     prev.individualCoverage === next.individualCoverage &&
     prev.onToggleCoverage === next.onToggleCoverage &&
+    prev.onRepeaterUpdate === next.onRepeaterUpdate &&
     prev.activeContinents === next.activeContinents &&
     prev.activeCountries === next.activeCountries &&
     prev.isAdmin === next.isAdmin

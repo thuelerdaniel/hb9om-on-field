@@ -209,10 +209,16 @@ export function useMapData(activeLayers) {
     };
   }, [activeLayers]);
 
+  // Update a single repeater in state — triggers re-render with new array reference.
+  // Used after coverage recalculation to ensure the map reflects the updated/deleted coverage.
+  const updateRepeater = useCallback((id, updates) => {
+    setRepeaters(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+  }, []);
+
   const cancelLoading = useCallback(() => {
     cancelRef.current = true;
     setLoading(false);
   }, []);
 
-  return { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData };
+  return { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData, updateRepeater };
 }

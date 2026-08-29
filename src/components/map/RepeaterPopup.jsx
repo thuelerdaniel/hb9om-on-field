@@ -26,7 +26,7 @@ const POWER_INFO = {
   // "unknown" intentionally omitted — no power info is shown when source is unknown
 };
 
-export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosition, onSuggestLink, onToggleCoverage, showCoverageForThis, isAdmin }) {
+export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosition, onSuggestLink, onToggleCoverage, onRepeaterUpdate, showCoverageForThis, isAdmin }) {
   const [showSuggestHint, setShowSuggestHint] = useState(false);
   const [editingUrl, setEditingUrl] = useState(false);
   const [urlInput, setUrlInput] = useState(repeater.web_url || "");
@@ -77,6 +77,20 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
   const handleTriggerCoverage = async () => {
     setCalcLoading(true);
     setCalcResult(null);
+    // Immediately clear old coverage via state update — the backend clears it
+    // first too, so the map must not show stale coverage while the new calculation
+    // runs (or if it fails after the backend already deleted it).
+    // Using onRepeaterUpdate creates a new repeaters array reference → RepeaterLayer
+    // re-renders → CoveragePolygon unmounts → stale polygon disappears from the map.
+    if (onRepeaterUpdate) {
+      onRepeaterUpdate(repeater.id, {
+        coverage_polygon: null,
+        coverage_radius_km: null,
+        coverage_source: null,
+        coverage_refinement_pct: 0,
+        needs_recalc: true,
+      });
+    }
     try {
       const res = await base44.functions.invoke("manageRepeater", {
         action: "triggerCoverage",
@@ -85,26 +99,29 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
       // manageRepeater returns { success, result: { coverage_radius_km, coverage_source, polygon, ... } }
       // The SDK may wrap it under .data — handle both structures
       const result = res?.result || res?.data?.result || res?.data;
-      repeater.needs_recalc = false;
-      repeater.coverage_updated = new Date().toISOString();
+      const updates = {
+        needs_recalc: false,
+        coverage_updated: new Date().toISOString(),
+      };
       if (result?.coverage_radius_km != null) {
-        repeater.coverage_radius_km = result.coverage_radius_km;
-        repeater.coverage_refinement_pct = result.coverage_refinement_pct ?? 100;
-        repeater.coverage_source = result.coverage_source || "terrain_adjusted";
-        // Update the polygon so the map can render the asymmetric terrain-LOS shape
-        if (result.polygon) {
-          repeater.coverage_polygon = result.polygon;
-        }
-        if (result.elevation_m != null) repeater.elevation_m = result.elevation_m;
-        if (result.terrain_factor != null) repeater.terrain_factor = result.terrain_factor;
+        updates.coverage_radius_km = result.coverage_radius_km;
+        updates.coverage_refinement_pct = result.coverage_refinement_pct ?? 100;
+        updates.coverage_source = result.coverage_source || "terrain_adjusted";
+        if (result.polygon) updates.coverage_polygon = result.polygon;
+        if (result.elevation_m != null) updates.elevation_m = result.elevation_m;
+        if (result.terrain_factor != null) updates.terrain_factor = result.terrain_factor;
       }
+      // Update state with new coverage data — triggers re-render to show new polygon
+      if (onRepeaterUpdate) onRepeaterUpdate(repeater.id, updates);
       setCalcResult({ success: true, message: "Abdeckung berechnet — wird auf Karte angezeigt" });
       // Auto-toggle coverage display if not already on
       if (onToggleCoverage && !showCoverageForThis) {
         onToggleCoverage(repeater);
       }
     } catch (e) {
-      setCalcResult({ success: false, message: "Fehler bei der Berechnung" });
+      // Coverage was already cleared via onRepeaterUpdate above and in the backend.
+      // No further action needed — the map already shows no coverage.
+      setCalcResult({ success: false, message: "Fehler bei der Berechnung — alte Abdeckung entfernt" });
     } finally {
       setCalcLoading(false);
       setTimeout(() => setCalcResult(null), 4000);
