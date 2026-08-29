@@ -62,6 +62,7 @@ export default function DataSourceStatusSection() {
   const [liveSources, setLiveSources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshingSource, setRefreshingSource] = useState(null);
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
@@ -83,6 +84,15 @@ export default function DataSourceStatusSection() {
       await base44.functions.invoke('refreshHuntingData', {});
       setTimeout(() => loadStatus(), 2000);
     } catch {} finally { setRefreshing(false); }
+  };
+
+  // Manuelle Abfrage für einen einzelnen DX-Cluster-Eintrag
+  const handleManualQuery = async (sourceName) => {
+    setRefreshingSource(sourceName);
+    try {
+      await base44.functions.invoke('fetchDxSpots', {});
+      await loadStatus();
+    } catch {} finally { setRefreshingSource(null); }
   };
 
   // Combined stats
@@ -218,7 +228,8 @@ export default function DataSourceStatusSection() {
                       <th className="py-1.5 pr-2 whitespace-nowrap">Status</th>
                       <th className="py-1.5 pr-2 whitespace-nowrap text-right">Spots</th>
                       <th className="py-1.5 pr-2 whitespace-nowrap">Letzte Prüfung</th>
-                      <th className="py-1.5 whitespace-nowrap">Fehler</th>
+                      <th className="py-1.5 pr-2 whitespace-nowrap">Fehler</th>
+                      <th className="py-1.5 whitespace-nowrap text-right">Aktion</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -242,8 +253,23 @@ export default function DataSourceStatusSection() {
                             {formatTime(s.last_check)}
                           </span>
                         </td>
-                        <td className="py-1.5 text-red-500 text-[10px] max-w-[120px] truncate" title={s.error_message || ''}>
+                        <td className="py-1.5 pr-2 text-red-500 text-[10px] max-w-[120px] truncate" title={s.error_message || ''}>
                           {s.error_message || '—'}
+                        </td>
+                        <td className="py-1.5 text-right">
+                          {s.source_type === 'DXCLUSTER' && (
+                            <button
+                              onClick={() => handleManualQuery(s.source_name)}
+                              disabled={refreshingSource === s.source_name}
+                              title="Manuelle Abfrage — DX-Cluster Spots neu laden"
+                              className="px-2 py-1 text-[10px] font-medium text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-700/50 rounded-md hover:bg-cyan-50 dark:hover:bg-cyan-900/20 disabled:opacity-40 inline-flex items-center gap-1"
+                            >
+                              {refreshingSource === s.source_name
+                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                : <RefreshCw className="w-3 h-3" />}
+                              Abfragen
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
