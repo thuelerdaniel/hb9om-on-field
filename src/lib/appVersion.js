@@ -8,16 +8,22 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9029";
+export const APP_VERSION = "0.91";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608291555";
+export const APP_BUILD = "202608291606";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.91: Spothole API Integration — primäre Datenquelle für Spots und Propagation (kein API-Key nötig)",
+  "v0.91: getReferencesInBounds repariert — entityType Parameter wird jetzt respektiert (AprsStation liefert APRS-Daten, nicht SOTA)",
+  "v0.91: Deduplizierung nach Record-ID/Callsign (vorher: derselbe Punkt dutzende Male)",
+  "v0.91: Layer-Lading vom Zentrum nach aussen — Punkte werden nach Entfernung zum Kartenmitte sortiert",
+  "v0.91: Sauberes Layer-Toggle — AbortController bricht laufende Requests ab, Marker werden beim Ausschalten entfernt",
+  "v0.91: fetchSpotholeSpots Backend-Function — lädt xOTA-Spots, DX-Cluster-Spots und Solar/Propagation-Daten",
   "Fix v0.9029: POTA-Datenverlust behoben — upsertPoints erstellt neue Datensätze ERST, dann löscht alte (vorher: löschen dann erstellen → Timeout = alle Daten weg)",
   "Fix v0.9029: Parallele bulkCreate (5 gleichzeitige Batches) beschleunigt 90K Records von >60s auf ~15s",
   "Fix v0.9029: ReferenceData total_count zeigt jetzt tatsächliche created-Anzahl (nicht points.length)",

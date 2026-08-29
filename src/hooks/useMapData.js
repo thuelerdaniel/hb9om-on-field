@@ -3,6 +3,25 @@ import { base44 } from "@/api/base44Client";
 import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
 import { loadAllTotaPoints } from "@/lib/paginatedLoader";
 
+// Haversine distance in km between two lat/lng points
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Sort points by distance from map center (closest first) — PUNKT 2: center-outward loading
+function sortByDistanceFromCenter(points, center) {
+  if (!center || !points || points.length === 0) return points || [];
+  return [...points].sort((a, b) => {
+    const distA = haversineKm(center.lat, center.lng, a.lat, a.lng);
+    const distB = haversineKm(center.lat, center.lng, b.lat, b.lng);
+    return distA - distB;
+  });
+}
+
 // Loads map data with viewport-based loading for reference types AND repeaters.
 // Reference types (SOTA, POTA, WWFF, WWBOTA, Castles, Lighthouses, IOTA) and repeaters
 // are loaded viewport-based via ViewportDataLoader component → getReferencesInBounds.
@@ -57,10 +76,14 @@ export function useMapData(activeLayers) {
   }, []);
 
   // Merge viewport-loaded reference data AND repeaters (called by ViewportDataLoader)
-  const onViewportData = useCallback((references, isFirstLoad) => {
+  // PUNKT 2: Points are sorted by distance from map center (closest first) so the
+  // rendering layer can display points near the center before those at the viewport edge.
+  const onViewportData = useCallback((references, isFirstLoad, center) => {
     // Handle repeaters separately — viewport-based, replace on each fetch
     if (Array.isArray(references.repeater)) {
-      setRepeaters(references.repeater.filter(r => r.lat != null && r.lng != null));
+      setRepeaters(sortByDistanceFromCenter(
+        references.repeater.filter(r => r.lat != null && r.lng != null), center
+      ));
     }
     // Handle private nodes (APRS + BrandMeister) — viewport-based, replace on each fetch
     const aprsRefs = Array.isArray(references.aprs) ? references.aprs : null;
@@ -70,15 +93,17 @@ export function useMapData(activeLayers) {
         ...(aprsRefs || []),
         ...(bmRefs || []),
       ].filter(r => r.lat != null && r.lng != null);
-      setPrivateNodes(merged);
+      setPrivateNodes(sortByDistanceFromCenter(merged, center));
     }
-    // Handle reference types (SOTA, POTA, etc.)
+    // Handle reference types (SOTA, POTA, etc.) — sorted by distance from center
     setData(prev => {
       const next = { ...prev };
       for (const [type, refs] of Object.entries(references)) {
         if (type === 'repeater' || type === 'aprs' || type === 'brandmeister') continue;
         if (Array.isArray(refs)) {
-          next[type] = refs.filter(r => r.lat != null && r.lng != null);
+          next[type] = sortByDistanceFromCenter(
+            refs.filter(r => r.lat != null && r.lng != null), center
+          );
         }
       }
       return next;

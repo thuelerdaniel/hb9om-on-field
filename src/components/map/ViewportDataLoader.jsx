@@ -28,6 +28,13 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
     }
   }, [reloadTrigger]);
 
+  // Abort in-flight requests when active layers change (PUNKT 3: clean layer toggle)
+  useEffect(() => {
+    if (abortRef.current) abortRef.current.aborted = true;
+    fetchedBoundsRef.current = null;
+    isFirstLoadRef.current = true;
+  }, [activeLayers]);
+
   const loadBounds = useCallback(async (bounds, types) => {
     if (types.length === 0 || isOffline) return;
 
@@ -58,7 +65,8 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
       const responseData = response?.data || response;
 
       if (!myAbort.aborted && onDataLoaded) {
-        onDataLoaded(responseData?.references || {}, isFirstLoadRef.current);
+        const center = map.getCenter();
+        onDataLoaded(responseData?.references || {}, isFirstLoadRef.current, { lat: center.lat, lng: center.lng });
         isFirstLoadRef.current = false;
         fetchedBoundsRef.current = padded;
       }
@@ -85,13 +93,6 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
     moveend: handleMapChange,
     zoomend: handleMapChange,
   });
-
-  // Reset fetched bounds when active layers change — ensures new layers get fetched
-  // even if the map hasn't moved (e.g. toggling APRS on without panning)
-  useEffect(() => {
-    fetchedBoundsRef.current = null;
-    isFirstLoadRef.current = true;
-  }, [activeLayers]);
 
   // Load on mount and when active layers change
   useEffect(() => {
