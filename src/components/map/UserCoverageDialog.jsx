@@ -314,8 +314,10 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
       localStorage.setItem("hb9om_cov_mode", mode);
       localStorage.setItem("hb9om_cov_height", String(antennaHeight));
       localStorage.setItem("hb9om_cov_solar", String(solarActivity));
-      // Save to history
-      saveToHistory(result);
+      // Save to history and link the history id to the current result
+      const histItem = saveToHistory(result);
+      result._historyId = histItem.id;
+      setLastResult(result);
       toast({ title: "Abdeckung berechnet", description: `${result.avg_range_km || 0} km Ø Reichweite` });
     } catch (e) {
       setError(e.message || "Fehler bei der Berechnung");
@@ -329,8 +331,8 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     const newHistory = history.filter(h => h.id !== id);
     saveHistory(newHistory);
     setHistory(newHistory);
-    // If the deleted item is the current result, clear it AND remove coverage from map
-    if (lastResult && history.length > 0 && history[0]?.id === id) {
+    // If the deleted item is the one currently shown on the map, clear it
+    if (lastResult?._historyId === id) {
       setLastResult(null);
       onCoverageResult(null);
     }
@@ -339,8 +341,9 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
 
   // --- Load a history item as current result ---
   const handleLoadHistory = (item) => {
-    setLastResult({ ...item.coverage, _position: item.position, _device: item.device });
-    onCoverageResult({ ...item.coverage, _position: item.position, _device: item.device });
+    const loaded = { ...item.coverage, _position: item.position, _device: item.device, _historyId: item.id };
+    setLastResult(loaded);
+    onCoverageResult(loaded);
     setPosition(item.position);
     setDeviceType(item.device);
     setBand(item.band);
@@ -355,6 +358,11 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
   const handleClearHistory = () => {
     saveHistory([]);
     setHistory([]);
+    // Also remove coverage from map if the current result came from history
+    if (lastResult?._historyId) {
+      setLastResult(null);
+      onCoverageResult(null);
+    }
     toast({ title: "Verlauf geleert" });
   };
 
