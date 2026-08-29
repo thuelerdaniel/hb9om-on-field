@@ -47,18 +47,6 @@ const REFERENCE_SOURCES = [
     },
   },
   {
-    type: 'wwbota',
-    label: 'WWBOTA – Bunkers on the Air',
-    source: 'api.wwbota.org',
-    url: 'https://api.wwbota.org/bunkers/?format=CSV',
-    auto_updated: true,
-    check: async (resp) => {
-      const csv = await resp.text();
-      if (!csv.includes('HBBOTA')) return { ok: false, detail: 'CSV enthält keine HBBOTA-Einträge' };
-      return { ok: true, detail: 'CSV abrufbar' };
-    },
-  },
-  {
     type: 'lighthouse',
     label: 'Leuchttürme (ILLW)',
     source: 'wllw.org',

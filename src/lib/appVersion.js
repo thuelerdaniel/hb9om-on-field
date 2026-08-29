@@ -8,16 +8,24 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9034";
+export const APP_VERSION = "0.9035";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608282036";
+export const APP_BUILD = "202608290520";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Fix v0.9035: Datenbereinigung — 2 TEST3-Logeinträge, 16 restore_point AppSettings, 184 mobile PrivateNodes, 7 mobile PublicPositions gelöscht",
+  "Fix v0.9035: ActivityPanel — 5 Tabs (WWBOTA entfernt, Live Spot Activity als erster Tab zwischen Propagation Overview und SOTA)",
+  "Fix v0.9035: UserHuntingSettings — wavelog_last_sync Feld hinzugefügt (date-time)",
+  "Fix v0.9035: DataSourceStatus — status='WARN' wenn error_message vorhanden (fetchDxSpots, fetchGmaSpots korrigiert)",
+  "Fix v0.9035: changelog_email_version AppSetting auf 0.9035 aktualisiert",
+  "Fix v0.9035: WWBOTA aus dailyRefreshOrchestrator SOURCES und SOURCE_GROUP_TIMES entfernt",
+  "Fix v0.9035: wavelogApi permanent_sync 401 Fix bestätigt (isInternal + asServiceRole)",
+  "Fix v0.9035: Alle Filter-Popups (Repeater, TOTA, APRS, Lighthouse, BrandMeister) bereits mit useDraggablePosition verschiebbar",
   "Fix v0.9034: Wavelog Upload — SECURITY: api_key/wan_url/station_id aus Body werden IGNORIERT, Konfiguration kommt AUSSCHLIESSLICH aus UserHuntingSettings",
   "Fix v0.9034: Wavelog Upload — 403 Forbidden wenn Wavelog nicht aktiviert für diesen Nutzer",
   "Fix v0.9034: Wavelog Permanent Sync — Importierte QSOs bekommen wavelog_synced=true (werden nicht re-exportiert)",

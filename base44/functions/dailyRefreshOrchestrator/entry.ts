@@ -11,7 +11,6 @@ const SOURCES = [
   { source: 'sota', label: 'SOTA', function_name: 'refreshDataSource', function_payload: { source: 'sota', scheduled: true }, order: 1 },
   { source: 'pota', label: 'POTA', function_name: 'refreshDataSource', function_payload: { source: 'pota', scheduled: true }, order: 2 },
   { source: 'hbff', label: 'WWFF', function_name: 'refreshDataSource', function_payload: { source: 'hbff', scheduled: true }, order: 3 },
-  { source: 'wwbota', label: 'WWBOTA', function_name: 'refreshDataSource', function_payload: { source: 'wwbota', scheduled: true }, order: 4 },
   { source: 'castle', label: 'Burgen/Schlösser', function_name: 'refreshDataSource', function_payload: { source: 'castle', scheduled: true }, order: 5 },
   // Lighthouse: ILLW official list (wllw.org) — single worldwide fetch.
   // The ILLW list is the only OFFICIAL list of lighthouses/lightships, parsed
@@ -57,7 +56,6 @@ const SOURCE_GROUP_TIMES: Record<string, string> = {
   iota: '03:00',
   pota: '03:30',
   hbff: '04:00',
-  wwbota: '04:30',
   castle: '04:30',
   lighthouse: '05:30',
   repeater: '05:00',

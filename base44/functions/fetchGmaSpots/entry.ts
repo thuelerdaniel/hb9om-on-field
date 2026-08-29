@@ -162,7 +162,7 @@ export default async function(req: Request): Promise<Response> {
         source_name: 'GMA (Spothole)',
         source_type: 'API' as const,
         url: 'https://spothole.app/api/v2/spots?sig=GMA',
-        status: savedCount > 0 ? 'OK' as const : 'WARN' as const,
+        status: apiWarning ? 'WARN' as const : (savedCount > 0 ? 'OK' as const : 'FAIL' as const),
         last_check: new Date().toISOString(),
         last_success: savedCount > 0 ? new Date().toISOString() : undefined,
         spots_received: savedCount,

@@ -304,7 +304,7 @@ export default async function(req: Request): Promise<Response> {
           source_name: name,
           source_type: type,
           url,
-          status: ok ? 'OK' : 'FAIL',
+          status: !ok ? 'FAIL' : warning ? 'WARN' : 'OK',
           last_check: new Date().toISOString(),
           last_success: ok ? new Date().toISOString() : undefined,
           spots_received: spots,
