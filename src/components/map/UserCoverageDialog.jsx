@@ -306,6 +306,12 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
       const data = res?.data || res;
       if (data?.error) throw new Error(data.error);
       const result = { ...data, _position: position, _device: deviceType };
+      // Save to history FIRST, so _historyId is set before passing to Home.
+      // This ensures Home's coverage state (and localStorage) includes _historyId,
+      // which is needed to clear the map when the history item is deleted later
+      // (even after the dialog was closed and reopened).
+      const histItem = saveToHistory(result);
+      result._historyId = histItem.id;
       setLastResult(result);
       onCoverageResult(result);
       localStorage.setItem("hb9om_cov_power", String(powerWatts));
@@ -314,10 +320,6 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
       localStorage.setItem("hb9om_cov_mode", mode);
       localStorage.setItem("hb9om_cov_height", String(antennaHeight));
       localStorage.setItem("hb9om_cov_solar", String(solarActivity));
-      // Save to history and link the history id to the current result
-      const histItem = saveToHistory(result);
-      result._historyId = histItem.id;
-      setLastResult(result);
       toast({ title: "Abdeckung berechnet", description: `${result.avg_range_km || 0} km Ø Reichweite` });
     } catch (e) {
       setError(e.message || "Fehler bei der Berechnung");
@@ -331,8 +333,16 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
     const newHistory = history.filter(h => h.id !== id);
     saveHistory(newHistory);
     setHistory(newHistory);
-    // If the deleted item is the one currently shown on the map, clear it
-    if (lastResult?._historyId === id) {
+    // Check if the deleted item is the one currently shown on the map.
+    // lastResult is ephemeral dialog state — it resets to null when the dialog
+    // is closed and reopened. So also check the persisted coverage in localStorage
+    // (which stores _historyId from Home's userCoverage state).
+    let persistedHistoryId = null;
+    try {
+      const stored = JSON.parse(localStorage.getItem("hb9om_user_coverage_current") || "null");
+      persistedHistoryId = stored?.coverage?._historyId || null;
+    } catch {}
+    if (lastResult?._historyId === id || persistedHistoryId === id) {
       setLastResult(null);
       onCoverageResult(null);
     }
@@ -358,8 +368,15 @@ export default function UserCoverageDialog({ onClose, onCoverageResult, mapCente
   const handleClearHistory = () => {
     saveHistory([]);
     setHistory([]);
-    // Also remove coverage from map if the current result came from history
-    if (lastResult?._historyId) {
+    // Clear the map coverage — all coverage comes from history entries,
+    // so clearing all history must also remove the polygon from the map.
+    // Check both ephemeral state and persisted coverage (dialog may have been remounted).
+    let persistedHistoryId = null;
+    try {
+      const stored = JSON.parse(localStorage.getItem("hb9om_user_coverage_current") || "null");
+      persistedHistoryId = stored?.coverage?._historyId || null;
+    } catch {}
+    if (lastResult?._historyId || persistedHistoryId) {
       setLastResult(null);
       onCoverageResult(null);
     }
