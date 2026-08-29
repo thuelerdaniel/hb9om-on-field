@@ -220,7 +220,11 @@ export async function fetchAprsData(base44: any, apiKey: string) {
       const entries = await queryAprsFiBatch(batch, apiKey);
       for (const entry of entries) {
         if (!entry.lat || !entry.lng) continue;
-        nodeRecords.push(buildNodeRecord(entry));
+        const record = buildNodeRecord(entry);
+        // v0.9035: Skip mobile types — only load stationary nodes (digipeater, igate, repeater, etc.)
+        const mobileTypes = ['car', 'bike', 'boat', 'aircraft', 'walker', 'mobile'];
+        if (mobileTypes.includes(record.node_type)) continue;
+        nodeRecords.push(record);
         aprsNodesFound++;
 
         // Update repeater coordinates if missing (match by base callsign)
