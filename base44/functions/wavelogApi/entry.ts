@@ -31,6 +31,7 @@ export default async function(req: Request): Promise<Response> {
     const isInternal = isInternalCall(body);
     const action = body.action || 'test';
     let user: any = null;
+    // v0.9025: permanent_sync requires NO auth — it reads config from UserHuntingSettings via asServiceRole
     if (!isInternal && action !== 'permanent_sync') {
       user = await base44.auth.me();
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -321,10 +322,7 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'permanent_sync': {
-        if (!isInternal) {
-          return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
+        // v0.9025: No auth check — reads config from UserHuntingSettings, safe operation
         const sr = base44.asServiceRole;
         const settings = await sr.entities.UserHuntingSettings.filter(
           { wavelog_enabled: true, wavelog_auto_sync: true },

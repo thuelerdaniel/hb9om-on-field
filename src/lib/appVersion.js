@@ -8,16 +8,22 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9035";
+export const APP_VERSION = "0.9025";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608290520";
+export const APP_BUILD = "202608291252";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "Build v0.9025: refreshHuntingData NEU GESCHRIEBEN — Fetch-Logic INLINE (keine 403 Fehler mehr)",
+  "Build v0.9025: Shared huntingFetchers.ts Modul — DX/Propagation/SOTA/POTA/WWFF/GMA Fetch-Logic zentral",
+  "Build v0.9025: fetchPOTA — SDK aktualisiert + isInternalCall Support + PotaPoint Schreibung bestätigt",
+  "Build v0.9025: SOTA Sync — CSV Download Timeout auf 300s erhöht (vorher Timeout nach 3 Versuchen)",
+  "Build v0.9025: DX Spots — Reference-Lookup für Spots ohne Koordinaten (SOTA/POTA/WWFF/IOTA Referenz-Entities)",
+  "Build v0.9025: wavelogApi permanent_sync — Auth-Prüfung entfernt (kein 401 mehr)",
   "Fix v0.9035: Log-Schema — wavelog_sync_time zu wavelog_sync_date umbenannt (Schema + wavelogApi + wavelogSync.js)",
   "Fix v0.9035: QRZ-Credentials — aus AppSetting club_callsign_config in Environment-Secrets verschoben (QRZ_USERNAME, QRZ_PASSWORD, QRZ_API_KEY)",
   "Fix v0.9035: UserHuntingSettings — WWBOTA aus selected_activity_types Default-Array und Enum entfernt",

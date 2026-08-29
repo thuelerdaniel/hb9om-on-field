@@ -280,6 +280,33 @@ export default async function(req: Request): Promise<Response> {
 
     const merged = Array.from(mergeMap.values());
 
+    // PUNKT 4: Enrich spots without coordinates via reference lookup
+    const refsNeedingCoords: { type: string; ref: string; spotIdx: number }[] = [];
+    for (let i = 0; i < merged.length; i++) {
+      const spot = merged[i];
+      if ((!spot.lat || !spot.lng) && spot.activity_ref) {
+        refsNeedingCoords.push({ type: spot.activity, ref: spot.activity_ref, spotIdx: i });
+      }
+    }
+    for (const { type, ref, spotIdx } of refsNeedingCoords.slice(0, 100)) {
+      try {
+        let entityName = '';
+        if (type === 'SOTA') entityName = 'SotaPoint';
+        else if (type === 'POTA') entityName = 'PotaPoint';
+        else if (type === 'WWFF') entityName = 'WwffPoint';
+        else if (type === 'IOTA') entityName = 'IotaPoint';
+        if (!entityName) continue;
+        const points = await base44.asServiceRole.entities[entityName].filter({ code: ref });
+        if (points && points.length > 0 && points[0].lat != null) {
+          const lat = Number(points[0].lat), lon = Number(points[0].lng);
+          merged[spotIdx].lat = Math.round(lat * 10000) / 10000;
+          merged[spotIdx].lng = Math.round(lon * 10000) / 10000;
+          merged[spotIdx].distance = haversine(stationPos.lat, stationPos.lon, lat, lon);
+          merged[spotIdx].azimuth = bearing(stationPos.lat, stationPos.lon, lat, lon);
+        }
+      } catch {}
+    }
+
     let savedCount = 0;
     if (merged.length > 0) {
       try {

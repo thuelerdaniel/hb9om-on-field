@@ -1,11 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
+import { isInternalCall } from '../../shared/internalAuth.ts';
+import {
+  fetchDxSpotsInline, fetchPropagationInline,
+  fetchSotaSpotsInline, fetchSotaAlertsInline,
+  fetchPotaSpotsInline, fetchWwffSpotsInline, fetchGmaSpotsInline,
+} from '../../shared/huntingFetchers.ts';
 
-// Fix v0.9032: refreshHuntingData orchestrator — calls sub-functions via
-// base44.functions.invoke() (standard SDK method, same as runDailySyncBatch).
-// The SDK handles auth and routing internally — no 403/404 issues.
-// Sub-functions receive { scheduled: true, internal_secret } in the body,
-// which bypasses their per-user auth check (isInternalCall / scheduled flag).
+// v0.9025: refreshHuntingData — COMPLETE REWRITE with inline fetch logic.
+// No more base44.functions.invoke() sub-function calls (caused 403 Forbidden).
+// All fetch logic runs directly via shared huntingFetchers module.
+// Uses base44.asServiceRole for ALL entity operations.
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -19,113 +23,76 @@ export default async function(req: Request): Promise<Response> {
       if (user.role !== 'admin') return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
     }
 
+    const sr = base44.asServiceRole;
     const results: any = { dxSpots: null, propagation: null, errors: [] };
 
-    // Fix v0.9031: ActivitySpot Cleanup VOR dem Speichern neuer Spots
-    // 1. Lösche Live-Spots älter als 30 Minuten (is_future: false)
+    // 1. Cleanup: Delete live spots older than 30 minutes
     try {
       const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-      await base44.asServiceRole.entities.ActivitySpot.deleteMany({
-        is_future: false,
-        spot_time: { $lt: thirtyMinAgo },
-      });
+      await sr.entities.ActivitySpot.deleteMany({ is_future: false, spot_time: { $lt: thirtyMinAgo } });
     } catch (e: any) { results.errors.push(`cleanup live: ${e.message}`); }
 
-    // 2. Lösche veraltete Alerts (is_future: true, spot_time in Vergangenheit)
+    // 2. Cleanup: Delete expired alerts (is_future: true, spot_time in past)
     try {
       const nowIso = new Date().toISOString();
-      await base44.asServiceRole.entities.ActivitySpot.deleteMany({
-        is_future: true,
-        spot_time: { $lt: nowIso },
-      });
+      await sr.entities.ActivitySpot.deleteMany({ is_future: true, spot_time: { $lt: nowIso } });
     } catch (e: any) { results.errors.push(`cleanup alerts: ${e.message}`); }
 
-    // Fix v0.9031: QRT-Records — bestehende Records mit "QRT" in comments auf is_active: false setzen
+    // 3. QRT records: Mark existing spots with "QRT" as inactive
     try {
-      const allSpots = await base44.asServiceRole.entities.ActivitySpot.list('-spot_time', 500);
+      const allSpots = await sr.entities.ActivitySpot.list('-spot_time', 500);
       const qrtUpdates = (allSpots || [])
         .filter((s: any) => /\bQRT\b/i.test(s.comments || '') && s.is_active !== false)
         .map((s: any) => ({ id: s.id, is_active: false }));
       if (qrtUpdates.length > 0) {
-        await base44.asServiceRole.entities.ActivitySpot.bulkUpdate(qrtUpdates);
+        await sr.entities.ActivitySpot.bulkUpdate(qrtUpdates);
       }
     } catch {}
 
-    // Fix v0.9031: WWBOTA entfernen (Domain wwbota.ch tot — keine DNS-Einträge mehr)
-    try {
-      await base44.asServiceRole.entities.ActivitySpot.deleteMany({ activity_type: 'WWBOTA' as any });
-    } catch {}
-    // DataSourceStatus für WWBOTA auf ERROR/INACTIVE setzen
-    try {
-      const existing = await base44.asServiceRole.entities.DataSourceStatus.filter({ source_name: 'WWBOTA' });
-      if (existing && existing.length > 0) {
-        await base44.asServiceRole.entities.DataSourceStatus.update(existing[0].id, {
-          status: 'FAIL',
-          is_active: false,
-          last_check: new Date().toISOString(),
-          error_message: 'Domain wwbota.ch tot — Dienst nicht mehr verfügbar',
-        });
-      }
-    } catch {}
+    // 4. Delete WWBOTA spots (domain dead)
+    try { await sr.entities.ActivitySpot.deleteMany({ activity_type: 'WWBOTA' as any }); } catch {}
 
-    const internalSecret = getInternalSecret();
-
-    // Fix v0.9031: Use base44.functions.invoke (standard SDK) instead of HTTP fetch.
-    // The SDK handles auth and routing internally — no 403/404 issues.
-    const callSubFunction = async (functionName: string, payload: any): Promise<any> => {
-      return await base44.functions.invoke(functionName, { ...payload, internal_secret: internalSecret });
-    };
-
-    // fetchDxSpots
+    // 5. Fetch DX Spots (inline — no sub-function call)
     try {
-      const dxRaw = await callSubFunction('fetchDxSpots', { scheduled: true });
-      const dxData = dxRaw?.data || dxRaw;
-      results.dxSpots = {
-        success: dxData?.success ?? true,
-        saved: dxData?.saved ?? 0,
-        warning: dxData?.warning || null,
-      };
+      const dxResult = await fetchDxSpotsInline(base44, body);
+      results.dxSpots = { success: true, saved: dxResult.saved, warning: dxResult.warning };
     } catch (e: any) {
-      results.errors.push(`fetchDxSpots: ${e.message || 'failed'}`);
+      results.dxSpots = { success: false, error: e.message };
+      results.errors.push(`fetchDxSpots: ${e.message}`);
     }
 
-    // fetchPropagation
+    // 6. Fetch Propagation (inline)
     try {
-      const propRaw = await callSubFunction('fetchPropagation', { scheduled: true });
-      const propData = propRaw?.data || propRaw;
-      results.propagation = {
-        success: propData?.success ?? true,
-        bestBand: propData?.bestBand?.band || null,
-        solarFlux: propData?.propagation?.solar_flux ?? null,
-      };
+      const propResult = await fetchPropagationInline(base44);
+      results.propagation = { success: propResult.success, bestBand: propResult.bestBand, solarFlux: propResult.solarFlux };
     } catch (e: any) {
-      results.errors.push(`fetchPropagation: ${e.message || 'failed'}`);
+      results.propagation = { success: false, error: e.message };
+      results.errors.push(`fetchPropagation: ${e.message}`);
     }
 
-    // Activity-Spots: SOTA, POTA, WWFF, GMA + SOTA-Alerts
-    // Fix v0.9031: WWBOTA entfernt (Domain tot)
+    // 7. Fetch Activity Spots (all inline — no sub-function calls)
     results.activities = {};
-    const activityApis = [
-      { name: 'sotaSpots', fn: 'fetchSotaSpots', payload: { scheduled: true } },
-      { name: 'sotaAlerts', fn: 'fetchSotaSpots', payload: { scheduled: true, alerts: true } },
-      { name: 'potaSpots', fn: 'fetchPotaSpots', payload: { scheduled: true } },
-      { name: 'wwffSpots', fn: 'fetchWwffSpots', payload: { scheduled: true } },
-      { name: 'gmaSpots', fn: 'fetchGmaSpots', payload: { scheduled: true } },
+    const activityFetches: { name: string; fn: () => Promise<any> }[] = [
+      { name: 'sotaSpots', fn: () => fetchSotaSpotsInline(base44, body) },
+      { name: 'sotaAlerts', fn: () => fetchSotaAlertsInline(base44) },
+      { name: 'potaSpots', fn: () => fetchPotaSpotsInline(base44, body) },
+      { name: 'wwffSpots', fn: () => fetchWwffSpotsInline(base44, body) },
+      { name: 'gmaSpots', fn: () => fetchGmaSpotsInline(base44, body) },
     ];
-    for (const api of activityApis) {
+
+    for (const { name, fn } of activityFetches) {
       try {
-        const raw = await callSubFunction(api.fn, api.payload);
-        const data = raw?.data || raw;
-        results.activities[api.name] = {
-          success: data?.success ?? true,
-          saved: data?.saved ?? 0,
-          warning: data?.warning || null,
-        };
+        const result = await fn();
+        results.activities[name] = { success: true, saved: result.saved, warning: result.warning || null };
       } catch (e: any) {
-        results.activities[api.name] = { success: false, error: e.message || 'failed' };
-        results.errors.push(`${api.name}: ${e.message || 'failed'}`);
+        results.activities[name] = { success: false, error: e.message };
+        results.errors.push(`${name}: ${e.message}`);
       }
     }
+
+    // 8. Skip loading all activities — frontend loads them separately from DB.
+    // Loading here causes rate-limit errors after many entity operations.
+    results.allActivities = [];
 
     return Response.json({
       success: results.errors.length === 0,

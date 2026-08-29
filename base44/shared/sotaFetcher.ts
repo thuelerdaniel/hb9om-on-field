@@ -89,8 +89,10 @@ export async function fetchSotaSummits(
 ): Promise<{ summits: any[]; associations: string[]; association_count: number }> {
   // Always use the CSV for worldwide data — it's a single HTTP request
   // and contains all ~125,000 summits globally.
+  // v0.9025: 300s timeout — CSV is large (~125k summits, ~20MB), needs generous timeout
   const resp = await fetch(SOTA_CSV_URL, {
-    headers: { 'Accept': 'text/csv', 'User-Agent': 'HB9OM-OnField/1.0' }
+    headers: { 'Accept': 'text/csv', 'User-Agent': 'HB9OM-OnField/1.0' },
+    signal: AbortSignal.timeout(300000),
   });
   if (!resp.ok) throw new Error(`SOTA CSV fetch failed: ${resp.status}`);
 

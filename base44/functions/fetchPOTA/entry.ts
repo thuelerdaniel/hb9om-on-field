@@ -1,14 +1,20 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { fetchPotaParks, POTA_ENTITIES } from '../../shared/potaFetcher.ts';
 import { upsertPoints } from '../../shared/pointUpsert.ts';
+import { isInternalCall } from '../../shared/internalAuth.ts';
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const isAuthed = await base44.auth.isAuthenticated();
-    if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    let body: any = {};
+    try { body = await req.json(); } catch {}
 
-    const body = await req.json();
+    // v0.9025: Allow internal calls (from automation) without auth
+    if (!isInternalCall(body)) {
+      const isAuthed = await base44.auth.isAuthenticated();
+      if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { entities, maxEntities } = body;
 
     // Determine entity codes to fetch
