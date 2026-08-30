@@ -87,16 +87,31 @@ export async function fetchSotaSummits(
   scope: string | string[] = 'all',
   maxAssociations?: number
 ): Promise<{ summits: any[]; associations: string[]; association_count: number }> {
-  // Always use the CSV for worldwide data — it's a single HTTP request
-  // and contains all ~125,000 summits globally.
-  // v0.9025: 300s timeout — CSV is large (~125k summits, ~20MB), needs generous timeout
-  const resp = await fetch(SOTA_CSV_URL, {
-    headers: { 'Accept': 'text/csv', 'User-Agent': 'HB9OM-OnField/1.0' },
-    signal: AbortSignal.timeout(300000),
-  });
-  if (!resp.ok) throw new Error(`SOTA CSV fetch failed: ${resp.status}`);
+  // PUNKT 7: 60s Timeout mit 3 Versuchen — 300s war zu lang und blockierte den Sync.
+  // CSV ist ~20MB, 125k Zeilen — 60s reicht bei normaler Bandbreite.
+  let lastError: string | null = null;
+  let text = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const resp = await fetch(SOTA_CSV_URL, {
+        headers: { 'Accept': 'text/csv', 'User-Agent': 'HB9OM-OnField/1.0' },
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!resp.ok) {
+        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 200));
+        throw new Error(`SOTA CSV HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`);
+      }
+      text = await resp.text();
+      break;
+    } catch (e: any) {
+      lastError = e?.name === 'TimeoutError' || e?.name === 'AbortError'
+        ? `SOTA CSV Timeout nach 60s (Versuch ${attempt + 1}/3)`
+        : `SOTA CSV: ${e?.message || 'Fetch fehlgeschlagen'} (Versuch ${attempt + 1}/3)`;
+      if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+  if (!text) throw new Error(lastError || 'SOTA CSV fetch failed');
 
-  const text = await resp.text();
   const lines = text.split('\n');
   if (lines.length < 2) return { summits: [], associations: [], association_count: 0 };
 

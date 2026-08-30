@@ -13,6 +13,7 @@ import { fetchSotaSummits } from '../../shared/sotaFetcher.ts';
 
 const TIME_BUDGET_MS = 100000; // 100s processing budget per call
 const BATCH_SIZE = 500; // SDK bulkCreate max is 500 records per call
+const PARALLEL_BATCHES = 3; // PUNKT 7: 3 concurrent — 5 verursacht Rate-Limit bei 125k Records
 
 Deno.serve(async (req) => {
   try {
@@ -46,47 +47,70 @@ Deno.serve(async (req) => {
       });
     }
 
-    // If offset=0, delete all existing records (fresh start of a new full-sync cycle)
-    if (offset === 0) {
-      try {
-        await base44.asServiceRole.entities.SotaPoint.deleteMany({});
-      } catch {}
-    }
+    // PUNKT 7: Sichere Refresh-Strategie — neue Records ERST erstellen, dann alte löschen.
+    // Verhindert Datenverlust bei Timeout während bulkCreate.
+    // Timestamp markiert den Start — alte Records werden erst am Ende gelöscht.
+    const syncStartTime = new Date().toISOString();
 
-    // Process from offset with time budget
+    // Process from offset with time budget — PARALLEL batches (5 concurrent)
     const startTime = Date.now();
     let processed = 0;
     let currentOffset = offset;
     let lastError: string | undefined;
 
     while (currentOffset < total && (Date.now() - startTime) < TIME_BUDGET_MS) {
-      const remaining = total - currentOffset;
-      const batchLen = Math.min(BATCH_SIZE, remaining);
-      const batch = allSummits.slice(currentOffset, currentOffset + batchLen);
-
-      const points = batch.map(s => ({
-        code: s.code,
-        name: s.name || s.code,
-        lat: s.lat,
-        lng: s.lng,
-        altitude_m: s.alt || 0,
-        points: s.points || 0,
-      }));
-
-      try {
-        await base44.asServiceRole.entities.SotaPoint.bulkCreate(points);
-        processed += batch.length;
-      } catch (e: any) {
-        lastError = e?.message || String(e);
-        // Continue with next batch — partial data is better than no data
+      // Prepare up to PARALLEL_BATCHES batches at once
+      const batchGroup: any[][] = [];
+      const batchOffsets: number[] = [];
+      for (let p = 0; p < PARALLEL_BATCHES && currentOffset + p * BATCH_SIZE < total; p++) {
+        const start = currentOffset + p * BATCH_SIZE;
+        const batchLen = Math.min(BATCH_SIZE, total - start);
+        const batch = allSummits.slice(start, start + batchLen).map(s => ({
+          code: s.code,
+          name: s.name || s.code,
+          lat: s.lat,
+          lng: s.lng,
+          altitude_m: s.alt || 0,
+          points: s.points || 0,
+        }));
+        batchGroup.push(batch);
+        batchOffsets.push(start);
       }
 
-      currentOffset += batch.length;
+      if (batchGroup.length === 0) break;
+
+      // Fire parallel bulkCreate
+      const results = await Promise.allSettled(
+        batchGroup.map(batch => base44.asServiceRole.entities.SotaPoint.bulkCreate(batch))
+      );
+      for (let j = 0; j < results.length; j++) {
+        if (results[j].status === 'fulfilled') {
+          processed += batchGroup[j].length;
+        } else {
+          lastError = (results[j] as any).reason?.message || String((results[j] as any).reason);
+        }
+      }
+
+      currentOffset += batchGroup.reduce((sum, b) => sum + b.length, 0);
+
+      // PUNKT 7: Kurze Pause zwischen Parallel-Gruppen um Rate-Limit zu vermeiden
+      await new Promise(r => setTimeout(r, 200));
+
+      // Check time budget after each parallel group
+      if (Date.now() - startTime >= TIME_BUDGET_MS) break;
     }
 
-    // Save new offset (reset to 0 when fully done, so next cycle starts fresh)
+    // PUNKT 7: Lösche alte Records erst wenn Sync KOMPLETT (sichere Refresh-Strategie)
     const hasMore = currentOffset < total;
     const newOffset = hasMore ? currentOffset : 0;
+
+    if (!hasMore) {
+      try {
+        await base44.asServiceRole.entities.SotaPoint.deleteMany({
+          created_date: { $lt: syncStartTime }
+        });
+      } catch {}
+    }
 
     try {
       const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: offsetKey });

@@ -13,6 +13,13 @@ const BATCH_SIZE = 10;        // Countries per batch — keeps memory low
 const DETAIL_BATCH = 6;       // Priority 1 countries get detail pages
 const DETAIL_PER_COUNTRY = 50; // Limited detail fetches for coordinates
 
+// PUNKT 8: US-Repeater nach Bundesstaat — Chunked Sync mit Zeitbudget
+// US hat 50+ Staaten, jeder mit eigener RepeaterBook-Seite (200-1000+ Relais).
+// Alle auf einmal überschreitet das Platform-Timeout.
+// Lösung: 3 Staaten pro Aufruf, 90s Zeitbudget, Fortschritt in AppSetting.
+const NA_TIME_BUDGET_MS = 90000; // 90s pro Aufruf
+const NA_STATES_PER_CALL = 3;   // 3 Staaten pro Aufruf (wie effectiveBatchSize)
+
 async function fetchWithTimeout(url: string, opts?: any): Promise<Response | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -104,6 +111,10 @@ export default async function(req) {
     let withCoords = 0;
     let deletedCount = 0;
     let jsonProtected = 0;
+    // PUNKT 8: NA-Chunking-Variablen (außerhalb des if-Blocks für Response-Zugriff)
+    let isNARegion = region === 'na_us' || region === 'na_ca';
+    let naHasMore = false;
+    let naStatesProcessed = 0;
 
     // --- Step 1: Delete existing repeaters for this region ---
     currentStep = 'delete_existing';
@@ -209,10 +220,54 @@ export default async function(req) {
 
       // US states have large list pages (200-1000+ repeaters each) — use smaller batches
       // to avoid exceeding the platform worker memory limit (128MB).
-      const isNARegion = region === 'na_us' || region === 'na_ca';
       const effectiveBatchSize = isNARegion ? 3 : BATCH_SIZE;
 
-      for (let i = 0; i < countriesToFetch.length; i += effectiveBatchSize) {
+      // PUNKT 8: Für NA-Regionen (US/CA) — Chunked Sync mit Zeitbudget
+      // Lese gespeicherten State-Offset aus AppSetting
+      let naStateOffset = 0;
+      if (isNARegion) {
+        const offsetKey = `na_repeater_offset_${region}`;
+        try {
+          const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: offsetKey });
+          if (settings.length > 0 && settings[0].value) {
+            naStateOffset = parseInt(settings[0].value) || 0;
+          }
+        } catch {}
+        // Wenn Offset=0, ist dies der erste Aufruf — lösche bestehende Region-Relais
+        if (naStateOffset === 0) {
+          try {
+            for (let attempt = 0; attempt < 50; attempt++) {
+              const existing = await base44.asServiceRole.entities.Repeater.filter(
+                { country_code: { $in: regionCountryCodes } },
+                "id", 5000, attempt * 5000
+              );
+              if (!existing || existing.length === 0) break;
+              const toDeleteIds = existing.filter(r => r.source_id !== "json-import").map(r => r.id);
+              jsonProtected += existing.length - toDeleteIds.length;
+              if (toDeleteIds.length > 0) {
+                await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: toDeleteIds } });
+              }
+              deletedCount += toDeleteIds.length;
+              if (existing.length < 5000) break;
+            }
+          } catch {}
+        }
+      }
+
+      const naStartTime = Date.now();
+
+      for (let i = (isNARegion ? naStateOffset : 0); i < countriesToFetch.length; i += effectiveBatchSize) {
+        // PUNKT 8: Bei NA-Regionen — prüfe Zeitbudget und Staaten-Limit
+        if (isNARegion) {
+          if (naStatesProcessed >= NA_STATES_PER_CALL) {
+            naHasMore = true;
+            break;
+          }
+          if (Date.now() - naStartTime > NA_TIME_BUDGET_MS) {
+            naHasMore = true;
+            break;
+          }
+        }
         const chunk = countriesToFetch.slice(i, i + effectiveBatchSize);
         const results = await Promise.all(chunk.map(async (country: any) => {
           try {
@@ -298,6 +353,21 @@ export default async function(req) {
         }
         // Clear batch from memory
         batchRepeaters = [];
+        if (isNARegion) naStatesProcessed += chunk.length;
+      }
+
+      // PUNKT 8: Speichere State-Offset für NA-Regionen (für nächsten Aufruf)
+      if (isNARegion) {
+        const offsetKey = `na_repeater_offset_${region}`;
+        const newOffset = naHasMore ? (naStateOffset + naStatesProcessed) : 0;
+        try {
+          const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: offsetKey });
+          if (settings.length > 0) {
+            await base44.asServiceRole.entities.AppSetting.update(settings[0].id, { value: String(newOffset) });
+          } else {
+            await base44.asServiceRole.entities.AppSetting.create({ key: offsetKey, value: String(newOffset) });
+          }
+        } catch {}
       }
     }
 
@@ -353,6 +423,8 @@ export default async function(req) {
       country_breakdown: countryBreakdown,
       json_protected: jsonProtected,
       duration_ms: Date.now() - startTime,
+      has_more: isNARegion ? naHasMore : false,
+      na_states_processed: isNARegion ? naStatesProcessed : 0,
     });
   } catch (error: any) {
     const errMsg = `Schwerwiegender Fehler beim Relais-Update (Schritt: ${currentStep}): ${error.message || error}`;

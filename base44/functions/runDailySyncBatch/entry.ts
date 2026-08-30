@@ -297,9 +297,10 @@ export default async function (req: Request): Promise<Response> {
     let result = await runSourceWithTimeout(base44, nextSource, timeout, cfg.incremental);
     let retried = false;
 
-    // ─── Retry on failure (1x after 30s) — but NOT for SOTA partial chunks ───
-    const isSotaPartial = nextSource.source === 'sota' && result.ok && result.data?.has_more;
-    const firstFailed = !isSotaPartial && (result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed'));
+    // ─── Retry on failure (1x after 30s) — but NOT for partial chunks (SOTA, US-Repeater) ───
+    const isPartialChunk = result.ok && result.data?.has_more &&
+      (nextSource.source === 'sota' || nextSource.source === 'repeater_na_us' || nextSource.source === 'repeater_na_ca');
+    const firstFailed = !isPartialChunk && (result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed'));
     if (firstFailed) {
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
       result = await runSourceWithTimeout(base44, nextSource, timeout, cfg.incremental);
@@ -349,6 +350,49 @@ export default async function (req: Request): Promise<Response> {
         progress_pct: progressPct,
         processed_so_far: processedSoFar,
         total: totalCount,
+        has_more: true,
+        duration_ms: duration,
+      });
+    }
+
+    // PUNKT 8: US/CA Repeater chunked — if has_more=true, keep status='pending' to resume next tick
+    if ((nextSource.source === 'repeater_na_us' || nextSource.source === 'repeater_na_ca') && result.ok && result.data?.has_more) {
+      const statesProcessed = result.data.na_states_processed || 0;
+      const totalSaved = result.data.total_saved || 0;
+      try {
+        await base44.asServiceRole.entities.DailyRefreshSchedule.update(nextSource.id, {
+          last_run_time: new Date().toISOString(),
+          last_status: 'pending', // Keep pending so it runs again next tick
+          last_count: totalSaved,
+          last_duration_ms: duration,
+          last_error: `Chunked: ${statesProcessed} Staaten verarbeitet`,
+        });
+      } catch {}
+
+      try {
+        await base44.asServiceRole.entities.SyncLog.create({
+          timestamp: new Date().toISOString(),
+          overall_status: 'partial',
+          total_duration_ms: duration,
+          results: [{
+            source: nextSource.source,
+            label: nextSource.label,
+            status: 'partial',
+            count: totalSaved,
+            duration_ms: duration,
+            error: `${statesProcessed} Staaten in diesem Chunk`,
+            retried: false,
+          }],
+          trigger: body.scheduled ? 'scheduled' : 'manual',
+        });
+      } catch {}
+
+      return Response.json({
+        status: 'processed_chunk',
+        day: effectiveDay,
+        source: nextSource.source,
+        na_states_processed: statesProcessed,
+        total_saved: totalSaved,
         has_more: true,
         duration_ms: duration,
       });
