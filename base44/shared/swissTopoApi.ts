@@ -16,9 +16,9 @@ export function isInSwitzerland(lat: number, lng: number): boolean {
 // LV95 (CH1903+) → WGS84 conversion
 // Formula: https://www.swisstopo.admin.ch/en/conversion-coordinates
 export function lv95ToWgs84(e: number, n: number): { lat: number; lng: number } {
-  // LV95 → LV03 offsets
-  const y = n - 2000000;
-  const x = e - 1000000;
+  // LV95 → LV03: E_LV03 = E_LV95 - 2000000, N_LV03 = N_LV95 - 1000000
+  const y = n - 1000000;
+  const x = e - 2000000;
 
   const yStrich = (x - 600000) / 1000000;
   const xStrich = (y - 200000) / 1000000;
@@ -222,6 +222,166 @@ export function simplifyPolygon(
     }
   }
   return polygon;
+}
+
+// WGS84 → LV95 (CH1903+) conversion
+// Formula: https://www.swisstopo.admin.ch/en/conversion-coordinates
+export function wgs84ToLv95(lat: number, lng: number): { e: number; n: number } {
+  const phi = (lat * 3600 - 169028.66) / 10000;
+  const lambda = (lng * 3600 - 26782.5) / 10000;
+
+  const e = 2600072.377
+    + 211455.93 * lambda
+    - 10938.51 * lambda * phi
+    - 0.36 * lambda * phi * phi
+    - 44.54 * lambda * lambda * lambda;
+  const n = 1200147.077
+    + 308807.95 * phi
+    + 3745.25 * lambda * lambda
+    - 76.83 * phi * phi
+    - 0.003 * lambda * lambda * phi * phi;
+
+  return { e: Math.round(e), n: Math.round(n) };
+}
+
+// Get elevation at an LV95 point from SwissTopo height REST API.
+// API: https://api3.geo.admin.ch/rest/services/height?easting=...&northing=...
+// Returns elevation in meters above sea level, or null on failure.
+export async function getElevation(e: number, n: number): Promise<number | null> {
+  const url = `https://api3.geo.admin.ch/rest/services/height?easting=${e}&northing=${n}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data?.height != null) return parseFloat(String(data.height));
+    return null;
+  } catch {
+    clearTimeout(timeout);
+    return null;
+  }
+}
+
+// Find the SOTA activation zone contour using radial elevation sampling.
+//
+// SOTA rule: the activation zone is the area bounded by the contour line that
+// is no more than 25 vertical metres below the summit. We sample elevations
+// along radial directions from the summit and find where the elevation crosses
+// the target contour (summitElevation - dropMeters) using linear interpolation.
+//
+// Returns a polygon [lat, lng][] or null if insufficient data.
+export async function findSotaActivationContour(
+  lat: number,
+  lng: number,
+  summitElevation: number,
+  dropMeters: number = 25,
+): Promise<[number, number][] | null> {
+  const center = wgs84ToLv95(lat, lng);
+
+  // If summit elevation not provided, get it from the API
+  let summitElev = summitElevation;
+  if (!summitElev || summitElev <= 0) {
+    const elev = await getElevation(center.e, center.n);
+    if (elev == null) return null;
+    summitElev = elev;
+  }
+
+  const target = summitElev - dropMeters;
+
+  // 16 radial directions (every 22.5°)
+  const numDirections = 16;
+  // Sample distances in meters — covers typical activation zone sizes
+  const sampleDistances = [15, 30, 60, 120, 250];
+
+  // Batch all elevation queries for parallel execution
+  const queries: { dirIdx: number; distIdx: number; e: number; n: number; dist: number }[] = [];
+  for (let i = 0; i < numDirections; i++) {
+    const angleRad = (i * 360 * Math.PI) / (numDirections * 180);
+    for (let d = 0; d < sampleDistances.length; d++) {
+      const dist = sampleDistances[d];
+      const e = Math.round(center.e + dist * Math.sin(angleRad));
+      const n = Math.round(center.n + dist * Math.cos(angleRad));
+      queries.push({ dirIdx: i, distIdx: d, e, n, dist });
+    }
+  }
+
+  // Execute in batches of 20 to avoid overwhelming the API
+  const results: { dirIdx: number; distIdx: number; dist: number; elevation: number }[] = [];
+  const batchSize = 20;
+  for (let start = 0; start < queries.length; start += batchSize) {
+    const batch = queries.slice(start, start + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (q) => {
+        const elev = await getElevation(q.e, q.n);
+        return { dirIdx: q.dirIdx, distIdx: q.distIdx, dist: q.dist, elevation: elev ?? -1 };
+      }),
+    );
+    results.push(...batchResults);
+  }
+
+  // Group results by direction
+  const contourPoints: [number, number][] = [];
+  for (let i = 0; i < numDirections; i++) {
+    const dirSamples = results
+      .filter((r) => r.dirIdx === i && r.elevation >= 0)
+      .sort((a, b) => a.dist - b.dist);
+
+    if (dirSamples.length === 0) continue;
+
+    // Find where elevation crosses target (going from above to below)
+    let foundDist: number | null = null;
+    let foundE: number | null = null;
+    let foundN: number | null = null;
+
+    for (let j = 0; j < dirSamples.length - 1; j++) {
+      const s1 = dirSamples[j];
+      const s2 = dirSamples[j + 1];
+      if (s1.elevation >= target && s2.elevation < target) {
+        // Linear interpolation between s1 and s2
+        const t = (s1.elevation - target) / (s1.elevation - s2.elevation);
+        const angleRad = (i * 360 * Math.PI) / (numDirections * 180);
+        const d = s1.dist + t * (s2.dist - s1.dist);
+        foundE = Math.round(center.e + d * Math.sin(angleRad));
+        foundN = Math.round(center.n + d * Math.cos(angleRad));
+        foundDist = d;
+        break;
+      }
+    }
+
+    // Fallback: if no crossing found
+    if (foundE == null) {
+      const angleRad = (i * 360 * Math.PI) / (numDirections * 180);
+      const last = dirSamples[dirSamples.length - 1];
+      const first = dirSamples[0];
+      if (last.elevation >= target) {
+        // All above target — use farthest sample (broad summit)
+        foundE = Math.round(center.e + last.dist * Math.sin(angleRad));
+        foundN = Math.round(center.n + last.dist * Math.cos(angleRad));
+      } else if (first.elevation < target) {
+        // All below target — very sharp summit, use 15m
+        foundE = Math.round(center.e + 15 * Math.sin(angleRad));
+        foundN = Math.round(center.n + 15 * Math.cos(angleRad));
+      } else {
+        foundE = Math.round(center.e + last.dist * Math.sin(angleRad));
+        foundN = Math.round(center.n + last.dist * Math.cos(angleRad));
+      }
+    }
+
+    const { lat: pLat, lng: pLng } = lv95ToWgs84(foundE, foundN);
+    contourPoints.push([pLat, pLng]);
+  }
+
+  if (contourPoints.length < 3) return null;
+
+  // Close the polygon
+  contourPoints.push(contourPoints[0]);
+
+  return contourPoints;
 }
 
 // SwissTopo layers relevant for amateur radio references

@@ -5,6 +5,7 @@ import {
   lv95ToWgs84,
   searchSwissNames,
   simplifyPolygon,
+  findSotaActivationContour,
   SWISSTOPO_LAYERS,
 } from "../../shared/swissTopoApi.ts";
 
