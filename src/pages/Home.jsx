@@ -1353,6 +1353,37 @@ export default function Home() {
     return result;
   }, [repeaters, repeaterFilterModes, repeaterExclusiveModes, repeaterFilterCountries, repeaterSearchQuery, activeContinents, activeCountries, repeaterRadiusKm, fixedPosition, userPosition]);
 
+  // Unified aggregation markers — ALL layer types combined for CountryAggregateLayer.
+  // When zoomed out, country-level badges replace individual markers across every layer.
+  const allAggregationMarkers = useMemo(() => {
+    const markers = [...allMarkers];
+    if (activeLayers.includes("lighthouse")) {
+      for (const l of filteredLighthouses) {
+        if (l.lat == null || l.lng == null) continue;
+        markers.push({ lat: l.lat, lng: l.lng, country_code: l.country_code, layerType: "lighthouse" });
+      }
+    }
+    if (activeLayers.includes("repeater")) {
+      for (const r of filteredRepeatersForExport) {
+        if (r.lat == null || r.lng == null) continue;
+        markers.push({ lat: r.lat, lng: r.lng, country_code: r.country_code, layerType: "repeater" });
+      }
+    }
+    if (activeLayers.includes("aprs")) {
+      for (const n of aprsNodes) {
+        if (n.lat == null || n.lng == null) continue;
+        markers.push({ lat: n.lat, lng: n.lng, country_code: n.country_code, layerType: "aprs" });
+      }
+    }
+    if (activeLayers.includes("brandmeister")) {
+      for (const n of bmNodes) {
+        if (n.lat == null || n.lng == null) continue;
+        markers.push({ lat: n.lat, lng: n.lng, country_code: n.country_code, layerType: "brandmeister" });
+      }
+    }
+    return markers;
+  }, [allMarkers, activeLayers, filteredLighthouses, filteredRepeatersForExport, aprsNodes, bmNodes]);
+
   const visibleRepeaterCount = filteredRepeatersForExport.length;
 
   // Visible TOTA count
@@ -1508,7 +1539,7 @@ export default function Home() {
           boundaryRadiusMap={boundaryRadiusMap}
         />
         <CountryAggregateLayer
-          markers={allMarkers}
+          markers={allAggregationMarkers}
           extraMarkers={totaAggregationPoints}
           activeLayers={activeLayers}
         />

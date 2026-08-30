@@ -14,7 +14,7 @@ const AGGREGATE_THRESHOLD = 6;
 // Layer colors (matches LAYER_COLORS in Home.jsx)
 const LAYER_COLORS = {
   sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
-  castle: "#e67e22", iota: "#3498db", lighthouse: "#dc2626",
+  castle: "#e67e22", iota: "#3498db", lighthouse: "#dc2626", llota: "#0ea5e9",
   tota: "#f97316", repeater: "#3b82f6", aprs: "#f59e0b", brandmeister: "#e11d48",
 };
 

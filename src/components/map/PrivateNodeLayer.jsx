@@ -1,11 +1,12 @@
-import React, { memo, useMemo } from "react";
-import { CircleMarker, Popup, Marker, useMap } from "react-leaflet";
+import React, { memo, useMemo, useState } from "react";
+import { CircleMarker, Popup, Marker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { Radio, Globe, Signal, Network, MapPin, Navigation, Hash } from "lucide-react";
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
 import { isInContinents } from "@/lib/continents";
 import { isInCountries } from "@/lib/countries";
 import DraggablePopup from "@/components/map/DraggablePopup";
+import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
 
 const NODE_TYPE_LABELS = {
   repeater_node: "Digipeater / Relais",
@@ -146,6 +147,8 @@ function PrivateNodePopup({ node, userPosition, colorScheme }) {
 
 function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTypes, searchQuery, sourceFilter, colorScheme, filterCountries, activeContinents, activeCountries }) {
   const map = useMap();
+  const [zoom, setZoom] = useState(map.getZoom());
+  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   const circleRadius = performanceMode ? (isTouch ? 7 : 5) : (isTouch ? 9 : 7);
   const circleWeight = isTouch ? 3 : 2;
@@ -197,6 +200,10 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
   const MAX = 5000;
   const renderNodes = cappedNodes.length > MAX ? cappedNodes.slice(0, MAX) : cappedNodes;
 
+  // Zoom-based aggregation: when zoomed out below threshold with many nodes,
+  // CountryAggregateLayer shows country-level badges instead — skip individual markers
+  const isAggregated = zoom < AGGREGATE_THRESHOLD && visibleNodes.length > 200;
+
   // Custom SVG icon for private nodes — square with double lightning bolt
   // Cached per color to avoid re-creating L.divIcon on every render
   const iconCache = useMemo(() => new Map(), []);
@@ -213,6 +220,9 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
     iconCache.set(cacheKey, icon);
     return icon;
   };
+
+  // Aggregation active — country badges take over, skip individual markers
+  if (isAggregated) return null;
 
   return (
     <>

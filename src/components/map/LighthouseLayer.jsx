@@ -3,6 +3,7 @@ import { Marker, Popup, CircleMarker, useMap, useMapEvents } from "react-leaflet
 import L from "leaflet";
 import { Anchor, Radio } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
+import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
 
 // 3-color system for lighthouse markers:
 // - Red (#dc2626): ILLW active (illw_active = true) — larger, highlighted
@@ -142,6 +143,11 @@ function LighthouseLayerInner({
     return result;
   }, [lighthouses, illwStatus, onlyIllwActive, illwYear, searchQuery, filterCountries]);
 
+  // Zoom-based aggregation: when zoomed out below threshold with many lighthouses,
+  // CountryAggregateLayer shows country-level badges instead — skip individual markers.
+  // ILLW-active lighthouses are always shown regardless (they're highlighted and rare).
+  const isAggregated = zoom < AGGREGATE_THRESHOLD && filteredLighthouses.length > 200;
+
   // Zoom-based visibility:
   // - ILLW active: always visible (even at zoom < 5)
   // - ILLW registered: visible from zoom 5 (was 8 — now shows all registered lighthouses worldwide)
@@ -153,11 +159,15 @@ function LighthouseLayerInner({
       const isActive = status?.illw_active;
       const hasIllw = !!illwNo;
 
+      // When aggregated (zoomed out + many lighthouses), only show ILLW-active —
+      // country badges take over for the rest
+      if (isAggregated) return isActive;
+
       if (isActive) return true;
       if (hasIllw) return zoom >= 5;
       return zoom >= 8;
     });
-  }, [filteredLighthouses, illwStatus, zoom]);
+  }, [filteredLighthouses, illwStatus, zoom, isAggregated]);
 
   // Render
   if (performanceMode) {
