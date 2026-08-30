@@ -8,16 +8,21 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9003";
+export const APP_VERSION = "0.95";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608301018";
+export const APP_BUILD = "202608301130";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.95: Karten-Symbol-Fix — Marker z-index 1000 (Symbole verschwinden nicht mehr hinter Basis-Layern)",
+  "v0.95: Aktivitätszonen als Toggle — steuert Sichtbarkeit aller Aktivitäts-Layer (SOTA, POTA, WWFF, LLOTA etc.)",
+  "v0.95: Coverage-Radius — Slider 0-500km im Layer-Panel, filtert Referenzen nach Entfernung mit visuellem Kreis",
+  "v0.95: Karten-Default-Position — HB9OM QTH Bern [46.979, 7.458] Zoom 9 (vorher 46.8, 8.2 Zoom 8)",
+  "v0.95: LLOTA-Alerts — JSON-API llota.app/api/scheduled-activations (vorher HTML-Parser)",
   "v0.9003: LLOTA — Lakes & Lagoons on the Air Integration (8.357 Seen in 54 Ländern)",
   "v0.9003: LLOTA — neue Karten-Ebene mit Wassertropfen-Markern, Aktivierungs-Status und Länder-Filter",
   "v0.9003: LLOTA — Live-Spots von llota.app + Spothole (Merge mit Koordinaten-Anreicherung)",
