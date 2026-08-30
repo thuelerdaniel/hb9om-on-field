@@ -1,6 +1,7 @@
 import React from "react";
 import { Castle } from "lucide-react";
 import UnifiedFilterShell from "@/components/map/UnifiedFilterShell";
+import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
 
 // WCA Filter — Burgen & Schlösser (PUNKT 11: unified filter design)
 // Castle data comes from OSM/Wikidata and has country_code and country fields.
@@ -14,6 +15,10 @@ export default function WcaFilter({
   onFilterCountriesChange,
   leftPx = 12,
   bottomPx = 230,
+  onToggleAllBoundaries,
+  allBoundariesActive = false,
+  activeBoundaryCount = 0,
+  onClearBoundaries,
 }) {
   return (
     <UnifiedFilterShell
@@ -34,6 +39,15 @@ export default function WcaFilter({
       extractCountryCode={(p) => p.country_code || p.code?.split(/[/ -]/)[0] || "?"}
       extractCountryName={(p) => p.country || p.country_code || "?"}
       infoText="WCA (World Castle Award) — Burgen, Schlösser und Festungen weltweit. Daten von OpenStreetMap und Wikidata."
-    />
+    >
+      <BoundaryToggleSection
+        layerType="castle"
+        allBoundariesActive={allBoundariesActive}
+        onToggleAllBoundaries={onToggleAllBoundaries}
+        activeBoundaryCount={activeBoundaryCount}
+        onClearBoundaries={onClearBoundaries}
+        accentColor="orange"
+      />
+    </UnifiedFilterShell>
   );
 }

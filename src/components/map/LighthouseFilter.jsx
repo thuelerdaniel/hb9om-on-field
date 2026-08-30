@@ -3,6 +3,7 @@ import { Anchor, ChevronDown, X, Search, Info, Radio } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
 
 export default function LighthouseFilter({
   searchQuery,
@@ -20,6 +21,10 @@ export default function LighthouseFilter({
   illwYear = null,
   onIllwYearChange,
   illwActiveCount = 0,
+  onToggleAllBoundaries,
+  allBoundariesActive = false,
+  activeBoundaryCount = 0,
+  onClearBoundaries,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_lighthouse");
@@ -153,6 +158,15 @@ export default function LighthouseFilter({
               )}
             </div>
           </div>
+
+          <BoundaryToggleSection
+            layerType="lighthouse"
+            allBoundariesActive={allBoundariesActive}
+            onToggleAllBoundaries={onToggleAllBoundaries}
+            activeBoundaryCount={activeBoundaryCount}
+            onClearBoundaries={onClearBoundaries}
+            accentColor="red"
+          />
 
           {/* Country/Continent multi-select filter */}
           <CountryContinentFilter

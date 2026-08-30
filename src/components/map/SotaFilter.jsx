@@ -3,6 +3,7 @@ import { Mountain, ChevronDown, X, Search, Info } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
 
 // Offizielle SOTA-Punkte-Tabelle (basierend auf Gipfelhöhe):
 // https://www.sotadata.org.uk/en/summits
@@ -73,6 +74,10 @@ export default function SotaFilter({
   leftPx = 12,
   bottomPx = 230,
   defaultOpen = true,
+  onToggleAllBoundaries,
+  allBoundariesActive = false,
+  activeBoundaryCount = 0,
+  onClearBoundaries,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_sota");
@@ -205,6 +210,15 @@ export default function SotaFilter({
               Offizielle SOTA-Punkte: 1P (150-499m) bis 150P (12000m+). <a href="https://www.sotadata.org.uk/en/summits" target="_blank" rel="noopener" className="text-red-500 hover:underline">Quelle</a>
             </p>
           </div>
+
+          <BoundaryToggleSection
+            layerType="sota"
+            allBoundariesActive={allBoundariesActive}
+            onToggleAllBoundaries={onToggleAllBoundaries}
+            activeBoundaryCount={activeBoundaryCount}
+            onClearBoundaries={onClearBoundaries}
+            accentColor="red"
+          />
 
           <CountryContinentFilter
             countries={countries}

@@ -61,6 +61,8 @@ import PotaFilter from "@/components/map/PotaFilter";
 import WwffFilter from "@/components/map/WwffFilter";
 import IotaFilter from "@/components/map/IotaFilter";
 import LlotaFilter from "@/components/map/LlotaFilter";
+import WwbotaFilter from "@/components/map/WwbotaFilter";
+import WcaFilter from "@/components/map/WcaFilter";
 import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
 
 // Safe storage wrappers (prevent QuotaExceededError crashes)
@@ -327,7 +329,7 @@ export default function Home() {
   // Boundary circles — toggled per-popup, shows radius circle around reference points
   // Map of key -> { data, layerType } — default OFF, user toggles in popup
   const [boundaryPoints, setBoundaryPoints] = useState([]);
-  const [showAllPotaBoundaries, setShowAllPotaBoundaries] = useState(false);
+  const [allBoundariesEnabled, setAllBoundariesEnabled] = useState(new Set());
   const boundaryKeys = useMemo(() => new Set(boundaryPoints.map(bp => `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}`)), [boundaryPoints]);
 
   const handleToggleBoundary = useCallback((data, layerType) => {
@@ -865,8 +867,9 @@ export default function Home() {
       });
     }
     // Coverage radius filter — show only references within radius of current position
-    const covPos = fixedPosition || userPosition;
-    if (coverageRadiusKm > 0 && covPos) {
+    // Uses same fallback as the Circle component (Bern default) so filtering works even without GPS
+    const covPos = fixedPosition || userPosition || [46.979, 7.458];
+    if (coverageRadiusKm > 0) {
       const R = 6371;
       markers = markers.filter(m => {
         if (m.lat == null || m.lng == null) return false;
@@ -879,36 +882,40 @@ export default function Home() {
     return markers;
   }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, iotaStatusFilter, iotaRegionFilter, llotaActivationFilter, coverageRadiusKm, fixedPosition, userPosition]);
 
-  // POTA boundary count — for display in PotaFilter
-  const potaBoundaryCount = useMemo(
-    () => boundaryPoints.filter(bp => bp.layerType === "pota").length,
+  // Boundary count per layer type — for display in filter panels
+  const getBoundaryCount = useCallback((layerType) =>
+    boundaryPoints.filter(bp => bp.layerType === layerType).length,
     [boundaryPoints]
   );
 
-  // Toggle all POTA boundaries at once — adds boundary circles for all visible POTA markers
-  const handleToggleAllPotaBoundaries = useCallback((enabled) => {
-    setShowAllPotaBoundaries(enabled);
+  // Toggle all boundaries for a given layer type — adds boundary circles for all visible markers
+  const handleToggleAllBoundaries = useCallback((layerType, enabled) => {
+    setAllBoundariesEnabled(prev => {
+      const next = new Set(prev);
+      if (enabled) next.add(layerType); else next.delete(layerType);
+      return next;
+    });
     if (enabled) {
-      const potaMarkers = allMarkers.filter(m => m.layerType === "pota");
-      const capped = potaMarkers.slice(0, 500);
+      const layerMarkers = allMarkers.filter(m => m.layerType === layerType);
+      const capped = layerMarkers.slice(0, 500);
       setBoundaryPoints(prev => {
         const existing = new Set(prev.map(bp =>
           `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}`
         ));
         const newPoints = capped
-          .filter(m => !existing.has(`pota-${m.code || m.reference || m.id || ""}`))
-          .map(m => ({ data: m, layerType: "pota", bulkAdded: true }));
+          .filter(m => !existing.has(`${layerType}-${m.code || m.reference || m.id || ""}`))
+          .map(m => ({ data: m, layerType, bulkAdded: true }));
         return [...prev, ...newPoints];
       });
     } else {
-      setBoundaryPoints(prev => prev.filter(bp => bp.layerType !== "pota"));
+      setBoundaryPoints(prev => prev.filter(bp => bp.layerType !== layerType));
     }
   }, [allMarkers]);
 
-  // Clear all POTA boundaries
-  const handleClearPotaBoundaries = useCallback(() => {
-    setBoundaryPoints(prev => prev.filter(bp => bp.layerType !== "pota"));
-    setShowAllPotaBoundaries(false);
+  // Clear all boundaries for a given layer type
+  const handleClearBoundaries = useCallback((layerType) => {
+    setBoundaryPoints(prev => prev.filter(bp => bp.layerType !== layerType));
+    setAllBoundariesEnabled(prev => { const n = new Set(prev); n.delete(layerType); return n; });
   }, []);
   // All loaded markers regardless of active layers — used by QSO form for reference selection
   const allMarkersUnfiltered = useMemo(() => {
@@ -1974,6 +1981,10 @@ export default function Home() {
               onFilterPointsChange={setSotaFilterPoints}
               altitudeRange={sotaAltitudeRange}
               onAltitudeRangeChange={setSotaAltitudeRange}
+              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("sota", en)}
+              allBoundariesActive={allBoundariesEnabled.has("sota")}
+              activeBoundaryCount={getBoundaryCount("sota")}
+              onClearBoundaries={() => handleClearBoundaries("sota")}
             />
           );
         }
@@ -1986,10 +1997,10 @@ export default function Home() {
               points={mapData.pota || []}
               filterCountries={potaFilterCountries}
               onFilterCountriesChange={setPotaFilterCountries}
-              onToggleAllBoundaries={handleToggleAllPotaBoundaries}
-              allBoundariesActive={showAllPotaBoundaries}
-              activeBoundaryCount={potaBoundaryCount}
-              onClearBoundaries={handleClearPotaBoundaries}
+              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("pota", en)}
+              allBoundariesActive={allBoundariesEnabled.has("pota")}
+              activeBoundaryCount={getBoundaryCount("pota")}
+              onClearBoundaries={() => handleClearBoundaries("pota")}
             />
           );
         }
@@ -2002,6 +2013,10 @@ export default function Home() {
               points={mapData.hbff || []}
               filterCountries={wwffFilterCountries}
               onFilterCountriesChange={setWwffFilterCountries}
+              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("hbff", en)}
+              allBoundariesActive={allBoundariesEnabled.has("hbff")}
+              activeBoundaryCount={getBoundaryCount("hbff")}
+              onClearBoundaries={() => handleClearBoundaries("hbff")}
             />
           );
         }
@@ -2018,6 +2033,10 @@ export default function Home() {
               onStatusFilterChange={setIotaStatusFilter}
               regionFilter={iotaRegionFilter}
               onRegionFilterChange={setIotaRegionFilter}
+              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("iota", en)}
+              allBoundariesActive={allBoundariesEnabled.has("iota")}
+              activeBoundaryCount={getBoundaryCount("iota")}
+              onClearBoundaries={() => handleClearBoundaries("iota")}
             />
           );
         }
@@ -2032,6 +2051,10 @@ export default function Home() {
               onFilterCountriesChange={setLlotaFilterCountries}
               activationFilter={llotaActivationFilter}
               onActivationFilterChange={setLlotaActivationFilter}
+              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("llota", en)}
+              allBoundariesActive={allBoundariesEnabled.has("llota")}
+              activeBoundaryCount={getBoundaryCount("llota")}
+              onClearBoundaries={() => handleClearBoundaries("llota")}
             />
           );
         }

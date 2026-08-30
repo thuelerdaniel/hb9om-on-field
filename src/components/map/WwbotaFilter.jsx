@@ -1,6 +1,7 @@
 import React from "react";
 import { Shield } from "lucide-react";
 import UnifiedFilterShell from "@/components/map/UnifiedFilterShell";
+import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
 
 // WWBOTA Filter — Bunker (PUNKT 9, 10: unified filter design + all countries)
 // WWBOTA reference data is stored in ReferenceData. Country extraction from code prefix.
@@ -15,6 +16,10 @@ export default function WwbotaFilter({
   onFilterCountriesChange,
   leftPx = 12,
   bottomPx = 230,
+  onToggleAllBoundaries,
+  allBoundariesActive = false,
+  activeBoundaryCount = 0,
+  onClearBoundaries,
 }) {
   return (
     <UnifiedFilterShell
@@ -35,6 +40,15 @@ export default function WwbotaFilter({
       extractCountryCode={(p) => p.country_code || p.code?.split(/[/ -]/)[0] || "?"}
       extractCountryName={(p) => p.country || p.country_code || "?"}
       infoText="WWBOTA (World Wide Bunkers on the Air) — Bunker und Befestigungsanlagen weltweit. Referenzdaten werden unabhängig von Live-Spots angezeigt."
-    />
+    >
+      <BoundaryToggleSection
+        layerType="wwbota"
+        allBoundariesActive={allBoundariesActive}
+        onToggleAllBoundaries={onToggleAllBoundaries}
+        activeBoundaryCount={activeBoundaryCount}
+        onClearBoundaries={onClearBoundaries}
+        accentColor="brown"
+      />
+    </UnifiedFilterShell>
   );
 }

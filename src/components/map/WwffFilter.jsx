@@ -3,6 +3,7 @@ import { Trees, ChevronDown, X, Search, Info } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
 
 export default function WwffFilter({
   searchQuery,
@@ -15,6 +16,10 @@ export default function WwffFilter({
   leftPx = 12,
   bottomPx = 230,
   defaultOpen = true,
+  onToggleAllBoundaries,
+  allBoundariesActive = false,
+  activeBoundaryCount = 0,
+  onClearBoundaries,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_wwff");
@@ -83,6 +88,15 @@ export default function WwffFilter({
               )}
             </div>
           </div>
+
+          <BoundaryToggleSection
+            layerType="hbff"
+            allBoundariesActive={allBoundariesActive}
+            onToggleAllBoundaries={onToggleAllBoundaries}
+            activeBoundaryCount={activeBoundaryCount}
+            onClearBoundaries={onClearBoundaries}
+            accentColor="purple"
+          />
 
           <CountryContinentFilter
             countries={countries}

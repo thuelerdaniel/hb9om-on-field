@@ -3,6 +3,7 @@ import { Droplets, ChevronDown, X, Search, Info } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
 
 export default function LlotaFilter({
   searchQuery,
@@ -17,6 +18,10 @@ export default function LlotaFilter({
   leftPx = 12,
   bottomPx = 230,
   defaultOpen = true,
+  onToggleAllBoundaries,
+  allBoundariesActive = false,
+  activeBoundaryCount = 0,
+  onClearBoundaries,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_llota");
@@ -109,6 +114,15 @@ export default function LlotaFilter({
               ))}
             </div>
           </div>
+
+          <BoundaryToggleSection
+            layerType="llota"
+            allBoundariesActive={allBoundariesActive}
+            onToggleAllBoundaries={onToggleAllBoundaries}
+            activeBoundaryCount={activeBoundaryCount}
+            onClearBoundaries={onClearBoundaries}
+            accentColor="sky"
+          />
 
           <CountryContinentFilter
             countries={countries}
