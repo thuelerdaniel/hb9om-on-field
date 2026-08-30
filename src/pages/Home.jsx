@@ -246,6 +246,7 @@ export default function Home() {
   const [placeResults, setPlaceResults] = useState([]);
   const [referenceResults, setReferenceResults] = useState([]);
   const [serverSearching, setServerSearching] = useState(false);
+  const latestSearchQueryRef = useRef("");
 
   // Position state
   const [userPosition, setUserPosition] = useState(null);
@@ -900,6 +901,7 @@ export default function Home() {
       return;
     }
     setServerSearching(true);
+    latestSearchQueryRef.current = searchQuery;
     const timer = setTimeout(() => {
       // Search places (Nominatim)
       base44.functions.invoke("searchPlaces", { query: searchQuery, limit: 10 })
@@ -917,7 +919,7 @@ export default function Home() {
       base44.functions.invoke("searchReferences", { query: currentQuery, center })
         .then(res => {
           // Ignore stale results from a previous query (race condition guard)
-          if (currentQuery !== searchQuery) return;
+          if (latestSearchQueryRef.current !== currentQuery) return;
           const refs = [];
           if (res.data?.references) {
             for (const [type, items] of Object.entries(res.data.references)) {
@@ -936,7 +938,7 @@ export default function Home() {
           setReferenceResults(refs);
         })
         .catch(() => {
-          if (currentQuery === searchQuery) setReferenceResults([]);
+          if (latestSearchQueryRef.current === currentQuery) setReferenceResults([]);
         });
     }, 500);
     return () => clearTimeout(timer);
