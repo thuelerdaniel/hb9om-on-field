@@ -188,7 +188,8 @@ export default async function(req: Request): Promise<Response> {
     const isAuthed = await base44.auth.isAuthenticated();
     if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json();
+    let body: any = {};
+    try { body = await req.json(); } catch { body = (typeof (req as any).body === 'object' ? (req as any).body : {}); }
     let { bounds, types, entityType, max_per_type } = body || {};
 
     if (!bounds || typeof bounds.north !== 'number' || typeof bounds.south !== 'number' ||
