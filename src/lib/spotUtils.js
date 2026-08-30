@@ -185,6 +185,34 @@ export function getReferenceUrl(activityType, reference) {
   return null;
 }
 
+// v0.95: Band-Berechnung für LLOTA-Spots — Frequency in Hz (z.B. 14335000 = 20m)
+export function freqHzToBand(freqHz) {
+  if (!freqHz) return '';
+  const mhz = freqHz / 1000000;
+  if (mhz >= 1.8 && mhz < 2.0) return '160m';
+  if (mhz >= 3.5 && mhz < 4.0) return '80m';
+  if (mhz >= 5.0 && mhz < 5.5) return '60m';
+  if (mhz >= 7.0 && mhz < 7.3) return '40m';
+  if (mhz >= 10.1 && mhz < 10.2) return '30m';
+  if (mhz >= 14.0 && mhz < 14.4) return '20m';
+  if (mhz >= 18.0 && mhz < 18.2) return '17m';
+  if (mhz >= 21.0 && mhz < 21.5) return '15m';
+  if (mhz >= 24.89 && mhz < 24.99) return '12m';
+  if (mhz >= 28.0 && mhz < 29.7) return '10m';
+  if (mhz >= 50 && mhz < 54) return '6m';
+  if (mhz >= 144 && mhz < 148) return '2m';
+  if (mhz >= 430 && mhz < 440) return '70cm';
+  return '';
+}
+
+// v0.95: Format frequency for display — handles both Hz and kHz input.
+// Values > 100000 are assumed to be Hz; smaller values are kHz.
+export function formatFreqDisplay(freq) {
+  if (!freq) return '—';
+  if (freq > 100000) return `${(freq / 1000000).toFixed(3)}`;
+  return `${(freq / 1000).toFixed(3)}`;
+}
+
 // Fix 9: WWBOTA scheme-basierte URLs
 export function getWwbotaUrl(reference) {
   if (!reference) return `https://wwbota.net/`;

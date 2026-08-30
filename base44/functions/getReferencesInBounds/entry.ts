@@ -132,6 +132,7 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
       description: r.description, access_info: r.access_info, info_url: r.info_url,
       country_name: r.country_name, country_code: r.country_code,
       activation_count: r.activation_count,
+      polygon: r.polygon,
       country: r.country_name,
     })
   },

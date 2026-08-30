@@ -3,7 +3,7 @@ import { RefreshCw, FileText, MapPin, CalendarClock, X, Info } from "lucide-reac
 import { base44 } from "@/api/base44Client";
 import PotaParkInfoPopup from "@/components/hunting/PotaParkInfoPopup";
 import { calcHearScore, scoreColor } from "@/lib/hearScore";
-import { isQRT, getFlagImg, getReferenceUrl } from "@/lib/spotUtils";
+import { isQRT, getFlagImg, getReferenceUrl, freqHzToBand, formatFreqDisplay } from "@/lib/spotUtils";
 
 // Activity Panel — v0.9026: 4 Tabs (Live Spot Activity Tab entfernt)
 // Tab 1 "SOTA":   NUR SOTA Live-Spots (ALLE, QRT gefiltert, kein Limit!)
@@ -36,9 +36,9 @@ function ageText(age) {
   return `${Math.floor(age / 3600)}h`;
 }
 
-function formatFreq(kHz) {
-  if (!kHz) return '—';
-  return `${(kHz / 1000).toFixed(3)}`;
+// v0.95: Use formatFreqDisplay from spotUtils — handles both Hz and kHz input
+function formatFreq(freq) {
+  return formatFreqDisplay(freq);
 }
 
 export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gpsPos, stationInfo }) {
@@ -239,6 +239,9 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
                 <div className="flex items-center gap-2 mt-1 text-[10px]">
                   {spot.frequency > 0 && (
                     <span className="text-[#0284c7] font-mono">{formatFreq(spot.frequency)}</span>
+                  )}
+                  {(spot.band || (tab === 'LLOTA' && spot.frequency ? freqHzToBand(spot.frequency) : '')) && (
+                    <span className="text-[10px] text-muted-foreground font-mono">{spot.band || freqHzToBand(spot.frequency)}</span>
                   )}
                   <span className="text-muted-foreground">{spot.mode || '—'}</span>
                   {spot.distance > 0 && (

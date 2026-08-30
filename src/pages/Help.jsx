@@ -404,6 +404,16 @@ const SECTIONS = [
         title: "App-Funktionen anpassen (Feature-Flags)",
         body: "In den Einstellungen unter «App-Funktionen anpassen» können Sie die App personalisieren: Layer ein-/ausschalten, Bänder aktivieren (Standard: nur 2m und 70cm), Werkzeuge ein-/ausblenden (GPS, Logbuch, QSO, Filter, Abdeckung, etc.), Offline-Funktionen und erweiterte Optionen. Die Einstellungen werden lokal gespeichert und mit dem Benutzerprofil synchronisiert. Schnell-Vorlagen (Minimal, Standard, KW-Modus, VHF/UHF, 2m/70cm) setzen alle Funktionen auf einmal. Der «Auf Standard zurücksetzen»-Button stellt die werkseitigen Standardwerte wieder her. Neue Benutzer starten mit minimaler Konfiguration (nur Log QSO, Layers, GPS).",
         example: "Einstellungen → App-Funktionen → «KW-Modus» Vorlage → nur KW-Bänder aktiv, VHF/UHF ausgeblendet, NVIS verfügbar → speichern."
+      },
+      {
+        title: "LLOTA – Lakes & Lagoons on the Air",
+        body: "LLOTA ist ein weltweites Aktivierungsprogramm für Seen und Lagunen mit 8.357 Referenzen in 54 Ländern (llota.app). Die Seen werden auf der Karte als farbige Polygone (See-Umrisse) dargestellt, nicht als einfache Marker. Farb-Codierung: Hellblau = noch nie aktiviert, Kräftiges Blau = bereits aktiviert (mit Marker-Pin und Aktivierungsanzahl), Pulsierender roter Ring = Live-Aktivierung (Spot vorhanden). Polygone werden ab Zoom-Stufe 10 gerendert, bei weiter herausgezoomt werden CircleMarker angezeigt. Beim Klick auf einen See öffnet sich ein Popup mit Referenz-Code, Name, Region, Beschreibung, Zugangsinformationen, Aktivierungsanzahl und Link zu llota.app. Im Hunting-Modul gibt es einen eigenen LLOTA-Tab mit allen aktiven LLOTA-Spots (Auto-Refresh 60s).",
+        example: "Layer «LLOTA – Lakes & Lagoons» aktivieren → Seen erscheinen als blaue Polygone → hineinzoomen (Zoom ≥ 10) für Polygon-Darstellung → Klick auf See → Popup mit Details."
+      },
+      {
+        title: "LLOTA Aktivierungs-Regeln",
+        body: "Aktivierung: Mindestens 10 QSOs müssen getätigt werden, maximal 200 m vom Ufer entfernt. Spots verfallen nach 30 Minuten Inaktivität. Auto-Spotting ist erlaubt. ADIF-Format: <MY_SIG>LLOTA und <MY_SIG_INFO>LLCL-0001 (Referenz-Code). Hunters (Jäger) müssen keinen Log-Upload durchführen — die Aktivierung gilt für den Aktivator. Die Band-Berechnung für LLOTA-Spots erfolgt automatisch aus der Frequenz (Hz): 14335000 Hz = 14.335 MHz = 20m Band.",
+        example: "Am Seeufer stehen → 10 QSOs funken → ADIF: <MY_SIG>LLOTA <MY_SIG_INFO>LLCH-0001 → Spot wird automatisch nach 30 Min. inaktiv."
       }
     ]
   },

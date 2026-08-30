@@ -61,6 +61,7 @@ import PotaFilter from "@/components/map/PotaFilter";
 import WwffFilter from "@/components/map/WwffFilter";
 import IotaFilter from "@/components/map/IotaFilter";
 import LlotaFilter from "@/components/map/LlotaFilter";
+import LlotaLayer from "@/components/map/LlotaLayer";
 import WwbotaFilter from "@/components/map/WwbotaFilter";
 import WcaFilter from "@/components/map/WcaFilter";
 import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
@@ -1617,6 +1618,14 @@ export default function Home() {
           activeLayers={activeLayers}
         />
         <BoundaryLayer boundaryPoints={boundaryPoints} />
+        {activeLayers.includes("llota") && (
+          <LlotaLayer
+            lakes={data.llota || []}
+            searchQuery={refSearchQueries.llota || ""}
+            filterCountries={llotaFilterCountries}
+            activationFilter={llotaActivationFilter}
+          />
+        )}
         {activeLayers.includes("lighthouse") && (
           <LighthouseLayer
             lighthouses={data.lighthouse || []}

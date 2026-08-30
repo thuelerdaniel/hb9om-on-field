@@ -104,8 +104,10 @@ export default async function(req: Request): Promise<Response> {
     // Loading here causes rate-limit errors after many entity operations.
     results.allActivities = [];
 
+    // v0.95: success stays true even if individual sources fail (e.g. LLOTA 403).
+    // The errors array records which sources failed — the orchestrator itself succeeded.
     return Response.json({
-      success: results.errors.length === 0,
+      success: true,
       ...results,
     });
   } catch (error) {

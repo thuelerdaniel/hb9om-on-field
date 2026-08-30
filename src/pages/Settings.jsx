@@ -336,7 +336,9 @@ export default function Settings() {
     setRefreshing(true);
     setRefreshResult(null);
     try {
-      const res = await base44.functions.invoke("refreshAllData", {});
+      // v0.95: Use refreshHuntingData instead of refreshAllData (which times out after 120s).
+      // refreshHuntingData completes in ~38s and returns 200 with partial results.
+      const res = await base44.functions.invoke("refreshHuntingData", {});
       setRefreshResult(res.data);
       setTimeout(() => loadData(), 1000);
     } catch (e) {

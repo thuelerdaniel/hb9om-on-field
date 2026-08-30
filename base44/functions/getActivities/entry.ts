@@ -40,12 +40,32 @@ export default async function(req: Request): Promise<Response> {
 
     // LLOTA-Spots separat laden — sie werden sonst vom 500-Limit verdrängt
     // weil SOTA/POTA/DX deutlich mehr Spots pro Zeiteinheit haben.
+    // v0.95: Band wird aus Frequency (Hz) berechnet, da LLOTA-Spots Frequency in Hz speichern.
     try {
       const llotaSpots = await base44.entities.ActivitySpot.filter({ activity_type: 'LLOTA' }, '-spot_time', 200);
       if (llotaSpots && llotaSpots.length > 0) {
         const existingIds = new Set(spots.map(s => s.id));
         for (const ls of llotaSpots) {
-          if (!existingIds.has(ls.id)) spots.push(ls);
+          if (!existingIds.has(ls.id)) {
+            // Ensure band is calculated from frequency (Hz) — override "Unknown" or empty
+            if ((!ls.band || ls.band === 'Unknown') && ls.frequency) {
+              const mhz = ls.frequency / 1000000;
+              if (mhz >= 1.8 && mhz < 2.0) ls.band = '160m';
+              else if (mhz >= 3.5 && mhz < 4.0) ls.band = '80m';
+              else if (mhz >= 5.0 && mhz < 5.5) ls.band = '60m';
+              else if (mhz >= 7.0 && mhz < 7.3) ls.band = '40m';
+              else if (mhz >= 10.1 && mhz < 10.2) ls.band = '30m';
+              else if (mhz >= 14.0 && mhz < 14.4) ls.band = '20m';
+              else if (mhz >= 18.0 && mhz < 18.2) ls.band = '17m';
+              else if (mhz >= 21.0 && mhz < 21.5) ls.band = '15m';
+              else if (mhz >= 24.89 && mhz < 24.99) ls.band = '12m';
+              else if (mhz >= 28.0 && mhz < 29.7) ls.band = '10m';
+              else if (mhz >= 50 && mhz < 54) ls.band = '6m';
+              else if (mhz >= 144 && mhz < 148) ls.band = '2m';
+              else if (mhz >= 430 && mhz < 440) ls.band = '70cm';
+            }
+            spots.push(ls);
+          }
         }
       }
     } catch {}
