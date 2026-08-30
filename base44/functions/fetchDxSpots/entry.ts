@@ -467,7 +467,7 @@ export default async function(req: Request): Promise<Response> {
         }
       };
       const safeUpdate = async (...args: Parameters<typeof updateStatus>) => {
-        try { await updateStatus(...args); } catch {}
+        try { await updateStatus(...args); } catch (e: any) { console.error(`[DataSourceStatus] update failed for ${args[0]}:`, e?.message || e); }
       };
       await safeUpdate('DX-Cluster (jo30.de)', 'DXCLUSTER', 'https://dxc.jo30.de/dxcache/spots', joSpots.length > 0, joSpots.length, apiWarning);
       await safeUpdate('Spothole (SIG-Filter)', 'API', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
