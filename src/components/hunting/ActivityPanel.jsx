@@ -18,6 +18,7 @@ const TABS = [
   { id: 'SOTA', label: 'SOTA', color: '#d97706' },
   { id: 'POTA', label: 'POTA', color: '#16a34a' },
   { id: 'WWFF', label: 'WWFF', color: '#0d9488' },
+  { id: 'LLOTA', label: 'LLOTA', color: '#0ea5e9' },
   { id: 'alerts', label: 'Alerts', color: '#7c3aed' },
 ];
 
@@ -147,6 +148,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
             const sourceColor = sourceType === 'SOTA' ? '#d97706'
               : sourceType === 'POTA' ? '#16a34a'
               : sourceType === 'WWFF' ? '#0d9488'
+              : sourceType === 'LLOTA' ? '#0ea5e9'
               : sourceType === 'WWBOTA' ? '#dc2626'
               : '#718096';
             const isAlert = isAlertsTab || spot.is_future;

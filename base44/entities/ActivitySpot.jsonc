@@ -19,6 +19,7 @@
         "IOTA",
         "TOTA",
         "LOTA",
+        "LLOTA",
         "MOTA",
         "HEMA",
         "SOTA-ALERT"
@@ -27,11 +28,11 @@
     },
     "reference": {
       "type": "string",
-      "description": "Referenz-Code (z.B. HB/VS-001, US-2465, JAFF-0177)"
+      "description": "Referenz-Code (z.B. HB/VS-001, US-2465, JAFF-0177, LLCH-0002)"
     },
     "name": {
       "type": "string",
-      "description": "Name des Summits / Parks / Gebiets"
+      "description": "Name des Summits / Parks / Gebiets / Sees"
     },
     "locationDesc": {
       "type": "string",
@@ -75,7 +76,7 @@
     },
     "source": {
       "type": "string",
-      "description": "Datenquelle (SOTA API, POTA API, WWFF-Spotline, WWBOTA-API, GMA-Feed, Spothole, DX-Cluster)"
+      "description": "Datenquelle (SOTA API, POTA API, WWFF-Spotline, WWBOTA-API, GMA-Feed, Spothole, DX-Cluster, LLOTA)"
     },
     "spot_time": {
       "type": "string",

@@ -34,7 +34,7 @@ const LOADING_TIMEOUT_MS = 30000;
 
 export function useMapData(activeLayers) {
   const [data, setData] = useState({
-    sota: [], pota: [], hbff: [], wwbota: [], castle: [], iota: [], lighthouse: [], tota: [],
+    sota: [], pota: [], hbff: [], wwbota: [], castle: [], iota: [], lighthouse: [], tota: [], llota: [],
   });
   const [repeaters, setRepeaters] = useState([]);
   const [privateNodes, setPrivateNodes] = useState([]);
@@ -147,7 +147,7 @@ export function useMapData(activeLayers) {
     // Clear reference types (sota, pota, hbff, wwbota, castle, iota, lighthouse) when their layer is turned off.
     // Without this, points stay on the map after the layer is toggled off because onViewportData
     // only updates types present in the response — it doesn't clear types that are no longer active.
-    const refTypes = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"];
+    const refTypes = ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "llota"];
     setData(prev => {
       let changed = false;
       const next = { ...prev };

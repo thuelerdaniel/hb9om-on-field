@@ -123,7 +123,7 @@
     },
     "my_reference": {
       "type": "string",
-      "description": "Meine Referenz (z.B. HB/AG-001)"
+      "description": "Meine Referenz (z.B. HB/AG-001, LLCH-0002)"
     },
     "my_reference_type": {
       "type": "string",
@@ -137,6 +137,7 @@
         "lighthouse",
         "repeater",
         "tota",
+        "llota",
         "aprs",
         "swiss_protected",
         "generell",

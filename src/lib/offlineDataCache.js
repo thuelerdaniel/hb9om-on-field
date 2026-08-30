@@ -38,6 +38,7 @@ const TYPE_CACHE_KEYS = {
   castle: "hb9om_refs_castle",
   iota: "hb9om_refs_iota",
   lighthouse: "hb9om_refs_lighthouse",
+  llota: "hb9om_refs_llota",
 };
 
 export async function cacheReferenceData(data) {

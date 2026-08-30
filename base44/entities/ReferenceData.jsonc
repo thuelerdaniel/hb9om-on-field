@@ -14,7 +14,8 @@
         "iota",
         "repeater",
         "aprs",
-        "tota"
+        "tota",
+        "llota"
       ],
       "description": "Referenz-Typ"
     },

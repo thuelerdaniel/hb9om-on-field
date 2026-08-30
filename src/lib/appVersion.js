@@ -8,16 +8,23 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.92";
+export const APP_VERSION = "0.94";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608300612";
+export const APP_BUILD = "202608300722";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.94: LLOTA — Lakes & Lagoons on the Air Integration (8.357 Seen in 54 Ländern)",
+  "v0.94: LLOTA — neue Karten-Ebene mit Wassertropfen-Markern, Aktivierungs-Status und Länder-Filter",
+  "v0.94: LLOTA — Live-Spots von llota.app + Spothole (Merge mit Koordinaten-Anreicherung)",
+  "v0.94: LLOTA — Hunting-Tab mit Live-Spot-Aktivitäten, Sortierung nach Zeit/Score",
+  "v0.94: LLOTA — QSO-Logger Integration (my_reference_type 'llota', ADIF MY_SIG/MY_SIG_INFO)",
+  "v0.94: LLOTA — Grenzradius-Kreise (200m Aktivierungszone, konfigurierbar im Popup)",
+  "v0.94: LLOTA — Referenz-Suche, getReferencesInBounds und searchReferences erweitert",
   "v0.92: SOTA-Punkte-Filter — offizielle SOTA-Punkte-Klassifizierung (1-150 P) basierend auf Gipfelhöhe",
   "v0.92: HolyCluster — zusätzliche DX-Cluster-Quelle in fetchDxSpots integriert",
   "v0.92: Live Spot Stream — kein Limit mehr (alle Spots anzeigen, nicht nur 100)",
@@ -190,6 +197,7 @@ export const DATA_SOURCES = [
   { name: "Leuchttürme", url: "Wikidata SPARQL + Fallback", count: "weltweit", schedule: "täglich 05:30 UTC" },
   { name: "APRS", url: "aprs.fi API (API-Key)", count: "Stationen weltweit", schedule: "täglich 06:00 UTC" },
   { name: "TOTA", url: "swiss_csv + wwtota.com", count: "Antennen/Türme", schedule: "täglich 06:30 UTC" },
+  { name: "LLOTA", url: "llota.app", count: "8.357 Seen/Lagunen", schedule: "wöchentlich Mo" },
   { name: "FM-Funknetz", url: "fm-funknetz.de", count: "Talkgruppen", schedule: "täglich 06:30 UTC" },
 ];
 

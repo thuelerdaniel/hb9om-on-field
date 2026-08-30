@@ -15,6 +15,7 @@ const DEFAULT_RADIUS_M = {
   castle: 200,
   iota: 1000,
   lighthouse: 100,
+  llota: 200,
 };
 
 const BOUNDARY_COLORS = {
@@ -25,6 +26,7 @@ const BOUNDARY_COLORS = {
   castle: "#e67e22",
   iota: "#3498db",
   lighthouse: "#dc2626",
+  llota: "#0ea5e9",
 };
 
 function BoundaryLayerInner({ boundaryPoints }) {

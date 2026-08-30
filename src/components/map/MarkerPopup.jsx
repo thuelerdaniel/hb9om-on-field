@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil, ChevronDown, ChevronUp, Navigation, MapPinned } from "lucide-react";
+import { Mountain, Trees, Castle, Building, MapPin, Anchor, ExternalLink, Pencil, ChevronDown, ChevronUp, Navigation, MapPinned, Droplets } from "lucide-react";
 import { getWwbotaLink, getWwbotaCountryName } from "@/lib/wwbotaSchemes";
 
 const LAYER_META = {
@@ -10,6 +10,7 @@ const LAYER_META = {
   castle: { icon: Castle, color: "#e67e22", label: "WCA/COTA", program: "Burgen on the Air", linkBase: "" },
   iota: { icon: MapPin, color: "#3498db", label: "IOTA", program: "Islands on the Air", linkBase: "https://www.iota-world.org/islands-on-the-air/iota-groups-islands.html?filter_search=" },
   lighthouse: { icon: Anchor, color: "#f39c12", label: "WLOTA", program: "Lighthouses on the Air", linkBase: "" },
+  llota: { icon: Droplets, color: "#0ea5e9", label: "LLOTA", program: "Lakes & Lagoons on the Air", linkBase: "https://llota.app/referencias.html?ref=" },
   swiss_protected: { icon: Trees, color: "#16a085", label: "BLN/Moor", program: "Bundesinventar", linkBase: "https://map.geo.admin.ch/" }
 };
 
@@ -28,7 +29,7 @@ function formatDistance(km) {
 }
 
 // Layer types that support boundary display (radius circle around the point)
-const BOUNDARY_LAYERS = new Set(["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"]);
+const BOUNDARY_LAYERS = new Set(["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "llota"]);
 
 // Layers with a fixed radius — no slider shown, radius is not adjustable
 const FIXED_RADIUS_LAYERS = new Set(["wwbota"]);
@@ -42,6 +43,7 @@ const DEFAULT_RADIUS_M = {
   castle: 200,
   iota: 1000,
   lighthouse: 100,
+  llota: 200,
 };
 
 // Slider range (meters) per layer type
@@ -52,6 +54,7 @@ const RADIUS_RANGE_M = {
   castle: { min: 50, max: 2000, step: 50 },
   iota: { min: 500, max: 20000, step: 500 },
   lighthouse: { min: 50, max: 1000, step: 50 },
+  llota: { min: 100, max: 2000, step: 100 },
 };
 
 export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode, userPosition, isBoundaryShown, onToggleBoundary, onBoundaryRadiusChange, boundaryRadius }) {
@@ -75,6 +78,7 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
     if (layerType === "sota" && data.code) return meta.linkBase + encodeURIComponent(data.code);
     if (layerType === "pota" && (data.reference || data.code)) return meta.linkBase + encodeURIComponent(data.reference || data.code);
     if (layerType === "iota" && (data.code || data.reference)) return meta.linkBase + encodeURIComponent(data.code || data.reference);
+    if (layerType === "llota" && (data.code || data.reference)) return meta.linkBase + encodeURIComponent(data.code || data.reference);
     if (layerType === "wwbota") return getWwbotaLink(data.scheme, data.code);
     if (data.link) return data.link;
     if (meta.linkBase) return meta.linkBase;
@@ -86,6 +90,7 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
     if (layerType === "sota") return "sotl.as";
     if (layerType === "pota") return "pota-map.fr";
     if (layerType === "iota") return "iota-world.org";
+    if (layerType === "llota") return "llota.app";
     return "Mehr Infos";
   })();
 
@@ -136,6 +141,22 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
           {data.canton && <p className="text-xs text-gray-500">{layerType === "castle" ? "Ort" : "Kanton"}: {data.canton}</p>}
           {data.country && <p className="text-xs text-gray-500">Land: {data.country}</p>}
           {data.activationCount !== undefined && <p className="text-xs text-gray-500">Aktivierungen: {data.activationCount}</p>}
+
+          {/* LLOTA-specific fields */}
+          {layerType === "llota" && data.activation_count != null && (
+            <div className="inline-flex items-center gap-1 mb-1.5 px-2 py-0.5 bg-sky-100 text-sky-800 rounded-full text-xs font-bold">
+              {data.activation_count > 0 ? `🌊 ${data.activation_count}× aktiviert` : 'Nie aktiviert'}
+            </div>
+          )}
+          {layerType === "llota" && data.grid_locator && (
+            <p className="text-xs text-gray-500">Locator: <span className="font-mono">{data.grid_locator}</span></p>
+          )}
+          {layerType === "llota" && data.description && (
+            <p className="text-xs text-gray-400 mt-1 line-clamp-2">{data.description}</p>
+          )}
+          {layerType === "llota" && data.access_info && (
+            <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">📍 {data.access_info}</p>
+          )}
 
           {distance != null && (
             <div className="flex items-center gap-1 text-xs text-blue-600 mt-1.5 bg-blue-50 rounded px-2 py-1">

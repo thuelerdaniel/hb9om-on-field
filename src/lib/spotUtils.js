@@ -174,6 +174,11 @@ export function getReferenceUrl(activityType, reference) {
       return `https://www.iota-world.org/iota-islands/iota-group/${reference}`;
     }
 
+    // LLOTA — Lakes & Lagoons on the Air
+    if (actType === 'LLOTA' || ref.match(/^LL[A-Z]{2}-\d{4}$/)) {
+      return `https://llota.app/referencias.html?ref=${reference}`;
+    }
+
     // WCA
     if (actType === 'WCA') return `https://www.castlesandcities.com/`;
   } catch {}

@@ -61,6 +61,7 @@ import SotaFilter, { altitudeToPoints } from "@/components/map/SotaFilter";
 import PotaFilter from "@/components/map/PotaFilter";
 import WwffFilter from "@/components/map/WwffFilter";
 import IotaFilter from "@/components/map/IotaFilter";
+import LlotaFilter from "@/components/map/LlotaFilter";
 import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
 
 // Safe storage wrappers (prevent QuotaExceededError crashes)
@@ -102,20 +103,20 @@ const SCALE_TO_ZOOM = { 10000: 14, 25000: 12, 50000: 10, 100000: 8 };
 // Layer colors for marker building
 const LAYER_COLORS = {
   sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
-  castle: "#e67e22", iota: "#3498db",   lighthouse: "#dc2626",
+  castle: "#e67e22", iota: "#3498db",   lighthouse: "#dc2626", llota: "#0ea5e9",
 };
 
 // Layer labels for search matching
 const LAYER_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
-  castle: "WCA", iota: "IOTA", lighthouse: "WLOTA",
+  castle: "WCA", iota: "IOTA", lighthouse: "WLOTA", llota: "LLOTA",
   repeater: "Relais", tota: "TOTA", aprs: "APRS", brandmeister: "BrandMeister",
 };
 
 // Build a unified markers array from all reference types (search uses ALL loaded data, not just active layers)
 function buildMarkers(data, activeLayers) {
   const markers = [];
-  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota"]) {
+  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "llota"]) {
     if (activeLayers && !activeLayers.includes(type)) continue;
     const refs = data[type] || [];
     for (const ref of refs) {
@@ -136,7 +137,7 @@ function buildMarkers(data, activeLayers) {
 // Build search candidates from ALL loaded data (regardless of active layers) for comprehensive search
 function buildSearchCandidates(data, repeaters) {
   const candidates = [];
-  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"]) {
+  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "llota"]) {
     const refs = data[type] || [];
     for (const ref of refs) {
       if (ref.lat == null || ref.lng == null) continue;
@@ -441,6 +442,10 @@ export default function Home() {
   const [iotaFilterCountries, setIotaFilterCountries] = useState(() => {
     try { return JSON.parse(safeGetItem("hb9om_iota_filter_countries")) || []; } catch { return []; }
   });
+  const [llotaFilterCountries, setLlotaFilterCountries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_llota_filter_countries")) || []; } catch { return []; }
+  });
+  const [llotaActivationFilter, setLlotaActivationFilter] = useState("all");
   const [sotaFilterPoints, setSotaFilterPoints] = useState([]);
   const [sotaAltitudeRange, setSotaAltitudeRange] = useState("all");
   const [iotaStatusFilter, setIotaStatusFilter] = useState("all");
@@ -450,7 +455,8 @@ export default function Home() {
     safeSetJSON("hb9om_pota_filter_countries", potaFilterCountries, 2048);
     safeSetJSON("hb9om_wwff_filter_countries", wwffFilterCountries, 2048);
     safeSetJSON("hb9om_iota_filter_countries", iotaFilterCountries, 2048);
-  }, [sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries]);
+    safeSetJSON("hb9om_llota_filter_countries", llotaFilterCountries, 2048);
+  }, [sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries]);
 
   // Save filter state to localStorage — debounced + size-limited + safeSetJSON.
   // Debounce (500ms) prevents rapid writes on every filter keystroke.
@@ -642,7 +648,7 @@ export default function Home() {
     // PUNKT 12: Apply country filters for SOTA, POTA, WWFF, IOTA
     const countryFilters = {
       sota: sotaFilterCountries, pota: potaFilterCountries,
-      hbff: wwffFilterCountries, iota: iotaFilterCountries,
+      hbff: wwffFilterCountries, iota: iotaFilterCountries, llota: llotaFilterCountries,
     };
     for (const [type, countries] of Object.entries(countryFilters)) {
       if (countries && countries.length > 0) {
@@ -689,8 +695,18 @@ export default function Home() {
         return code.startsWith(iotaRegionFilter + "-");
       });
     }
+    // LLOTA: activation filter
+    if (llotaActivationFilter !== "all") {
+      markers = markers.filter(m => {
+        if (m.layerType !== "llota") return true;
+        const count = m.activation_count || 0;
+        if (llotaActivationFilter === "activated") return count > 0;
+        if (llotaActivationFilter === "never") return count === 0;
+        return true;
+      });
+    }
     return markers;
-  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, iotaStatusFilter, iotaRegionFilter]);
+  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, iotaStatusFilter, iotaRegionFilter, llotaActivationFilter]);
   // All loaded markers regardless of active layers — used by QSO form for reference selection
   const allMarkersUnfiltered = useMemo(() => {
     const markers = buildMarkers(data, null);
@@ -1210,6 +1226,7 @@ export default function Home() {
       { type: "castle", label: "WCA", color: "#e67e22" },
       { type: "wwbota", label: "WWBOTA", color: "#795548" },
       { type: "iota", label: "IOTA", color: "#3498db" },
+      { type: "llota", label: "LLOTA", color: "#0ea5e9" },
     ];
     const refButtons = refTypes
       .filter(r => activeLayers.includes(r.type))
@@ -1711,6 +1728,20 @@ export default function Home() {
               onStatusFilterChange={setIotaStatusFilter}
               regionFilter={iotaRegionFilter}
               onRegionFilterChange={setIotaRegionFilter}
+            />
+          );
+        }
+        if (btn.type === "llota") {
+          return (
+            <LlotaFilter {...commonProps}
+              searchQuery={refSearchQueries.llota || ""}
+              onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, llota: q }))}
+              pointCount={btn.count} visibleCount={visibleCount}
+              points={mapData.llota || []}
+              filterCountries={llotaFilterCountries}
+              onFilterCountriesChange={setLlotaFilterCountries}
+              activationFilter={llotaActivationFilter}
+              onActivationFilterChange={setLlotaActivationFilter}
             />
           );
         }

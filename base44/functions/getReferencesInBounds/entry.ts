@@ -23,6 +23,7 @@ const TYPE_ALIASES: Record<string, string> = {
   'TotaPoint': 'tota',
   'IotaPoint': 'iota',
   'Lighthouse': 'lighthouse',
+  'LlotaRef': 'llota',
   'AprsStation': 'aprs',
   'Repeater': 'repeater',
   'PrivateNode': 'brandmeister',
@@ -122,6 +123,18 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
       dxcc: r.dxcc, source: r.source, link: r.link,
     })
   },
+  llota: {
+    entity: 'LlotaRef',
+    dedupField: 'code',
+    normalize: (r) => ({
+      code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng,
+      region: r.region, grid_locator: r.grid_locator,
+      description: r.description, access_info: r.access_info, info_url: r.info_url,
+      country_name: r.country_name, country_code: r.country_code,
+      activation_count: r.activation_count,
+      country: r.country_name,
+    })
+  },
 };
 
 async function loadReferenceData(base44, type: string): Promise<any[]> {
@@ -191,7 +204,7 @@ export default async function(req: Request): Promise<Response> {
     } else if (typeof entityType === 'string' && entityType.length > 0) {
       allTypes = [TYPE_ALIASES[entityType] || entityType];
     } else {
-      allTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota', 'aprs'];
+      allTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota', 'llota', 'aprs'];
     }
 
     const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;
@@ -227,7 +240,7 @@ export default async function(req: Request): Promise<Response> {
             }
           }
           // Sort by country code before capping — ensures geographic diversity
-          if (filtered.length > effectiveMax && (type === 'sota' || type === 'pota' || type === 'hbff' || type === 'tota' || type === 'iota')) {
+          if (filtered.length > effectiveMax && (type === 'sota' || type === 'pota' || type === 'hbff' || type === 'tota' || type === 'iota' || type === 'llota')) {
             filtered.sort((a, b) => {
               const ccA = a.country_code || (a.code || '').split(/[/ -]/)[0] || '';
               const ccB = b.country_code || (b.code || '').split(/[/ -]/)[0] || '';

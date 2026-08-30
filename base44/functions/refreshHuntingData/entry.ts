@@ -90,7 +90,17 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
-    // 8. Skip loading all activities — frontend loads them separately from DB.
+    // 8. Fetch LLOTA Spots (via sub-function call — isInternalCall allows it)
+    try {
+      const llotaResp = await base44.functions.invoke('fetchLlotaSpots', { ...body, scheduled: true });
+      const llotaData = llotaResp?.data || llotaResp;
+      results.activities.llotaSpots = { success: true, saved: llotaData?.saved || 0, warning: llotaData?.warning || null };
+    } catch (e: any) {
+      results.activities.llotaSpots = { success: false, error: e.message };
+      results.errors.push(`llotaSpots: ${e.message}`);
+    }
+
+    // 9. Skip loading all activities — frontend loads them separately from DB.
     // Loading here causes rate-limit errors after many entity operations.
     results.allActivities = [];
 

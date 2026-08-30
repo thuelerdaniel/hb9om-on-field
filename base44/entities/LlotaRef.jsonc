@@ -1,0 +1,72 @@
+{
+  "name": "LlotaRef",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "LLOTA Referenz-Code (z.B. LLCH-0002, LLES-0033)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name des Sees / der Lagune"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad"
+    },
+    "region": {
+      "type": "string",
+      "description": "Region/Provinz"
+    },
+    "grid_locator": {
+      "type": "string",
+      "description": "Maidenhead Grid Locator"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung des Sees",
+      "maxLength": 1000
+    },
+    "access_info": {
+      "type": "string",
+      "description": "Zugangsinfo"
+    },
+    "info_url": {
+      "type": "string",
+      "description": "Web-Link (Wikipedia etc.)"
+    },
+    "country_name": {
+      "type": "string",
+      "description": "Land"
+    },
+    "country_code": {
+      "type": "string",
+      "description": "Laendercode (z.B. CH, ES, AR)"
+    },
+    "activation_count": {
+      "type": "number",
+      "description": "Anzahl Aktivierungen",
+      "default": 0
+    },
+    "last_synced": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Synchronisation"
+    }
+  },
+  "required": [
+    "code",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

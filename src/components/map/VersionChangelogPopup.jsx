@@ -7,6 +7,24 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.94",
+    title: "LLOTA — Lakes & Lagoons on the Air",
+    changes: [
+      "LLOTA-Integration: 8.357 Seen und Lagunen in 54 Ländern weltweit (llota.app)",
+      "Neue Karten-Ebene 'LLOTA' mit Wassertropfen-Markern in Blau-Cyan (sky-500)",
+      "Aktivierungs-Status: Aktivierte Seen heller, nie aktivierte dunkler — Badge mit Anzahl",
+      "LLOTA-Filter: Länder-Auswahl (54 Länder), Aktivierungs-Status (Alle/Aktivierte/Nie), Suche",
+      "Live-Spots: Merge von llota.app API + Spothole (mit Koordinaten-Anreicherung)",
+      "Hunting-Tab 'LLOTA' mit Live-Spot-Aktivitäten, Auto-Refresh 60s, Sortierung nach Zeit/Score",
+      "QSO-Logger: my_reference_type 'llota' — ADIF-Export mit MY_SIG=LLOTA, MY_SIG_INFO=LLXX-0001",
+      "Grenzradius: 200m Aktivierungszone (LLOTA-Regel), konfigurierbar im Popup",
+      "Referenz-Suche: Globale Suche erweitert um LLOTA (reference_code, name, country)",
+      "Popup: Referenz-Code, See-Name, Land, Region, Grid-Locator, Aktivierungs-Anzahl, Beschreibung",
+      "Externer Link: llota.app/referencias.html mit Referenz-Code",
+      "Marker-Shape: Wassertropfen-Symbol für LLOTA-Ebene",
+    ],
+  },
+  {
     version: "0.9003",
     title: "Hunting-Fixes: Spot-Konsolidierung, mobile Tabelle, QSO aus Spot",
     changes: [

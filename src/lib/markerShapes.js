@@ -130,6 +130,15 @@ export const MARKER_SHAPES = {
     </svg>`,
     name: "TOTA (Aussichtsturm)"
   },
+  llota: {
+    // LLOTA — Water drop (lake/lagoon)
+    svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 2 C14 2 6 12 6 18 C6 23 10 26 14 26 C18 26 22 23 22 18 C22 12 14 2 14 2 Z" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M10 16 Q12 14 14 16 Q16 18 18 16" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.6"/>
+      <path d="M9 19 Q12 17 15 19 Q17 21 19 19" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.4"/>
+    </svg>`,
+    name: "Wassertropfen (See)"
+  },
   custom: {
     // Default circle pin
     svg: (color) => `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">

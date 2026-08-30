@@ -15,6 +15,7 @@ export const LAYER_ESTIMATES = {
   wwbota:       { points: 500,    mb: 0.1,  seconds: 2,  label: "WWBOTA-Bunker" },
   iota:         { points: 1200,   mb: 0.3,  seconds: 3,  label: "IOTA-Inseln" },
   lighthouse:   { points: 2000,   mb: 0.5,  seconds: 5,  label: "Leuchttürme" },
+  llota:         { points: 8357,   mb: 2,    seconds: 8,  label: "LLOTA-Seen & Lagunen" },
 };
 
 // Ab dieser geschätzten Ladezeit (Sekunden) erscheint der Bestätigungsdialog.

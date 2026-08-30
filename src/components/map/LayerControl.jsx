@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower, Droplets } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
@@ -63,6 +63,13 @@ const LAYER_GROUPS = [
     icon: Anchor,
     color: "#dc2626",
     description: "Leuchtturm-Referenzen — offizielle ILLW-Liste (wllw.org)"
+  },
+  {
+    id: "llota",
+    label: "LLOTA – Lakes & Lagoons",
+    icon: Droplets,
+    color: "#0ea5e9",
+    description: "Seen und Lagunen weltweit — 8.357 Referenzen in 54 Ländern (llota.app)"
   },
   {
     id: "swiss_protected",

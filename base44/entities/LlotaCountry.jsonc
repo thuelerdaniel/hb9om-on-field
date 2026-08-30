@@ -1,0 +1,51 @@
+{
+  "name": "LlotaCountry",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Laendercode (z.B. CH, ES, AR)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Landname"
+    },
+    "flag_image_url": {
+      "type": "string",
+      "description": "Flaggen-URL"
+    },
+    "is_dxcc_entity": {
+      "type": "number",
+      "description": "DXCC-Entity-Flag",
+      "default": 0
+    },
+    "parent_country_code": {
+      "type": "string",
+      "description": "Uebergeordneter Laendercode"
+    },
+    "total_references": {
+      "type": "number",
+      "description": "Anzahl Referenzen",
+      "default": 0
+    },
+    "total_activations": {
+      "type": "number",
+      "description": "Anzahl Aktivierungen",
+      "default": 0
+    },
+    "last_synced": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Synchronisation"
+    }
+  },
+  "required": [
+    "code"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}
