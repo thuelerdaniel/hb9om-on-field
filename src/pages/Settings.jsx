@@ -1006,6 +1006,9 @@ export default function Settings() {
           {/* Öffentliche GPS-Position — unabhängig vom lokalen GPS-Toggle */}
           <GpsPublicConfig />
         </section>
+
+        {/* PUNKT 14: Layer-Ladeanzeige zurücksetzen */}
+        <LayerLoadingReset />
         </CollapsibleSection>
 
         <CollapsibleSection title="Wavelog-Integration" icon={Server} defaultOpen={false}>
@@ -1019,7 +1022,6 @@ export default function Settings() {
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Offline & Sicherung</h2></div>
         <CollapsibleSection title="Offline-Modus" icon={WifiOff} defaultOpen={false} helpAnchor="#offline-modus" helpLabel="Hilfe zum Offline-Modus">
           <OfflineManager />
-          <LayerLoadingReset />
         </CollapsibleSection>
 
         <CollapsibleSection title="Datensicherung (Backup & Restore)" icon={HardDrive} defaultOpen={false} helpAnchor="#datensicherung" helpLabel="Hilfe zur Datensicherung"
