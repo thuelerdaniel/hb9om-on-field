@@ -213,7 +213,15 @@ Deno.serve(async (req) => {
     try {
       const aprsApiKey = process.env.APRS_FI_API_KEY;
       if (aprsApiKey) {
-        aprsResult = await fetchAprsData(base44, aprsApiKey);
+        // Wrap APRS fetch in a 15s timeout — prevents the whole orchestrator from
+        // hanging when aprs.fi is slow/unresponsive (was causing 144s worker timeout).
+        const aprsTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 15000)
+        );
+        aprsResult = await Promise.race([
+          fetchAprsData(base44, aprsApiKey),
+          aprsTimeout,
+        ]);
         results.push({
           type: 'aprs',
           status: 'success',

@@ -46,9 +46,12 @@ export function simplifyPolygon(geom: any[], maxPoints = 100): [number, number][
 async function tryOverpass(lat: number, lng: number, name: string): Promise<any | null> {
   const query = `[out:json][timeout:25];
 (
-  way(around:1000,${lat},${lng})["natural"="water"];
-  way(around:1000,${lat},${lng})["water"="lake"];
-  relation(around:1000,${lat},${lng})["natural"="water"];
+  way(around:2000,${lat},${lng})["natural"="water"];
+  way(around:2000,${lat},${lng})["water"="lake"];
+  way(around:2000,${lat},${lng})["waterway"="river"];
+  way(around:2000,${lat},${lng})["landuse"="reservoir"];
+  relation(around:2000,${lat},${lng})["natural"="water"];
+  relation(around:2000,${lat},${lng})["water"="lake"];
 );
 out geom;`;
 
