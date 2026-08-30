@@ -13,23 +13,36 @@ export default async function(req: Request): Promise<Response> {
     const { adif_data, target } = await req.json();
     if (!adif_data) return Response.json({ error: 'Keine ADIF-Daten übermittelt' }, { status: 400 });
 
-    // Get QRZ API key based on target
+    // PUNKT 4: Demo-Block — Demo-Account darf keine QSOs zu QRZ hochladen
+    const DEMO_EMAIL = 'demo@hb9om.ch';
+    if ((user as any).email === DEMO_EMAIL) {
+      return Response.json({
+        error: 'QRZ-Upload im Demo-Konto gesperrt. Bitte registriere dich für eigene Uploads.'
+      }, { status: 403 });
+    }
+
+    // PUNKT 3: User isolation — strikte Trennung von Club- und Personal-Key.
+    // Personal-Upload verwendet NUR den persönlichen Key (kein Fallback auf Club-Key).
+    // Club-Upload verwendet NUR den Club-Key aus dem Secret (kein Zugriff auf Personal-Keys).
     let apiKey = '';
 
     if (target === 'personal') {
-      // Use personal QRZ API key from user entity
+      // Personal: nur den persönlichen QRZ API-Key aus dem User-Entity
       apiKey = (user as any).qrz_api_key || '';
-    }
-
-    if (!apiKey) {
-      // Fall back to club API key from environment secret (QRZ_API_KEY)
+      if (!apiKey) {
+        return Response.json({
+          error: 'Kein persönlicher QRZ API-Key konfiguriert. Bitte in den Einstellungen erfassen (Mein Rufzeichen → QRZ API-Key).'
+        }, { status: 200 });
+      }
+    } else {
+      // Club: nur den Club-Key aus dem Environment-Secret (QRZ_API_KEY)
+      // Club-Upload ist für alle User erlaubt (Club-Log ist gemeinschaftlich)
       apiKey = Deno.env.get('QRZ_API_KEY') || '';
-    }
-
-    if (!apiKey) {
-      return Response.json({
-        error: 'Kein QRZ API-Key konfiguriert. Bitte in den Einstellungen erfassen (Club-Rufzeichen → QRZ API-Key oder persönlicher API-Key).'
-      }, { status: 200 });
+      if (!apiKey) {
+        return Response.json({
+          error: 'Kein Club QRZ API-Key konfiguriert. Bitte an den Administrator wenden.'
+        }, { status: 200 });
+      }
     }
 
     // Upload to QRZ logbook API

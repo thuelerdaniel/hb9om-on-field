@@ -45,12 +45,17 @@ export default function Log() {
   const [qrzUploading, setQrzUploading] = useState(false);
   const [qrzUploadResult, setQrzUploadResult] = useState(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [clubSyncLoading, setClubSyncLoading] = useState(false);
   const [loggingBackend, setLoggingBackend] = useState("qrz");
 
   useEffect(() => {
     loadEntries();
     // Check if demo account (point 13)
-    base44.auth.me().then(me => setIsDemo(me?.email === DEMO_EMAIL)).catch(() => {});
+    base44.auth.me().then(me => {
+      setIsDemo(me?.email === DEMO_EMAIL);
+      setIsAdmin(me?.role === "admin");
+    }).catch(() => {});
     // Load logging_backend setting (Wahlschalter: qrz oder wavelog)
     base44.entities.UserHuntingSettings.list()
       .then(data => { if (data && data.length > 0) setLoggingBackend(data[0].logging_backend || "qrz"); })
@@ -229,6 +234,53 @@ export default function Log() {
       setQrzUploadResult({ success: false, message: e.message || "Fehler beim Upload" });
     } finally {
       setQrzUploading(false);
+      setTimeout(() => setQrzUploadResult(null), 5000);
+    }
+  };
+
+  // PUNKT 5: Club-Log-Sync — lädt QSOs vom QRZ Club-Logbuch herunter und importiert sie
+  const handleClubLogSync = async () => {
+    setClubSyncLoading(true);
+    setQrzUploadResult(null);
+    try {
+      const res = await base44.functions.invoke("fetchQrzClubLog", {});
+      if (res.data?.error) {
+        setQrzUploadResult({ success: false, message: res.data.error });
+      } else if (res.data?.status === "success" && res.data?.adif_data) {
+        const adifData = res.data.adif_data;
+        // Parse ADIF and import into Log entity
+        const { parseAdifContent, mapAdifRecord } = await import("@/lib/adifParser");
+        const rawRecords = parseAdifContent(adifData);
+        let imported = 0;
+        let skipped = 0;
+        for (const raw of rawRecords) {
+          const { record, isValid } = mapAdifRecord(raw);
+          if (isValid && record.callsign && record.qso_date && record.frequency) {
+            record.is_clubstation = true;
+            record.wavelog_imported = true;
+            record.wavelog_import_date = new Date().toISOString();
+            try {
+              await createEntry(record);
+              imported++;
+            } catch {
+              skipped++;
+            }
+          } else {
+            skipped++;
+          }
+        }
+        setQrzUploadResult({
+          success: true,
+          message: `Club-Log-Sync: ${imported} QSOs importiert, ${skipped} übersprungen`,
+        });
+        loadEntries();
+      } else {
+        setQrzUploadResult({ success: false, message: "Keine QSOs im Club-Logbuch gefunden" });
+      }
+    } catch (e) {
+      setQrzUploadResult({ success: false, message: e.message || "Fehler beim Club-Log-Sync" });
+    } finally {
+      setClubSyncLoading(false);
       setTimeout(() => setQrzUploadResult(null), 5000);
     }
   };
@@ -482,6 +534,17 @@ export default function Log() {
                       title="Gefilterte QSOs zu persönlichem QRZ-Logbuch hochladen"
                     >
                       {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Pers.
+                    </button>
+                  )}
+                  {/* PUNKT 5: Club-Log-Sync — nur für Admins */}
+                  {isAdmin && (
+                    <button
+                      onClick={handleClubLogSync}
+                      disabled={clubSyncLoading}
+                      className="px-3 py-1.5 text-sm font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 flex items-center gap-1.5"
+                      title="QSOs vom QRZ Club-Logbuch herunterladen und importieren"
+                    >
+                      {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Club-Sync
                     </button>
                   )}
                 </>
