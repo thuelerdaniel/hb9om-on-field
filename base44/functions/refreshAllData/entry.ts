@@ -121,8 +121,10 @@ Deno.serve(async (req) => {
 
     const startTime = Date.now();
 
-    // Fetch admin overrides for reference data
-    const allOverrides = await base44.asServiceRole.entities.ReferenceOverride.list("-created_date", 500);
+    // Fetch admin overrides for reference data — wrapped in try/catch so a DB failure
+    // doesn't crash the whole orchestrator (overrides are optional, not critical)
+    let allOverrides = [];
+    try { allOverrides = await base44.asServiceRole.entities.ReferenceOverride.list("-created_date", 500); } catch {}
     const overridesByType = new Map();
     for (const ov of (allOverrides || [])) {
       if (!overridesByType.has(ov.reference_type)) overridesByType.set(ov.reference_type, new Map());
@@ -264,15 +266,18 @@ Deno.serve(async (req) => {
     const overallStatus = successCount === results.length ? 'success' : successCount > 0 ? 'partial' : 'failed';
 
     // SyncLog: scheduled runs use service role (no user context expected); manual runs use user context
+    // Wrapped in try/catch — a SyncLog write failure must never crash the orchestrator
     const isScheduled = body.scheduled === true;
     const syncLogClient = isScheduled ? base44.asServiceRole.entities.SyncLog : (user ? base44.entities.SyncLog : base44.asServiceRole.entities.SyncLog);
-    await syncLogClient.create({
-      timestamp: new Date().toISOString(),
-      overall_status: overallStatus,
-      total_duration_ms: totalDuration,
-      results: results,
-      trigger: isScheduled ? 'scheduled' : 'manual'
-    });
+    try {
+      await syncLogClient.create({
+        timestamp: new Date().toISOString(),
+        overall_status: overallStatus,
+        total_duration_ms: totalDuration,
+        results: results,
+        trigger: isScheduled ? 'scheduled' : 'manual'
+      });
+    } catch {}
 
     // Send db-update notification emails to admins who opted in
     try {
@@ -308,6 +313,14 @@ Deno.serve(async (req) => {
 
     return Response.json({ overall_status: overallStatus, total_duration_ms: totalDuration, results: results });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    // Never return 500 — the orchestrator must always return 200 with whatever
+    // partial results we have. A 500 would break the scheduled automation and
+    // prevent the admin from seeing which sources failed.
+    return Response.json({
+      overall_status: 'failed',
+      error: error.message || String(error),
+      results: [],
+      timestamp: new Date().toISOString(),
+    }, { status: 200 });
   }
 });
