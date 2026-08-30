@@ -347,6 +347,42 @@ export default function Home() {
         return [...prev, { data, layerType, polygonLoading: true }];
       }
 
+      // For SOTA in Switzerland, fetch the activation zone contour from SwissTopo
+      // elevation data. The contour follows the 25m vertical drop rule per SOTA
+      // regulations. While loading, the default 50m circle is shown as fallback.
+      if (layerType === "sota" && data.lat != null && data.lng != null &&
+          data.lat >= 45.8 && data.lat <= 47.9 && data.lng >= 5.9 && data.lng <= 10.6) {
+        base44.functions.invoke("fetchSwissTopoBoundaries", {
+          type: "sota_contour",
+          lat: data.lat,
+          lng: data.lng,
+          elevation: data.altitude_m || data.altitude || 0,
+          name: data.name,
+        }).then(res => {
+          if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
+                : bp
+            ));
+          } else {
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygonLoading: false }
+                : bp
+            ));
+          }
+        }).catch(() => {
+          setBoundaryPoints(prev => prev.map(bp =>
+            `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+              ? { ...bp, polygonLoading: false }
+              : bp
+          ));
+        });
+
+        return [...prev, { data, layerType, polygonLoading: true }];
+      }
+
       // For POTA in Switzerland, fetch the official BLN protected area boundary
       // from SwissTopo. While loading, the default 500m circle is shown as fallback.
       // If a BLN polygon is found, BoundaryLayer renders it instead of the circle.

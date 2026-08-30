@@ -49,6 +49,22 @@ function BoundaryLayerInner({ boundaryPoints }) {
 
         // Any layer with a polygon: render the polygon
         if (polygon && polygon.length > 2) {
+          // SOTA: activation zone contour from SwissTopo elevation data
+          if (layerType === "sota") {
+            return (
+              <Polygon
+                key={key}
+                positions={polygon}
+                pathOptions={{
+                  color: color,
+                  weight: 2,
+                  fillColor: color,
+                  fillOpacity: 0.15,
+                  interactive: false,
+                }}
+              />
+            );
+          }
           // LLOTA: lake outline + 200m buffer
           if (layerType === "llota") {
             const bufferPolygon = expandPolygon(polygon, LLOTA_BUFFER_M);

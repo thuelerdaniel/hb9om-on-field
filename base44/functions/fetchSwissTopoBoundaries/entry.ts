@@ -116,10 +116,10 @@ export default async function (req: Request): Promise<Response> {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { type, lat, lng, name, radius } = body;
+    const { type, lat, lng, name, radius, elevation } = body;
     if (!type) {
       return Response.json(
-        { error: "Missing 'type' parameter (bln, sota, or lake)" },
+        { error: "Missing 'type' parameter (bln, sota, sota_contour, or lake)" },
         { status: 400 },
       );
     }
@@ -199,6 +199,35 @@ export default async function (req: Request): Promise<Response> {
         success: false,
         error: 'No water body polygon found at coordinates',
         type: 'lake',
+        lat,
+        lng,
+      }, { status: 404 });
+    }
+
+    // --- SOTA Contour: Activation zone boundary from elevation data ---
+    // SOTA rule: activation zone = area within 25 vertical metres of summit.
+    // Uses SwissTopo height API to sample elevations radially and find the
+    // contour line at (summitElevation - 25m).
+    if (type === 'sota_contour') {
+      const dropMeters = body.drop_meters || 25;
+      const summitElev = elevation || 0;
+
+      const polygon = await findSotaActivationContour(lat, lng, summitElev, dropMeters);
+      if (polygon && polygon.length >= 3) {
+        return Response.json({
+          success: true,
+          type: 'sota_contour',
+          polygon,
+          name: name || '',
+          source: 'swisstopo-height',
+          drop_meters: dropMeters,
+        });
+      }
+
+      return Response.json({
+        success: false,
+        error: 'Could not determine SOTA activation contour from elevation data',
+        type: 'sota_contour',
         lat,
         lng,
       }, { status: 404 });
@@ -308,7 +337,7 @@ export default async function (req: Request): Promise<Response> {
     }
 
     return Response.json(
-      { error: `Unknown type: ${type}. Use 'bln', 'sota', or 'lake'.` },
+      { error: `Unknown type: ${type}. Use 'bln', 'sota', 'sota_contour', or 'lake'.` },
       { status: 400 },
     );
   } catch (error: any) {
