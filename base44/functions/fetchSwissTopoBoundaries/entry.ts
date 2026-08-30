@@ -51,7 +51,9 @@ export default async function (req: Request): Promise<Response> {
       }, { status: 400 });
     }
 
-    const tolerance = radius || 200;
+    // BLN boundaries can be large — use a generous search radius (2km default)
+    // to ensure the bounding box intersects the protected area polygon.
+    const tolerance = radius || (type === 'bln' ? 2000 : 500);
 
     // --- BLN: Protected landscape boundary (polygon) ---
     if (type === "bln") {
@@ -86,6 +88,7 @@ export default async function (req: Request): Promise<Response> {
         type: "bln",
         lat,
         lng,
+        debug: { featureCount: features.length, tolerance, layers: [SWISSTOPO_LAYERS.BLN, SWISSTOPO_LAYERS.BIOTOP, SWISSTOPO_LAYERS.MOOR, SWISSTOPO_LAYERS.AUEN] },
       }, { status: 404 });
     }
 

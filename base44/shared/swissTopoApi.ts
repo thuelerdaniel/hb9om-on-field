@@ -84,11 +84,19 @@ export async function identifyAtPoint(
       headers: { Accept: 'application/json' },
     });
     clearTimeout(timeout);
-    if (!resp.ok) return [];
+    if (!resp.ok) {
+      console.warn(`[SwissTopo] identify API returned ${resp.status}: ${resp.statusText}`);
+      return [];
+    }
     const data = await resp.json();
-    return data.results || [];
-  } catch {
+    const results = data.results || [];
+    if (results.length === 0) {
+      console.warn(`[SwissTopo] identify returned 0 results for layers=${layers.join(',')} at ${lat},${lng}`);
+    }
+    return results;
+  } catch (err) {
     clearTimeout(timeout);
+    console.warn(`[SwissTopo] identify fetch failed:`, err?.message || err);
     return [];
   }
 }
