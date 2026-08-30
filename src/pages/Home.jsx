@@ -1694,7 +1694,7 @@ export default function Home() {
         }
         if (btn.type === "pota") {
           return (
-            <PotaFilter {...commonProps}
+            <PotaFilter key={filterKey} {...commonProps}
               searchQuery={refSearchQueries.pota || ""}
               onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, pota: q }))}
               pointCount={btn.count} visibleCount={visibleCount}
@@ -1706,7 +1706,7 @@ export default function Home() {
         }
         if (btn.type === "hbff") {
           return (
-            <WwffFilter {...commonProps}
+            <WwffFilter key={filterKey} {...commonProps}
               searchQuery={refSearchQueries.hbff || ""}
               onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, hbff: q }))}
               pointCount={btn.count} visibleCount={visibleCount}
@@ -1718,7 +1718,7 @@ export default function Home() {
         }
         if (btn.type === "iota") {
           return (
-            <IotaFilter {...commonProps}
+            <IotaFilter key={filterKey} {...commonProps}
               searchQuery={refSearchQueries.iota || ""}
               onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, iota: q }))}
               pointCount={btn.count} visibleCount={visibleCount}
@@ -1734,7 +1734,7 @@ export default function Home() {
         }
         if (btn.type === "llota") {
           return (
-            <LlotaFilter {...commonProps}
+            <LlotaFilter key={filterKey} {...commonProps}
               searchQuery={refSearchQueries.llota || ""}
               onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, llota: q }))}
               pointCount={btn.count} visibleCount={visibleCount}
@@ -1749,7 +1749,7 @@ export default function Home() {
         // WCA, WWBOTA: keep simple search filter
         return (
           <ReferenceSearchFilter
-            key={`ref-filter-${btn.type}`}
+            key={filterKey}
             layerType={btn.type}
             label={btn.label}
             color={btn.color}
