@@ -70,36 +70,23 @@ function dedupAndSort(matches: any[], center: any): any[] {
 
 // Database-level regex search: anchored prefix match (^query) on code + name.
 // Anchored regex uses index prefix scan (~200ms); unanchored regex does full scan (29s+).
+// Tries both uppercase and lowercase variants to handle mixed-case codes and names.
 async function searchWithRegex(base44: any, entityName: string, q: string): Promise<any[]> {
   const allResults: any[] = [];
   const seen = new Set<string>();
-  const anchoredQ = '^' + q;
+  const qUpper = q.toUpperCase();
+  const qLower = q.toLowerCase();
 
-  // Search by code (anchored prefix) — high limit because DB has ~50 duplicate entries per code
-  try {
-    const codeResults = await base44.asServiceRole.entities[entityName].filter(
-      { code: { $regex: anchoredQ } },
-      'code',
-      1000
-    );
-    for (const r of (codeResults || [])) {
-      const key = r.id || r._id || r.code || JSON.stringify(r);
-      if (!seen.has(key)) {
-        seen.add(key);
-        allResults.push(r);
-      }
-    }
-  } catch {}
-
-  // Skip name search if code search already found enough unique results
-  if (allResults.length < MAX_PER_TYPE) {
+  // Search by code — try both uppercase (codes like "LLCH-0020") and original
+  for (const codeQ of [qUpper, q]) {
+    if (allResults.length >= MAX_PER_TYPE * 3) break;
     try {
-      const nameResults = await base44.asServiceRole.entities[entityName].filter(
-        { name: { $regex: anchoredQ } },
+      const codeResults = await base44.asServiceRole.entities[entityName].filter(
+        { code: { $regex: '^' + codeQ } },
         'code',
-        500
+        1000
       );
-      for (const r of (nameResults || [])) {
+      for (const r of (codeResults || [])) {
         const key = r.id || r._id || r.code || JSON.stringify(r);
         if (!seen.has(key)) {
           seen.add(key);
@@ -107,6 +94,27 @@ async function searchWithRegex(base44: any, entityName: string, q: string): Prom
         }
       }
     } catch {}
+  }
+
+  // Search by name — try both lowercase (e.g. "lago") and original case (e.g. "Lago")
+  if (allResults.length < MAX_PER_TYPE) {
+    for (const nameQ of [qLower, q]) {
+      if (allResults.length >= MAX_PER_TYPE * 3) break;
+      try {
+        const nameResults = await base44.asServiceRole.entities[entityName].filter(
+          { name: { $regex: '^' + nameQ } },
+          'code',
+          500
+        );
+        for (const r of (nameResults || [])) {
+          const key = r.id || r._id || r.code || JSON.stringify(r);
+          if (!seen.has(key)) {
+            seen.add(key);
+            allResults.push(r);
+          }
+        }
+      } catch {}
+    }
   }
 
   return allResults;
