@@ -125,6 +125,7 @@ async function searchPointTypePaginated(base44: any, type: string, q: string, ce
   const ptConfig = POINT_TYPES[type];
   if (!ptConfig) return [];
 
+  const qLower = q.toLowerCase(); // Lowercase for case-insensitive substring match
   const matches: any[] = [];
   const startTime = Date.now();
 
@@ -144,7 +145,7 @@ async function searchPointTypePaginated(base44: any, type: string, q: string, ce
       const normalized = ptConfig.normalize(r);
       const code = (normalized.code || '').toLowerCase();
       const name = (normalized.name || '').toLowerCase();
-      if (code.includes(q) || name.includes(q)) {
+      if (code.includes(qLower) || name.includes(qLower)) {
         matches.push(normalized);
         if (matches.length >= MAX_PER_TYPE * 2) break;
       }
@@ -198,34 +199,39 @@ async function searchReferenceDataType(base44: any, type: string, q: string, cen
 // Search repeaters (separate entity, moderate dataset)
 async function searchRepeaters(base44: any, q: string, center: any): Promise<any[]> {
   try {
-    // Anchored regex on callsign + location_name
+    // Anchored regex on callsign + location_name — try both cases
     let repeaters: any[] = [];
     const seen = new Set<string>();
-    const anchoredQ = '^' + q;
+    const qUpper = q.toUpperCase();
+    const qLower = q.toLowerCase();
 
-    try {
-      const callResults = await base44.asServiceRole.entities.Repeater.filter(
-        { callsign: { $regex: anchoredQ } },
-        '-created_date',
-        30
-      );
-      for (const r of (callResults || [])) {
-        const key = r.id || r._id || r.callsign;
-        if (!seen.has(key)) { seen.add(key); repeaters.push(r); }
-      }
-    } catch {}
+    for (const callQ of [qUpper, q]) {
+      try {
+        const callResults = await base44.asServiceRole.entities.Repeater.filter(
+          { callsign: { $regex: '^' + callQ } },
+          '-created_date',
+          30
+        );
+        for (const r of (callResults || [])) {
+          const key = r.id || r._id || r.callsign;
+          if (!seen.has(key)) { seen.add(key); repeaters.push(r); }
+        }
+      } catch {}
+    }
 
-    try {
-      const locResults = await base44.asServiceRole.entities.Repeater.filter(
-        { location_name: { $regex: anchoredQ } },
-        '-created_date',
-        30
-      );
-      for (const r of (locResults || [])) {
-        const key = r.id || r._id || r.callsign;
-        if (!seen.has(key)) { seen.add(key); repeaters.push(r); }
-      }
-    } catch {}
+    for (const locQ of [qLower, q]) {
+      try {
+        const locResults = await base44.asServiceRole.entities.Repeater.filter(
+          { location_name: { $regex: '^' + locQ } },
+          '-created_date',
+          30
+        );
+        for (const r of (locResults || [])) {
+          const key = r.id || r._id || r.callsign;
+          if (!seen.has(key)) { seen.add(key); repeaters.push(r); }
+        }
+      } catch {}
+    }
 
     const matches = (repeaters || [])
       .filter(r => r.lat != null && r.lng != null)
@@ -253,18 +259,21 @@ async function searchAprsStations(base44: any, q: string, center: any): Promise<
   try {
     let stations: any[] = [];
     const seen = new Set<string>();
+    const qUpper = q.toUpperCase();
 
-    try {
-      const callResults = await base44.asServiceRole.entities.AprsStation.filter(
-        { callsign: { $regex: '^' + q } },
-        '-created_date',
-        30
-      );
-      for (const r of (callResults || [])) {
-        const key = r.id || r._id || r.callsign;
-        if (!seen.has(key)) { seen.add(key); stations.push(r); }
-      }
-    } catch {}
+    for (const callQ of [qUpper, q]) {
+      try {
+        const callResults = await base44.asServiceRole.entities.AprsStation.filter(
+          { callsign: { $regex: '^' + callQ } },
+          '-created_date',
+          30
+        );
+        for (const r of (callResults || [])) {
+          const key = r.id || r._id || r.callsign;
+          if (!seen.has(key)) { seen.add(key); stations.push(r); }
+        }
+      } catch {}
+    }
 
     const matches = (stations || [])
       .filter(r => r.lat != null && r.lng != null)

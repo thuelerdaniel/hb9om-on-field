@@ -244,6 +244,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [placeResults, setPlaceResults] = useState([]);
+  const [referenceResults, setReferenceResults] = useState([]);
   const [serverSearching, setServerSearching] = useState(false);
 
   // Position state
