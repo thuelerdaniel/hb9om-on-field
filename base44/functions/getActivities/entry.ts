@@ -224,8 +224,44 @@ export default async function(req: Request): Promise<Response> {
       console.log('[WWFF] Agendas fetch failed:', e.message);
     }
 
-    // Alle Alerts kombiniert: DB-Alerts + SOTA-Alerts + WWFF-Agendas
-    const allAlerts = [...dbAlerts, ...sotaAlerts, ...wwffAgendas];
+    // LLOTA-Alerts (geplante LLOTA-Aktivierungen) von Spothole API
+    let llotaAlerts: any[] = [];
+    try {
+      const resp = await fetch('https://spothole.app/api/v2/alerts?sig=LLOTA&limit=100', {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (resp.ok) {
+        const raw = await resp.json();
+        if (Array.isArray(raw)) {
+          llotaAlerts = raw.map((a: any) => {
+            const sigRef = (a.sig_refs && a.sig_refs[0]) ? a.sig_refs[0] : {};
+            return {
+              call: (a.dx_calls && a.dx_calls[0]) || '',
+              activity_type: 'LLOTA-ALERT',
+              reference: sigRef.id || '',
+              name: sigRef.name || '',
+              frequency: 0,
+              mode: a.freqs_modes || '',
+              spot_time: a.start_time_iso || null,
+              comments: a.comment || '',
+              spotter: '',
+              source: 'Spothole-LLOTA-Alert',
+              is_active: false,
+              is_future: true,
+              latitude: sigRef.latitude != null ? Number(sigRef.latitude) : undefined,
+              longitude: sigRef.longitude != null ? Number(sigRef.longitude) : undefined,
+            };
+          }).filter((s: any) => s.call && s.reference);
+          console.log('[LLOTA] Alerts received:', llotaAlerts.length);
+        }
+      }
+    } catch (e: any) {
+      console.log('[LLOTA] Alerts fetch failed:', e.message);
+    }
+
+    // Alle Alerts kombiniert: DB-Alerts + SOTA-Alerts + WWFF-Agendas + LLOTA-Alerts
+    const allAlerts = [...dbAlerts, ...sotaAlerts, ...wwffAgendas, ...llotaAlerts];
 
     console.log('[Activities] Live:', liveSpots.length, 'Alerts:', allAlerts.length);
 

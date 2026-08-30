@@ -144,6 +144,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
           displaySpots.map((spot, i) => {
             const sourceType = spot.activity_type === 'SOTA-ALERT' ? 'SOTA'
               : spot.activity_type === 'WWFF-ALERT' ? 'WWFF'
+              : spot.activity_type === 'LLOTA-ALERT' ? 'LLOTA'
               : spot.activity_type || 'SOTA';
             const sourceColor = sourceType === 'SOTA' ? '#d97706'
               : sourceType === 'POTA' ? '#16a34a'
@@ -320,7 +321,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
         <div className="px-3 py-1.5 bg-[#7c3aed]/5 border-b border-[#7c3aed]/20 flex items-start gap-1.5">
           <AlertCircle className="w-3 h-3 text-[#7c3aed] flex-shrink-0 mt-0.5" />
           <div className="text-[9px] text-muted-foreground">
-            POTA hat keine geplante API — nur Live-Spots im POTA-Tab. WWBOTA ist nicht mehr verfügbar.
+            Geplante Aktivierungen: SOTA-Alerts, WWFF-Agendas und LLOTA-Alerts (via Spothole). POTA hat keine geplante API.
           </div>
         </div>
       )}
