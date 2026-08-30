@@ -32,7 +32,8 @@ function formatDistance(km) {
 const BOUNDARY_LAYERS = new Set(["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "llota"]);
 
 // Layers with a fixed radius — no slider shown, radius is not adjustable
-const FIXED_RADIUS_LAYERS = new Set(["wwbota"]);
+// LLOTA uses the actual lake outline + 200m buffer (no circle, no slider)
+const FIXED_RADIUS_LAYERS = new Set(["wwbota", "llota"]);
 
 // Default radius (meters) per layer type — used for boundary circle and slider initial value
 const DEFAULT_RADIUS_M = {
@@ -236,10 +237,19 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
               )}
               {isBoundaryShown && FIXED_RADIUS_LAYERS.has(layerType) && (
                 <div className="mt-2 px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-200 text-center">
-                  <span className="text-[10px] font-medium text-amber-800">Radius fix: </span>
-                  <span className="text-[10px] font-bold text-amber-900">
-                    {currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(1)} km` : `${currentRadius} m`}
-                  </span>
+                  {layerType === "llota" ? (
+                    <>
+                      <span className="text-[10px] font-medium text-amber-800">Aktivierungszone: </span>
+                      <span className="text-[10px] font-bold text-amber-900">See-Kontur + 200m Puffer</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[10px] font-medium text-amber-800">Radius fix: </span>
+                      <span className="text-[10px] font-bold text-amber-900">
+                        {currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(1)} km` : `${currentRadius} m`}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
             </>

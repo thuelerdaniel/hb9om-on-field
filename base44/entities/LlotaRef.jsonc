@@ -52,6 +52,17 @@
       "description": "Anzahl Aktivierungen",
       "default": 0
     },
+    "polygon": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "description": "[lat, lng] Koordinatenpaar"
+      },
+      "description": "Vereinfachtes Polygon der See-Kontur (OSM Overpass), Array von [lat, lng] Punkten"
+    },
     "last_synced": {
       "type": "string",
       "format": "date-time",

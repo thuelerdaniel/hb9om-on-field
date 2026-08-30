@@ -309,6 +309,43 @@ export default function Home() {
       if (existing >= 0) {
         return prev.filter((_, i) => i !== existing);
       }
+
+      // For LLOTA, fetch the actual lake polygon from OSM via backend function.
+      // While loading, a 200m circle is shown as fallback (BoundaryLayer handles this).
+      // Once the polygon arrives, BoundaryLayer switches to the lake outline + 200m buffer.
+      if (layerType === "llota" && data.lat != null && data.lng != null) {
+        base44.functions.invoke("fetchLlotaPolygon", {
+          code: data.code || data.reference,
+          lat: data.lat,
+          lng: data.lng,
+          name: data.name,
+        }).then(res => {
+          if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
+                : bp
+            ));
+          } else {
+            // No polygon found — keep the 200m circle fallback
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygonLoading: false }
+                : bp
+            ));
+          }
+        }).catch(() => {
+          // Fetch failed — keep the 200m circle fallback
+          setBoundaryPoints(prev => prev.map(bp =>
+            `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+              ? { ...bp, polygonLoading: false }
+              : bp
+          ));
+        });
+
+        return [...prev, { data, layerType, polygonLoading: true }];
+      }
+
       return [...prev, { data, layerType }];
     });
   }, []);
