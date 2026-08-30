@@ -106,14 +106,10 @@ const LAYER_GROUPS = [
     color: "#14b8a6",
     description: "DMR-Relais und Hotspots im BrandMeister-Netzwerk mit Talkgroups (TG) und DMR-IDs — eigenständiges Netzwerk, nicht APRS"
   },
-  {
-    id: "activity_zones",
-    label: "Aktivitätszonen (Radius-Kreise)",
-    icon: Ruler,
-    color: "#f59e0b",
-    description: "Aktivitätszonen um Referenzpunkte (SOTA/POTA/WCA/IOTA/TOTA) als konfigurierbare Radius-Kreise"
-  }
 ];
+
+// Activity layer IDs — controlled by the "Aktivitätszonen" toggle (not a layer itself)
+const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "iota", "lighthouse", "llota", "swiss_protected"];
 
 const BASE_LAYERS = [
   { id: "osm", label: "OpenStreetMap" },
@@ -128,7 +124,7 @@ const MAP_SCALES = [
   { id: "100000", label: "1:100'000" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry, externalIsOpen, onOpenChange }) {
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry, externalIsOpen, onOpenChange, activityZonesEnabled, onToggleActivityZones, coverageRadiusKm, onCoverageRadiusChange }) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [showCountries, setShowCountries] = useState(false);
   const { containerRef } = useDraggablePosition("drag-layer-control");
@@ -344,54 +340,107 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
           </div>
           )}
 
-          {/* Overlay-Ebenen */}
+          {/* Aktivitätszonen Toggle — steuert Sichtbarkeit aller Aktivitäts-Layer */}
+          <div className="p-4 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+                  <Ruler className="w-4 h-4" /> Aktivitätszonen
+                </h3>
+                <p className="text-[10px] text-gray-400 mt-1">Zeigt/versteckt alle Aktivitäts-Layer (SOTA, POTA, WWFF, LLOTA, etc.)</p>
+              </div>
+              <button
+                onClick={() => onToggleActivityZones?.()}
+                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ml-2 ${
+                  activityZonesEnabled ? "bg-blue-600" : "bg-gray-300"
+                }`}
+                title={activityZonesEnabled ? "Aktivitätszonen ausblenden" : "Aktivitätszonen einblenden"}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  activityZonesEnabled ? "translate-x-5" : ""
+                }`} />
+              </button>
+            </div>
+            {activityZonesEnabled && coverageRadiusKm != null && onCoverageRadiusChange && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-gray-700">Coverage-Radius</span>
+                  <span className="text-xs font-mono text-gray-600">
+                    {coverageRadiusKm === 0 ? "Alle (kein Filter)" : `${coverageRadiusKm} km`}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="500"
+                  step="10"
+                  value={coverageRadiusKm}
+                  onChange={e => onCoverageRadiusChange(parseInt(e.target.value))}
+                  className="w-full accent-blue-600"
+                />
+                <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
+                  <span>0 (alle)</span>
+                  <span>100 km</span>
+                  <span>500 km</span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">Zeigt nur Referenzen innerhalb dieses Radius um Ihre Position.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Overlay-Ebenen — Aktivitäts-Layer nur wenn Toggle ON, Basis-Layer immer */}
           <div className="p-4">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide mb-3">Overlay-Ebenen</h3>
             <div className="space-y-1">
-              {visibleLayerGroups.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-4">Keine Layer aktiviert — in Einstellungen aktivieren</p>
-              )}
-              {visibleLayerGroups.map(group => {
-                const isActive = activeLayers.includes(group.id);
-                const Icon = group.icon;
-                return (
-                  <div key={group.id} className="rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => onToggleLayer(group.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-all rounded-lg ${
-                        isActive
-                          ? "bg-gray-50 border border-gray-200"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <div
-                        className="w-5 h-5 flex-shrink-0 flex items-center justify-center"
-                        style={{ opacity: isActive ? 1 : 0.4 }}
-                        dangerouslySetInnerHTML={{ __html: getMarkerSvg(group.id, group.color) }}
-                      />
-                      <Icon className="w-4 h-4 flex-shrink-0" style={{ color: isActive ? group.color : '#9ca3af' }} />
-                      <span className={`flex-1 text-left ${isActive ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
-                        {group.label}
-                      </span>
-                      {LAYER_ESTIMATES[group.id] && (
-                        <span className="text-[10px] text-gray-400 dark:text-slate-500 flex items-center gap-1.5 mr-1">
-                          <span>{formatPointsShort(LAYER_ESTIMATES[group.id].points)}</span>
-                          <span>·</span>
-                          <span>{LAYER_ESTIMATES[group.id].mb} MB</span>
+              {(() => {
+                const activityGroups = visibleLayerGroups.filter(g => ACTIVITY_LAYER_IDS.includes(g.id));
+                const baseGroups = visibleLayerGroups.filter(g => !ACTIVITY_LAYER_IDS.includes(g.id));
+                const groupsToShow = activityZonesEnabled ? [...activityGroups, ...baseGroups] : baseGroups;
+                if (groupsToShow.length === 0) {
+                  return <p className="text-xs text-gray-400 text-center py-4">Keine Layer verfügbar</p>;
+                }
+                return groupsToShow.map(group => {
+                  const isActive = activeLayers.includes(group.id);
+                  const Icon = group.icon;
+                  return (
+                    <div key={group.id} className="rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => onToggleLayer(group.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-all rounded-lg ${
+                          isActive
+                            ? "bg-gray-50 border border-gray-200"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        <div
+                          className="w-5 h-5 flex-shrink-0 flex items-center justify-center"
+                          style={{ opacity: isActive ? 1 : 0.4 }}
+                          dangerouslySetInnerHTML={{ __html: getMarkerSvg(group.id, group.color) }}
+                        />
+                        <Icon className="w-4 h-4 flex-shrink-0" style={{ color: isActive ? group.color : '#9ca3af' }} />
+                        <span className={`flex-1 text-left ${isActive ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                          {group.label}
                         </span>
+                        {LAYER_ESTIMATES[group.id] && (
+                          <span className="text-[10px] text-gray-400 dark:text-slate-500 flex items-center gap-1.5 mr-1">
+                            <span>{formatPointsShort(LAYER_ESTIMATES[group.id].points)}</span>
+                            <span>·</span>
+                            <span>{LAYER_ESTIMATES[group.id].mb} MB</span>
+                          </span>
+                        )}
+                        {isActive ? (
+                          <Eye className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <EyeOff className="w-4 h-4 text-gray-300" />
+                        )}
+                      </button>
+                      {isActive && (
+                        <p className="px-3 pb-2 text-xs text-gray-400 ml-10">{group.description}</p>
                       )}
-                      {isActive ? (
-                        <Eye className="w-4 h-4 text-gray-400" />
-                      ) : (
-                        <EyeOff className="w-4 h-4 text-gray-300" />
-                      )}
-                    </button>
-                    {isActive && (
-                      <p className="px-3 pb-2 text-xs text-gray-400 ml-10">{group.description}</p>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
