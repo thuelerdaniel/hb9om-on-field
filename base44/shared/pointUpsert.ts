@@ -61,10 +61,24 @@ export async function upsertPoints(
     }
   }
 
-  // 2. Delete old records ONLY if at least some new records were created
+  // 2. Delete old records in small batches — single deleteMany times out on MongoDB
+  //    when there are thousands of old records (20s server-side timeout).
+  //    Strategy: query old records in batches of 500, collect IDs, delete by IDs.
   if (created > 0) {
+    const DELETE_BATCH = 500;
+    const MAX_DELETE_ROUNDS = 200; // 200 * 500 = 100k records max
     try {
-      await entity.deleteMany({ created_date: { $lt: syncStartTime.toISOString() } });
+      for (let round = 0; round < MAX_DELETE_ROUNDS; round++) {
+        const oldRecords = await entity.filter(
+          { created_date: { $lt: syncStartTime.toISOString() } },
+          undefined, DELETE_BATCH, 0
+        );
+        if (!Array.isArray(oldRecords) || oldRecords.length === 0) break;
+        const ids = oldRecords.map(r => r.id).filter(Boolean);
+        if (ids.length === 0) break;
+        await entity.deleteMany({ id: { $in: ids } });
+        if (oldRecords.length < DELETE_BATCH) break;
+      }
     } catch (e) {
       // Non-fatal — old records remain but new ones are saved
     }
