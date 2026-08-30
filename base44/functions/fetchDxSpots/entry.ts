@@ -358,19 +358,6 @@ export default async function(req: Request): Promise<Response> {
       };
       await updateStatus('DX-Cluster (jo30.de)', 'DXCLUSTER', 'https://dxc.jo30.de/dxcache/spots', joSpots.length > 0, joSpots.length, apiWarning);
       await updateStatus('Spothole (SIG-Filter)', 'API', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
-
-      // Swiss DX-Cluster nodes — telnet-based, aggregated through jo30.de/Spothole (global DX-Cluster network).
-      // All cluster nodes are interconnected; spots posted to Swiss nodes appear in the aggregated feeds.
-      // Listed here for admin transparency — status reflects jo30.de connectivity (proxy for Swiss node availability).
-      const swissNodes = [
-        { name: 'DX-Cluster HB9DRV (Laax)', url: 'spider.ham-radio.ch:7300' },
-        { name: 'DX-Cluster HB9BZA', url: 'hb9bza.net:7300' },
-        { name: 'DX-Cluster HB9AK', url: 'ham-radio.ch:7300' },
-      ];
-      for (const node of swissNodes) {
-        // Swiss nodes are reachable if jo30.de is reachable (they're part of the same global network)
-        await updateStatus(node.name, 'DXCLUSTER', node.url, joSpots.length > 0, 0, apiWarning);
-      }
     } catch {}
 
     return Response.json({
