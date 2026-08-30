@@ -28,13 +28,17 @@ function formatDistance(km) {
 }
 
 // Layer types that support boundary display (radius circle around the point)
-const BOUNDARY_LAYERS = new Set(["sota", "pota", "hbff", "castle", "iota", "lighthouse"]);
+const BOUNDARY_LAYERS = new Set(["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse"]);
+
+// Layers with a fixed radius — no slider shown, radius is not adjustable
+const FIXED_RADIUS_LAYERS = new Set(["wwbota"]);
 
 // Default radius (meters) per layer type — used for boundary circle and slider initial value
 const DEFAULT_RADIUS_M = {
   sota: 50,
   pota: 500,
   hbff: 500,
+  wwbota: 1000,
   castle: 200,
   iota: 1000,
   lighthouse: 100,
@@ -190,7 +194,7 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
                 <MapPinned className="w-3 h-3" />
                 {isBoundaryShown ? "Grenze ausblenden" : "Grenze anzeigen"}
               </button>
-              {isBoundaryShown && onBoundaryRadiusChange && (
+              {isBoundaryShown && onBoundaryRadiusChange && !FIXED_RADIUS_LAYERS.has(layerType) && (
                 <div className="mt-2 px-1 py-1.5 bg-amber-50 rounded-lg border border-amber-200">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-medium text-amber-800">Radius</span>
@@ -207,6 +211,14 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
                     onChange={(e) => onBoundaryRadiusChange(data, layerType, parseInt(e.target.value))}
                     className="w-full h-1.5 accent-amber-500 cursor-pointer"
                   />
+                </div>
+              )}
+              {isBoundaryShown && FIXED_RADIUS_LAYERS.has(layerType) && (
+                <div className="mt-2 px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-200 text-center">
+                  <span className="text-[10px] font-medium text-amber-800">Radius fix: </span>
+                  <span className="text-[10px] font-bold text-amber-900">
+                    {currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(1)} km` : `${currentRadius} m`}
+                  </span>
                 </div>
               )}
             </>
