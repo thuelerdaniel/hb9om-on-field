@@ -1,5 +1,5 @@
-import React, { memo, useMemo, useRef, useEffect, useCallback } from "react";
-import { CircleMarker, Polyline, Popup, useMap, Marker, Circle, Polygon } from "react-leaflet";
+import React, { memo, useMemo, useRef, useEffect, useCallback, useState } from "react";
+import { CircleMarker, Polyline, Popup, useMap, useMapEvents, Marker, Circle, Polygon } from "react-leaflet";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
 import DraggablePopup from "@/components/map/DraggablePopup";
@@ -8,6 +8,7 @@ import { getModeColor, repeaterMatchesMode, FILTER_MODES, FEATURE_MODES } from "
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { isInContinents } from "@/lib/continents";
 import { isInCountries, getCountriesByContinent } from "@/lib/countries";
+import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
 
 // Approximate coverage radius (km) by band — based on typical VHF/UHF propagation
 const COVERAGE_RADIUS_KM = {
@@ -63,6 +64,8 @@ const LINE_DASH_ARRAYS = {
 
 function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, onRepeaterUpdate, activeContinents, activeCountries, isAdmin }) {
   const map = useMap();
+  const [zoom, setZoom] = useState(map.getZoom());
+  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
 
   // Build a map of linkKey → Set of sources ('repeaterbook', 'uska', 'admin').
   // A link is only displayed if it's confirmed by 2+ sources — exception: admin links always shown.
@@ -456,6 +459,10 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
 
   const allLines = [...linkLines, ...adminLinkLines];
 
+  // Zoom-based aggregation: when zoomed out below threshold with many repeaters,
+  // CountryAggregateLayer shows country-level badges instead — skip individual markers
+  const isAggregated = zoom < AGGREGATE_THRESHOLD && filteredRepeaters.length > 200;
+
   // Viewport culling
   const bounds = map.getBounds();
   const paddedBounds = bounds.pad(0.3);
@@ -565,8 +572,9 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
         />
       ))}
 
-      {/* Repeater markers — antenna icon in full mode, circle in performance mode */}
-      {cappedRepeaters.map((r, idx) => {
+      {/* Repeater markers — antenna icon in full mode, circle in performance mode.
+           Hidden when aggregated (zoom < threshold + many repeaters) — country badges take over. */}
+      {!isAggregated && cappedRepeaters.map((r, idx) => {
         const color = getModeColor(r.primary_mode);
         // Combine RepeaterBook crosslinks + admin-managed links for popup display
         const linkedResolved = [...resolveLinkedRepeaters(r), ...resolveAdminLinks(r)];
