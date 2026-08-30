@@ -23,6 +23,17 @@ const FIXED_SYMBOLS = new Set([
   '\\#', '\\I', '\\r', '\\_', '\\n', '\\j', '\\o', '\\a', '\\s', '\\[', '\\S', '\\p', '\\v', '\\L', '\\H', '\\D', '\\M', '\\Z',
 ]);
 
+// Derive APRS symbol from callsign suffix when the packet has no symbol.
+// /B = Beacon/Digipeater → /#, /D = Digipeater → /#, /I = I-Gate → /I
+function deriveSymbolFromCallsign(name: string): string {
+  if (!name) return '';
+  const upper = name.toUpperCase();
+  if (upper.endsWith('/B')) return '/#';
+  if (upper.endsWith('/D')) return '/#';
+  if (upper.endsWith('/I')) return '/I';
+  return '';
+}
+
 // Symbol → human-readable description
 const SYMBOL_DESCRIPTIONS: Record<string, string> = {
   '/#': 'Digipeater', '/I': 'I-Gate', '/r': 'Repeater (Voice)', '/_': 'Wetterstation',
@@ -176,7 +187,8 @@ export default async function (req: Request): Promise<Response> {
           else if (c.includes('igate')) symbol = '/I';
           else if (c.includes('digi')) symbol = '/#';
           else if (entry.type === 'd') symbol = '/#';
-          else continue; // Skip entries with no recognizable symbol
+          else symbol = deriveSymbolFromCallsign(entry.name);
+          if (!symbol) continue; // Skip entries with no recognizable symbol
         }
         if (!FIXED_SYMBOLS.has(symbol)) continue;
         freshData.set(entry.name.toUpperCase(), {
@@ -260,7 +272,8 @@ export default async function (req: Request): Promise<Response> {
           else if (c.includes('igate')) symbol = '/I';
           else if (c.includes('digi')) symbol = '/#';
           else if (entry.type === 'd') symbol = '/#';
-          else { firehoseSkipped++; continue; } // Skip entries with no recognizable symbol
+          else symbol = deriveSymbolFromCallsign(entry.name);
+          if (!symbol) { firehoseSkipped++; continue; } // Skip entries with no recognizable symbol
         }
         if (!FIXED_SYMBOLS.has(symbol)) { firehoseSkipped++; continue; } // Skip mobile/non-stationary
         firehoseData.set(entry.name.toUpperCase(), {

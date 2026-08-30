@@ -842,7 +842,7 @@ export default function Home() {
     // PUNKT 12: Apply country filters for SOTA, POTA, WWFF, IOTA
     const countryFilters = {
       sota: sotaFilterCountries, pota: potaFilterCountries,
-      hbff: wwffFilterCountries, llota: llotaFilterCountries,
+      hbff: wwffFilterCountries, llota: llotaFilterCountries, iota: iotaFilterCountries,
     };
     for (const [type, countries] of Object.entries(countryFilters)) {
       if (countries && countries.length > 0) {
@@ -895,7 +895,7 @@ export default function Home() {
       });
     }
     return markers;
-  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, llotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, llotaActivationFilter, coverageRadiusKm, fixedPosition, userPosition]);
+  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, llotaFilterCountries, iotaFilterCountries, iotaSearchQuery, iotaStatusFilter, iotaRegionFilter, sotaAltitudeRange, sotaFilterPoints, llotaActivationFilter, coverageRadiusKm, fixedPosition, userPosition]);
 
   // Boundary count per layer type — for display in filter panels
   const getBoundaryCount = useCallback((layerType) =>
