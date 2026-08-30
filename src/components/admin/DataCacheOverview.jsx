@@ -150,6 +150,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
       }
       let count = 0;
       let withCoords = 0;
+      let withPolygon = 0;
       const BATCH = 5000;
       for (let skip = 0; skip < 80000; skip += BATCH) {
         const batch = await base44.entities[entityName].list("id", BATCH, skip);
@@ -160,9 +161,12 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           if ((!r.lat || !r.lng) && r.locator && locatorToLatLng(r.locator)) return true;
           return false;
         }).length;
+        if (entityName === "LlotaRef") {
+          withPolygon += batch.filter(r => r.polygon && Array.isArray(r.polygon) && r.polygon.length > 2).length;
+        }
         if (batch.length < BATCH) break;
       }
-      return { total: count, withCoords };
+      return { total: count, withCoords, withPolygon };
     } catch (e) {
       return { total: 0, withCoords: 0 };
     }
@@ -190,16 +194,20 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
       }
 
       const totaStats = await countAllRecords("TotaPoint", null);
+      const llotaStats = await countAllRecords("LlotaRef", null);
       const privateNodeStats = await countAllRecords("PrivateNode", null);
       setExtraCounts({
         tota: totaStats?.total || 0,
+        llota: llotaStats?.total || 0,
+        llotaWithCoords: llotaStats?.withCoords || 0,
+        llotaWithPolygon: llotaStats?.withPolygon || 0,
         repeaterLinks: approvedLinks?.length || 0,
         repeaters: repeaterStats?.total || 0,
         repeatersWithCoords: repeaterStats?.withCoords || 0,
         privateNodes: privateNodeStats?.total || 0,
       });
     } catch (e) {
-      setExtraCounts({ tota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0 });
+      setExtraCounts({ tota: 0, llota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0 });
     } finally {
       setLoading(false);
     }
@@ -264,6 +272,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
     if (layerKey === "repeater") return refEntry?.total_count ?? (extraCounts?.repeaters ?? 0);
     if (layerKey === "aprs") return extraCounts?.privateNodes ?? 0;
     if (layerKey === "tota") return extraCounts?.tota ?? 0;
+    if (layerKey === "llota") return refEntry?.total_count ?? (extraCounts?.llota ?? 0);
     if (layerKey === "repeaterLinks") return extraCounts?.repeaterLinks ?? 0;
     // SOTA, POTA, WWFF, WWBOTA, castle, lighthouse, iota — use ReferenceData
     const refs = refEntry?.references || [];
@@ -292,6 +301,16 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   allStatuses.push(computeLayerStatus(aprsCount, null, null, null, false));
   // TOTA status
   allStatuses.push(computeLayerStatus(extraCounts?.tota, null, null, null, false));
+  // LLOTA status
+  const llotaRefEntry = refDataMap["llota"];
+  const llotaLastUpdated = llotaRefEntry?.last_updated ? new Date(llotaRefEntry.last_updated) : null;
+  allStatuses.push(computeLayerStatus(
+    getLayerCount("llota", llotaRefEntry),
+    extraCounts?.llotaWithCoords ?? null,
+    extraCounts?.llota ?? 0,
+    llotaLastUpdated,
+    false
+  ));
   // Repeater links
   allStatuses.push(computeLayerStatus(extraCounts?.repeaterLinks, null, null, null, false));
 
@@ -305,6 +324,7 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
   layerCounts.push(repeaterCount ?? 0);
   layerCounts.push(aprsCount ?? 0);
   layerCounts.push(extraCounts?.tota ?? 0);
+  layerCounts.push(getLayerCount("llota", refDataMap["llota"]));
   layerCounts.push(extraCounts?.repeaterLinks ?? 0);
   const totalAllRecords = layerCounts.reduce((sum, c) => sum + (c || 0), 0);
 
@@ -424,6 +444,28 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           onClick={() => setDetailLayer({ key: "tota", label: "TOTA" })}
         />
 
+        {/* LLOTA layer */}
+        <LayerCard
+          label="LLOTA"
+          icon={Waves}
+          color="text-sky-500"
+          tooltip="Lakes on the Air – Seen weltweit. Daten von llota.app. Gesamtzahl aus ReferenceData.total_count. See-Konturen werden per Batch-Automation aus OSM/SwissTopo geladen."
+          count={getLayerCount("llota", refDataMap["llota"])}
+          withCoords={extraCounts?.llotaWithCoords ?? null}
+          total={extraCounts?.llota ?? 0}
+          lastUpdated={refDataMap["llota"]?.last_updated ? new Date(refDataMap["llota"].last_updated) : null}
+          status={computeLayerStatus(
+            getLayerCount("llota", refDataMap["llota"]),
+            extraCounts?.llotaWithCoords ?? null,
+            extraCounts?.llota ?? 0,
+            refDataMap["llota"]?.last_updated ? new Date(refDataMap["llota"].last_updated) : null,
+            false
+          )}
+          source="llota.app + OSM/SwissTopo"
+          layerKey="llota"
+          onClick={() => setDetailLayer({ key: "llota", label: "LLOTA" })}
+        />
+
         {/* Repeater Links */}
         <LayerCard
           label="Relais-Verlinkungen"
@@ -457,6 +499,45 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
           </span>
         )}
       </div>
+
+      {/* LLOTA polygon coverage (compact) */}
+      {extraCounts?.llota > 0 && (
+        <div className="p-3 bg-sky-50/30 dark:bg-sky-900/10 rounded-lg border border-sky-200 dark:border-sky-800/50">
+          <div className="flex items-center gap-2 mb-2">
+            <Waves className="w-3.5 h-3.5 text-sky-600" />
+            <span className="text-xs font-semibold text-gray-900 dark:text-slate-100" title="LLOTA See-Konturen werden per Batch-Automation (alle 30 Min, 15 Seen pro Durchlauf) aus OSM/SwissTopo geladen. Schweizer Seen werden priorisiert.">LLOTA See-Konturen</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div title="Gesamtzahl der LLOTA-Referenzen in der Datenbank.">
+              <div className="text-sm font-bold text-gray-900 dark:text-slate-100">{extraCounts.llota.toLocaleString("de-CH")}</div>
+              <div className="text-[9px] text-gray-400 dark:text-slate-500">Seen gesamt</div>
+            </div>
+            <div title="Seen mit geladener See-Kontur (Polygon). Wird durch die Batch-Automation laufend erhöht.">
+              <div className="text-sm font-bold text-sky-600">{(extraCounts.llotaWithPolygon || 0).toLocaleString("de-CH")}</div>
+              <div className="text-[9px] text-gray-400 dark:text-slate-500">mit Kontur</div>
+            </div>
+            <div title="Fortschritt der Kontur-Erstellung: % der Seen mit geladenem Polygon.">
+              <div className={`text-sm font-bold ${
+                ((extraCounts.llotaWithPolygon || 0) / extraCounts.llota * 100) >= 50 ? "text-green-600" :
+                ((extraCounts.llotaWithPolygon || 0) / extraCounts.llota * 100) >= 10 ? "text-amber-600" : "text-gray-400"
+              }`}>{((extraCounts.llotaWithPolygon || 0) / extraCounts.llota * 100).toFixed(1)}%</div>
+              <div className="text-[9px] text-gray-400 dark:text-slate-500">Fortschritt</div>
+            </div>
+          </div>
+          <div className="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mt-2">
+            <div
+              className={`h-full rounded-full ${
+                ((extraCounts.llotaWithPolygon || 0) / extraCounts.llota * 100) >= 50 ? "bg-green-500" :
+                ((extraCounts.llotaWithPolygon || 0) / extraCounts.llota * 100) >= 10 ? "bg-amber-500" : "bg-sky-400"
+              }`}
+              style={{ width: `${Math.min(100, (extraCounts.llotaWithPolygon || 0) / extraCounts.llota * 100)}%` }}
+            />
+          </div>
+          <p className="text-[9px] text-gray-400 dark:text-slate-500 mt-1">
+            Batch-Automation: 15 Seen / 30 Min · {(extraCounts.llota - (extraCounts.llotaWithPolygon || 0)).toLocaleString("de-CH")} verbleibend
+          </p>
+        </div>
+      )}
 
       {/* Repeater coverage summary (compact) */}
       {repData && (

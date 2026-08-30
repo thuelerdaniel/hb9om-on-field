@@ -89,6 +89,14 @@ const LAYER_CONFIG = {
     { key: "lat", label: "Lat" },
     { key: "lng", label: "Lng" },
   ]},
+  llota: { entity: "LlotaRef", refType: "llota", columns: [
+    { key: "code", label: "Code" },
+    { key: "name", label: "Name" },
+    { key: "country_name", label: "Land" },
+    { key: "activation_count", label: "Aktiv." },
+    { key: "lat", label: "Lat" },
+    { key: "lng", label: "Lng" },
+  ]},
   repeaterLinks: { entity: "RepeaterLink", filter: { status: "approved" }, columns: [
     { key: "from_callsign", label: "Von" },
     { key: "from_frequency", label: "Von Freq" },
