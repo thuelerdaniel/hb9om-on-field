@@ -62,6 +62,7 @@ import WwffFilter from "@/components/map/WwffFilter";
 
 import LlotaFilter from "@/components/map/LlotaFilter";
 import LlotaLayer from "@/components/map/LlotaLayer";
+import IotaFilter from "@/components/map/IotaFilter";
 import WwbotaFilter from "@/components/map/WwbotaFilter";
 import WcaFilter from "@/components/map/WcaFilter";
 import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
@@ -105,20 +106,20 @@ const SCALE_TO_ZOOM = { 10000: 14, 25000: 12, 50000: 10, 100000: 8 };
 // Layer colors for marker building
 const LAYER_COLORS = {
   sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
-  castle: "#e67e22",   lighthouse: "#dc2626", llota: "#0ea5e9",
+  castle: "#e67e22",   lighthouse: "#dc2626", llota: "#0ea5e9", iota: "#3b82f6",
 };
 
 // Layer labels for search matching
 const LAYER_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
-  castle: "WCA", lighthouse: "WLOTA", llota: "LLOTA",
+  castle: "WCA", lighthouse: "WLOTA", llota: "LLOTA", iota: "IOTA",
   repeater: "Relais", tota: "TOTA", aprs: "APRS", brandmeister: "BrandMeister",
 };
 
 // Build a unified markers array from all reference types (search uses ALL loaded data, not just active layers)
 function buildMarkers(data, activeLayers) {
   const markers = [];
-  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "llota"]) {
+  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "llota", "iota"]) {
     if (activeLayers && !activeLayers.includes(type)) continue;
     const refs = data[type] || [];
     for (const ref of refs) {
@@ -139,7 +140,7 @@ function buildMarkers(data, activeLayers) {
 // Build search candidates from ALL loaded data (regardless of active layers) for comprehensive search
 function buildSearchCandidates(data, repeaters) {
   const candidates = [];
-  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "lighthouse", "llota"]) {
+  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "lighthouse", "llota", "iota"]) {
     const refs = data[type] || [];
     for (const ref of refs) {
       if (ref.lat == null || ref.lng == null) continue;
@@ -231,7 +232,7 @@ export default function Home() {
 
   // Activity zones toggle — controls visibility of all activity layers (SOTA, POTA, WWFF, etc.)
   // When OFF, activity layers are hidden from the panel and removed from activeLayers.
-  const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "lighthouse", "llota", "swiss_protected"];
+  const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "lighthouse", "llota", "iota", "swiss_protected"];
   const [activityZonesEnabled, setActivityZonesEnabled] = useState(() => {
     const saved = safeGetItem("activityZonesToggle");
     if (saved !== null) return saved === "true";
@@ -590,6 +591,12 @@ export default function Home() {
     try { return JSON.parse(safeGetItem("hb9om_castle_filter_countries")) || []; } catch { return []; }
   });
   const [llotaActivationFilter, setLlotaActivationFilter] = useState("all");
+  const [iotaSearchQuery, setIotaSearchQuery] = useState(() => safeGetItem("hb9om_iota_search") || "");
+  const [iotaFilterCountries, setIotaFilterCountries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_iota_filter_countries")) || []; } catch { return []; }
+  });
+  const [iotaStatusFilter, setIotaStatusFilter] = useState("all");
+  const [iotaRegionFilter, setIotaRegionFilter] = useState("all");
   const [sotaFilterPoints, setSotaFilterPoints] = useState([]);
   const [sotaAltitudeRange, setSotaAltitudeRange] = useState("all");
   useEffect(() => {
@@ -808,6 +815,29 @@ export default function Home() {
           (m.name || "").toLowerCase().includes(q)
         );
       }
+    }
+    // IOTA: search + status + region filter (markers only, no polygon boundaries)
+    if (iotaSearchQuery) {
+      const q = iotaSearchQuery.toLowerCase().trim();
+      markers = markers.filter(m =>
+        m.layerType !== "iota" ||
+        (m.code || "").toLowerCase().includes(q) ||
+        (m.name || "").toLowerCase().includes(q)
+      );
+    }
+    if (iotaStatusFilter !== "all") {
+      markers = markers.filter(m => {
+        if (m.layerType !== "iota") return true;
+        if (iotaStatusFilter === "active") return m.status === "Active";
+        if (iotaStatusFilter === "not_activated") return m.status !== "Active";
+        return true;
+      });
+    }
+    if (iotaRegionFilter !== "all") {
+      markers = markers.filter(m => {
+        if (m.layerType !== "iota") return true;
+        return (m.grp_region || "").startsWith(iotaRegionFilter);
+      });
     }
     // PUNKT 12: Apply country filters for SOTA, POTA, WWFF, IOTA
     const countryFilters = {
@@ -1491,6 +1521,7 @@ export default function Home() {
       { type: "castle", label: "WCA", color: "#e67e22" },
       { type: "wwbota", label: "WWBOTA", color: "#795548" },
       { type: "llota", label: "LLOTA", color: "#0ea5e9" },
+      { type: "iota", label: "IOTA", color: "#3b82f6" },
     ];
     const refButtons = refTypes
       .filter(r => activeLayers.includes(r.type))
@@ -2063,6 +2094,22 @@ export default function Home() {
               allBoundariesActive={allBoundariesEnabled.has("castle")}
               activeBoundaryCount={getBoundaryCount("castle")}
               onClearBoundaries={() => handleClearBoundaries("castle")}
+            />
+          );
+        }
+        if (btn.type === "iota") {
+          return (
+            <IotaFilter key={filterKey} {...commonProps}
+              searchQuery={iotaSearchQuery}
+              onSearchQueryChange={(q) => { setIotaSearchQuery(q); safeSetItem("hb9om_iota_search", q); }}
+              pointCount={btn.count} visibleCount={visibleCount}
+              points={mapData.iota || []}
+              filterCountries={iotaFilterCountries}
+              onFilterCountriesChange={setIotaFilterCountries}
+              statusFilter={iotaStatusFilter}
+              onStatusFilterChange={setIotaStatusFilter}
+              regionFilter={iotaRegionFilter}
+              onRegionFilterChange={setIotaRegionFilter}
             />
           );
         }

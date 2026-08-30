@@ -112,6 +112,108 @@ export async function upsertPoints(
 }
 
 /**
+ * Upsert points by code — loads existing records, updates matching codes, creates new ones.
+ * Does NOT delete old records, so no duplicates can accumulate even if the function times out.
+ * This replaces the old upsertPoints (create-all-then-delete-old) which caused duplicates on timeout.
+ *
+ * @param base44 - The Base44 SDK client (with asServiceRole)
+ * @param entityName - Entity name: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint'
+ * @param refType - ReferenceData type key for metadata (e.g. 'sota', 'pota', 'hbff', 'tota')
+ * @param points - Array of point objects to upsert (must have a 'code' field)
+ * @param source - Source label for metadata
+ * @param extraFields - Optional function to extract extra fields per point for create/update
+ * @returns { created, updated, total, error? }
+ */
+export async function upsertPointsByCode(
+  base44: any,
+  entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint',
+  refType: string,
+  points: any[],
+  source: string
+): Promise<{ created: number; updated: number; total: number; error?: string }> {
+  if (!points || points.length === 0) {
+    return { created: 0, updated: 0, total: 0 };
+  }
+
+  const entity = base44.asServiceRole.entities[entityName];
+
+  // 1. Load all existing records (paginated) and build a code → record map
+  const existing = await loadAllPoints(base44, entityName as any);
+  const existingMap = new Map<string, any>();
+  for (const r of existing) {
+    if (r.code) existingMap.set(r.code, r);
+  }
+
+  // 2. Split into create vs update lists
+  const toCreate: any[] = [];
+  const toUpdate: any[] = [];
+  const seenCodes = new Set<string>();
+  for (const p of points) {
+    if (!p.code) continue;
+    // Skip duplicate codes within the same batch
+    if (seenCodes.has(p.code)) continue;
+    seenCodes.add(p.code);
+
+    if (existingMap.has(p.code)) {
+      const old = existingMap.get(p.code);
+      toUpdate.push({ id: old.id, ...p });
+    } else {
+      toCreate.push(p);
+    }
+  }
+
+  // 3. Bulk create new records in batches of 500
+  let created = 0;
+  let lastError: string | undefined;
+  for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+    const batch = toCreate.slice(i, i + BATCH_SIZE);
+    try {
+      await entity.bulkCreate(batch);
+      created += batch.length;
+    } catch (e: any) {
+      lastError = e?.message || String(e);
+    }
+  }
+
+  // 4. Bulk update existing records in batches of 500
+  let updated = 0;
+  for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
+    const batch = toUpdate.slice(i, i + BATCH_SIZE);
+    try {
+      await entity.bulkUpdate(batch);
+      updated += batch.length;
+    } catch (e: any) {
+      lastError = e?.message || String(e);
+    }
+  }
+
+  // 5. Update ReferenceData metadata record
+  try {
+    const now = new Date().toISOString();
+    const totalCount = existingMap.size + created;
+    const existingMeta = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
+    if (existingMeta && existingMeta.length > 0) {
+      await base44.asServiceRole.entities.ReferenceData.update(existingMeta[0].id, {
+        references: [],
+        total_count: totalCount,
+        source,
+        last_updated: now
+      });
+    } else {
+      await base44.asServiceRole.entities.ReferenceData.create({
+        type: refType,
+        references: [],
+        total_count: totalCount,
+        source,
+        last_updated: now
+      });
+    }
+  } catch {}
+
+  return { created, updated, total: points.length, error: lastError };
+}
+
+/**
  * Load all points for a given entity type with pagination.
  * Uses list() with limit=10000 per call, paginating with skip.
  * Returns merged array of all points.

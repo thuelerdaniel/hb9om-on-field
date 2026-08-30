@@ -6,7 +6,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 // Key finding: $regex on a SINGLE field works, but $or and $gte/$lte on strings do NOT.
 // Strategy: two separate filter() calls (code + name), merged and deduped.
 
-const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'lighthouse', 'tota', 'llota'];
+const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'lighthouse', 'tota', 'llota', 'iota'];
 
 const POINT_TYPES: Record<string, { entity: string; normalize: (r: any) => any }> = {
   sota: {
@@ -28,6 +28,10 @@ const POINT_TYPES: Record<string, { entity: string; normalize: (r: any) => any }
   llota: {
     entity: 'LlotaRef',
     normalize: (r) => ({ code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng, country_name: r.country_name, country_code: r.country_code, region: r.region, activation_count: r.activation_count, info_url: r.info_url })
+  },
+  iota: {
+    entity: 'IotaPoint',
+    normalize: (r) => ({ code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng, status: r.status, grp_region: r.grp_region })
   },
 };
 

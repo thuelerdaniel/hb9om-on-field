@@ -10,7 +10,7 @@ import { base44 } from "@/api/base44Client";
 const DEBOUNCE_MS = 350;
 const MAX_PER_TYPE = 20000;
 const REQUEST_TIMEOUT_MS = 30000;
-const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "lighthouse", "llota", "repeater", "aprs", "brandmeister"];
+const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "lighthouse", "llota", "iota", "repeater", "aprs", "brandmeister"];
 
 export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline, reloadTrigger }) {
   const map = useMap();

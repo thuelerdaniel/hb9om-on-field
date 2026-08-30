@@ -22,6 +22,7 @@ const TYPE_ALIASES: Record<string, string> = {
   'WwffPoint': 'hbff',
   'TotaPoint': 'tota',
   'IotaPoint': 'iota',
+  'iota': 'iota',
   'Lighthouse': 'lighthouse',
   'LlotaRef': 'llota',
   'AprsStation': 'aprs',
@@ -138,6 +139,16 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
       country: r.country_name,
     })
   },
+  iota: {
+    entity: 'IotaPoint',
+    dedupField: 'code',
+    normalize: (r) => ({
+      code: r.code, reference: r.code, name: r.name, lat: r.lat, lng: r.lng,
+      dxcc_num: r.dxcc_num, status: r.status, island_count: r.island_count,
+      pc_credited: r.pc_credited, grp_region: r.grp_region,
+      country: r.name,
+    })
+  },
 };
 
 async function loadReferenceData(base44, type: string): Promise<any[]> {
@@ -225,7 +236,7 @@ export default async function(req: Request): Promise<Response> {
     } else if (typeof entityType === 'string' && entityType.length > 0) {
       allTypes = [TYPE_ALIASES[entityType] || entityType];
     } else {
-      allTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'lighthouse', 'tota', 'llota', 'aprs'];
+      allTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'lighthouse', 'tota', 'llota', 'iota', 'aprs'];
     }
 
     const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;

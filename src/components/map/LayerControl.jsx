@@ -65,6 +65,13 @@ const LAYER_GROUPS = [
     description: "Seen und Lagunen weltweit — 8.357 Referenzen in 54 Ländern (llota.app)"
   },
   {
+    id: "iota",
+    label: "IOTA – Islands on the Air",
+    icon: Globe2,
+    color: "#3b82f6",
+    description: "Inselgruppen weltweit (iota-world.org) — nur Marker, keine Polygone"
+  },
+  {
     id: "swiss_protected",
     label: "BLN – Natur Zonen (nur in CH)",
     icon: Trees,
@@ -102,7 +109,7 @@ const LAYER_GROUPS = [
 ];
 
 // Activity layer IDs — controlled by the "Aktivitätszonen" toggle (not a layer itself)
-const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "lighthouse", "llota", "swiss_protected"];
+const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "lighthouse", "llota", "iota", "swiss_protected"];
 
 const BASE_LAYERS = [
   { id: "osm", label: "OpenStreetMap" },

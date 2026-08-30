@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 
 // LV95 (Swiss Grid 1995) → WGS84 conversion
 // Formula from swisstopo (Federal Office of Topography)
@@ -319,14 +320,10 @@ export default async function (req) {
         for (const w of worldwide) {
           w.last_synced = syncDate;
         }
-        await base44.asServiceRole.entities.TotaPoint.deleteMany({
-          source: 'wwtota.com',
-        });
-        for (let i = 0; i < worldwide.length; i += 500) {
-          const batch = worldwide.slice(i, i + 500);
-          await base44.asServiceRole.entities.TotaPoint.bulkCreate(batch);
-        }
-        worldwideImported = worldwide.length;
+        // Use upsert-by-code: updates existing towers, creates new ones.
+        // No deleteMany — prevents duplicates and data loss on timeout.
+        const result = await upsertPointsByCode(base44, 'TotaPoint', 'tota', worldwide, 'wwtota.com');
+        worldwideImported = result.created + result.updated;
       } catch (e) {
         errors.push('Worldwide: ' + e.message);
       }

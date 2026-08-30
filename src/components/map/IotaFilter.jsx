@@ -3,7 +3,7 @@ import { MapPin, ChevronDown, X, Search, Info } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
-import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
+
 
 const IOTA_STATUSES = [
   { id: "all", label: "Alle Status" },
@@ -149,15 +149,6 @@ export default function IotaFilter({
               ))}
             </div>
           </div>
-
-          <BoundaryToggleSection
-            layerType="iota"
-            allBoundariesActive={allBoundariesActive}
-            onToggleAllBoundaries={onToggleAllBoundaries}
-            activeBoundaryCount={activeBoundaryCount}
-            onClearBoundaries={onClearBoundaries}
-            accentColor="blue"
-          />
 
           <CountryContinentFilter
             countries={countries}

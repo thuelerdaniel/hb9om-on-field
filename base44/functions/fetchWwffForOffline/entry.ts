@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { fetchWwffDataForCountries } from '../../shared/referenceFetchers.ts';
-import { upsertPoints } from '../../shared/pointUpsert.ts';
+import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 
 // Fetches WWFF (World Wide Flora & Fauna) data from the wwff.co CSV API
 // and SAVES it to the WwffPoint entity (full refresh: delete all + bulk create).
@@ -58,17 +58,20 @@ export default async function(req: Request): Promise<Response> {
     });
 
     let saved = 0;
+    let updatedCount = 0;
     if (save && enriched.length > 0) {
-      // Use upsertPoints: creates new records FIRST, then deletes old ones by created_date.
-      // This prevents duplicates that occur when deleteMany({}) doesn't clear all records.
-      const result = await upsertPoints(base44, 'WwffPoint', 'hbff', enriched, 'WWFF CSV (worldwide)');
+      // Use upsertPointsByCode: loads existing by code, updates matches, creates new.
+      // No delete step — prevents duplicates even if the function times out mid-save.
+      const result = await upsertPointsByCode(base44, 'WwffPoint', 'hbff', enriched, 'WWFF CSV (worldwide)');
       saved = result.created;
+      updatedCount = result.updated;
     }
 
     return Response.json({
       refs: enriched,
       count: enriched.length,
       saved,
+      updated: updatedCount,
       source: iso2Codes.length > 0 ? `WWFF CSV (filtered: ${iso2Codes.join(', ')})` : 'WWFF CSV (worldwide)'
     });
   } catch (error) {
