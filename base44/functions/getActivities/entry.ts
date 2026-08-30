@@ -38,6 +38,18 @@ export default async function(req: Request): Promise<Response> {
       spots = await base44.entities.ActivitySpot.list('-spot_time', 500);
     } catch {}
 
+    // LLOTA-Spots separat laden — sie werden sonst vom 500-Limit verdrängt
+    // weil SOTA/POTA/DX deutlich mehr Spots pro Zeiteinheit haben.
+    try {
+      const llotaSpots = await base44.entities.ActivitySpot.filter({ activity_type: 'LLOTA' }, '-spot_time', 200);
+      if (llotaSpots && llotaSpots.length > 0) {
+        const existingIds = new Set(spots.map(s => s.id));
+        for (const ls of llotaSpots) {
+          if (!existingIds.has(ls.id)) spots.push(ls);
+        }
+      }
+    } catch {}
+
     // Fix v0.9016: Strikte Trennung Live vs Alerts
     // Live: nicht is_future, nicht SOTA-ALERT, nicht QRT, frequency > 0
     let liveSpots = spots.filter(s =>
