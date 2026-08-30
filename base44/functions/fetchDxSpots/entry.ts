@@ -466,14 +466,17 @@ export default async function(req: Request): Promise<Response> {
           await base44.asServiceRole.entities.DataSourceStatus.create(statusData);
         }
       };
-      await updateStatus('DX-Cluster (jo30.de)', 'DXCLUSTER', 'https://dxc.jo30.de/dxcache/spots', joSpots.length > 0, joSpots.length, apiWarning);
-      await updateStatus('Spothole (SIG-Filter)', 'API', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
-      await updateStatus('DX-Cluster (IZ3MEZ)', 'DXCLUSTER', 'https://web.cluster.iz3mez.it/spots.json', izSpots.length > 0, izSpots.length, izWarning);
+      const safeUpdate = async (...args: Parameters<typeof updateStatus>) => {
+        try { await updateStatus(...args); } catch {}
+      };
+      await safeUpdate('DX-Cluster (jo30.de)', 'DXCLUSTER', 'https://dxc.jo30.de/dxcache/spots', joSpots.length > 0, joSpots.length, apiWarning);
+      await safeUpdate('Spothole (SIG-Filter)', 'API', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
+      await safeUpdate('DX-Cluster (IZ3MEZ)', 'DXCLUSTER', 'https://web.cluster.iz3mez.it/spots.json', izSpots.length > 0, izSpots.length, izWarning);
     } catch {}
 
     return Response.json({
       success: true,
-      fetched: joSpots.length + spotholeSpots.length,
+      fetched: joSpots.length + spotholeSpots.length + izSpots.length,
       saved: savedCount,
       spots: latest,
       warning: warnings.length > 0 ? warnings.join('; ') : null,
