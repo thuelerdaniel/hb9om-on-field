@@ -100,8 +100,9 @@ export default async function(req: Request): Promise<Response> {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
+      // PUNKT 10: HolyCluster als zusätzliche Quelle zu Spothole hinzufügen
       const resp = await fetch(
-        `https://spothole.app/api/v2/spots?sig=${SPOTHOLE_SIGS}&limit=10000`,
+        `https://spothole.app/api/v2/spots?sig=${SPOTHOLE_SIGS}&source=Cluster,HolyCluster&limit=10000`,
         { headers: { 'Accept': 'application/json' }, signal: controller.signal }
       );
       clearTimeout(timeout);

@@ -8,12 +8,12 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.91001";
+export const APP_VERSION = "0.92";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608291852";
+export const APP_BUILD = "202608300612";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.

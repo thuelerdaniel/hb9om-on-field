@@ -14,7 +14,6 @@ import { base44 } from "@/api/base44Client";
 // - Max 100 spots displayed (older ones scroll away)
 
 const POLL_INTERVAL_MS = 30000;
-const MAX_DISPLAYED = 100;
 const SPOT_EXPIRY_MINUTES = 30;
 
 const ACTIVITY_COLORS = {
@@ -54,7 +53,8 @@ export default function LiveSpotStream({ onSpotClick, gpsPos }) {
       const data = res?.data || res;
 
       // Fetch recent ActivitySpot records (populated by fetchSpotholeSpots)
-      const recent = await base44.entities.ActivitySpot.list("-spot_time", 100);
+      // PUNKT 11a: Kein Limit — alle verfügbaren Spots laden
+      const recent = await base44.entities.ActivitySpot.list("-spot_time", 2000);
       const now = Date.now();
       const fresh = (recent || [])
         .filter(s => {
@@ -79,7 +79,8 @@ export default function LiveSpotStream({ onSpotClick, gpsPos }) {
           longitude: s.longitude,
         }));
 
-      setSpots(fresh.slice(0, MAX_DISPLAYED));
+      // PUNKT 11a: Alle Spots anzeigen (kein Slice-Limit)
+      setSpots(fresh);
       setLastUpdate(new Date().toISOString());
     } catch (e) {
       setError(e.message || "Fehler beim Laden der Spots");

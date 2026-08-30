@@ -4,15 +4,51 @@ import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 
-const SOTA_POINTS = [
-  { id: 0, label: "0 Punkte" },
-  { id: 1, label: "1 Punkt" },
-  { id: 2, label: "2 Punkte" },
-  { id: 4, label: "4 Punkte" },
-  { id: 6, label: "6 Punkte" },
-  { id: 8, label: "8 Punkte" },
-  { id: 10, label: "10 Punkte" },
+// Offizielle SOTA-Punkte-Tabelle (basierend auf Gipfelhöhe):
+// https://www.sotadata.org.uk/en/summits
+export const SOTA_POINTS = [
+  { id: 1, label: "1 P", min: 150, max: 499 },
+  { id: 2, label: "2 P", min: 500, max: 749 },
+  { id: 3, label: "3 P", min: 750, max: 999 },
+  { id: 4, label: "4 P", min: 1000, max: 1249 },
+  { id: 5, label: "5 P", min: 1250, max: 1499 },
+  { id: 6, label: "6 P", min: 1500, max: 1749 },
+  { id: 7, label: "7 P", min: 1750, max: 1999 },
+  { id: 8, label: "8 P", min: 2000, max: 2249 },
+  { id: 9, label: "9 P", min: 2250, max: 2499 },
+  { id: 10, label: "10 P", min: 2500, max: 2749 },
+  { id: 12, label: "12 P", min: 2750, max: 2999 },
+  { id: 15, label: "15 P", min: 3000, max: 3499 },
+  { id: 20, label: "20 P", min: 3500, max: 3999 },
+  { id: 25, label: "25 P", min: 4000, max: 4499 },
+  { id: 30, label: "30 P", min: 4500, max: 4999 },
+  { id: 35, label: "35 P", min: 5000, max: 5499 },
+  { id: 40, label: "40 P", min: 5500, max: 5999 },
+  { id: 45, label: "45 P", min: 6000, max: 6499 },
+  { id: 50, label: "50 P", min: 6500, max: 6999 },
+  { id: 55, label: "55 P", min: 7000, max: 7499 },
+  { id: 60, label: "60 P", min: 7500, max: 7999 },
+  { id: 70, label: "70 P", min: 8000, max: 8499 },
+  { id: 80, label: "80 P", min: 8500, max: 8999 },
+  { id: 90, label: "90 P", min: 9000, max: 9499 },
+  { id: 100, label: "100 P", min: 9500, max: 9999 },
+  { id: 110, label: "110 P", min: 10000, max: 10499 },
+  { id: 120, label: "120 P", min: 10500, max: 10999 },
+  { id: 130, label: "130 P", min: 11000, max: 11499 },
+  { id: 140, label: "140 P", min: 11500, max: 11999 },
+  { id: 150, label: "150 P", min: 12000, max: 12499 },
 ];
+
+// Berechne SOTA-Punkte aus der Gipfelhöhe (altitude) nach offizieller Tabelle
+export function altitudeToPoints(altitude) {
+  if (altitude == null || isNaN(altitude)) return 0;
+  const a = Math.round(altitude);
+  for (const p of SOTA_POINTS) {
+    if (a >= p.min && a <= p.max) return p.id;
+  }
+  if (a < 150) return 0;
+  return 150; // > 12000m
+}
 
 const ALTITUDE_RANGES = [
   { id: "all", label: "Alle Höhen", min: 0, max: 99999 },
