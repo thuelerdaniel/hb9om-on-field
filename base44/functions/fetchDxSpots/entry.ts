@@ -122,6 +122,28 @@ export default async function(req: Request): Promise<Response> {
       spotholeWarning = `Spothole ${e?.name === 'AbortError' ? 'Timeout nach 10s' : 'Netzwerkfehler: ' + (e?.message || 'nicht erreichbar')}`;
     }
 
+    // === 3. IZ3MEZ Web DX Cluster (HTTP JSON API — kein Telnet nötig) ===
+    let izSpots: any[] = [];
+    let izWarning: string | null = null;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const resp = await fetch('https://web.cluster.iz3mez.it/spots.json', {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (resp.ok) {
+        izSpots = await resp.json();
+        if (!Array.isArray(izSpots)) izSpots = [];
+      } else {
+        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 300));
+        izWarning = `IZ3MEZ HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`;
+      }
+    } catch (e: any) {
+      izWarning = `IZ3MEZ ${e?.name === 'AbortError' ? 'Timeout nach 10s' : 'Netzwerkfehler: ' + (e?.message || 'nicht erreichbar')}`;
+    }
+
     // Fix 4: ALLE Spots vor dem Neuladen löschen — verhindert Duplikat-Akkumulation
     try {
       await base44.asServiceRole.entities.DxSpot.deleteMany({});
@@ -268,6 +290,75 @@ export default async function(req: Request): Promise<Response> {
       });
     }
 
+    // === 4b. IZ3MEZ Spots normalisieren ===
+    const izNormalized: any[] = [];
+    for (const s of izSpots) {
+      const freqKHz = Number(s.frequency || 0);
+      const call = s.spotted;
+      if (!freqKHz || !call) continue;
+
+      // spot_datetime ist UTC: "2026-08-30 07:07:05"
+      let spotTime: Date;
+      if (s.spot_datetime) {
+        spotTime = new Date(s.spot_datetime.replace(' ', 'T') + 'Z');
+      } else {
+        spotTime = new Date();
+      }
+      const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
+      const comment = s.spotter_comment || '';
+      const comments = comment ? [comment] : [];
+
+      const country = s.spotted_country || '';
+      const countryCode = s.spotted_flag || '';
+      const dxLat = s.spotted_lat ? Number(s.spotted_lat) : 0;
+      const dxLng = s.spotted_lon ? Number(s.spotted_lon) : 0;
+
+      let locator = '';
+      const locMatch = comment.match(/\b([A-R]{2}\d{2}[A-X]{2})\b/i);
+      if (locMatch) locator = locMatch[1].toUpperCase();
+
+      let activity = detectActivity(comments);
+      let activityRef = '';
+
+      // IZ3MEZ liefert echte Koordinaten (besser als jo30.de DXCC-Center)
+      let dxPos: { lat: number; lon: number } | null = null;
+      if (dxLat && dxLng) dxPos = { lat: dxLat, lon: dxLng };
+      else if (locator) dxPos = maidenheadToLatLon(locator);
+
+      let distance = 0, azimuth = 0, finalLat = 0, finalLng = 0;
+      if (dxPos) {
+        distance = haversine(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
+        azimuth = bearing(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
+        finalLat = Math.round(dxPos.lat * 10000) / 10000;
+        finalLng = Math.round(dxPos.lon * 10000) / 10000;
+      }
+
+      let confidence = 55;
+      if (s.spotter) confidence += 20;
+      if (locator) confidence += 10;
+      if (country) confidence += 10;
+      if (activity) confidence += 10;
+      confidence = Math.min(100, confidence);
+
+      izNormalized.push({
+        call: String(call).toUpperCase().trim(),
+        frequency: freqKHz,
+        band: deriveBand(freqKHz),
+        mode: '',
+        country, countryCode,
+        source: 'DXCluster (IZ3MEZ)',
+        sources: ['DXCluster (IZ3MEZ)'],
+        spotter: s.spotter || '',
+        age_seconds: ageSeconds,
+        spot_time: spotTime.toISOString(),
+        confidence,
+        distance, azimuth, locator,
+        lat: finalLat || undefined, lng: finalLng || undefined,
+        comments, activity, activity_ref: activityRef || undefined,
+        is_active: true,
+      });
+    }
+
     // === 5. Merge: Spothole reichert jo30.de an ===
     const mergeMap = new Map<string, any>();
     for (const spot of joNormalized) {
@@ -284,6 +375,25 @@ export default async function(req: Request): Promise<Response> {
           existing.sources.push('Spothole');
           if (spot.comments?.length > 1) existing.comments.push(...spot.comments.slice(1));
         }
+      } else {
+        mergeMap.set(key, spot);
+      }
+    }
+
+    // IZ3MEZ in Merge einbeziehen — reichert bestehende Spots mit Koordinaten an, fügt neue hinzu
+    for (const spot of izNormalized) {
+      const key = `${spot.call}_${Math.round(spot.frequency)}`;
+      const existing = mergeMap.get(key);
+      if (existing) {
+        if (spot.lat && spot.lng && !existing.lat) {
+          existing.lat = spot.lat;
+          existing.lng = spot.lng;
+          existing.distance = spot.distance;
+          existing.azimuth = spot.azimuth;
+        }
+        if (spot.country && !existing.country) existing.country = spot.country;
+        if (spot.countryCode && !existing.countryCode) existing.countryCode = spot.countryCode;
+        if (!existing.sources.includes('DXCluster (IZ3MEZ)')) existing.sources.push('DXCluster (IZ3MEZ)');
       } else {
         mergeMap.set(key, spot);
       }
@@ -333,7 +443,7 @@ export default async function(req: Request): Promise<Response> {
     // No limit — return ALL saved DX spots (user requested no query limit)
     const latest = await base44.entities.DxSpot.list('-spot_time', 5000);
 
-    const warnings = [apiWarning, spotholeWarning].filter(Boolean);
+    const warnings = [apiWarning, spotholeWarning, izWarning].filter(Boolean);
 
     // DataSourceStatus aktualisieren (jo30.de + Spothole)
     try {
@@ -358,6 +468,7 @@ export default async function(req: Request): Promise<Response> {
       };
       await updateStatus('DX-Cluster (jo30.de)', 'DXCLUSTER', 'https://dxc.jo30.de/dxcache/spots', joSpots.length > 0, joSpots.length, apiWarning);
       await updateStatus('Spothole (SIG-Filter)', 'API', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
+      await updateStatus('DX-Cluster (IZ3MEZ)', 'DXCLUSTER', 'https://web.cluster.iz3mez.it/spots.json', izSpots.length > 0, izSpots.length, izWarning);
     } catch {}
 
     return Response.json({
@@ -369,7 +480,7 @@ export default async function(req: Request): Promise<Response> {
       stationLocator,
       stationPos: { lat: stationPos.lat, lon: stationPos.lon },
       usingGps: typeof body.station_lat === 'number',
-      sources: { jo30de: joSpots.length, spothole: spotholeSpots.length },
+      sources: { jo30de: joSpots.length, spothole: spotholeSpots.length, iz3mez: izSpots.length },
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
