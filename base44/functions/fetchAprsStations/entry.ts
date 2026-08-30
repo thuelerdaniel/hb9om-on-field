@@ -10,7 +10,7 @@ import { generateAprsCallsignSeed } from '../../shared/aprsCallsignSeed.ts';
 // TCP (APRS-IS port 14580) is blocked by platform — HTTP via aprs.fi API only.
 
 const APRS_API_BASE = 'https://api.aprs.fi/api/get';
-const DISCOVERY_BATCH = 600; // 600 per run × 1 daily = 17,925 seed in ~30 days
+const DISCOVERY_BATCH = 200; // Reduced from 600 to avoid timeout
 const API_BATCH_SIZE = 20;  // aprs.fi API hard limit: 20 names per request
 const BATCH_DELAY_MS = 200;
 
@@ -138,7 +138,18 @@ export default async function (req: Request): Promise<Response> {
         if (!entry.lat || !entry.lng) continue;
         // Skip null-island positions (invalid GPS)
         if (parseFloat(entry.lat) === 0 && parseFloat(entry.lng) === 0) continue;
-        const symbol = entry.symbol || '';
+        // Ensure symbol is full 2-char APRS code
+        let symbol = entry.symbol || '';
+        if (symbol && symbol.length === 1) symbol = '/' + symbol;
+        if (!symbol) {
+          // Derive from entry type or comment
+          const c = (entry.comment || '').toLowerCase();
+          if (entry.type === 'w' || c.includes('weather')) symbol = '/_';
+          else if (c.includes('igate')) symbol = '/I';
+          else if (c.includes('digi')) symbol = '/#';
+          else if (entry.type === 'd') symbol = '/#';
+          else continue; // Skip entries with no recognizable symbol
+        }
         if (!FIXED_SYMBOLS.has(symbol)) continue;
         freshData.set(entry.name.toUpperCase(), {
           callsign: entry.name,

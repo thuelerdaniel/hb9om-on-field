@@ -66,6 +66,18 @@ function classifyAprsStation(entry: any): { node_type: string; network: string; 
 
 function buildNodeRecord(entry: any, source: string = 'aprs.fi'): any {
   const { node_type, network, mode } = classifyAprsStation(entry);
+  // Ensure symbol is the full 2-char APRS code (table + symbol char)
+  let symbol = entry.symbol || '';
+  if (symbol && symbol.length === 1) symbol = '/' + symbol; // Default to primary table
+  if (!symbol) {
+    // Derive default symbol from node_type
+    const DEFAULT_SYMBOLS: Record<string, string> = {
+      digipeater: '/#', igate: '/I', repeater_node: '/r', echolink_node: '/I',
+      allstar_node: '/n', weather_station: '/_', hotspot: '/H',
+      simplex_node: '/r', home: '/\\', rx_igate: '/[',
+    };
+    symbol = DEFAULT_SYMBOLS[node_type] || '/s';
+  }
   return {
     callsign: entry.name,
     node_type,
@@ -79,7 +91,7 @@ function buildNodeRecord(entry: any, source: string = 'aprs.fi'): any {
     lat: parseFloat(entry.lat),
     lng: parseFloat(entry.lng),
     description: entry.comment || '',
-    aprs_symbol: entry.symbol || '',
+    aprs_symbol: symbol,
     source,
     status: 'active',
   };
@@ -209,8 +221,8 @@ export async function fetchAprsData(base44: any, apiKey: string) {
   // Query aprs.fi in batches of 20 (API hard limit) with 500ms delay.
   // Previous code used BATCH_SIZE=150 (API returns only 20!) and 2000ms delay (40s total).
   const BATCH_SIZE = 20; // API hard limit — DO NOT increase
-  const BATCH_DELAY = 500;
-  const MAX_QUERIES = 500; // Limit to stay within platform timeout
+  const BATCH_DELAY = 200;
+  const MAX_QUERIES = 200; // Reduced from 500 to avoid platform timeout
   const callsignList = newCallsigns.slice(0, MAX_QUERIES);
 
   const nodeRecords: any[] = [];

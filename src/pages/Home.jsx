@@ -59,7 +59,7 @@ import ReferenceSearchFilter from "@/components/map/ReferenceSearchFilter";
 import SotaFilter, { altitudeToPoints } from "@/components/map/SotaFilter";
 import PotaFilter from "@/components/map/PotaFilter";
 import WwffFilter from "@/components/map/WwffFilter";
-import IotaFilter from "@/components/map/IotaFilter";
+
 import LlotaFilter from "@/components/map/LlotaFilter";
 import LlotaLayer from "@/components/map/LlotaLayer";
 import WwbotaFilter from "@/components/map/WwbotaFilter";
@@ -105,20 +105,20 @@ const SCALE_TO_ZOOM = { 10000: 14, 25000: 12, 50000: 10, 100000: 8 };
 // Layer colors for marker building
 const LAYER_COLORS = {
   sota: "#e74c3c", pota: "#27ae60", hbff: "#8e44ad", wwbota: "#795548",
-  castle: "#e67e22", iota: "#3498db",   lighthouse: "#dc2626", llota: "#0ea5e9",
+  castle: "#e67e22",   lighthouse: "#dc2626", llota: "#0ea5e9",
 };
 
 // Layer labels for search matching
 const LAYER_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
-  castle: "WCA", iota: "IOTA", lighthouse: "WLOTA", llota: "LLOTA",
+  castle: "WCA", lighthouse: "WLOTA", llota: "LLOTA",
   repeater: "Relais", tota: "TOTA", aprs: "APRS", brandmeister: "BrandMeister",
 };
 
 // Build a unified markers array from all reference types (search uses ALL loaded data, not just active layers)
 function buildMarkers(data, activeLayers) {
   const markers = [];
-  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "llota"]) {
+  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "llota"]) {
     if (activeLayers && !activeLayers.includes(type)) continue;
     const refs = data[type] || [];
     for (const ref of refs) {
@@ -139,7 +139,7 @@ function buildMarkers(data, activeLayers) {
 // Build search candidates from ALL loaded data (regardless of active layers) for comprehensive search
 function buildSearchCandidates(data, repeaters) {
   const candidates = [];
-  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota", "lighthouse", "llota"]) {
+  for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "lighthouse", "llota"]) {
     const refs = data[type] || [];
     for (const ref of refs) {
       if (ref.lat == null || ref.lng == null) continue;
@@ -231,7 +231,7 @@ export default function Home() {
 
   // Activity zones toggle — controls visibility of all activity layers (SOTA, POTA, WWFF, etc.)
   // When OFF, activity layers are hidden from the panel and removed from activeLayers.
-  const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "iota", "lighthouse", "llota", "swiss_protected"];
+  const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "lighthouse", "llota", "swiss_protected"];
   const [activityZonesEnabled, setActivityZonesEnabled] = useState(() => {
     const saved = safeGetItem("activityZonesToggle");
     if (saved !== null) return saved === "true";
@@ -580,9 +580,6 @@ export default function Home() {
   const [wwffFilterCountries, setWwffFilterCountries] = useState(() => {
     try { return JSON.parse(safeGetItem("hb9om_wwff_filter_countries")) || []; } catch { return []; }
   });
-  const [iotaFilterCountries, setIotaFilterCountries] = useState(() => {
-    try { return JSON.parse(safeGetItem("hb9om_iota_filter_countries")) || []; } catch { return []; }
-  });
   const [llotaFilterCountries, setLlotaFilterCountries] = useState(() => {
     try { return JSON.parse(safeGetItem("hb9om_llota_filter_countries")) || []; } catch { return []; }
   });
@@ -595,17 +592,14 @@ export default function Home() {
   const [llotaActivationFilter, setLlotaActivationFilter] = useState("all");
   const [sotaFilterPoints, setSotaFilterPoints] = useState([]);
   const [sotaAltitudeRange, setSotaAltitudeRange] = useState("all");
-  const [iotaStatusFilter, setIotaStatusFilter] = useState("all");
-  const [iotaRegionFilter, setIotaRegionFilter] = useState("all");
   useEffect(() => {
     safeSetJSON("hb9om_sota_filter_countries", sotaFilterCountries, 2048);
     safeSetJSON("hb9om_pota_filter_countries", potaFilterCountries, 2048);
     safeSetJSON("hb9om_wwff_filter_countries", wwffFilterCountries, 2048);
-    safeSetJSON("hb9om_iota_filter_countries", iotaFilterCountries, 2048);
     safeSetJSON("hb9om_llota_filter_countries", llotaFilterCountries, 2048);
     safeSetJSON("hb9om_wwbota_filter_countries", wwbotaFilterCountries, 2048);
     safeSetJSON("hb9om_castle_filter_countries", castleFilterCountries, 2048);
-  }, [sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries, wwbotaFilterCountries, castleFilterCountries]);
+  }, [sotaFilterCountries, potaFilterCountries, wwffFilterCountries, llotaFilterCountries, wwbotaFilterCountries, castleFilterCountries]);
 
   // Save filter state to localStorage — debounced + size-limited + safeSetJSON.
   // Debounce (500ms) prevents rapid writes on every filter keystroke.
@@ -805,7 +799,7 @@ export default function Home() {
   const allMarkers = useMemo(() => {
     let markers = buildMarkers(mapData, activeLayers);
     // Apply per-layer reference search filters
-    for (const type of ["sota", "pota", "hbff", "wwbota", "castle", "iota"]) {
+    for (const type of ["sota", "pota", "hbff", "wwbota", "castle"]) {
       const q = (refSearchQueries[type] || "").toLowerCase().trim();
       if (q) {
         markers = markers.filter(m =>
@@ -818,7 +812,7 @@ export default function Home() {
     // PUNKT 12: Apply country filters for SOTA, POTA, WWFF, IOTA
     const countryFilters = {
       sota: sotaFilterCountries, pota: potaFilterCountries,
-      hbff: wwffFilterCountries, iota: iotaFilterCountries, llota: llotaFilterCountries,
+      hbff: wwffFilterCountries, llota: llotaFilterCountries,
     };
     for (const [type, countries] of Object.entries(countryFilters)) {
       if (countries && countries.length > 0) {
@@ -847,24 +841,6 @@ export default function Home() {
         return sotaFilterPoints.includes(pts);
       });
     }
-    // IOTA: status filter
-    if (iotaStatusFilter !== "all") {
-      markers = markers.filter(m => {
-        if (m.layerType !== "iota") return true;
-        const status = (m.status || "").toLowerCase();
-        if (iotaStatusFilter === "active") return status === "active";
-        if (iotaStatusFilter === "not_activated") return status !== "active";
-        return true;
-      });
-    }
-    // IOTA: region filter
-    if (iotaRegionFilter !== "all") {
-      markers = markers.filter(m => {
-        if (m.layerType !== "iota") return true;
-        const code = m.code || "";
-        return code.startsWith(iotaRegionFilter + "-");
-      });
-    }
     // LLOTA: activation filter
     if (llotaActivationFilter !== "all") {
       markers = markers.filter(m => {
@@ -889,7 +865,7 @@ export default function Home() {
       });
     }
     return markers;
-  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, iotaStatusFilter, iotaRegionFilter, llotaActivationFilter, coverageRadiusKm, fixedPosition, userPosition]);
+  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, llotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, llotaActivationFilter, coverageRadiusKm, fixedPosition, userPosition]);
 
   // Boundary count per layer type — for display in filter panels
   const getBoundaryCount = useCallback((layerType) =>
@@ -1514,7 +1490,6 @@ export default function Home() {
       { type: "hbff", label: "WWFF", color: "#8e44ad" },
       { type: "castle", label: "WCA", color: "#e67e22" },
       { type: "wwbota", label: "WWBOTA", color: "#795548" },
-      { type: "iota", label: "IOTA", color: "#3498db" },
       { type: "llota", label: "LLOTA", color: "#0ea5e9" },
     ];
     const refButtons = refTypes
@@ -2038,26 +2013,6 @@ export default function Home() {
               allBoundariesActive={allBoundariesEnabled.has("hbff")}
               activeBoundaryCount={getBoundaryCount("hbff")}
               onClearBoundaries={() => handleClearBoundaries("hbff")}
-            />
-          );
-        }
-        if (btn.type === "iota") {
-          return (
-            <IotaFilter key={filterKey} {...commonProps}
-              searchQuery={refSearchQueries.iota || ""}
-              onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, iota: q }))}
-              pointCount={btn.count} visibleCount={visibleCount}
-              points={mapData.iota || []}
-              filterCountries={iotaFilterCountries}
-              onFilterCountriesChange={setIotaFilterCountries}
-              statusFilter={iotaStatusFilter}
-              onStatusFilterChange={setIotaStatusFilter}
-              regionFilter={iotaRegionFilter}
-              onRegionFilterChange={setIotaRegionFilter}
-              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("iota", en)}
-              allBoundariesActive={allBoundariesEnabled.has("iota")}
-              activeBoundaryCount={getBoundaryCount("iota")}
-              onClearBoundaries={() => handleClearBoundaries("iota")}
             />
           );
         }

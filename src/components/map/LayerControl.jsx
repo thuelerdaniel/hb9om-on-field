@@ -51,13 +51,6 @@ const LAYER_GROUPS = [
     description: "Aussichtstürme und Antennen weltweit (wwtota.com) — in der Schweiz getrennt nach Antennen und Türmen"
   },
   {
-    id: "iota",
-    label: "IOTA – Islands on the Air",
-    icon: MapPin,
-    color: "#3498db",
-    description: "Insel-Referenzen"
-  },
-  {
     id: "lighthouse",
     label: "WLOTA – Leuchttürme (ILLW)",
     icon: Anchor,
@@ -109,7 +102,7 @@ const LAYER_GROUPS = [
 ];
 
 // Activity layer IDs — controlled by the "Aktivitätszonen" toggle (not a layer itself)
-const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "iota", "lighthouse", "llota", "swiss_protected"];
+const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "lighthouse", "llota", "swiss_protected"];
 
 const BASE_LAYERS = [
   { id: "osm", label: "OpenStreetMap" },
@@ -300,7 +293,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             </button>
             {showCountries && (
               <>
-                <p className="text-[10px] text-gray-400 mb-2">Einzelne Länder ein/aus. Alle = keine Auswahl. Gilt für SOTA, POTA, Burgen, IOTA, Leuchttürme und WWBOTA. Bei Relais und TOTA überschreibt der jeweilige Layer-Filter diesen globalen Filter.</p>
+                <p className="text-[10px] text-gray-400 mb-2">Einzelne Länder ein/aus. Alle = keine Auswahl. Gilt für SOTA, POTA, Burgen, Leuchttürme und WWBOTA. Bei Relais und TOTA überschreibt der jeweilige Layer-Filter diesen globalen Filter.</p>
                 <button
                   onClick={() => {
                     if (activeCountries && activeCountries.length > 0) {
