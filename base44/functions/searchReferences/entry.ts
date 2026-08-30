@@ -6,7 +6,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 // Key finding: $regex on a SINGLE field works, but $or and $gte/$lte on strings do NOT.
 // Strategy: two separate filter() calls (code + name), merged and deduped.
 
-const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota', 'llota'];
+const REFERENCE_TYPES = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'lighthouse', 'tota', 'llota'];
 
 const POINT_TYPES: Record<string, { entity: string; normalize: (r: any) => any }> = {
   sota: {
@@ -32,7 +32,7 @@ const POINT_TYPES: Record<string, { entity: string; normalize: (r: any) => any }
 };
 
 // Types stored in ReferenceData.references array (small datasets — safe to load fully)
-const REFERENCE_DATA_TYPES = ['wwbota', 'castle', 'iota', 'lighthouse'];
+const REFERENCE_DATA_TYPES = ['wwbota', 'castle', 'lighthouse'];
 
 const MAX_PER_TYPE = 20;
 const PAGE_SIZE = 5000;

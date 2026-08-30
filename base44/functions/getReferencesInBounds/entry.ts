@@ -70,16 +70,6 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
       height_m: r.height_m, spot_height_m: r.spot_height_m,
     })
   },
-  iota: {
-    entity: 'IotaPoint',
-    dedupField: 'code',
-    normalize: (r) => ({
-      code: r.code, name: r.name, lat: r.lat, lng: r.lng,
-      dxcc_num: r.dxcc_num, status: r.status, island_count: r.island_count,
-      pc_credited: r.pc_credited, grp_region: r.grp_region,
-      link: 'https://www.iota-world.org/'
-    })
-  },
   repeater: {
     entity: 'Repeater',
     dedupField: 'id',
@@ -223,7 +213,7 @@ export default async function(req: Request): Promise<Response> {
     } else if (typeof entityType === 'string' && entityType.length > 0) {
       allTypes = [TYPE_ALIASES[entityType] || entityType];
     } else {
-      allTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'iota', 'lighthouse', 'tota', 'llota', 'aprs'];
+      allTypes = ['sota', 'pota', 'hbff', 'wwbota', 'castle', 'lighthouse', 'tota', 'llota', 'aprs'];
     }
 
     const effectiveMax = (typeof max_per_type === 'number' && max_per_type > 0) ? max_per_type : MAX_PER_TYPE;

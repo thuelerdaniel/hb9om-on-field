@@ -4,7 +4,7 @@
   "properties": {
     "code": {
       "type": "string",
-      "description": "WWFF Reference (z.B. DLFF-0123)"
+      "description": "WWFF Reference (z.B. DLFF-0123, HBFF-0001)"
     },
     "name": {
       "type": "string",
@@ -18,9 +18,22 @@
       "type": "number",
       "description": "Laengengrad"
     },
+    "country_code": {
+      "type": "string",
+      "description": "Laendercode (z.B. DE, CH, FR) \u2014 abgeleitet aus WWFF-Code"
+    },
+    "park_type": {
+      "type": "string",
+      "description": "Schutzgebiets-Typ (z.B. WWFF, Nationalpark)"
+    },
     "link": {
       "type": "string",
       "description": "Web-Link zum Gebiet"
+    },
+    "last_synced": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Synchronisation"
     },
     "description": {
       "type": "string",

@@ -58,6 +58,11 @@
       "type": "number",
       "description": "Standorthoehe ue.M. in Metern"
     },
+    "last_synced": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Synchronisation"
+    },
     "description": {
       "type": "string",
       "description": "Beschreibung",

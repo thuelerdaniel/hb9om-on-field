@@ -314,6 +314,11 @@ export default async function (req) {
     if (action === 'fetchWorldwide' || action === 'refresh') {
       try {
         const worldwide = await fetchWorldwideTota();
+        // Add last_synced to all worldwide records
+        const syncDate = new Date().toISOString();
+        for (const w of worldwide) {
+          w.last_synced = syncDate;
+        }
         await base44.asServiceRole.entities.TotaPoint.deleteMany({
           source: 'wwtota.com',
         });
