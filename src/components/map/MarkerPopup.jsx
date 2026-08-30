@@ -4,7 +4,7 @@ import { getWwbotaLink, getWwbotaCountryName } from "@/lib/wwbotaSchemes";
 
 const LAYER_META = {
   sota: { icon: Mountain, color: "#e74c3c", label: "SOTA", program: "Summits on the Air", linkBase: "https://sotl.as/summits/" },
-  pota: { icon: Trees, color: "#27ae60", label: "POTA", program: "Parks on the Air", linkBase: "https://pota.app/#/park/" },
+  pota: { icon: Trees, color: "#27ae60", label: "POTA", program: "Parks on the Air", linkBase: "https://pota-map.fr/?pota=" },
   hbff: { icon: Trees, color: "#8e44ad", label: "WWFF", program: "Flora & Fauna", linkBase: "" },
   wwbota: { icon: Building, color: "#795548", label: "WWBOTA", program: "Bunkers on the Air", linkBase: "" },
   castle: { icon: Castle, color: "#e67e22", label: "WCA/COTA", program: "Burgen on the Air", linkBase: "" },
@@ -68,13 +68,21 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
     : null;
 
   const externalLink = (() => {
-    if (layerType === "sota" && data.code) return meta.linkBase + data.code;
-    if (layerType === "pota" && (data.reference || data.code)) return meta.linkBase + (data.reference || data.code);
-    if (layerType === "iota" && (data.code || data.reference)) return meta.linkBase + (data.code || data.reference);
+    if (layerType === "sota" && data.code) return meta.linkBase + encodeURIComponent(data.code);
+    if (layerType === "pota" && (data.reference || data.code)) return meta.linkBase + encodeURIComponent(data.reference || data.code);
+    if (layerType === "iota" && (data.code || data.reference)) return meta.linkBase + encodeURIComponent(data.code || data.reference);
     if (layerType === "wwbota") return getWwbotaLink(data.scheme, data.code);
     if (data.link) return data.link;
     if (meta.linkBase) return meta.linkBase;
     return null;
+  })();
+
+  // Domain label for external link — shows the target site name
+  const externalLinkLabel = (() => {
+    if (layerType === "sota") return "sotl.as";
+    if (layerType === "pota") return "pota-map.fr";
+    if (layerType === "iota") return "iota-world.org";
+    return "Mehr Infos";
   })();
 
   // Use the marker's own color (e.g. WWBOTA country color) if available, else layer default
@@ -135,7 +143,7 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
           {externalLink && (
             <a href={externalLink} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:underline">
-              Mehr Infos <ExternalLink className="w-3 h-3" />
+              {externalLinkLabel} <ExternalLink className="w-3 h-3" />
             </a>
           )}
 
