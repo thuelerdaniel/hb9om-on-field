@@ -585,6 +585,12 @@ export default function Home() {
   const [llotaFilterCountries, setLlotaFilterCountries] = useState(() => {
     try { return JSON.parse(safeGetItem("hb9om_llota_filter_countries")) || []; } catch { return []; }
   });
+  const [wwbotaFilterCountries, setWwbotaFilterCountries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_wwbota_filter_countries")) || []; } catch { return []; }
+  });
+  const [castleFilterCountries, setCastleFilterCountries] = useState(() => {
+    try { return JSON.parse(safeGetItem("hb9om_castle_filter_countries")) || []; } catch { return []; }
+  });
   const [llotaActivationFilter, setLlotaActivationFilter] = useState("all");
   const [sotaFilterPoints, setSotaFilterPoints] = useState([]);
   const [sotaAltitudeRange, setSotaAltitudeRange] = useState("all");
@@ -596,7 +602,9 @@ export default function Home() {
     safeSetJSON("hb9om_wwff_filter_countries", wwffFilterCountries, 2048);
     safeSetJSON("hb9om_iota_filter_countries", iotaFilterCountries, 2048);
     safeSetJSON("hb9om_llota_filter_countries", llotaFilterCountries, 2048);
-  }, [sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries]);
+    safeSetJSON("hb9om_wwbota_filter_countries", wwbotaFilterCountries, 2048);
+    safeSetJSON("hb9om_castle_filter_countries", castleFilterCountries, 2048);
+  }, [sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries, wwbotaFilterCountries, castleFilterCountries]);
 
   // Save filter state to localStorage — debounced + size-limited + safeSetJSON.
   // Debounce (500ms) prevents rapid writes on every filter keystroke.
@@ -1957,6 +1965,10 @@ export default function Home() {
               illwYear={illwYear}
               onIllwYearChange={setIllwYear}
               illwActiveCount={illwActiveCount}
+              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("lighthouse", en)}
+              allBoundariesActive={allBoundariesEnabled.has("lighthouse")}
+              activeBoundaryCount={getBoundaryCount("lighthouse")}
+              onClearBoundaries={() => handleClearBoundaries("lighthouse")}
             />
           );
         }
@@ -2058,20 +2070,39 @@ export default function Home() {
             />
           );
         }
-        // WCA, WWBOTA: keep simple search filter
-        return (
-          <ReferenceSearchFilter
-            key={filterKey}
-            layerType={btn.type}
-            label={btn.label}
-            color={btn.color}
-            query={btn.query}
-            onQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, [btn.type]: q }))}
-            leftPx={btn.leftPx}
-            bottomPx={btn.bottomPx}
-            markerCount={visibleCount}
-          />
-        );
+        if (btn.type === "wwbota") {
+          return (
+            <WwbotaFilter key={filterKey} {...commonProps}
+              searchQuery={refSearchQueries.wwbota || ""}
+              onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, wwbota: q }))}
+              pointCount={btn.count} visibleCount={visibleCount}
+              points={mapData.wwbota || []}
+              filterCountries={wwbotaFilterCountries}
+              onFilterCountriesChange={setWwbotaFilterCountries}
+              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("wwbota", en)}
+              allBoundariesActive={allBoundariesEnabled.has("wwbota")}
+              activeBoundaryCount={getBoundaryCount("wwbota")}
+              onClearBoundaries={() => handleClearBoundaries("wwbota")}
+            />
+          );
+        }
+        if (btn.type === "castle") {
+          return (
+            <WcaFilter key={filterKey} {...commonProps}
+              searchQuery={refSearchQueries.castle || ""}
+              onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, castle: q }))}
+              pointCount={btn.count} visibleCount={visibleCount}
+              points={mapData.castle || []}
+              filterCountries={castleFilterCountries}
+              onFilterCountriesChange={setCastleFilterCountries}
+              onToggleAllBoundaries={(en) => handleToggleAllBoundaries("castle", en)}
+              allBoundariesActive={allBoundariesEnabled.has("castle")}
+              activeBoundaryCount={getBoundaryCount("castle")}
+              onClearBoundaries={() => handleClearBoundaries("castle")}
+            />
+          );
+        }
+        return null;
       })}
 
       {/* Legend — only if enabled */}

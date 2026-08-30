@@ -18,6 +18,10 @@ export const APP_BUILD = "202608301130";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.95: Coverage-Kreis-Fix — Filterung nutzt Fallback-Position Bern wenn kein GPS verfügbar",
+  "v0.95: Grenzen-Funktion — 'Alle Grenzen anzeigen/entfernen' jetzt für alle Layer-Filter (SOTA, POTA, WWFF, IOTA, WCA, WWBOTA, LLOTA, Leuchttürme)",
+  "v0.95: WWBOTA-Filter — vollwertiger Filter mit Länder-Auswahl statt einfachem Such-Filter",
+  "v0.95: WCA-Filter — vollwertiger Filter mit Länder-Auswahl statt einfachem Such-Filter",
   "v0.95: Karten-Symbol-Fix — Marker z-index 1000 (Symbole verschwinden nicht mehr hinter Basis-Layern)",
   "v0.95: Aktivitätszonen als Toggle — steuert Sichtbarkeit aller Aktivitäts-Layer (SOTA, POTA, WWFF, LLOTA etc.)",
   "v0.95: Coverage-Radius — Slider 0-500km im Layer-Panel, filtert Referenzen nach Entfernung mit visuellem Kreis",
