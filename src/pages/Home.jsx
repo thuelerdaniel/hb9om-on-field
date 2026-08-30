@@ -312,6 +312,25 @@ export default function Home() {
     });
   }, []);
 
+  // Adjust the radius of an existing boundary circle — updates the radiusOverride
+  const handleBoundaryRadiusChange = useCallback((data, layerType, radiusM) => {
+    const key = `${layerType}-${data.code || data.reference || data.id || ""}`;
+    setBoundaryPoints(prev => prev.map(bp => {
+      const bpKey = `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}`;
+      return bpKey === key ? { ...bp, radiusOverride: radiusM } : bp;
+    }));
+  }, []);
+
+  // Map of boundary key → current radius (for slider display in popup)
+  const boundaryRadiusMap = useMemo(() => {
+    const map = {};
+    for (const bp of boundaryPoints) {
+      const key = `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}`;
+      map[key] = bp.radiusOverride || null;
+    }
+    return map;
+  }, [boundaryPoints]);
+
   // Load public positions periodically (every 60s) and on mount
   useEffect(() => {
     const loadPublicPositions = async () => {
@@ -1284,6 +1303,8 @@ export default function Home() {
           onViewportLimitChange={setViewportLimit}
           boundaryKeys={boundaryKeys}
           onToggleBoundary={handleToggleBoundary}
+          onBoundaryRadiusChange={handleBoundaryRadiusChange}
+          boundaryRadiusMap={boundaryRadiusMap}
         />
         <CountryAggregateLayer
           markers={allMarkers}

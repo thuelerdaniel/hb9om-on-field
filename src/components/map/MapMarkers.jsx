@@ -48,7 +48,7 @@ function getDraggableIcon(color) {
   return icon;
 }
 
-function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive, userPosition, onViewportLimitChange, boundaryKeys, onToggleBoundary }) {
+function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive, userPosition, onViewportLimitChange, boundaryKeys, onToggleBoundary, onBoundaryRadiusChange, boundaryRadiusMap }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [bounds, setBounds] = useState(map.getBounds());
@@ -161,7 +161,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
               }}
             >
               <DraggablePopup>
-                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} isBoundaryShown={boundaryKeys?.has(`${m.layerType}-${m.code || m.reference || m.id || ""}`)} onToggleBoundary={onToggleBoundary} />
+                <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} isBoundaryShown={boundaryKeys?.has(`${m.layerType}-${m.code || m.reference || m.id || ""}`)} onToggleBoundary={onToggleBoundary} onBoundaryRadiusChange={onBoundaryRadiusChange} boundaryRadius={boundaryRadiusMap?.[`${m.layerType}-${m.code || m.reference || m.id || ""}`]} />
               </DraggablePopup>
             </CircleMarker>
           );
@@ -182,7 +182,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
             icon={getShapeIcon(m.layerType, m.color)}
           >
             <DraggablePopup>
-              <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} isBoundaryShown={boundaryKeys?.has(`${m.layerType}-${m.code || m.reference || m.id || ""}`)} onToggleBoundary={onToggleBoundary} />
+              <MarkerPopup data={m} layerType={m.layerType} isAdmin={isAdmin} onEdit={(data) => onEdit(data, m.layerType)} performanceMode={performanceMode} userPosition={userPosition} isBoundaryShown={boundaryKeys?.has(`${m.layerType}-${m.code || m.reference || m.id || ""}`)} onToggleBoundary={onToggleBoundary} onBoundaryRadiusChange={onBoundaryRadiusChange} boundaryRadius={boundaryRadiusMap?.[`${m.layerType}-${m.code || m.reference || m.id || ""}`]} />
             </DraggablePopup>
           </Marker>
         );
@@ -203,7 +203,9 @@ function arePropsEqual(prev, next) {
     prev.userPosition === next.userPosition &&
     prev.onViewportLimitChange === next.onViewportLimitChange &&
     prev.boundaryKeys === next.boundaryKeys &&
-    prev.onToggleBoundary === next.onToggleBoundary
+    prev.onToggleBoundary === next.onToggleBoundary &&
+    prev.onBoundaryRadiusChange === next.onBoundaryRadiusChange &&
+    prev.boundaryRadiusMap === next.boundaryRadiusMap
   );
 }
 

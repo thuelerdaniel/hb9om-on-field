@@ -30,12 +30,34 @@ function formatDistance(km) {
 // Layer types that support boundary display (radius circle around the point)
 const BOUNDARY_LAYERS = new Set(["sota", "pota", "hbff", "castle", "iota", "lighthouse"]);
 
-export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode, userPosition, isBoundaryShown, onToggleBoundary }) {
+// Default radius (meters) per layer type — used for boundary circle and slider initial value
+const DEFAULT_RADIUS_M = {
+  sota: 50,
+  pota: 500,
+  hbff: 500,
+  castle: 200,
+  iota: 1000,
+  lighthouse: 100,
+};
+
+// Slider range (meters) per layer type
+const RADIUS_RANGE_M = {
+  sota: { min: 25, max: 500, step: 25 },
+  pota: { min: 100, max: 5000, step: 100 },
+  hbff: { min: 100, max: 5000, step: 100 },
+  castle: { min: 50, max: 2000, step: 50 },
+  iota: { min: 500, max: 20000, step: 500 },
+  lighthouse: { min: 50, max: 1000, step: 50 },
+};
+
+export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performanceMode, userPosition, isBoundaryShown, onToggleBoundary, onBoundaryRadiusChange, boundaryRadius }) {
   const [showDetails, setShowDetails] = useState(!performanceMode);
   const meta = LAYER_META[layerType] || {};
   const Icon = meta.icon || MapPin;
 
   const canShowBoundary = BOUNDARY_LAYERS.has(layerType) && data.lat != null && data.lng != null;
+  const range = RADIUS_RANGE_M[layerType] || { min: 50, max: 2000, step: 50 };
+  const currentRadius = boundaryRadius || DEFAULT_RADIUS_M[layerType] || 200;
 
   const hasCoords = data.lat != null && data.lng != null;
   const navUrl = hasCoords
@@ -148,17 +170,38 @@ export default function MarkerPopup({ data, layerType, isAdmin, onEdit, performa
           })()}
 
           {canShowBoundary && onToggleBoundary && (
-            <button
-              onClick={() => onToggleBoundary(data, layerType)}
-              className={`mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                isBoundaryShown
-                  ? "text-white bg-amber-500 border-amber-600 hover:bg-amber-600"
-                  : "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
-              }`}
-            >
-              <MapPinned className="w-3 h-3" />
-              {isBoundaryShown ? "Grenze ausblenden" : "Grenze anzeigen"}
-            </button>
+            <>
+              <button
+                onClick={() => onToggleBoundary(data, layerType)}
+                className={`mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  isBoundaryShown
+                    ? "text-white bg-amber-500 border-amber-600 hover:bg-amber-600"
+                    : "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
+                }`}
+              >
+                <MapPinned className="w-3 h-3" />
+                {isBoundaryShown ? "Grenze ausblenden" : "Grenze anzeigen"}
+              </button>
+              {isBoundaryShown && onBoundaryRadiusChange && (
+                <div className="mt-2 px-1 py-1.5 bg-amber-50 rounded-lg border border-amber-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-medium text-amber-800">Radius</span>
+                    <span className="text-[10px] font-bold text-amber-900">
+                      {currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(1)} km` : `${currentRadius} m`}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={range.min}
+                    max={range.max}
+                    step={range.step}
+                    value={currentRadius}
+                    onChange={(e) => onBoundaryRadiusChange(data, layerType, parseInt(e.target.value))}
+                    className="w-full h-1.5 accent-amber-500 cursor-pointer"
+                  />
+                </div>
+              )}
+            </>
           )}
 
           {navUrl && (
