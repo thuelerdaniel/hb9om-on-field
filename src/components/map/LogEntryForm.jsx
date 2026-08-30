@@ -48,6 +48,7 @@ const REF_TYPES = [
   { value: "lighthouse", label: "Leuchtturm" },
   { value: "repeater", label: "Relais" },
   { value: "tota", label: "TOTA" },
+  { value: "llota", label: "LLOTA (Seen)" },
   { value: "aprs", label: "APRS-Station" },
   { value: "swiss_protected", label: "Bundesinventar" },
   { value: "generell", label: "Generell (nur Locator)" },

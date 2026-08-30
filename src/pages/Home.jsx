@@ -1674,10 +1674,11 @@ export default function Home() {
       {/* Reference filters — full-featured for SOTA/POTA/WWFF/IOTA, search-only for WCA/WWBOTA */}
       {features.tools.filter !== false && filterButtons.reference.map(btn => {
         const visibleCount = allMarkers.filter(m => m.layerType === btn.type).length;
-        const commonProps = { key: `ref-filter-${btn.type}`, leftPx: btn.leftPx, bottomPx: btn.bottomPx };
+        const filterKey = `ref-filter-${btn.type}`;
+        const commonProps = { leftPx: btn.leftPx, bottomPx: btn.bottomPx };
         if (btn.type === "sota") {
           return (
-            <SotaFilter {...commonProps}
+            <SotaFilter key={filterKey} {...commonProps}
               searchQuery={refSearchQueries.sota || ""}
               onSearchQueryChange={(q) => setRefSearchQueries(prev => ({ ...prev, sota: q }))}
               pointCount={btn.count} visibleCount={visibleCount}

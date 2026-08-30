@@ -30,6 +30,8 @@ const SOURCES = [
   { source: 'repeater_asia_hearham', label: 'Relais Asien (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'asia', scheduled: true }, order: 97 },
   { source: 'repeater_africa_hearham', label: 'Relais Afrika (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'africa', scheduled: true }, order: 98 },
   { source: 'tota', label: 'TOTA weltweit', function_name: 'fetchTota', function_payload: { action: 'fetchWorldwide', scheduled: true }, order: 10 },
+  { source: 'llota_refs', label: 'LLOTA Referenzen', function_name: 'fetchLlotaRefs', function_payload: { scheduled: true }, order: 13 },
+  { source: 'llota_spots', label: 'LLOTA Spots', function_name: 'fetchLlotaSpots', function_payload: { scheduled: true }, order: 14 },
   { source: 'fm_funknetz', label: 'FM-Funknetz TGs', function_name: 'fetchFmFunknetz', function_payload: { scheduled: true }, order: 11 },
   { source: 'ch_repeater_links', label: 'CH-Relais-Links', function_name: 'fetchCHRepeaterLinks', function_payload: { scheduled: true }, order: 12 },
 ];
@@ -52,6 +54,8 @@ const SOURCE_GROUP_TIMES: Record<string, string> = {
   repeater: '05:00',
   aprs: '06:00',
   tota: '06:30',
+  llota_refs: '04:00',
+  llota_spots: '06:30',
   fm_funknetz: '06:30',
   ch_repeater_links: '06:30',
 };
