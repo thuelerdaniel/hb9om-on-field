@@ -206,27 +206,45 @@ export default async function (req: Request): Promise<Response> {
     // --- SOTA: SwissNames3D peak data ---
     if (type === 'sota') {
       if (name) {
-        const results = await searchSwissNames(name, 20);
+        const results = await searchSwissNames(name, 30);
+        if (results.length === 0) {
+          return Response.json({
+            success: false,
+            error: 'SearchServer returned 0 results',
+            type: 'sota',
+            name,
+          }, { status: 404 });
+        }
+
+        // Filter for point features (TLM_NAME_PKT) — these include peaks,
+        // passes, hills, ridges. Also include area names (TLM_GEBIETSNAME)
+        // as fallback for broader searches.
         const peaks = results
-          .filter((r: any) => {
-            const objclass = r.attrs?.objectclass || '';
-            return (
-              objclass.includes('BERG') ||
-              objclass.includes('GIPFEL') ||
-              objclass.includes('PASS') ||
-              objclass.includes('HUEGEL') ||
-              objclass.includes('KAMM') ||
-              objclass.includes('RUECKEN')
-            );
-          })
           .map((r: any) => ({
-            name: r.attrs?.label?.replace(/<[^>]*>/g, '') || '',
-            lat: r.attrs?.lat,
-            lng: r.attrs?.lon,
+            name: (r.attrs?.label || r.label || '').replace(/<[^>]*>/g, ''),
+            lat: r.attrs?.lat || r.attrs?.y,
+            lng: r.attrs?.lon || r.attrs?.x,
             elevation: r.attrs?.height || r.attrs?.alt || null,
             objectclass: r.attrs?.objectclass || '',
           }))
-          .filter((p: any) => p.lat != null && p.lng != null);
+          .filter((p: any) => p.lat != null && p.lng != null)
+          .filter((p: any) => {
+            const oc = (p.objectclass || '').toUpperCase();
+            // Point features: peaks, passes, hills, ridges
+            if (oc === 'TLM_NAME_PKT') return true;
+            // Area names as fallback (e.g., "Gebiet Eiger-Nordwand")
+            if (oc === 'TLM_GEBIETSNAME') return true;
+            return false;
+          });
+
+        // Sort by distance to given coordinates (closest first)
+        if (lat != null && lng != null && peaks.length > 0) {
+          peaks.sort((a: any, b: any) => {
+            const da = Math.hypot(a.lat - lat, a.lng - lng);
+            const db = Math.hypot(b.lat - lat, b.lng - lng);
+            return da - db;
+          });
+        }
 
         if (peaks.length > 0) {
           return Response.json({

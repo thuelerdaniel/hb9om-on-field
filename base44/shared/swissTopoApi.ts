@@ -113,18 +113,19 @@ export async function identifyAtPoint(
 }
 
 // Search SwissNames3D by name — returns point features with lat/lng.
+// Constructs URL manually — URLSearchParams encodes spaces as + which the
+// SwissTopo SearchServer API doesn't handle correctly for searchText.
 export async function searchSwissNames(
   name: string,
   limit: number = 10,
 ): Promise<any[]> {
   if (!name) return [];
-  const params = new URLSearchParams({
-    searchText: name,
-    type: 'locations',
-    origins: 'gazetteer',
-    sr: '4326',
-  });
-  const url = `${API_BASE}/SearchServer?${params.toString()}`;
+  const encodedName = encodeURIComponent(name);
+  const url = `${API_BASE}/SearchServer` +
+    `?searchText=${encodedName}` +
+    `&type=locations` +
+    `&origins=gazetteer` +
+    `&sr=4326`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {
@@ -133,11 +134,19 @@ export async function searchSwissNames(
       headers: { Accept: 'application/json' },
     });
     clearTimeout(timeout);
-    if (!resp.ok) return [];
+    if (!resp.ok) {
+      console.warn(`[SwissTopo] SearchServer returned ${resp.status}`);
+      return [];
+    }
     const data = await resp.json();
-    return (data.results || []).slice(0, limit);
-  } catch {
+    const results = data.results || [];
+    if (results.length === 0) {
+      console.warn(`[SwissTopo] SearchServer returned 0 results for "${name}"`);
+    }
+    return results.slice(0, limit);
+  } catch (err) {
     clearTimeout(timeout);
+    console.warn(`[SwissTopo] SearchServer fetch failed:`, err?.message || err);
     return [];
   }
 }
