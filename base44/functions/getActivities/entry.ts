@@ -224,90 +224,41 @@ export default async function(req: Request): Promise<Response> {
       console.log('[WWFF] Agendas fetch failed:', e.message);
     }
 
-    // LLOTA-Alerts (geplante LLOTA-Aktivierungen) von llota.app HTML-Seite
-    // Die Webseite hat keine JSON-API — die geplanten Aktivierungen werden als HTML-Tabelle gerendert.
+    // LLOTA-Alerts (geplante LLOTA-Aktivierungen) von llota.app JSON-API
     let llotaAlerts: any[] = [];
     try {
-      const resp = await fetch('https://llota.app/scheduled_activations.html', {
-        headers: { 'Accept': 'text/html', 'User-Agent': UA },
+      const resp = await fetch('https://llota.app/api/scheduled-activations', {
+        headers: { 'Accept': 'application/json', 'User-Agent': UA },
         signal: AbortSignal.timeout(10000),
       });
       if (resp.ok) {
-        const html = await resp.text();
-        const refCodeRegex = /\bLL[A-Z]{2}-\d{4}\b/;
-        const userLinkRegex = /llota\.app\/user\/([^"'<\s]+)/i;
-        const dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/;
-        const timeRegex = /(\d{2}):(\d{2})\s*UTC/i;
-        const modeRegex = /\b(SSB|CW|FT8|FM|AM)\b/i;
-
-        const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-        for (const row of rows) {
-          const refMatch = row.match(refCodeRegex);
-          if (!refMatch) continue;
-          const reference = refMatch[0];
-
-          const userMatch = row.match(userLinkRegex);
-          const call = userMatch ? decodeURIComponent(userMatch[1]).trim() : '';
-          if (!call) continue;
-
-          // Extract td cells
-          const tds: string[] = [];
-          const tdRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-          let tdMatch;
-          while ((tdMatch = tdRe.exec(row)) !== null) {
-            tds.push(tdMatch[1]);
-          }
-
-          // Date/time from first td
-          const dateMatch = row.match(dateRegex);
-          const timeMatch = row.match(timeRegex);
+        const raw = await resp.json();
+        const items = raw && raw.success && Array.isArray(raw.data) ? raw.data : [];
+        llotaAlerts = items.map((a: any) => {
+          // Combine start_date (ISO date at 00:00Z) with start_time (HH:MM:SS UTC)
           let spotTime: string | null = null;
-          if (dateMatch) {
-            const [, dd, mm, yyyy] = dateMatch;
-            const hh = timeMatch ? timeMatch[1] : '00';
-            const min = timeMatch ? timeMatch[2] : '00';
-            spotTime = `${yyyy}-${mm}-${dd}T${hh}:${min}:00.000Z`;
+          if (a.start_date) {
+            const datePart = a.start_date.substring(0, 10);
+            const timePart = a.start_time || '00:00:00';
+            spotTime = `${datePart}T${timePart}.000Z`;
           }
-
-          // Reference name from 2nd td (strip HTML, remove ref code)
-          let refName = '';
-          if (tds[1]) {
-            const clean = tds[1].replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-            refName = clean.replace(reference, '').trim();
-          }
-
-          // Freqs/modes from 4th td
-          let freqsModes = '';
-          if (tds[3]) {
-            freqsModes = tds[3].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          }
-          const modeMatch = freqsModes.match(modeRegex);
-          const mode = modeMatch ? modeMatch[1] : freqsModes || '';
-
-          // Comments from 5th td
-          let comments = '';
-          if (tds[4]) {
-            const clean = tds[4].replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-            if (clean && clean !== '--' && !clean.startsWith(reference)) {
-              comments = clean;
-            }
-          }
-
-          llotaAlerts.push({
-            call,
+          const freqs = a.frequencies || '';
+          const modes = a.modes || '';
+          return {
+            call: a.callsign || '',
             activity_type: 'LLOTA-ALERT',
-            reference,
-            name: refName,
+            reference: a.reference_code || '',
+            name: a.reference_name || '',
             frequency: 0,
-            mode,
+            mode: modes || freqs,
             spot_time: spotTime,
-            comments: comments || freqsModes,
+            comments: a.comments || freqs,
             spotter: '',
             source: 'LLOTA (llota.app)',
             is_active: false,
             is_future: true,
-          });
-        }
+          };
+        }).filter((s: any) => s.call && s.reference);
 
         // Enrich with coordinates from LlotaRef
         if (llotaAlerts.length > 0) {
