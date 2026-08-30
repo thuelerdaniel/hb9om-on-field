@@ -61,6 +61,7 @@ function BoundaryLayerInner({ boundaryPoints }) {
                     weight: 2,
                     fillColor: color,
                     fillOpacity: 0.25,
+                    interactive: false,
                   }}
                 />
                 <Polygon
@@ -71,6 +72,7 @@ function BoundaryLayerInner({ boundaryPoints }) {
                     fillColor: color,
                     fillOpacity: 0.08,
                     dashArray: "6 4",
+                    interactive: false,
                   }}
                 />
               </React.Fragment>
@@ -87,6 +89,7 @@ function BoundaryLayerInner({ boundaryPoints }) {
                 fillColor: color,
                 fillOpacity: 0.2,
                 dashArray: "6 4",
+                interactive: false,
               }}
             />
           );
@@ -105,6 +108,7 @@ function BoundaryLayerInner({ boundaryPoints }) {
                 fillColor: color,
                 fillOpacity: polygonLoading ? 0.05 : 0.1,
                 dashArray: "6 4",
+                interactive: false,
               }}
             />
           );
@@ -124,6 +128,7 @@ function BoundaryLayerInner({ boundaryPoints }) {
               fillColor: color,
               fillOpacity: 0.1,
               dashArray: "6 4",
+              interactive: false,
             }}
           />
         );

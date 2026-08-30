@@ -8,23 +8,26 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.94";
+export const APP_VERSION = "0.9003";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608300722";
+export const APP_BUILD = "202608301018";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
-  "v0.94: LLOTA — Lakes & Lagoons on the Air Integration (8.357 Seen in 54 Ländern)",
-  "v0.94: LLOTA — neue Karten-Ebene mit Wassertropfen-Markern, Aktivierungs-Status und Länder-Filter",
-  "v0.94: LLOTA — Live-Spots von llota.app + Spothole (Merge mit Koordinaten-Anreicherung)",
-  "v0.94: LLOTA — Hunting-Tab mit Live-Spot-Aktivitäten, Sortierung nach Zeit/Score",
-  "v0.94: LLOTA — QSO-Logger Integration (my_reference_type 'llota', ADIF MY_SIG/MY_SIG_INFO)",
-  "v0.94: LLOTA — Grenzradius-Kreise (200m Aktivierungszone, konfigurierbar im Popup)",
-  "v0.94: LLOTA — Referenz-Suche, getReferencesInBounds und searchReferences erweitert",
+  "v0.9003: LLOTA — Lakes & Lagoons on the Air Integration (8.357 Seen in 54 Ländern)",
+  "v0.9003: LLOTA — neue Karten-Ebene mit Wassertropfen-Markern, Aktivierungs-Status und Länder-Filter",
+  "v0.9003: LLOTA — Live-Spots von llota.app + Spothole (Merge mit Koordinaten-Anreicherung)",
+  "v0.9003: LLOTA — Hunting-Tab mit Live-Spot-Aktivitäten, Sortierung nach Zeit/Score",
+  "v0.9003: LLOTA — QSO-Logger Integration (my_reference_type 'llota', ADIF MY_SIG/MY_SIG_INFO)",
+  "v0.9003: LLOTA — Grenzradius-Kreise (200m Aktivierungszone, konfigurierbar im Popup)",
+  "v0.9003: LLOTA — Referenz-Suche, getReferencesInBounds und searchReferences erweitert",
+  "v0.9003: SwissTopo BLN-Grenzen für POTA-Parks in der Schweiz (offizielles Bundesinventar-Polygon)",
+  "v0.9003: POTA-Filter — Alle-Grenzen-Schalter und Grenzen-Entfernen-Button",
+  "v0.9003: Grenz-Polygone blockieren keine Marker-Klicks mehr (interactive: false)",
   "v0.92: SOTA-Punkte-Filter — offizielle SOTA-Punkte-Klassifizierung (1-150 P) basierend auf Gipfelhöhe",
   "v0.92: HolyCluster — zusätzliche DX-Cluster-Quelle in fetchDxSpots integriert",
   "v0.92: Live Spot Stream — kein Limit mehr (alle Spots anzeigen, nicht nur 100)",

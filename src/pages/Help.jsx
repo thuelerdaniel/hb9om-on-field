@@ -6,6 +6,7 @@ import BandPlanInfo from "@/components/help/BandPlanInfo";
 import FeatureSuggestion from "@/components/help/FeatureSuggestion";
 import OfflineChecklist from "@/components/help/OfflineChecklist";
 import { generateFlyer } from "@/lib/generateFlyer";
+import { generateTrifoldFlyer } from "@/lib/generateTrifoldFlyer";
 import { generateHelpPdf } from "@/lib/generateHelpPdf";
 import { generateAdminHelpPdf } from "@/lib/generateAdminHelpPdf";
 import { base44 } from "@/api/base44Client";
@@ -1055,6 +1056,7 @@ export default function Help() {
   const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
   const [flyerLoading, setFlyerLoading] = useState(false);
+  const [trifoldLoading, setTrifoldLoading] = useState(false);
   const [helpPdfLoading, setHelpPdfLoading] = useState(false);
   const [adminPdfLoading, setAdminPdfLoading] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
@@ -1063,10 +1065,23 @@ export default function Help() {
     setFlyerLoading(true);
     try {
       await generateFlyer();
+      toast({ title: "Flyer heruntergeladen", description: "HB9OM On Field Flyer (v0.9003)", duration: 3000 });
     } catch (e) {
       // ignore
     } finally {
       setFlyerLoading(false);
+    }
+  };
+
+  const handleDownloadTrifold = async () => {
+    setTrifoldLoading(true);
+    try {
+      await generateTrifoldFlyer();
+      toast({ title: "Faltflyer heruntergeladen", description: "HB9OM On Field Faltflyer (v0.9003)", duration: 3000 });
+    } catch (e) {
+      // ignore
+    } finally {
+      setTrifoldLoading(false);
     }
   };
 
@@ -1161,6 +1176,32 @@ export default function Help() {
             <Download className="w-5 h-5 text-amber-400 flex-shrink-0" />
           </button>
         )}
+
+        {/* Flyer Downloads — on-the-fly generiert mit aktueller Version */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleDownloadFlyer}
+            disabled={flyerLoading}
+            className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl p-3 flex items-center gap-2 hover:from-green-500 hover:to-green-600 transition-all disabled:opacity-60 shadow-sm"
+          >
+            {flyerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            <div className="text-left">
+              <h3 className="text-xs font-bold">Flyer</h3>
+              <p className="text-[10px] text-green-100">Info-Flyer v0.9003</p>
+            </div>
+          </button>
+          <button
+            onClick={handleDownloadTrifold}
+            disabled={trifoldLoading}
+            className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl p-3 flex items-center gap-2 hover:from-green-500 hover:to-green-600 transition-all disabled:opacity-60 shadow-sm"
+          >
+            {trifoldLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            <div className="text-left">
+              <h3 className="text-xs font-bold">Faltflyer</h3>
+              <p className="text-[10px] text-green-100">Trifold v0.9003</p>
+            </div>
+          </button>
+        </div>
 
         {/* PayPal Spende - am Anfang */}
         <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-center">

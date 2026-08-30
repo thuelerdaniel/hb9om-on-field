@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Trees, ChevronDown, X, Search, Info } from "lucide-react";
+import { Trees, ChevronDown, X, Search, Info, MapPinned, Trash2 } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
@@ -15,6 +15,10 @@ export default function PotaFilter({
   leftPx = 12,
   bottomPx = 230,
   defaultOpen = true,
+  onToggleAllBoundaries,
+  allBoundariesActive = false,
+  activeBoundaryCount = 0,
+  onClearBoundaries,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_pota");
@@ -90,6 +94,54 @@ export default function PotaFilter({
             onCountriesChange={onFilterCountriesChange}
             accentColor="green"
           />
+
+          {onToggleAllBoundaries && (
+            <div className="p-3 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <MapPinned className="w-3.5 h-3.5 text-green-600" />
+                  <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Grenzen</h4>
+                </div>
+                {activeBoundaryCount > 0 && (
+                  <span className="text-[10px] font-mono text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                    {activeBoundaryCount} aktiv
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => onToggleAllBoundaries(!allBoundariesActive)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-colors ${
+                  allBoundariesActive
+                    ? "bg-green-50 border-green-300 text-green-700"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <span className="text-xs font-medium flex items-center gap-1.5">
+                  <MapPinned className="w-3.5 h-3.5" />
+                  Alle Grenzen {allBoundariesActive ? "ausblenden" : "zeichnen"}
+                </span>
+                <div className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 ${
+                  allBoundariesActive ? "bg-green-500" : "bg-gray-300"
+                }`}>
+                  <div className={`w-3 h-3 bg-white rounded-full shadow transition-transform mt-0.5 ${
+                    allBoundariesActive ? "translate-x-4 ml-0.5" : "translate-x-0.5"
+                  }`} />
+                </div>
+              </button>
+              {activeBoundaryCount > 0 && onClearBoundaries && (
+                <button
+                  onClick={onClearBoundaries}
+                  className="w-full mt-2 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Alle Grenzen entfernen ({activeBoundaryCount})
+                </button>
+              )}
+              <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
+                Zeichnet Grenz-Kreise für alle sichtbaren POTA-Parks. Einzelne Grenzen können im Marker-Popup ein-/ausgeschaltet werden.
+              </p>
+            </div>
+          )}
 
           <div className="p-3">
             <div className="flex items-center gap-1.5 mb-1.5">

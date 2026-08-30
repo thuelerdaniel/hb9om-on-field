@@ -300,6 +300,7 @@ export default function Home() {
   // Boundary circles — toggled per-popup, shows radius circle around reference points
   // Map of key -> { data, layerType } — default OFF, user toggles in popup
   const [boundaryPoints, setBoundaryPoints] = useState([]);
+  const [showAllPotaBoundaries, setShowAllPotaBoundaries] = useState(false);
   const boundaryKeys = useMemo(() => new Set(boundaryPoints.map(bp => `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}`)), [boundaryPoints]);
 
   const handleToggleBoundary = useCallback((data, layerType) => {
@@ -781,6 +782,38 @@ export default function Home() {
     }
     return markers;
   }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, iotaStatusFilter, iotaRegionFilter, llotaActivationFilter]);
+
+  // POTA boundary count — for display in PotaFilter
+  const potaBoundaryCount = useMemo(
+    () => boundaryPoints.filter(bp => bp.layerType === "pota").length,
+    [boundaryPoints]
+  );
+
+  // Toggle all POTA boundaries at once — adds boundary circles for all visible POTA markers
+  const handleToggleAllPotaBoundaries = useCallback((enabled) => {
+    setShowAllPotaBoundaries(enabled);
+    if (enabled) {
+      const potaMarkers = allMarkers.filter(m => m.layerType === "pota");
+      const capped = potaMarkers.slice(0, 500);
+      setBoundaryPoints(prev => {
+        const existing = new Set(prev.map(bp =>
+          `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}`
+        ));
+        const newPoints = capped
+          .filter(m => !existing.has(`pota-${m.code || m.reference || m.id || ""}`))
+          .map(m => ({ data: m, layerType: "pota", bulkAdded: true }));
+        return [...prev, ...newPoints];
+      });
+    } else {
+      setBoundaryPoints(prev => prev.filter(bp => bp.layerType !== "pota"));
+    }
+  }, [allMarkers]);
+
+  // Clear all POTA boundaries
+  const handleClearPotaBoundaries = useCallback(() => {
+    setBoundaryPoints(prev => prev.filter(bp => bp.layerType !== "pota"));
+    setShowAllPotaBoundaries(false);
+  }, []);
   // All loaded markers regardless of active layers — used by QSO form for reference selection
   const allMarkersUnfiltered = useMemo(() => {
     const markers = buildMarkers(data, null);
@@ -1775,6 +1808,10 @@ export default function Home() {
               points={mapData.pota || []}
               filterCountries={potaFilterCountries}
               onFilterCountriesChange={setPotaFilterCountries}
+              onToggleAllBoundaries={handleToggleAllPotaBoundaries}
+              allBoundariesActive={showAllPotaBoundaries}
+              activeBoundaryCount={potaBoundaryCount}
+              onClearBoundaries={handleClearPotaBoundaries}
             />
           );
         }
