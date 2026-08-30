@@ -930,17 +930,32 @@ export default function Settings() {
             <Crosshair className="w-4 h-4" /> QSO-Button Position
           </h3>
           <p className="text-xs text-gray-500 mb-3">Der verschiebbare QSO-Loggen Button auf der Hunting-Seite kann hier zurückgesetzt werden.</p>
-          <button
-            onClick={() => {
-              try {
-                ['desktop', 'tablet', 'mobile'].forEach(d => localStorage.removeItem(`qso_btn_pos_${d}`));
-              } catch {}
-              alert('QSO-Button Position wurde für alle Geräte zurückgesetzt.');
-            }}
-            className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-          >
-            QSO-Button Position zurücksetzen (alle Geräte)
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                try {
+                  ['desktop', 'tablet', 'mobile'].forEach(d => localStorage.removeItem(`qso_btn_pos_${d}`));
+                } catch {}
+                alert('QSO-Button Position wurde für alle Geräte zurückgesetzt.');
+              }}
+              className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+            >
+              QSO-Button Position zurücksetzen
+            </button>
+            <button
+              onClick={() => {
+                try {
+                  ['mapbtn_drag_mode', 'mapbtn_coverage'].forEach(key => {
+                    ['desktop', 'tablet', 'mobile'].forEach(d => localStorage.removeItem(`${key}_${d}`));
+                  });
+                } catch {}
+                alert('Karten-Button Positionen wurden für alle Geräte zurückgesetzt.');
+              }}
+              className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+            >
+              Karten-Button Positionen zurücksetzen
+            </button>
+          </div>
         </section>
 
         {/* Feldbreiten pro Gerät — v0.9019 */}

@@ -41,6 +41,7 @@ import DonationPopup from "@/components/DonationPopup";
 import MapCacheModal from "@/components/MapCacheModal";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import DraggableQsoButton from "@/components/hunting/DraggableQsoButton";
+import DraggableMapButton, { resetDraggableMapButton } from "@/components/map/DraggableMapButton";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import RepeaterCorrectionDialog from "@/components/map/RepeaterCorrectionDialog";
@@ -1503,20 +1504,17 @@ export default function Home() {
         gpsTrackingActive={gpsTrackingActive}
       />
 
-      {/* Drag-Mode Toggle (Marker verschieben für Positionskorrektur) — only if filter tool enabled */}
+      {/* Drag-Mode Toggle (Marker verschieben für Positionskorrektur) — verschiebbar (PUNKT 13) */}
       {features.tools.filter !== false && (
-        <button
+        <DraggableMapButton
+          storageKey="mapbtn_drag_mode"
+          defaultPos={{ x: 16, y: window.innerHeight - 230 - 44 - 40 }}
           onClick={() => setDragMode(!dragMode)}
-          className={`fixed left-4 z-[1000] w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border transition-colors ${
-            dragMode
-              ? "bg-blue-500 border-blue-600 text-white"
-              : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
-          }`}
-          style={{ bottom: "calc(env(safe-area-inset-bottom) + 230px)" }}
-          title={dragMode ? "Marker-Verschiebung aktiv — tippen zum Deaktivieren" : "Marker verschieben (Positionskorrektur)"}
+          active={dragMode}
+          title={dragMode ? "Marker-Verschiebung aktiv — tippen zum Deaktivieren · Lang gedrückt: verschieben" : "Marker verschieben (Positionskorrektur) · Lang gedrückt: verschieben"}
         >
           <Move className="w-5 h-5" />
-        </button>
+        </DraggableMapButton>
       )}
 
       {/* Filter buttons — positioned based on active layers (only if filter tool enabled) */}
@@ -1719,16 +1717,16 @@ export default function Home() {
         />
       )}
 
-      {/* User coverage button — "Meine Abdeckung berechnen" (only if own_coverage enabled) */}
+      {/* User coverage button — "Meine Abdeckung berechnen" — verschiebbar (PUNKT 13) */}
       {features.tools.own_coverage !== false && (
-        <button
+        <DraggableMapButton
+          storageKey="mapbtn_coverage"
+          defaultPos={{ x: 16, y: window.innerHeight - 175 - 44 - 40 }}
           onClick={() => setShowUserCoverageDialog(true)}
-          className="fixed left-4 z-[1000] w-11 h-11 flex items-center justify-center rounded-lg shadow-lg border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
-          style={{ bottom: "calc(env(safe-area-inset-bottom) + 175px)" }}
-          title="Meine Abdeckung berechnen"
+          title="Meine Abdeckung berechnen · Lang gedrückt: verschieben"
         >
           <Radio className="w-5 h-5 text-orange-500" />
-        </button>
+        </DraggableMapButton>
       )}
 
       {/* Loading indicator */}

@@ -91,11 +91,31 @@ function parseCsvLineWWFF(line: string): string[] {
 }
 
 export async function fetchWwffData(): Promise<any[]> {
-  const resp = await fetch('https://wwff.co/wwff-data/wwff_directory.csv', {
-    headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' }
-  });
-  if (!resp.ok) throw new Error('WWFF CSV fetch failed');
-  const text = await resp.text();
+  // PUNKT 6: Timeout + Retry — WWFF CSV ist 40k+ Zeilen, Server kann langsam sein.
+  // 3 Versuche mit 30s Timeout, 5s Pause zwischen Versuchen.
+  let lastError: string | null = null;
+  let text = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      const resp = await fetch('https://wwff.co/wwff-data/wwff_directory.csv', {
+        headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!resp.ok) {
+        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 200));
+        throw new Error(`WWFF CSV HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`);
+      }
+      text = await resp.text();
+      break; // Success
+    } catch (e: any) {
+      lastError = e?.name === 'AbortError' ? `WWFF CSV Timeout nach 30s (Versuch ${attempt + 1}/3)` : `WWFF CSV: ${e?.message || 'Fetch fehlgeschlagen'} (Versuch ${attempt + 1}/3)`;
+      if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+  if (!text) throw new Error(lastError || 'WWFF CSV fetch failed');
   const lines = text.split('\n');
   if (lines.length < 2) return [];
 

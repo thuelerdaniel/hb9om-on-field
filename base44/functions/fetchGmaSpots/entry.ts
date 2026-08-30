@@ -75,8 +75,13 @@ export default async function(req: Request): Promise<Response> {
       if (resp.ok) {
         const raw = await resp.json();
         spotholeSpots = Array.isArray(raw) ? raw : [];
-      } else { apiWarning = `Spothole API Status ${resp.status}`; }
-    } catch (e: any) { apiWarning = `Spothole API nicht erreichbar: ${e.message}`; }
+      } else {
+        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 300));
+        apiWarning = `Spothole HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`;
+      }
+    } catch (e: any) {
+      apiWarning = `Spothole ${e?.name === 'AbortError' ? 'Timeout nach 10s' : 'Netzwerkfehler: ' + (e?.message || 'nicht erreichbar')}`;
+    }
 
     if (spotholeSpots.length === 0) {
       return Response.json({ success: true, fetched: 0, saved: 0, warning: apiWarning || 'Keine GMA-Spots verfügbar' });

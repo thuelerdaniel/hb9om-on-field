@@ -91,8 +91,13 @@ export default async function(req: Request): Promise<Response> {
       if (resp.ok) {
         const raw = await resp.json();
         joSpots = Array.isArray(raw) ? raw : (raw.spots || raw.data || []);
-      } else { apiWarning = `jo30.de API Status ${resp.status}`; }
-    } catch { apiWarning = 'jo30.de API nicht erreichbar'; }
+      } else {
+        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 300));
+        apiWarning = `jo30.de HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`;
+      }
+    } catch (e: any) {
+      apiWarning = `jo30.de ${e?.name === 'AbortError' ? 'Timeout nach 10s' : 'Netzwerkfehler: ' + (e?.message || 'nicht erreichbar')}`;
+    }
 
     // === 2. Spothole API (SIG-gefiltert: SOTA, POTA, WWFF, etc.) ===
     let spotholeSpots: any[] = [];
@@ -109,8 +114,13 @@ export default async function(req: Request): Promise<Response> {
       if (resp.ok) {
         spotholeSpots = await resp.json();
         if (!Array.isArray(spotholeSpots)) spotholeSpots = [];
-      } else { spotholeWarning = `Spothole API Status ${resp.status}`; }
-    } catch { spotholeWarning = 'Spothole API nicht erreichbar'; }
+      } else {
+        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 300));
+        spotholeWarning = `Spothole HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`;
+      }
+    } catch (e: any) {
+      spotholeWarning = `Spothole ${e?.name === 'AbortError' ? 'Timeout nach 10s' : 'Netzwerkfehler: ' + (e?.message || 'nicht erreichbar')}`;
+    }
 
     // Fix 4: ALLE Spots vor dem Neuladen löschen — verhindert Duplikat-Akkumulation
     try {

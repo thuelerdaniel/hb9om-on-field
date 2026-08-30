@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Loader2, RefreshCw, CheckCircle2, XCircle, AlertCircle, Wifi, WifiOff, Database, Radio, Clock, Cloud, Layers } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, XCircle, AlertCircle, Wifi, WifiOff, Database, Radio, Clock, Cloud, Layers, ChevronDown, ChevronUp } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 // Admin Datenquellen-Status — zeigt ALLE Datenquellen der App:
@@ -63,6 +63,7 @@ export default function DataSourceStatusSection() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshingSource, setRefreshingSource] = useState(null);
+  const [expandedErrors, setExpandedErrors] = useState({});
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
@@ -207,8 +208,26 @@ export default function DataSourceStatusSection() {
                               {formatTime(s.last_run_time)}
                             </span>
                           </td>
-                          <td className="py-1.5 text-red-500 text-[10px] max-w-[150px] truncate" title={s.last_error || ''}>
-                            {s.last_error || '—'}
+                          <td className="py-1.5 text-red-500 text-[10px] max-w-[150px]">
+                            {s.last_error ? (
+                              <div>
+                                <div className="truncate" title={s.last_error}>{s.last_error}</div>
+                                {s.last_error_detail && (
+                                  <button
+                                    onClick={() => setExpandedErrors(p => ({ ...p, [`sched_${s.id}`]: !p[`sched_${s.id}`] }))}
+                                    className="text-blue-500 hover:underline mt-0.5 flex items-center gap-0.5"
+                                  >
+                                    {expandedErrors[`sched_${s.id}`] ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                                    Details
+                                  </button>
+                                )}
+                                {expandedErrors[`sched_${s.id}`] && s.last_error_detail && (
+                                  <pre className="mt-1 p-1.5 bg-red-50 dark:bg-red-900/20 rounded text-[9px] text-red-700 dark:text-red-300 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+                                    {s.last_error_detail}
+                                  </pre>
+                                )}
+                              </div>
+                            ) : '—'}
                           </td>
                         </tr>
                       );
@@ -264,9 +283,25 @@ export default function DataSourceStatusSection() {
                             {formatTime(s.last_check)}
                           </span>
                         </td>
-                        <td className="py-1.5 pr-2 text-red-500 text-[10px] max-w-[120px] truncate" title={s.error_message || ''}>
-                          {s.error_message || '—'}
-                        </td>
+                        <td className="py-1.5 pr-2 text-red-500 text-[10px] max-w-[120px]">
+                           {s.error_message ? (
+                             <div>
+                               <div className="truncate" title={s.error_message}>{s.error_message}</div>
+                               <button
+                                 onClick={() => setExpandedErrors(p => ({ ...p, [`live_${s.id}`]: !p[`live_${s.id}`] }))}
+                                 className="text-blue-500 hover:underline mt-0.5 flex items-center gap-0.5"
+                               >
+                                 {expandedErrors[`live_${s.id}`] ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                                 Details
+                               </button>
+                               {expandedErrors[`live_${s.id}`] && (
+                                 <pre className="mt-1 p-1.5 bg-red-50 dark:bg-red-900/20 rounded text-[9px] text-red-700 dark:text-red-300 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+                                   {s.error_message}
+                                 </pre>
+                               )}
+                             </div>
+                           ) : '—'}
+                         </td>
                         <td className="py-1.5 text-right">
                           {getFunctionForSource(s.source_name) && (
                             <button
