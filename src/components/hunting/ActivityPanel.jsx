@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { RefreshCw, FileText, MapPin, CalendarClock, AlertCircle, Info } from "lucide-react";
+import { RefreshCw, FileText, MapPin, CalendarClock, X, Info } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PotaParkInfoPopup from "@/components/hunting/PotaParkInfoPopup";
 import { calcHearScore, scoreColor } from "@/lib/hearScore";
@@ -49,6 +49,9 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const [parkInfoRef, setParkInfoRef] = useState(null);
   const [propagation, setPropagation] = useState(null);
   const [sortBy, setSortBy] = useState('time');
+  const [alertFilterType, setAlertFilterType] = useState('all');
+  const [alertFilterCall, setAlertFilterCall] = useState('');
+  const [alertFilterCountry, setAlertFilterCountry] = useState('');
 
   // v0.9028 Rollback: loadData reads from DB (fast) — called on mount + auto-refresh.
   // refreshData calls refreshHuntingData orchestrator (single call) — manual refresh only.
@@ -107,7 +110,29 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
 
   const displaySpots = useMemo(() => {
     if (tab === 'alerts') {
-      return [...data.alerts].sort((a, b) =>
+      let alerts = [...data.alerts];
+      if (alertFilterType !== 'all') {
+        alerts = alerts.filter(s => {
+          const st = s.activity_type === 'SOTA-ALERT' ? 'SOTA'
+            : s.activity_type === 'WWFF-ALERT' ? 'WWFF'
+            : s.activity_type === 'LLOTA-ALERT' ? 'LLOTA'
+            : s.activity_type || 'SOTA';
+          return st === alertFilterType;
+        });
+      }
+      if (alertFilterCall.trim()) {
+        const q = alertFilterCall.trim().toLowerCase();
+        alerts = alerts.filter(s => (s.call || '').toLowerCase().includes(q));
+      }
+      if (alertFilterCountry.trim()) {
+        const q = alertFilterCountry.trim().toLowerCase();
+        alerts = alerts.filter(s =>
+          (s.reference || '').toLowerCase().includes(q) ||
+          (s.locationDesc || '').toLowerCase().includes(q) ||
+          (s.name || '').toLowerCase().includes(q)
+        );
+      }
+      return alerts.sort((a, b) =>
         new Date(a.spot_time || 0).getTime() - new Date(b.spot_time || 0).getTime()
       );
     }
@@ -123,7 +148,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
       );
     }
     return spots;
-  }, [data, tab, sortBy, stationPos, propagation]);
+  }, [data, tab, sortBy, stationPos, propagation, alertFilterType, alertFilterCall, alertFilterCountry]);
 
   const currentTab = TABS.find(t => t.id === tab) || TABS[0];
   const accentColor = currentTab.color;
@@ -316,12 +341,49 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
         ))}
       </div>
 
-      {/* Alerts-Tab: Hinweis für POTA/WWBOTA */}
+      {/* Alerts-Tab: Filter-Controls */}
       {isAlertsTab && (
-        <div className="px-3 py-1.5 bg-[#7c3aed]/5 border-b border-[#7c3aed]/20 flex items-start gap-1.5">
-          <AlertCircle className="w-3 h-3 text-[#7c3aed] flex-shrink-0 mt-0.5" />
-          <div className="text-[9px] text-muted-foreground">
-            Geplante Aktivierungen: SOTA-Alerts, WWFF-Agendas und LLOTA-Alerts (via Spothole). POTA hat keine geplante API.
+        <div className="px-3 py-2 bg-[#7c3aed]/5 border-b border-[#7c3aed]/20 space-y-1.5">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-[9px] text-muted-foreground font-medium flex-shrink-0">Art:</span>
+            {['all', 'SOTA', 'WWFF', 'LLOTA'].map(t => (
+              <button
+                key={t}
+                onClick={() => setAlertFilterType(t)}
+                className={`text-[9px] px-1.5 py-0.5 rounded font-medium transition-colors ${
+                  alertFilterType === t
+                    ? 'bg-[#7c3aed] text-white'
+                    : 'bg-background text-muted-foreground border border-border hover:bg-muted'
+                }`}
+              >
+                {t === 'all' ? 'Alle' : t}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={alertFilterCall}
+              onChange={(e) => setAlertFilterCall(e.target.value)}
+              placeholder="Rufzeichen…"
+              className="flex-1 min-w-0 text-[10px] px-2 py-1 rounded border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#7c3aed]/50"
+            />
+            <input
+              type="text"
+              value={alertFilterCountry}
+              onChange={(e) => setAlertFilterCountry(e.target.value)}
+              placeholder="Land / Referenz…"
+              className="flex-1 min-w-0 text-[10px] px-2 py-1 rounded border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#7c3aed]/50"
+            />
+            {(alertFilterCall || alertFilterCountry || alertFilterType !== 'all') && (
+              <button
+                onClick={() => { setAlertFilterCall(''); setAlertFilterCountry(''); setAlertFilterType('all'); }}
+                className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                title="Filter zurücksetzen"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
         </div>
       )}
