@@ -3,7 +3,7 @@ import {
   Calendar, Clock, RefreshCw, Loader2, CheckCircle2, XCircle, AlertCircle,
   Play, ChevronDown, ChevronRight, Zap, Power, Settings2, Radio,
   Database, Mountain, TreePine, Flower, Shield, Landmark, Lightbulb,
-  Globe, RadioTower, Signal, Link2, Headphones, Layers,
+  Globe, RadioTower, Signal, Link2, Headphones, Layers, Waves,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
@@ -19,6 +19,8 @@ const SOURCE_META = {
   castle:             { icon: Landmark,    color: "text-orange-500",  syncType: "full_batch", schedule: "Mo 01:00 UTC" },
   iota:               { icon: Globe,       color: "text-blue-500",    syncType: "full_batch", schedule: "Mo 01:00 UTC" },
   tota:               { icon: RadioTower,  color: "text-orange-500",  syncType: "full_batch", schedule: "Mo 01:00 UTC" },
+  llota_refs:         { icon: Waves,      color: "text-sky-500",      syncType: "full_batch", schedule: "Mo 01:00 UTC" },
+  llota_spots:        { icon: Waves,      color: "text-sky-400",      syncType: "daily",      schedule: "Täglich 06:30 UTC" },
   fm_funknetz:        { icon: Headphones,  color: "text-green-500",   syncType: "partial",    schedule: "Mo+Do 03:00 UTC" },
   ch_repeater_links:  { icon: Link2,       color: "text-indigo-500",  syncType: "partial",    schedule: "Mo+Do 03:00 UTC" },
   aprs:               { icon: Signal,      color: "text-purple-500",  syncType: "daily",      schedule: "Täglich 06:30 UTC" },

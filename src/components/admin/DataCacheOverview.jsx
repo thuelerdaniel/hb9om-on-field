@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Database, MapPin, AlertCircle, RefreshCw, Loader2, RadioTower, Signal, Link2, Mountain, Trees, Building, Castle, Anchor, Diamond, RadioTower as Tower } from "lucide-react";
+import { Database, MapPin, AlertCircle, RefreshCw, Loader2, RadioTower, Signal, Link2, Mountain, Trees, Building, Castle, Anchor, Diamond, RadioTower as Tower, Waves } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import CacheDetailView from "@/components/admin/CacheDetailView";
 
@@ -51,6 +51,7 @@ const REFERENCE_LAYERS = [
   { key: "castle", label: "Burgen", icon: Castle, color: "text-orange-500", tooltip: "WCA/COTA – Burgen und Schlösser. Daten von Wikidata/OSM. Gesamtzahl aus ReferenceData.total_count (Backend)." },
   { key: "lighthouse", label: "Leuchttürme", icon: Anchor, color: "text-yellow-600", tooltip: "WLOTA/ARLHS – Leuchttürme weltweit. Daten von arlhs.net. Gesamtzahl aus ReferenceData.total_count (Backend)." },
   { key: "iota", label: "IOTA", icon: Diamond, color: "text-blue-500", tooltip: "Islands on the Air – Inseln weltweit. Daten von iota-world.org. Gesamtzahl aus ReferenceData.total_count (Backend)." },
+  { key: "llota", label: "LLOTA", icon: Waves, color: "text-sky-500", tooltip: "Lakes on the Air – Seen weltweit. Daten von llota.app. Gesamtzahl aus ReferenceData.total_count (Backend). See-Konturen werden per Batch-Automation on-demand aus OSM/SwissTopo geladen." },
 ];
 
 // Compute traffic-light status for a single layer entry.

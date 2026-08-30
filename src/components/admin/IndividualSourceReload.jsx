@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Landmark, Lightbulb, Globe, Mountain, TreePine, Shield, Flower, Link2, Headphones, RadioTower, Signal, ChevronDown, ChevronRight } from "lucide-react";
+import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Database, Radio, Landmark, Lightbulb, Globe, Mountain, TreePine, Shield, Flower, Link2, Headphones, RadioTower, Signal, Waves, ChevronDown, ChevronRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -56,6 +56,9 @@ const MAIN_SOURCES = [
   { key: "lighthouse", label: "Leuchttürme (Alle)", icon: Lightbulb, color: "text-yellow-500", customFunction: "fetchLighthouses", customPayload: { region: "all" } },
   { key: "iota", label: "IOTA (Welt)", icon: Globe, color: "text-blue-500" },
   { key: "tota", label: "TOTA (Welt)", icon: RadioTower, color: "text-orange-500", customFunction: "fetchTota", customPayload: { action: "fetchWorldwide" } },
+  { key: "llota_refs", label: "LLOTA Referenzen", icon: Waves, color: "text-sky-500", customFunction: "fetchLlotaRefs" },
+  { key: "llota_spots", label: "LLOTA Spots", icon: Waves, color: "text-sky-400", customFunction: "fetchLlotaSpots" },
+  { key: "llota_polygons", label: "LLOTA Konturen (Batch)", icon: Waves, color: "text-sky-600", customFunction: "fetchLlotaPolygonsBatch", customPayload: { limit: 20 } },
   { key: "repeater_all", label: "Relais (Alle)", icon: Radio, color: "text-cyan-500", customFunction: "fetchRepeaters", customPayload: { region: "all" }, isAllRepeaterRegions: true },
   { key: "aprs", label: "APRS.fi", icon: Signal, color: "text-purple-500", customFunction: "fetchAprsFi" },
   { key: "ch_repeater_links", label: "CH-Relais-Links", icon: Link2, color: "text-indigo-500", customFunction: "fetchCHRepeaterLinks" },
