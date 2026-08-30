@@ -56,7 +56,7 @@ import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
 import LighthouseFilter from "@/components/map/LighthouseFilter";
 import LighthouseLayer from "@/components/map/LighthouseLayer";
 import ReferenceSearchFilter from "@/components/map/ReferenceSearchFilter";
-import SotaFilter from "@/components/map/SotaFilter";
+import SotaFilter, { altitudeToPoints } from "@/components/map/SotaFilter";
 import PotaFilter from "@/components/map/PotaFilter";
 import WwffFilter from "@/components/map/WwffFilter";
 import IotaFilter from "@/components/map/IotaFilter";
@@ -643,11 +643,11 @@ export default function Home() {
         return alt >= min && alt <= max;
       });
     }
-    // SOTA: points filter
+    // SOTA: points filter — PUNKT 1: verwende altitudeToPoints falls points nicht gespeichert
     if (sotaFilterPoints.length > 0) {
       markers = markers.filter(m => {
         if (m.layerType !== "sota") return true;
-        const pts = m.points || 0;
+        const pts = m.points != null ? m.points : altitudeToPoints(m.altitude || m.altitude_m);
         return sotaFilterPoints.includes(pts);
       });
     }

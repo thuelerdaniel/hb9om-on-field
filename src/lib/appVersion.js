@@ -18,6 +18,13 @@ export const APP_BUILD = "202608300612";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.92: SOTA-Punkte-Filter — offizielle SOTA-Punkte-Klassifizierung (1-150 P) basierend auf Gipfelhöhe",
+  "v0.92: HolyCluster — zusätzliche DX-Cluster-Quelle in fetchDxSpots integriert",
+  "v0.92: Live Spot Stream — kein Limit mehr (alle Spots anzeigen, nicht nur 100)",
+  "v0.92: Live Spot Activity — Multi-Select für Betriebsmodi (mehrere Modi gleichzeitig filtern)",
+  "v0.92: Live Spot Activity — Quellen-Filter entfernt (alle Quellen werden angezeigt)",
+  "v0.92: Layer-Ladeanzeige zurücksetzen — Button in Einstellungen → Karte",
+  "v0.92: +QSO-Loggen Button — nur in Karten- und Hunting-Ansicht sichtbar",
   "v0.91001: Activity Zone Overlays — Aktivitätszonen (SOTA/POTA/WCA/IOTA/TOTA) als konfigurierbare Radius-Kreise auf der Karte",
   "v0.91001: Spothole Live Spot Stream — Live-Spots alle 30s via Spothole API ( Hunting-Seite)",
   "v0.91001: Offline-Cache TTL — Cached Daten verfallen nach 10 Minuten (automatische Aktualisierung)",

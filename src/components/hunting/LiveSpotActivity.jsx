@@ -94,7 +94,8 @@ function formatTime(timeStr) {
 }
 
 const BANDS = ['All', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m'];
-const MODES = ['All', 'FT8', 'FT4', 'CW', 'SSB', 'FM', 'RTTY', 'PSK', 'Other'];
+// PUNKT 11b: Multi-Select Modi — mehrere Modi gleichzeitig filtern
+const ALL_MODES = ['CW', 'SSB', 'FM', 'FT8', 'FT4', 'RTTY', 'PSK', 'AM', 'DMR', 'C4FM', 'Other'];
 const REFS = ['All', 'SOTA', 'POTA', 'WWFF', 'WWBOTA', 'WCA', 'TOTA', 'IOTA', 'WLOTA'];
 
 export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick, gpsPos, stationInfo, highlightSpot }) {
@@ -105,9 +106,9 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
   const [warning, setWarning] = useState(null);
   const [search, setSearch] = useState('');
   const [bandFilter, setBandFilter] = useState('All');
-  const [modeFilter, setModeFilter] = useState('All');
+  // PUNKT 11b: modeFilter ist jetzt ein Array (Multi-Select)
+  const [modeFilter, setModeFilter] = useState([]); // [] = alle Modi
   const [countryFilter, setCountryFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('All');
   const [minConfidence, setMinConfidence] = useState(0);
   const [refFilter, setRefFilter] = useState('All');
   const [sortBy, setSortBy] = useState('score');
@@ -228,9 +229,10 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
   }).filter(s => {
     if (search && !s.call?.toLowerCase().includes(search.toLowerCase()) && !s.country?.toLowerCase().includes(search.toLowerCase())) return false;
     if (bandFilter !== 'All' && s.band !== bandFilter) return false;
-    if (modeFilter !== 'All' && s.mode !== modeFilter) return false;
+    // PUNKT 11b: Multi-Select Modi — Array-Filter (leer = alle)
+    if (modeFilter.length > 0 && !modeFilter.includes(s.mode)) return false;
     if (countryFilter && !s.country?.toLowerCase().includes(countryFilter.toLowerCase())) return false;
-    if (sourceFilter !== 'All' && !(s.source || '').toLowerCase().includes(sourceFilter.toLowerCase())) return false;
+    // PUNKT 10: Quellen-Filter entfernt — alle Quellen werden angezeigt
     if (refFilter !== 'All' && s.activity !== refFilter) return false;
     if (s.confidence < minConfidence) return false;
     return true;
@@ -309,9 +311,30 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
           <select value={bandFilter} onChange={e => setBandFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
             {BANDS.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
-          <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
-            {MODES.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          {/* PUNKT 11b: Multi-Select Modi als Checkboxen */}
+          <div className="flex flex-wrap gap-1 items-center">
+            {ALL_MODES.map(m => {
+              const active = modeFilter.includes(m);
+              return (
+                <button
+                  key={m}
+                  onClick={() => setModeFilter(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                  className={`px-1.5 py-1 text-[10px] font-medium rounded-md border transition-colors ${
+                    active
+                      ? "bg-[#00e5ff]/20 border-[#00e5ff] text-[#00e5ff]"
+                      : "bg-background border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {m}
+                </button>
+              );
+            })}
+            {modeFilter.length > 0 && (
+              <button onClick={() => setModeFilter([])} className="px-1.5 py-1 text-[10px] text-muted-foreground hover:text-foreground">
+                ✕ Clear
+              </button>
+            )}
+          </div>
           <select value={refFilter} onChange={e => setRefFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
             {REFS.map(r => <option key={r} value={r}>{r === 'All' ? 'Alle Ref' : r}</option>)}
           </select>
@@ -321,14 +344,7 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
             <option value="">Alle Länder</option>
             {availableCountries.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="px-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:border-[#00e5ff] outline-none">
-            <option value="All">Alle Quellen</option>
-            <option value="DX Summit">DX Summit</option>
-            <option value="HB9ON-8">HB9ON-8</option>
-            <option value="HB9IAC-8">HB9IAC-8</option>
-            <option value="HolyCluster">HolyCluster</option>
-            <option value="DXCluster (jo30.de)">jo30.de</option>
-          </select>
+          {/* PUNKT 10: Quellen-Filter entfernt — alle Quellen werden angezeigt */}
           <div className="flex items-center gap-1">
             <span className="text-[9px] text-muted-foreground">Conf≥</span>
             <input

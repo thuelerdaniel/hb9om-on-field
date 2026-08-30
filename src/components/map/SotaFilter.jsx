@@ -173,10 +173,10 @@ export default function SotaFilter({
             </div>
           </div>
 
-          {/* Points filter */}
+          {/* Points filter — offizielle SOTA-Punkte basierend auf Gipfelhöhe */}
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Punkte</h4>
+              <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Punkte (nach Höhe)</h4>
               <button
                 onClick={() => onFilterPointsChange(allPointsOn ? [] : SOTA_POINTS.map(p => p.id))}
                 className="text-[10px] text-red-600 hover:underline"
@@ -184,14 +184,15 @@ export default function SotaFilter({
                 {allPointsOn ? "Keine" : "Alle"}
               </button>
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-0.5 max-h-32 overflow-y-auto">
               {SOTA_POINTS.map((p) => {
                 const isActive = filterPoints.length === 0 || filterPoints.includes(p.id);
                 return (
                   <button
                     key={p.id}
                     onClick={() => togglePoint(p.id)}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                    title={`${p.id} Punkte: ${p.min}-${p.max}m`}
+                    className={`px-1.5 py-1 rounded text-[9px] font-medium transition-colors ${
                       isActive ? "bg-red-100 text-red-700" : "bg-gray-50 text-gray-400 opacity-50"
                     }`}
                   >
@@ -200,6 +201,9 @@ export default function SotaFilter({
                 );
               })}
             </div>
+            <p className="text-[9px] text-gray-400 mt-1.5">
+              Offizielle SOTA-Punkte: 1P (150-499m) bis 150P (12000m+). <a href="https://www.sotadata.org.uk/en/summits" target="_blank" rel="noopener" className="text-red-500 hover:underline">Quelle</a>
+            </p>
           </div>
 
           <CountryContinentFilter
@@ -215,7 +219,7 @@ export default function SotaFilter({
               <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Über SOTA</h4>
             </div>
             <p className="text-[10px] text-gray-400 leading-relaxed">
-              SOTA (Summits on the Air) — Berggipfel ab 150 m Prominenz. Punkte basieren auf Prominenz: 0–10 Punkte.
+              SOTA (Summits on the Air) — Berggipfel ab 150 m Prominenz. Punkte basieren auf Gipfelhöhe: 1–150 Punkte.
             </p>
             <div className="flex items-center justify-between text-[11px] text-gray-500 mt-2">
               <span>{visibleCount} von {pointCount} Gipfeln</span>

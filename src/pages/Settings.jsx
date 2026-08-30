@@ -6,6 +6,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import BackupSection from "@/components/settings/BackupSection";
 import { DEMO_EMAIL } from "@/lib/constants";
 import OfflineManager from "@/components/settings/OfflineManager";
+import LayerLoadingReset from "@/components/settings/LayerLoadingReset";
 import MobileSelect from "@/components/ui/MobileSelect";
 import ThemeToggle from "@/components/settings/ThemeToggle";
 import ClubCallsignManager from "@/components/settings/ClubCallsignManager";
@@ -1018,6 +1019,7 @@ export default function Settings() {
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Offline & Sicherung</h2></div>
         <CollapsibleSection title="Offline-Modus" icon={WifiOff} defaultOpen={false} helpAnchor="#offline-modus" helpLabel="Hilfe zum Offline-Modus">
           <OfflineManager />
+          <LayerLoadingReset />
         </CollapsibleSection>
 
         <CollapsibleSection title="Datensicherung (Backup & Restore)" icon={HardDrive} defaultOpen={false} helpAnchor="#datensicherung" helpLabel="Hilfe zur Datensicherung"
