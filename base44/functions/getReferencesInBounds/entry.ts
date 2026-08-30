@@ -188,9 +188,26 @@ export default async function(req: Request): Promise<Response> {
     const isAuthed = await base44.auth.isAuthenticated();
     if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // Parse from POST JSON body OR GET query params — supports both invocation styles
     let body: any = {};
     try { body = await req.json(); } catch { body = (typeof (req as any).body === 'object' ? (req as any).body : {}); }
     let { bounds, types, entityType, max_per_type } = body || {};
+
+    // GET query params fallback (e.g. ?north=47.5&south=46.5&east=8.5&west=7.0)
+    if (!bounds) {
+      const url = new URL(req.url);
+      const q = url.searchParams;
+      const qNorth = parseFloat(q.get('north') || '');
+      const qSouth = parseFloat(q.get('south') || '');
+      const qEast = parseFloat(q.get('east') || '');
+      const qWest = parseFloat(q.get('west') || '');
+      if (!isNaN(qNorth) && !isNaN(qSouth) && !isNaN(qEast) && !isNaN(qWest)) {
+        bounds = { north: qNorth, south: qSouth, east: qEast, west: qWest };
+      }
+      // Also accept types as comma-separated query param
+      const qTypes = q.get('types');
+      if (qTypes && !types) types = qTypes.split(',').map(t => t.trim()).filter(Boolean);
+    }
 
     if (!bounds || typeof bounds.north !== 'number' || typeof bounds.south !== 'number' ||
         typeof bounds.east !== 'number' || typeof bounds.west !== 'number') {
