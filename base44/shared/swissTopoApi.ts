@@ -75,7 +75,18 @@ export async function identifyAtPoint(
     returnGeometry: 'true',
   });
 
-  const url = `${API_BASE}/MapServer/identify?${params.toString()}`;
+  // Construct URL manually — SwissTopo API expects raw commas in geometry/layers,
+  // URLSearchParams encodes them as %2C which the API doesn't recognize.
+  const url = `${API_BASE}/MapServer/identify` +
+    `?geometryType=esriGeometryEnvelope` +
+    `&geometry=${geometry}` +
+    `&layers=${layersParam}` +
+    `&geometryFormat=geojson` +
+    `&sr=4326` +
+    `&tolerance=0` +
+    `&imageDisplay=0,0,0` +
+    `&mapExtent=0,0,0,0` +
+    `&returnGeometry=true`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {

@@ -2,9 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall } from "../../shared/internalAuth.ts";
 import {
   isInSwitzerland,
-  identifyAtPoint,
+  lv95ToWgs84,
   searchSwissNames,
-  extractPolygon,
   simplifyPolygon,
   SWISSTOPO_LAYERS,
 } from "../../shared/swissTopoApi.ts";
@@ -21,6 +20,88 @@ import {
 //
 // SwissTopo API: https://api3.geo.admin.ch/rest/services/ech/
 
+const API_BASE = 'https://api3.geo.admin.ch/rest/services/ech';
+
+// Identify features at a point via SwissTopo MapServer identify API.
+// Uses a bounding box (envelope) around the point for reliable polygon intersection.
+async function identifyAtPoint(
+  lat: number,
+  lng: number,
+  layers: string[],
+  toleranceM: number,
+): Promise<any[]> {
+  const delta = toleranceM / 111000;
+  const bBox = `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
+  const url = `${API_BASE}/MapServer/identify` +
+    `?geometryType=esriGeometryEnvelope` +
+    `&geometry=${bBox}` +
+    `&layers=all:${layers.join(',')}` +
+    `&geometryFormat=geojson` +
+    `&sr=4326` +
+    `&tolerance=0` +
+    `&imageDisplay=0,0,0` +
+    `&mapExtent=0,0,0,0` +
+    `&returnGeometry=true`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.results || [];
+  } catch {
+    clearTimeout(timeout);
+    return [];
+  }
+}
+
+// Extract polygon [lat, lng][] from a feature's geometry.
+function extractPolygon(feature: any): [number, number][] | null {
+  if (!feature?.geometry) return null;
+
+  let coords: number[][] | null = null;
+
+  if (feature.geometry.type === 'Polygon') {
+    coords = feature.geometry.coordinates?.[0] || null;
+  } else if (feature.geometry.type === 'MultiPolygon') {
+    const polygons = feature.geometry.coordinates || [];
+    if (polygons.length === 0) return null;
+    coords = polygons.reduce(
+      (largest, poly) =>
+        (poly[0]?.length || 0) > (largest?.length || 0) ? poly[0] : largest,
+      null as number[][] | null,
+    );
+  } else if (feature.geometry.rings) {
+    const rings = feature.geometry.rings;
+    if (rings.length === 0) return null;
+    coords = rings.reduce(
+      (largest, ring) =>
+        (ring?.length || 0) > (largest?.length || 0) ? ring : largest,
+      null as number[][] | null,
+    );
+  }
+
+  if (!coords || coords.length < 3) return null;
+
+  // Detect coordinate system: LV95 has values > 1000, WGS84 < 360
+  const isLV95 = Math.abs(coords[0][0]) > 1000;
+
+  if (isLV95) {
+    return coords.map((c) => {
+      const { lat, lng } = lv95ToWgs84(c[0], c[1]);
+      return [lat, lng] as [number, number];
+    });
+  }
+
+  // WGS84 GeoJSON [lng, lat] → [lat, lng]
+  return coords.map((c) => [c[1], c[0]] as [number, number]);
+}
+
 export default async function (req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -31,7 +112,7 @@ export default async function (req: Request): Promise<Response> {
 
     if (!isInternalCall(body)) {
       const user = await base44.auth.me();
-      if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { type, lat, lng, name, radius } = body;
@@ -42,25 +123,21 @@ export default async function (req: Request): Promise<Response> {
       );
     }
 
-    // All SwissTopo queries require coordinates within Switzerland
     if (lat == null || lng == null || !isInSwitzerland(lat, lng)) {
       return Response.json({
         success: false,
-        error: "Coordinates not in Switzerland or missing lat/lng",
+        error: 'Coordinates not in Switzerland or missing lat/lng',
         type,
       }, { status: 400 });
     }
 
-    // BLN boundaries can be large — use a generous search radius (2km default)
-    // to ensure the bounding box intersects the protected area polygon.
-    const tolerance = radius || (type === 'bln' ? 2000 : 500);
-
     // --- BLN: Protected landscape boundary (polygon) ---
-    if (type === "bln") {
+    if (type === 'bln') {
+      const tolerance = radius || 2000;
+      // Query BLN only — multiple layers can cause the API to return 0 results
       const features = await identifyAtPoint(
-        lat,
-        lng,
-        [SWISSTOPO_LAYERS.BLN, SWISSTOPO_LAYERS.BIOTOP, SWISSTOPO_LAYERS.MOOR, SWISSTOPO_LAYERS.AUEN],
+        lat, lng,
+        [SWISSTOPO_LAYERS.BLN],
         tolerance,
       );
       for (const feature of features) {
@@ -71,32 +148,31 @@ export default async function (req: Request): Promise<Response> {
             feature.properties?.bln_name ||
             feature.properties?.label ||
             feature.properties?.name ||
-            "";
+            '';
           return Response.json({
             success: true,
-            type: "bln",
+            type: 'bln',
             polygon: simplified,
             name: featureName,
-            layer: feature.layerBodId || feature.properties?.layer || "",
-            source: "swisstopo",
+            layer: feature.layerBodId || '',
+            source: 'swisstopo',
           });
         }
       }
       return Response.json({
         success: false,
-        error: "No BLN/biotope/moor boundary found at coordinates",
-        type: "bln",
+        error: 'No BLN/biotope/moor boundary found at coordinates',
+        type: 'bln',
         lat,
         lng,
-        debug: { featureCount: features.length, tolerance, layers: [SWISSTOPO_LAYERS.BLN, SWISSTOPO_LAYERS.BIOTOP, SWISSTOPO_LAYERS.MOOR, SWISSTOPO_LAYERS.AUEN] },
       }, { status: 404 });
     }
 
     // --- Lake: Water body polygon ---
-    if (type === "lake") {
+    if (type === 'lake') {
+      const tolerance = radius || 500;
       const features = await identifyAtPoint(
-        lat,
-        lng,
+        lat, lng,
         [SWISSTOPO_LAYERS.WATER],
         tolerance,
       );
@@ -107,108 +183,106 @@ export default async function (req: Request): Promise<Response> {
           const featureName =
             feature.properties?.label ||
             feature.properties?.name ||
-            "";
+            '';
           return Response.json({
             success: true,
-            type: "lake",
+            type: 'lake',
             polygon: simplified,
             name: featureName,
-            layer: feature.layerBodId || "",
-            source: "swisstopo",
+            layer: feature.layerBodId || '',
+            source: 'swisstopo',
           });
         }
       }
       return Response.json({
         success: false,
-        error: "No water body polygon found at coordinates",
-        type: "lake",
+        error: 'No water body polygon found at coordinates',
+        type: 'lake',
         lat,
         lng,
       }, { status: 404 });
     }
 
     // --- SOTA: SwissNames3D peak data ---
-    if (type === "sota") {
-      // If we have a name, search SwissNames3D for it
+    if (type === 'sota') {
       if (name) {
         const results = await searchSwissNames(name, 20);
         const peaks = results
           .filter((r: any) => {
-            const objclass = r.attrs?.objectclass || "";
-            // Filter for mountain-related features
+            const objclass = r.attrs?.objectclass || '';
             return (
-              objclass.includes("BERG") ||
-              objclass.includes("GIPFEL") ||
-              objclass.includes("PASS") ||
-              objclass.includes("HUEGEL") ||
-              objclass.includes("KAMM") ||
-              objclass.includes("RUECKEN")
+              objclass.includes('BERG') ||
+              objclass.includes('GIPFEL') ||
+              objclass.includes('PASS') ||
+              objclass.includes('HUEGEL') ||
+              objclass.includes('KAMM') ||
+              objclass.includes('RUECKEN')
             );
           })
           .map((r: any) => ({
-            name: r.attrs?.label?.replace(/<[^>]*>/g, "") || "",
+            name: r.attrs?.label?.replace(/<[^>]*>/g, '') || '',
             lat: r.attrs?.lat,
             lng: r.attrs?.lon,
             elevation: r.attrs?.height || r.attrs?.alt || null,
-            objectclass: r.attrs?.objectclass || "",
+            objectclass: r.attrs?.objectclass || '',
           }))
           .filter((p: any) => p.lat != null && p.lng != null);
 
         if (peaks.length > 0) {
           return Response.json({
             success: true,
-            type: "sota",
+            type: 'sota',
             peaks,
-            source: "swisstopo",
+            source: 'swisstopo',
           });
         }
       }
 
       // Fallback: identify features at the given coordinates
+      const tolerance = radius || 2000;
       const features = await identifyAtPoint(
-        lat,
-        lng,
+        lat, lng,
         [SWISSTOPO_LAYERS.SWISSNAMES],
         tolerance,
       );
       const peaks = features
         .filter((f: any) => {
           const objclass =
-            f.properties?.objectclass || f.attrs?.objectclass || "";
+            f.properties?.objectclass || f.attrs?.objectclass || '';
           return (
-            objclass.includes("BERG") ||
-            objclass.includes("GIPFEL") ||
-            objclass.includes("PASS") ||
-            objclass.includes("HUEGEL") ||
-            objclass.includes("KAMM") ||
-            objclass.includes("RUECKEN")
+            objclass.includes('BERG') ||
+            objclass.includes('GIPFEL') ||
+            objclass.includes('PASS') ||
+            objclass.includes('HUEGEL') ||
+            objclass.includes('KAMM') ||
+            objclass.includes('RUECKEN')
           );
         })
         .map((f: any) => ({
           name:
-            f.properties?.label?.replace(/<[^>]*>/g, "") ||
+            f.properties?.label?.replace(/<[^>]*>/g, '') ||
             f.properties?.name ||
-            "",
+            '',
           lat: f.properties?.lat || f.geometry?.coordinates?.[1],
           lng: f.properties?.lon || f.geometry?.coordinates?.[0],
           elevation: f.properties?.height || f.properties?.alt || null,
-          objectclass: f.properties?.objectclass || "",
+          objectclass: f.properties?.objectclass || '',
         }))
         .filter((p: any) => p.lat != null && p.lng != null);
 
       if (peaks.length > 0) {
         return Response.json({
           success: true,
-          type: "sota",
+          type: 'sota',
           peaks,
-          source: "swisstopo",
+          source: 'swisstopo',
         });
       }
 
       return Response.json({
         success: false,
-        error: "No peak found in SwissNames3D",
-        type: "sota",
+        error: 'No peak found in SwissNames3D',
+        type: 'sota',
         lat,
         lng,
       }, { status: 404 });
@@ -220,7 +294,7 @@ export default async function (req: Request): Promise<Response> {
     );
   } catch (error: any) {
     return Response.json(
-      { error: error.message || "Unknown error" },
+      { error: error.message || 'Unknown error' },
       { status: 500 },
     );
   }
