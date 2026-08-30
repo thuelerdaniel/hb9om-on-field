@@ -27,6 +27,18 @@ const TYPE_ALIASES: Record<string, string> = {
   'AprsStation': 'aprs',
   'Repeater': 'repeater',
   'PrivateNode': 'brandmeister',
+  // Type-key aliases — allows callers to use either the entity name or the type key
+  'wwff': 'hbff',
+  'hbff': 'hbff',
+  'sota': 'sota',
+  'pota': 'pota',
+  'tota': 'tota',
+  'llota': 'llota',
+  'lighthouse': 'lighthouse',
+  'repeater': 'repeater',
+  'aprs': 'aprs',
+  'castle': 'castle',
+  'wwbota': 'wwbota',
 };
 
 // Types stored as individual point entities (not in ReferenceData.references)

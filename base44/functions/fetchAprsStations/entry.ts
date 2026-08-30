@@ -85,6 +85,34 @@ async function queryAprsFiBatch(callsigns: string[], apiKey: string): Promise<an
   return [];
 }
 
+// Firehose fetch: queries aprs.fi for ALL recent APRS packets (what=apr).
+// This discovers stations that are NOT in the seed list — the seed list only
+// covers known Swiss/regional callsigns, but many digipeaters/I-gates worldwide
+// are missed. The firehose captures whatever is currently transmitting.
+// Filters for stationary symbols only (FIXED_SYMBOLS whitelist).
+async function queryAprsFiFirehose(apiKey: string): Promise<any[]> {
+  const url = `${APRS_API_BASE}?what=apr&format=json&apikey=${apiKey}`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!resp.ok) return [];
+      const data = await resp.json();
+      if (data.code === 'ratelimit') {
+        await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
+        continue;
+      }
+      if (data.result !== 'ok' || !data.entries) return [];
+      return data.entries;
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export default async function (req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -209,7 +237,80 @@ export default async function (req: Request): Promise<Response> {
       } catch {}
     }
 
-    const totalCount = updated + created;
+    // 6b. Firehose fetch: query aprs.fi for ALL recent APRS packets.
+    // This discovers stations NOT in the seed list — digipeaters, I-gates, weather stations
+    // that are currently transmitting but weren't in our curated callsign list.
+    let firehoseCreated = 0;
+    let firehoseUpdated = 0;
+    let firehoseSkipped = 0;
+    try {
+      const firehoseEntries = await queryAprsFiFirehose(apiKey);
+      const firehoseData = new Map<string, any>();
+      for (const entry of firehoseEntries) {
+        if (!entry.name) continue;
+        if (!entry.lat || !entry.lng) continue;
+        if (parseFloat(entry.lat) === 0 && parseFloat(entry.lng) === 0) continue;
+        // Extract symbol: aprs.fi returns entry.symbol as 2-char code (e.g. "/#")
+        let symbol = entry.symbol || '';
+        if (symbol && symbol.length === 1) symbol = '/' + symbol;
+        if (!symbol) {
+          // Derive from entry type or comment
+          const c = (entry.comment || '').toLowerCase();
+          if (entry.type === 'w' || c.includes('weather')) symbol = '/_';
+          else if (c.includes('igate')) symbol = '/I';
+          else if (c.includes('digi')) symbol = '/#';
+          else if (entry.type === 'd') symbol = '/#';
+          else { firehoseSkipped++; continue; } // Skip entries with no recognizable symbol
+        }
+        if (!FIXED_SYMBOLS.has(symbol)) { firehoseSkipped++; continue; } // Skip mobile/non-stationary
+        firehoseData.set(entry.name.toUpperCase(), {
+          callsign: entry.name,
+          lat: parseFloat(entry.lat),
+          lng: parseFloat(entry.lng),
+          symbol,
+          symbol_description: SYMBOL_DESCRIPTIONS[symbol] || 'Unbekannt',
+          station_type: classifyStation(symbol, entry.comment),
+          comment: (entry.comment || '').substring(0, 1000),
+          last_heard: entry.lasttime ? new Date(entry.lasttime * 1000).toISOString() : (entry.time ? new Date(entry.time * 1000).toISOString() : new Date().toISOString()),
+          source_callsign: entry.srccall && entry.srccall !== entry.name ? entry.srccall : '',
+          is_swiss: entry.name.toUpperCase().startsWith('HB9') || entry.name.toUpperCase().startsWith('HB0'),
+        });
+      }
+
+      // Upsert firehose data — update existing, create new
+      const fhToUpdate: any[] = [];
+      const fhToCreate: any[] = [];
+      for (const [cs, data] of firehoseData) {
+        if (existingMap.has(cs)) {
+          const existing = existingMap.get(cs);
+          if (existing.lat != null && existing.lng != null) {
+            const distKm = haversineKm(existing.lat, existing.lng, data.lat, data.lng);
+            if (distKm > 1) continue; // Skip — possibly mobile
+          }
+          // Only update if symbol is missing (don't overwrite good data)
+          if (existing.symbol) continue;
+          fhToUpdate.push({ id: existing.id, ...data });
+        } else {
+          fhToCreate.push(data);
+        }
+      }
+      for (let i = 0; i < fhToUpdate.length; i += 500) {
+        const batch = fhToUpdate.slice(i, i + 500);
+        try {
+          await base44.asServiceRole.entities.AprsStation.bulkUpdate(batch);
+          firehoseUpdated += batch.length;
+        } catch {}
+      }
+      for (let i = 0; i < fhToCreate.length; i += 500) {
+        const batch = fhToCreate.slice(i, i + 500);
+        try {
+          await base44.asServiceRole.entities.AprsStation.bulkCreate(batch);
+          firehoseCreated += batch.length;
+        } catch {}
+      }
+    } catch {}
+
+    const totalCount = updated + created + firehoseUpdated + firehoseCreated;
 
     // 7. Persist new offset for next run
     try {
@@ -244,6 +345,9 @@ export default async function (req: Request): Promise<Response> {
       count: totalCount,
       updated,
       created,
+      firehose_updated: firehoseUpdated,
+      firehose_created: firehoseCreated,
+      firehose_skipped: firehoseSkipped,
       skipped_mobile: skippedMobile,
       total_queried: callsignsToQuery.length,
       fresh_data_found: freshData.size,
