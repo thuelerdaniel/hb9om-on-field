@@ -891,32 +891,70 @@ export default function Home() {
     setSearchResults(results);
   }, [searchQuery, searchCandidates]);
 
-  // Place search via backend (point 14: search places with timeout popup)
+  // Place search + reference search via backend (point 14: search places with timeout popup)
   useEffect(() => {
     if (!searchQuery || searchQuery.length < 2) {
       setPlaceResults([]);
+      setReferenceResults([]);
       setServerSearching(false);
       return;
     }
     setServerSearching(true);
     const timer = setTimeout(() => {
+      // Search places (Nominatim)
       base44.functions.invoke("searchPlaces", { query: searchQuery, limit: 10 })
         .then(res => {
           setPlaceResults(res.data?.places || []);
         })
         .catch(() => setPlaceResults([]))
         .finally(() => setServerSearching(false));
+
+      // Search references worldwide (SOTA, POTA, WWFF, IOTA, LLOTA, etc.)
+      // Finds references even when their layer is not active — fixes "references can't be searched"
+      const currentQuery = searchQuery;
+      const mapCenter = mapRef.current?.getCenter();
+      const center = mapCenter ? { lat: mapCenter.lat, lng: mapCenter.lng } : null;
+      base44.functions.invoke("searchReferences", { query: currentQuery, center })
+        .then(res => {
+          // Ignore stale results from a previous query (race condition guard)
+          if (currentQuery !== searchQuery) return;
+          const refs = [];
+          if (res.data?.references) {
+            for (const [type, items] of Object.entries(res.data.references)) {
+              for (const r of (items || [])) {
+                refs.push({
+                  ...r,
+                  code: r.code || r.reference,
+                  reference: r.reference || r.code,
+                  layerType: type,
+                  layerLabel: LAYER_LABELS[type] || type,
+                  color: LAYER_COLORS[type] || "#6b7280",
+                });
+              }
+            }
+          }
+          setReferenceResults(refs);
+        })
+        .catch(() => {
+          if (currentQuery === searchQuery) setReferenceResults([]);
+        });
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Merge local results with place results (point 14)
+  // Merge local results with place results + server reference results (point 14)
   const mergedSearchResults = useMemo(() => {
+    const localCodes = new Set(searchResults.map(r => (r.code || r.reference || "").toLowerCase()));
+    const refFiltered = referenceResults.filter(r => {
+      const code = (r.code || r.reference || "").toLowerCase();
+      return !localCodes.has(code);
+    });
     const places = placeResults.filter(p =>
-      !searchResults.some(r => r.name === p.name && r.lat === p.lat)
+      !searchResults.some(r => r.name === p.name && r.lat === p.lat) &&
+      !refFiltered.some(r => r.name === p.name && r.lat === p.lat)
     );
-    return [...searchResults, ...places].slice(0, 30);
-  }, [searchResults, placeResults]);
+    return [...searchResults, ...refFiltered, ...places].slice(0, 30);
+  }, [searchResults, referenceResults, placeResults]);
 
   // Show performance suggestion when many markers are loaded
   useEffect(() => {
