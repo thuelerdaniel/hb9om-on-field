@@ -310,7 +310,7 @@ export default function Home() {
         return prev.filter((_, i) => i !== existing);
       }
 
-      // For LLOTA, fetch the actual lake polygon from OSM via backend function.
+      // For LLOTA, fetch the actual lake polygon from SwissTopo/OSM via backend function.
       // While loading, a 200m circle is shown as fallback (BoundaryLayer handles this).
       // Once the polygon arrives, BoundaryLayer switches to the lake outline + 200m buffer.
       if (layerType === "llota" && data.lat != null && data.lng != null) {
@@ -336,6 +336,43 @@ export default function Home() {
           }
         }).catch(() => {
           // Fetch failed — keep the 200m circle fallback
+          setBoundaryPoints(prev => prev.map(bp =>
+            `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+              ? { ...bp, polygonLoading: false }
+              : bp
+          ));
+        });
+
+        return [...prev, { data, layerType, polygonLoading: true }];
+      }
+
+      // For POTA in Switzerland, fetch the official BLN protected area boundary
+      // from SwissTopo. While loading, the default 500m circle is shown as fallback.
+      // If a BLN polygon is found, BoundaryLayer renders it instead of the circle.
+      if (layerType === "pota" && data.lat != null && data.lng != null &&
+          data.lat >= 45.8 && data.lat <= 47.9 && data.lng >= 5.9 && data.lng <= 10.6) {
+        base44.functions.invoke("fetchSwissTopoBoundaries", {
+          type: "bln",
+          lat: data.lat,
+          lng: data.lng,
+          name: data.name,
+        }).then(res => {
+          if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
+                : bp
+            ));
+          } else {
+            // No BLN boundary found — keep the circle fallback
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygonLoading: false }
+                : bp
+            ));
+          }
+        }).catch(() => {
+          // Fetch failed — keep the circle fallback
           setBoundaryPoints(prev => prev.map(bp =>
             `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
               ? { ...bp, polygonLoading: false }

@@ -43,6 +43,9 @@ export function lv95ToWgs84(e: number, n: number): { lat: number; lng: number } 
 }
 
 // Identify features at a point using SwissTopo MapServer identify API.
+// Uses a small bounding box (envelope) around the point for reliable polygon
+// intersection — the point-based identify with tolerance can miss polygon
+// features when imageDisplay is 0,0,0.
 // layers: array of layerBodIds (e.g., ['ch.bafu.bundesinventare-bln']).
 // Returns array of feature objects with geometry.
 export async function identifyAtPoint(
@@ -51,15 +54,22 @@ export async function identifyAtPoint(
   layers: string[],
   tolerance: number = 50,
 ): Promise<any[]> {
-  const geometry = `${lng},${lat}`;
+  // Build a small bounding box around the point (~tolerance meters)
+  // 1 degree lat ≈ 111km, so tolerance meters ≈ tolerance/111000 degrees
+  const delta = tolerance / 111000;
+  const minX = lng - delta;
+  const minY = lat - delta;
+  const maxX = lng + delta;
+  const maxY = lat + delta;
+  const geometry = `${minX},${minY},${maxX},${maxY}`;
   const layersParam = `all:${layers.join(',')}`;
   const params = new URLSearchParams({
-    geometryType: 'esriGeometryPoint',
+    geometryType: 'esriGeometryEnvelope',
     geometry,
     layers: layersParam,
     geometryFormat: 'geojson',
     sr: '4326',
-    tolerance: String(tolerance),
+    tolerance: '0',
     imageDisplay: '0,0,0',
     mapExtent: '0,0,0,0',
     returnGeometry: 'true',

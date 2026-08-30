@@ -6,11 +6,11 @@ import { expandPolygon } from "@/lib/polygonBuffer";
 // "Grenze anzeigen" in the popup. Default radius per layer type:
 // SOTA = 50m (activation zone), POTA = 500m (park area), WWFF = 500m (reserve).
 //
-// LLOTA is special: instead of a circle, the actual lake outline (polygon)
-// is rendered plus a 200m buffer polygon around it. The polygon is fetched
-// from OpenStreetMap via the fetchLlotaPolygon backend function and cached
-// in the LlotaRef entity. While loading (or if fetch fails), a 200m circle
-// is shown as fallback.
+// Polygon support (rendered instead of a circle when available):
+//   - LLOTA: lake outline from SwissTopo/OSM + 200m buffer (activation zone)
+//   - POTA (Switzerland): BLN protected area boundary from SwissTopo (no buffer —
+//     the official BLN boundary IS the activation zone)
+// While loading (or if fetch fails), the default circle is shown as fallback.
 
 const DEFAULT_RADIUS_M = {
   sota: 50,
@@ -44,48 +44,65 @@ function BoundaryLayerInner({ boundaryPoints }) {
     <>
       {boundaryPoints.map((bp) => {
         const { data, layerType, radiusOverride, polygon, polygonLoading } = bp;
+        const color = BOUNDARY_COLORS[layerType] || "#6b7280";
+        const key = `${layerType}-${data.code || data.reference || data.id || ""}`;
 
-        // LLOTA with polygon: render lake outline + 200m buffer
-        if (layerType === "llota" && polygon && polygon.length > 2) {
-          const bufferPolygon = expandPolygon(polygon, LLOTA_BUFFER_M);
-          const key = `llota-poly-${data.code || data.reference || data.id || ""}`;
+        // Any layer with a polygon: render the polygon
+        if (polygon && polygon.length > 2) {
+          // LLOTA: lake outline + 200m buffer
+          if (layerType === "llota") {
+            const bufferPolygon = expandPolygon(polygon, LLOTA_BUFFER_M);
+            return (
+              <React.Fragment key={key}>
+                <Polygon
+                  positions={polygon}
+                  pathOptions={{
+                    color: color,
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.25,
+                  }}
+                />
+                <Polygon
+                  positions={bufferPolygon}
+                  pathOptions={{
+                    color: color,
+                    weight: 1.5,
+                    fillColor: color,
+                    fillOpacity: 0.08,
+                    dashArray: "6 4",
+                  }}
+                />
+              </React.Fragment>
+            );
+          }
+          // POTA (BLN) and other polygon boundaries: render without buffer
           return (
-            <React.Fragment key={key}>
-              <Polygon
-                positions={polygon}
-                pathOptions={{
-                  color: "#0ea5e9",
-                  weight: 2,
-                  fillColor: "#0ea5e9",
-                  fillOpacity: 0.25,
-                }}
-              />
-              <Polygon
-                positions={bufferPolygon}
-                pathOptions={{
-                  color: "#0ea5e9",
-                  weight: 1.5,
-                  fillColor: "#0ea5e9",
-                  fillOpacity: 0.08,
-                  dashArray: "6 4",
-                }}
-              />
-            </React.Fragment>
+            <Polygon
+              key={key}
+              positions={polygon}
+              pathOptions={{
+                color: color,
+                weight: 2,
+                fillColor: color,
+                fillOpacity: 0.2,
+                dashArray: "6 4",
+              }}
+            />
           );
         }
 
         // LLOTA without polygon (loading or fallback): render 200m circle
         if (layerType === "llota" && data.lat != null && data.lng != null) {
-          const key = `llota-circle-${data.code || data.reference || data.id || ""}`;
           return (
             <Circle
               key={key}
               center={[data.lat, data.lng]}
               radius={LLOTA_BUFFER_M}
               pathOptions={{
-                color: "#0ea5e9",
+                color: color,
                 weight: 2,
-                fillColor: "#0ea5e9",
+                fillColor: color,
                 fillOpacity: polygonLoading ? 0.05 : 0.1,
                 dashArray: "6 4",
               }}
@@ -96,8 +113,6 @@ function BoundaryLayerInner({ boundaryPoints }) {
         // Other layers: render circle (existing behavior)
         if (data.lat == null || data.lng == null) return null;
         const radius = radiusOverride || DEFAULT_RADIUS_M[layerType] || 200;
-        const color = BOUNDARY_COLORS[layerType] || "#6b7280";
-        const key = `${layerType}-${data.code || data.reference || data.id || ""}`;
         return (
           <Circle
             key={key}

@@ -1,8 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall } from "../../shared/internalAuth.ts";
+import {
+  isInSwitzerland,
+  identifyAtPoint,
+  extractPolygon,
+  simplifyPolygon as simplifySwissTopo,
+  SWISSTOPO_LAYERS,
+} from "../../shared/swissTopoApi.ts";
 
-// Fetches the actual lake outline (polygon) from OpenStreetMap.
-// Strategy:
+// Fetches the actual lake outline (polygon).
+// Strategy (for Swiss lakes, SwissTopo is preferred):
+//   0. If in Switzerland: Try SwissTopo identify API (ch.swisstopo.swisstlm3d-gewaesser)
 //   1. Try Overpass API (multiple endpoints) — queries water bodies near coordinates
 //   2. If Overpass fails, fall back to Nominatim search (by name) + OSM API (get geometry by OSM ID)
 // The polygon is cached in the LlotaRef entity for subsequent requests.
@@ -216,6 +224,40 @@ export default async function(req: Request): Promise<Response> {
       }
     } catch {}
 
+    // Strategy 0: For Swiss lakes, try SwissTopo first (official SwissTopo data)
+    if (isInSwitzerland(lat, lng)) {
+      try {
+        const swissTopoFeatures = await identifyAtPoint(
+          lat,
+          lng,
+          [SWISSTOPO_LAYERS.WATER],
+          200,
+        );
+        for (const feature of swissTopoFeatures) {
+          const poly = extractPolygon(feature);
+          if (poly && poly.length >= 3) {
+            const simplified = simplifySwissTopo(poly);
+            // Cache the polygon in the entity
+            if (existingId) {
+              try {
+                await base44.asServiceRole.entities.LlotaRef.update(existingId, {
+                  polygon: simplified,
+                });
+              } catch {}
+            }
+            return Response.json({
+              success: true,
+              code,
+              polygon: simplified,
+              source: 'swisstopo',
+              swisstopo_name: feature.properties?.label || feature.properties?.name || '',
+              cached: false,
+            });
+          }
+        }
+      } catch {}
+    }
+
     // Strategy 1: Try Overpass API
     let bestElement = await tryOverpass(lat, lng, name);
 
@@ -247,6 +289,7 @@ export default async function(req: Request): Promise<Response> {
       code,
       polygon,
       osm_name: bestElement.tags?.name || '',
+      source: 'osm',
       cached: false,
     });
   } catch (error: any) {
