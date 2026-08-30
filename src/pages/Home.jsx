@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Plus, Move, Radio, MapPin, Loader2 } from "lucide-react";
-import { MapContainer, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, useMap, useMapEvents, Circle } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
 import { FILTER_MODES } from "@/lib/repeaterModes";
@@ -17,7 +17,6 @@ import MapPositionControls from "@/components/map/MapPositionControls";
 import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
 import CountryAggregateLayer from "@/components/map/CountryAggregateLayer";
-import ActivityZoneLayer from "@/components/map/ActivityZoneLayer";
 import BoundaryLayer from "@/components/map/BoundaryLayer";
 import ViewportDataLoader from "@/components/map/ViewportDataLoader";
 import MapErrorBoundary from "@/components/MapErrorBoundary";
@@ -217,11 +216,37 @@ export default function Home() {
   const [activeLayers, setActiveLayers] = useState(() => {
     const saved = safeGetItem("hb9om_active_layers");
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        // Remove obsolete activity_zones layer ID (now a toggle, not a layer)
+        return JSON.parse(saved).filter(l => l !== "activity_zones");
+      } catch {}
     }
     // Default: all layers OFF — no automatic loading on map open.
     // User must explicitly enable layers; state persists in localStorage.
     return [];
+  });
+
+  // Activity zones toggle — controls visibility of all activity layers (SOTA, POTA, WWFF, etc.)
+  // When OFF, activity layers are hidden from the panel and removed from activeLayers.
+  const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "iota", "lighthouse", "llota", "swiss_protected"];
+  const [activityZonesEnabled, setActivityZonesEnabled] = useState(() => {
+    const saved = safeGetItem("activityZonesToggle");
+    if (saved !== null) return saved === "true";
+    // Auto-enable if user has activity layers saved in their active layers
+    const savedLayers = safeGetItem("hb9om_active_layers");
+    if (savedLayers) {
+      try {
+        const parsed = JSON.parse(savedLayers);
+        return parsed.some(l => ACTIVITY_LAYER_IDS.includes(l));
+      } catch {}
+    }
+    return false;
+  });
+
+  // Coverage radius — filters references by distance from current position (0 = no filter)
+  const [coverageRadiusKm, setCoverageRadiusKm] = useState(() => {
+    const saved = safeGetItem("hb9om_coverage_radius");
+    return saved ? parseInt(saved) : 0;
   });
 
   // Data loading — gated by activeLayers (only loads data for enabled layers)
@@ -647,6 +672,27 @@ export default function Home() {
     safeSetItem("hb9om_active_layers", JSON.stringify(activeLayers));
   }, [activeLayers]);
 
+  // Persist activity zones toggle state
+  useEffect(() => {
+    safeSetItem("activityZonesToggle", String(activityZonesEnabled));
+  }, [activityZonesEnabled]);
+
+  // Persist coverage radius
+  useEffect(() => {
+    safeSetItem("hb9om_coverage_radius", String(coverageRadiusKm));
+  }, [coverageRadiusKm]);
+
+  // When activity zones toggle is OFF, remove all activity layers from activeLayers
+  useEffect(() => {
+    if (!activityZonesEnabled) {
+      setActiveLayers(prev => {
+        const hasActivity = prev.some(l => ACTIVITY_LAYER_IDS.includes(l));
+        if (!hasActivity) return prev;
+        return prev.filter(l => !ACTIVITY_LAYER_IDS.includes(l));
+      });
+    }
+  }, [activityZonesEnabled]);
+
   // Save base layer to localStorage
   useEffect(() => {
     safeSetItem("hb9om_base_layer", baseLayer);
@@ -818,8 +864,20 @@ export default function Home() {
         return true;
       });
     }
+    // Coverage radius filter — show only references within radius of current position
+    const covPos = fixedPosition || userPosition;
+    if (coverageRadiusKm > 0 && covPos) {
+      const R = 6371;
+      markers = markers.filter(m => {
+        if (m.lat == null || m.lng == null) return false;
+        const dLat = (m.lat - covPos[0]) * Math.PI / 180;
+        const dLng = (m.lng - covPos[1]) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(covPos[0] * Math.PI / 180) * Math.cos(m.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= coverageRadiusKm;
+      });
+    }
     return markers;
-  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, iotaStatusFilter, iotaRegionFilter, llotaActivationFilter]);
+  }, [mapData, activeLayers, refSearchQueries, sotaFilterCountries, potaFilterCountries, wwffFilterCountries, iotaFilterCountries, llotaFilterCountries, sotaAltitudeRange, sotaFilterPoints, iotaStatusFilter, iotaRegionFilter, llotaActivationFilter, coverageRadiusKm, fixedPosition, userPosition]);
 
   // POTA boundary count — for display in PotaFilter
   const potaBoundaryCount = useMemo(
@@ -1476,8 +1534,8 @@ export default function Home() {
       <MapErrorBoundary>
       <MapContainer
         key="home-main-map"
-        center={(() => { try { const s = JSON.parse(safeGetItem("hb9om_map_state")); return s ? [s.lat, s.lng] : [46.8, 8.2]; } catch { return [46.8, 8.2]; } })()}
-        zoom={(() => { try { const s = JSON.parse(safeGetItem("hb9om_map_state")); return s?.zoom || 8; } catch { return 8; } })()}
+        center={(() => { try { const s = JSON.parse(safeGetItem("hb9om_map_state")); return s ? [s.lat, s.lng] : [46.979, 7.458]; } catch { return [46.979, 7.458]; } })()}
+        zoom={(() => { try { const s = JSON.parse(safeGetItem("hb9om_map_state")); return s?.zoom || 9; } catch { return 9; } })()}
         className="w-full h-full"
         zoomControl={false}
         preferCanvas={true}
@@ -1543,13 +1601,6 @@ export default function Home() {
           extraMarkers={totaAggregationPoints}
           activeLayers={activeLayers}
         />
-        {activeLayers.includes("activity_zones") && (
-          <ActivityZoneLayer
-            markers={allMarkers}
-            activeLayers={activeLayers}
-            zoneRadiusKm={1}
-          />
-        )}
         <BoundaryLayer boundaryPoints={boundaryPoints} />
         {activeLayers.includes("lighthouse") && (
           <LighthouseLayer
@@ -1624,6 +1675,21 @@ export default function Home() {
             filterCountries={bmFilterCountries}
             activeContinents={activeContinents}
             activeCountries={activeCountries}
+          />
+        )}
+        {/* Coverage radius circle — transparent circle showing the coverage area */}
+        {coverageRadiusKm > 0 && (
+          <Circle
+            center={fixedPosition || userPosition || [46.979, 7.458]}
+            radius={coverageRadiusKm * 1000}
+            pathOptions={{
+              color: "#f59e0b",
+              fillColor: "#f59e0b",
+              fillOpacity: 0.05,
+              opacity: 0.4,
+              weight: 2,
+              dashArray: "8 6",
+            }}
           />
         )}
         <PositionMarker
@@ -1733,6 +1799,10 @@ export default function Home() {
         onToggleCountry={handleToggleCountry}
         externalIsOpen={layerMenuOpen}
         onOpenChange={setLayerMenuOpen}
+        activityZonesEnabled={activityZonesEnabled}
+        onToggleActivityZones={() => setActivityZonesEnabled(prev => !prev)}
+        coverageRadiusKm={coverageRadiusKm}
+        onCoverageRadiusChange={setCoverageRadiusKm}
       />
 
       {/* Map Controls (zoom, scale) */}
