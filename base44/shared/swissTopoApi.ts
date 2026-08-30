@@ -372,8 +372,15 @@ export async function findSotaActivationContour(
       }
     }
 
-    const { lat: pLat, lng: pLng } = lv95ToWgs84(foundE, foundN);
-    contourPoints.push([pLat, pLng]);
+    // Convert LV95 offset back to WGS84 using local flat-earth approximation.
+    // This avoids the lv95ToWgs84 polynomial formula which has a systematic
+    // offset (~360m for some coordinates). For small distances (a few hundred
+    // meters), the flat-earth approximation is accurate to within centimeters.
+    const dE = foundE - center.e;
+    const dN = foundN - center.n;
+    const dLat = dN / 111320;
+    const dLng = dE / (111320 * Math.cos(lat * Math.PI / 180));
+    contourPoints.push([lat + dLat, lng + dLng]);
   }
 
   if (contourPoints.length < 3) return null;
