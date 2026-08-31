@@ -62,6 +62,10 @@ export default async function(req: any): Promise<Response> {
       dirProfiles[p.dir].push(pointElevations[i] || 500);
     }
 
+    // Precompute EIRP (constant for all directions/steps)
+    const txPowerDbm = 10 * Math.log10(tx_power_w * 1000);
+    const eirp = txPowerDbm + tx_gain_db;
+
     // For each direction, compute ITM at each step, find max reach
     const coveragePoints: Array<[number, number]> = [];
     const directionDetails: Array<{ azimuth: number; max_reach_km: number; signal_dbm: number; quality: string }> = [];
@@ -88,9 +92,6 @@ export default async function(req: any): Promise<Response> {
 
         const clutterLoss = computeClutterLoss(partialProfile);
         const totalLoss = itmLoss + clutterLoss;
-
-        const txPowerDbm = 10 * Math.log10(tx_power_w * 1000);
-        const eirp = txPowerDbm + tx_gain_db;
         const rxSignalDbm = eirp - totalLoss;
         const quality = getQuality(rxSignalDbm);
 
@@ -99,6 +100,44 @@ export default async function(req: any): Promise<Response> {
           maxSignalDbm = rxSignalDbm;
           maxQuality = quality;
         } else {
+          // Fine-grained search between last good point (maxReach) and this point (dist)
+          // Uses interpolated elevations — no additional API calls needed
+          const fineStep = 0.5; // 500m steps
+          for (let fr = maxReach + fineStep; fr < dist; fr += fineStep) {
+            // Interpolate elevation at fr from the known profile
+            const profileIdx = fr / step_km;
+            const idxLow = Math.floor(profileIdx);
+            const idxHigh = Math.min(idxLow + 1, profile.length - 1);
+            const frac = profileIdx - idxLow;
+            const interpElev = profile[idxLow] + (profile[idxHigh] - profile[idxLow]) * frac;
+
+            const fineProfile = [
+              ...profile.slice(0, idxLow + 1).map(elev => ({ elevation: elev })),
+              { elevation: interpElev },
+            ];
+
+            const fineItmLoss = computeLongleyRice({
+              frequency_mhz,
+              tx_height_m,
+              rx_height_m: 1.5,
+              elevation_profile: fineProfile,
+              distance_km: fr,
+              climate,
+            });
+
+            const fineClutterLoss = computeClutterLoss(fineProfile);
+            const fineTotalLoss = fineItmLoss + fineClutterLoss;
+            const fineSignalDbm = eirp - fineTotalLoss;
+            const fineQuality = getQuality(fineSignalDbm);
+
+            if (fineQuality !== 'none') {
+              maxReach = fr;
+              maxSignalDbm = fineSignalDbm;
+              maxQuality = fineQuality;
+            } else {
+              break;
+            }
+          }
           break; // no signal beyond this point
         }
       }

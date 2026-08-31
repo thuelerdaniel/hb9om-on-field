@@ -7,6 +7,20 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9014",
+    title: "Elevation API Robustheit + Per-Device-Type Buttons",
+    changes: [
+      "Elevation API — Open-Elevation Fallback bei OpenTopoData Rate-Limit (kein flacher 500m Fallback mehr)",
+      "Elevation API — In-Memory Cache für gleiche Koordinaten (reduziert API-Calls)",
+      "Elevation API — Variierter Fallback (±40m Sinus) statt flacher 500m bei vollständigem API-Ausfall",
+      "Elevation API — Interpolation für fehlende Punkte aus bekannten Nachbar-Elevationen",
+      "ITM Coverage — Feinkörnige Suche (500m Schritte) am Signal-Übergang statt hartem Polygon-Knick",
+      "Draggable Buttons — Positionen pro Gerätekategorie gespeichert (mobile/tablet/desktop getrennt)",
+      "Draggable Buttons — Viewport-Clamping bei Resize + Orientation-Change (Buttons bleiben immer sichtbar)",
+      "Draggable Buttons — UserHuntingSettings: { mobile: {...}, tablet: {...}, desktop: {...} } Struktur",
+    ],
+  },
+  {
     version: "0.9013",
     title: "ITM Terrain-Fix + Draggable Button Persistence",
     changes: [

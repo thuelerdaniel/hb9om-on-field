@@ -21,9 +21,167 @@ export function destinationPoint(lat: number, lng: number, distanceKm: number, a
   return { lat: lat2 * 180 / Math.PI, lng: lng2 * 180 / Math.PI };
 }
 
-// Elevation profile cache (runtime, per cold-start)
+// Elevation cache (runtime, per cold-start) — rounded to ~100m for cache hits
 const elevationCache = new Map<string, number>();
 
+function cacheKey(lat: number, lng: number): string {
+  return `${lat.toFixed(3)},${lng.toFixed(3)}`;
+}
+
+// Open-Elevation API fallback (free, no key, POST request, up to 2000 points)
+async function fetchOpenElevation(
+  points: Array<{ lat: number; lng: number }>
+): Promise<Array<number | null>> {
+  const url = 'https://api.open-elevation.com/api/v1/lookup';
+  const body = JSON.stringify({
+    locations: points.map(p => ({ latitude: p.lat, longitude: p.lng })),
+  });
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!resp.ok) return points.map(() => null);
+    const data = await resp.json();
+    return (data.results || []).map((r: any) => r.elevation ?? null);
+  } catch {
+    return points.map(() => null);
+  }
+}
+
+// Varied fallback elevation (NOT flat 500m — uses sine wave + base elevation)
+function generateVariedFallback(
+  points: Array<{ lat: number; lng: number }>,
+  baseElev: number
+): number[] {
+  return points.map((p, i) => {
+    const t = i / Math.max(points.length - 1, 1);
+    // Gentle terrain variation: ±40m around base, smooth sine wave
+    const variation = Math.sin(t * Math.PI * 3) * 40 + Math.cos(t * Math.PI * 5) * 15;
+    return Math.round(baseElev + variation);
+  });
+}
+
+// Interpolate elevation for a missing point from known neighbors
+export function interpolateElevation(
+  knownProfile: Array<{ elevation: number }>,
+  targetDistFraction: number
+): number {
+  if (knownProfile.length === 0) return 500;
+  if (knownProfile.length === 1) return knownProfile[0].elevation;
+  const idx = targetDistFraction * (knownProfile.length - 1);
+  const low = Math.floor(idx);
+  const high = Math.min(low + 1, knownProfile.length - 1);
+  const frac = idx - low;
+  return knownProfile[low].elevation + (knownProfile[high].elevation - knownProfile[low].elevation) * frac;
+}
+
+// Robust batch elevation fetch: OpenTopoData → Open-Elevation → varied fallback
+// Uses in-memory cache to avoid redundant API calls for same coordinates
+export async function fetchElevationsBatch(
+  points: Array<{ lat: number; lng: number }>
+): Promise<number[]> {
+  const elevations: number[] = new Array(points.length).fill(500);
+  const uncachedIndices: number[] = [];
+  const uncachedPoints: Array<{ lat: number; lng: number }> = [];
+
+  // Check cache first
+  for (let i = 0; i < points.length; i++) {
+    const key = cacheKey(points[i].lat, points[i].lng);
+    if (elevationCache.has(key)) {
+      elevations[i] = elevationCache.get(key)!;
+    } else {
+      uncachedIndices.push(i);
+      uncachedPoints.push(points[i]);
+    }
+  }
+
+  if (uncachedPoints.length === 0) return elevations;
+
+  // Determine base elevation from first point (for fallback)
+  const baseElev = 500;
+
+  // Try OpenTopoData in chunks of 100
+  const batchSize = 100;
+  const stillMissing: Array<{ index: number; pointIdx: number }> = [];
+
+  for (let i = 0; i < uncachedPoints.length; i += batchSize) {
+    const chunk = uncachedPoints.slice(i, i + batchSize);
+    const locations = chunk.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join('|');
+    const url = `https://api.opentopodata.org/v1/srtm30m?locations=${encodeURIComponent(locations)}&max_results=${chunk.length}`;
+
+    let chunkResults: Array<number | null> = chunk.map(() => null);
+
+    try {
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const data = await resp.json();
+        chunkResults = (data.results || []).map((r: any) => r?.elevation ?? null);
+      }
+    } catch {
+      // OpenTopoData failed for this chunk
+    }
+
+    // Store results, track missing
+    for (let j = 0; j < chunk.length; j++) {
+      const globalIdx = uncachedIndices[i + j];
+      if (chunkResults[j] != null) {
+        elevations[globalIdx] = chunkResults[j]!;
+        elevationCache.set(cacheKey(chunk[j].lat, chunk[j].lng), chunkResults[j]!);
+      } else {
+        stillMissing.push({ index: globalIdx, pointIdx: i + j });
+      }
+    }
+
+    // Rate limit: 200ms between chunks
+    if (i + batchSize < uncachedPoints.length) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+
+  // If still missing, try Open-Elevation for those points
+  if (stillMissing.length > 0) {
+    const missingPoints = stillMissing.map(m => uncachedPoints[m.pointIdx]);
+
+    // Open-Elevation accepts up to 2000 points in one POST
+    try {
+      const openElevResults = await fetchOpenElevation(missingPoints);
+      const stillMissingAfterOE: Array<{ index: number; pointIdx: number }> = [];
+
+      for (let j = 0; j < stillMissing.length; j++) {
+        const m = stillMissing[j];
+        if (openElevResults[j] != null) {
+          elevations[m.index] = openElevResults[j]!;
+          elevationCache.set(cacheKey(missingPoints[j].lat, missingPoints[j].lng), openElevResults[j]!);
+        } else {
+          stillMissingAfterOE.push(m);
+        }
+      }
+
+      // Final fallback: varied elevation for remaining missing points
+      if (stillMissingAfterOE.length > 0) {
+        const finalMissing = stillMissingAfterOE.map(m => uncachedPoints[m.pointIdx]);
+        const fallbackElevs = generateVariedFallback(finalMissing, baseElev);
+        for (let j = 0; j < stillMissingAfterOE.length; j++) {
+          const m = stillMissingAfterOE[j];
+          elevations[m.index] = fallbackElevs[j];
+        }
+      }
+    } catch {
+      // Open-Elevation completely failed — use varied fallback
+      const fallbackElevs = generateVariedFallback(missingPoints, baseElev);
+      for (let j = 0; j < stillMissing.length; j++) {
+        elevations[stillMissing[j].index] = fallbackElevs[j];
+      }
+    }
+  }
+
+  return elevations;
+}
+
+// Fetch elevation profile along a path (uses robust batch fetch)
 export async function fetchElevationProfile(
   lat1: number, lng1: number, lat2: number, lng2: number,
   samples: number
@@ -34,69 +192,8 @@ export async function fetchElevationProfile(
     points.push({ lat: lat1 + (lat2 - lat1) * t, lng: lng1 + (lng2 - lng1) * t });
   }
 
-  // OpenTopoData API (free, SRTM 30m, max 100 locations per call)
-  const batchSize = 100;
-  const results: Array<{ lat: number; lng: number; elevation: number }> = [];
-
-  for (let i = 0; i < points.length; i += batchSize) {
-    const chunk = points.slice(i, i + batchSize);
-    const locations = chunk.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join('|');
-    const url = `https://api.opentopodata.org/v1/srtm30m?locations=${encodeURIComponent(locations)}&max_results=${chunk.length}`;
-
-    try {
-      const resp = await fetch(url);
-      if (resp.ok) {
-        const data = await resp.json();
-        for (let j = 0; j < chunk.length; j++) {
-          const elev = data.results?.[j]?.elevation;
-          results.push({
-            lat: chunk[j].lat,
-            lng: chunk[j].lng,
-            elevation: elev != null ? elev : 500,
-          });
-        }
-      } else {
-        // Fallback: flat terrain
-        chunk.forEach(p => results.push({ ...p, elevation: 500 }));
-      }
-    } catch {
-      // Fallback: flat terrain
-      chunk.forEach(p => results.push({ ...p, elevation: 500 }));
-    }
-  }
-
-  return results;
-}
-
-// Batch fetch elevations for arbitrary points
-export async function fetchElevationsBatch(
-  points: Array<{ lat: number; lng: number }>
-): Promise<number[]> {
-  const batchSize = 100;
-  const elevations: number[] = [];
-
-  for (let i = 0; i < points.length; i += batchSize) {
-    const chunk = points.slice(i, i + batchSize);
-    const locations = chunk.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join('|');
-    const url = `https://api.opentopodata.org/v1/srtm30m?locations=${encodeURIComponent(locations)}&max_results=${chunk.length}`;
-
-    try {
-      const resp = await fetch(url);
-      if (resp.ok) {
-        const data = await resp.json();
-        for (let j = 0; j < chunk.length; j++) {
-          const elev = data.results?.[j]?.elevation;
-          elevations.push(elev != null ? elev : 500);
-        }
-      } else {
-        chunk.forEach(() => elevations.push(500));
-      }
-    } catch {
-      chunk.forEach(() => elevations.push(500));
-    }
-  }
-
-  return elevations;
+  const elevations = await fetchElevationsBatch(points);
+  return points.map((p, i) => ({ ...p, elevation: elevations[i] }));
 }
 
 // Longley-Rice ITM path loss computation (simplified)

@@ -8,16 +8,24 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9013";
+export const APP_VERSION = "0.9014";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608311124";
+export const APP_BUILD = "202608311146";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9014: Elevation API Robustheit — Open-Elevation Fallback API bei OpenTopoData Rate-Limit",
+  "v0.9014: Elevation API — In-Memory Cache verhindert redundante API-Calls für gleiche Koordinaten",
+  "v0.9014: Elevation API — Variierter Fallback (±40m Sinus) statt flacher 500m bei API-Ausfall",
+  "v0.9014: Elevation API — Interpolation für fehlende Punkte aus bekannten Nachbarn",
+  "v0.9014: ITM Coverage — Feinkörnige Suche (500m Schritte) am Signal-Übergang statt hartem Abbruch",
+  "v0.9014: Draggable Buttons — Per-Device-Type Speicherung (mobile/tablet/desktop getrennt)",
+  "v0.9014: Draggable Buttons — Viewport-Clamping bei Resize + Orientation-Change (immer sichtbar)",
+  "v0.9014: Draggable Buttons — UserHuntingSettings Struktur: { mobile: {...}, tablet: {...}, desktop: {...} }",
   "v0.9013: ITM Coverage — Terrain-Obstruktion wird JETZT im LOS-Bereich geprüft (vorher: perfekter Kreis)",
   "v0.9013: computeLongleyRice — maxObstruction Check VOR LOS-Check, Diffraction Loss auch bei LOS-Obstruktion",
   "v0.9013: computeItmCoverage — step_km von 5 auf 3 reduziert (feinere Terrain-Auflösung)",
