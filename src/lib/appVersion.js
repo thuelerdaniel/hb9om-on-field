@@ -8,16 +8,27 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9004";
+export const APP_VERSION = "0.9005";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608310554";
+export const APP_BUILD = "202608310823";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9005: Mobil-Tab — Routing & Live-Repeater-Modul (neuer Menüpunkt im unteren Menüband)",
+  "v0.9005: Routenplanung — OSRM-Routing, Nominatim-Ortssuche, GPX-Import, Google Maps Link-Import",
+  "v0.9005: Routenplanung — Wegpunkte Drag-to-Reorder, Reichweite-Korridor, Repeater-Filter nach Modus/Band",
+  "v0.9005: Routenplanung — Repeater-Liste sortiert nach Streckenabschnitt, PDF-Export zum Programmieren",
+  "v0.9005: Routenplanung — Routen speichern/laden (Route-Entity, pro User)",
+  "v0.9005: Live-Modus — Empfohlener Repeater prominent (Callsign/Freq/Offset/Tone groß), Distanz + Azimuth",
+  "v0.9005: Live-Modus — GPS watchPosition (high accuracy), pulsierender GPS-Marker, Accuracy-Kreis",
+  "v0.9005: Live-Modus — Auto-Zentrierung, Auto-Update bei Positionsänderung (>5km)",
+  "v0.9005: Wake Lock aktiv solange Mobil-Tab offen, GPS-Aktualisierung im Hintergrund",
+  "v0.9005: Neue Route-Entity (waypoints, mode_filter, range_km, route_mode, total_distance_km)",
+  "v0.9005: Version 0.9005 — Splash, Hamburger-Menü, Hilfe, PDF: alle auf 0.9005",
   "v0.9004: Logbuch Löschen — Bestätigungs-Dialog pro Eintrag + Batch-Löschung (Select All / Delete Selected)",
   "v0.9004: Wavelog Voll-Import — Normalisierter Dedup-Key (Suffix-Stripping /P/M/PM/MM + Zeit HH:MM) + Progress-Tracking",
   "v0.9004: QRZ Club-Log — Normalisierter Dedup-Key verhindert Duplikate durch Format-Unterschiede (Zeit HH:MM:SS vs HH:MM)",

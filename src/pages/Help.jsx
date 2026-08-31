@@ -1075,7 +1075,7 @@ export default function Help() {
     setFlyerLoading(true);
     try {
       await generateFlyer();
-      toast({ title: "Flyer heruntergeladen", description: "HB9OM On Field Flyer (v0.9004)", duration: 3000 });
+      toast({ title: "Flyer heruntergeladen", description: "HB9OM On Field Flyer (v0.9005)", duration: 3000 });
     } catch (e) {
       // ignore
     } finally {
@@ -1087,7 +1087,7 @@ export default function Help() {
     setTrifoldLoading(true);
     try {
       await generateTrifoldFlyer();
-      toast({ title: "Faltflyer heruntergeladen", description: "HB9OM On Field Faltflyer (v0.9004)", duration: 3000 });
+      toast({ title: "Faltflyer heruntergeladen", description: "HB9OM On Field Faltflyer (v0.9005)", duration: 3000 });
     } catch (e) {
       // ignore
     } finally {
@@ -1197,7 +1197,7 @@ export default function Help() {
             {flyerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
             <div className="text-left">
               <h3 className="text-xs font-bold">Flyer</h3>
-              <p className="text-[10px] text-green-100">Info-Flyer v0.9004</p>
+              <p className="text-[10px] text-green-100">Info-Flyer v0.9005</p>
             </div>
           </button>
           <button
@@ -1208,7 +1208,7 @@ export default function Help() {
             {trifoldLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
             <div className="text-left">
               <h3 className="text-xs font-bold">Faltflyer</h3>
-              <p className="text-[10px] text-green-100">Trifold v0.9004</p>
+              <p className="text-[10px] text-green-100">Trifold v0.9005</p>
             </div>
           </button>
         </div>

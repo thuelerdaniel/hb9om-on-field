@@ -1,0 +1,103 @@
+{
+  "name": "Route",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Routen-Name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung (optional)",
+      "maxLength": 1000
+    },
+    "waypoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "description": "Breitengrad"
+          },
+          "lon": {
+            "type": "number",
+            "description": "L\u00e4ngengrad"
+          },
+          "name": {
+            "type": "string",
+            "description": "Ortsname"
+          },
+          "order": {
+            "type": "number",
+            "description": "Reihenfolge"
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ]
+      },
+      "description": "Geplante Wegpunkte [{lat, lon, name, order}]"
+    },
+    "mode_filter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Betriebsmodi-Filter (FM, DMR, D-STAR, Fusion, EchoLink, AllStar, etc.)"
+    },
+    "range_km": {
+      "type": "number",
+      "default": 25,
+      "description": "Reichweite um die Route in km"
+    },
+    "band_filter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Band-Filter (2m, 70cm, 23cm, etc.)"
+    },
+    "route_mode": {
+      "type": "string",
+      "enum": [
+        "route",
+        "live"
+      ],
+      "default": "route",
+      "description": "Modus: Route geplant oder Live-Modus"
+    },
+    "saved_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Speicherdatum"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob die Route aktiv ist"
+    },
+    "total_distance_km": {
+      "type": "number",
+      "description": "Gesamtdistanz in km (berechnet)"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

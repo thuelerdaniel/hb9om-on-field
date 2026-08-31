@@ -7,6 +7,20 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9005",
+    title: "Mobil-Tab — Routing & Live-Repeater-Modul",
+    changes: [
+      "Neuer Menüpunkt 'Mobil' im unteren Menüband (zwischen Logbuch und Einstellungen)",
+      "Routenplanung: OSRM-Routing mit Reichweite-Korridor, Nominatim-Ortssuche, GPX-Import, Google Maps Link-Import",
+      "Wegpunkte per Drag-and-Drop umordnen, Routen speichern/laden (pro User)",
+      "Repeater-Filter nach Betriebsmodus (FM, DMR, D-STAR, C4FM, etc.), Band und Reichweite (5-100 km)",
+      "Repeater-Liste sortiert nach Streckenabschnitt mit PDF-Export zum Funkgerät-Programmieren",
+      "Live-Modus: Empfohlener Repeater prominent angezeigt (Callsign/Frequenz/Offset/Tone groß)",
+      "GPS watchPosition mit High-Accuracy, pulsierender GPS-Marker, Accuracy-Kreis, Auto-Zentrierung",
+      "Wake Lock aktiv solange Mobil-Tab offen, GPS-Aktualisierung im Hintergrund",
+    ],
+  },
+  {
     version: "0.9004",
     title: "Logbuch Bugfixes — Löschen, Dedup & Duplikat-Bereinigung",
     changes: [

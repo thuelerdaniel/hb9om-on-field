@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { MapPin, BookOpen, Settings as SettingsIcon, LogOut, Shield, Crosshair } from "lucide-react";
+import { MapPin, BookOpen, Settings as SettingsIcon, LogOut, Shield, Crosshair, Navigation } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAppFeatures } from "@/lib/appFeatures";
 
@@ -36,6 +36,7 @@ export default function BottomNavigation() {
   if (tools.logbook !== false) {
     navItems.push({ path: "/log", label: "Logbuch", icon: BookOpen });
   }
+  navItems.push({ path: "/mobil", label: "Mobil", icon: Navigation });
   navItems.push({ path: "/settings", label: "Einstell.", icon: SettingsIcon });
 
   return (
