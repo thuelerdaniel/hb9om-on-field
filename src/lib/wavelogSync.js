@@ -282,6 +282,28 @@ export async function processWavelogOfflineQueue(config) {
   return { synced, remaining: remaining.length };
 }
 
+// === Full Import: Alle QSOs von Wavelog importieren (Voll-Neuimport) ===
+// v0.9003 Problem 1: Startet bei fetchfromid: 0, paginated dedup, batches of 500
+export async function fullImportFromWavelog(config) {
+  if (!config?.wavelog_enabled || !config?.wavelog_api_key) {
+    return { success: false, message: 'Wavelog nicht konfiguriert' };
+  }
+  let result;
+  try {
+    result = await callWavelogApi('full_import', config, {});
+  } catch (e) {
+    return { success: false, message: 'Wavelog Voll-Import fehlgeschlagen: ' + e.message };
+  }
+  return {
+    success: result?.success ?? false,
+    message: result?.message ?? 'Voll-Import abgeschlossen',
+    imported: result?.imported ?? 0,
+    duplicates: result?.duplicates ?? 0,
+    errors: result?.errors ?? 0,
+    lastfetchedid: result?.lastfetchedid ?? 0,
+  };
+}
+
 // === Reset Fetch-ID (für Voll-Neuimport) ===
 export async function resetWavelogFetchId(config) {
   try {

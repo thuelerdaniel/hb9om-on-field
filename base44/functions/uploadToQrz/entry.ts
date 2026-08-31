@@ -35,9 +35,17 @@ export default async function(req: Request): Promise<Response> {
         }, { status: 200 });
       }
     } else {
-      // Club: nur den Club-Key aus dem Environment-Secret (QRZ_API_KEY)
+      // v0.9003: Club — read API key from AppSetting (club_callsign_config.qrz_logbook_api_key),
+      // fall back to QRZ_API_KEY environment secret.
       // Club-Upload ist für alle User erlaubt (Club-Log ist gemeinschaftlich)
-      apiKey = Deno.env.get('QRZ_API_KEY') || '';
+      try {
+        const clubConfig = await base44.asServiceRole.entities.AppSetting.filter({ key: 'club_callsign_config' });
+        if (clubConfig && clubConfig.length > 0) {
+          const config = JSON.parse(clubConfig[0].value || '{}');
+          apiKey = config.qrz_logbook_api_key || '';
+        }
+      } catch {}
+      if (!apiKey) apiKey = Deno.env.get('QRZ_API_KEY') || '';
       if (!apiKey) {
         return Response.json({
           error: 'Kein Club QRZ API-Key konfiguriert. Bitte an den Administrator wenden.'

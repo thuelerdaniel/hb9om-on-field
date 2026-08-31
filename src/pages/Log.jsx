@@ -47,6 +47,9 @@ export default function Log() {
   const [isDemo, setIsDemo] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [clubSyncLoading, setClubSyncLoading] = useState(false);
+  const [clubEntries, setClubEntries] = useState([]);
+  const [clubLogLoading, setClubLogLoading] = useState(false);
+  const [clubLogUploading, setClubLogUploading] = useState(false);
   const [loggingBackend, setLoggingBackend] = useState("qrz");
 
   useEffect(() => {
@@ -129,6 +132,26 @@ export default function Log() {
     };
   }, []);
 
+  // v0.9003 Problem 6: Load club entries via getClubLog (service-role, bypasses RLS)
+  const loadClubEntries = async () => {
+    setClubLogLoading(true);
+    try {
+      const res = await base44.functions.invoke("getClubLog", {});
+      if (res.data?.status === "success") {
+        setClubEntries(res.data.logs || []);
+      }
+    } catch {} finally {
+      setClubLogLoading(false);
+    }
+  };
+
+  // Reload club entries when club filter is activated
+  useEffect(() => {
+    if (filterSource === "club") {
+      loadClubEntries();
+    }
+  }, [filterSource]);
+
   const loadEntries = async () => {
     const local = loadLocal();
     if (local.length > 0) {
@@ -144,10 +167,10 @@ export default function Log() {
   };
 
   const filtered = useMemo(() => {
-    let result = [...entries];
+    // v0.9003 Problem 6: When club filter is active, use clubEntries (from getClubLog service-role)
+    let result = filterSource === "club" ? [...clubEntries] : [...entries];
     if (filterType !== "all") result = result.filter(e => e.my_reference_type === filterType);
     if (filterStatus !== "all") result = result.filter(e => e.status === filterStatus);
-    if (filterSource === "club") result = result.filter(e => e.is_clubstation === true);
     if (filterSource === "personal") result = result.filter(e => !e.is_clubstation);
     if (filterDateFrom) result = result.filter(e => (e.qso_date || "") >= filterDateFrom);
     if (filterDateTo) result = result.filter(e => (e.qso_date || "") <= filterDateTo);
@@ -192,14 +215,25 @@ export default function Log() {
     URL.revokeObjectURL(url);
   };
 
-  // Upload filtered QSOs to QRZ.com logbook (point 8)
+  // v0.9003 Problem 2: Upload filtered QSOs to QRZ.com — club target ONLY uploads is_clubstation: true
   const handleQrzUpload = async (target) => {
-    if (filtered.length === 0) return;
+    // Filter: club target only uploads club QSOs, private target only uploads private QSOs
+    let qsoToUpload = filtered;
+    if (target === 'club') {
+      qsoToUpload = filtered.filter(e => e.is_clubstation === true);
+    } else if (target === 'personal') {
+      qsoToUpload = filtered.filter(e => !e.is_clubstation);
+    }
+    if (qsoToUpload.length === 0) {
+      setQrzUploadResult({ success: false, message: target === 'club' ? 'Keine Club-QSOs (is_clubstation: true) zum Hochladen' : 'Keine privaten QSOs zum Hochladen' });
+      setTimeout(() => setQrzUploadResult(null), 5000);
+      return;
+    }
     setQrzUploading(true);
     setQrzUploadResult(null);
     try {
       const header = "<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
-      const records = filtered.map(e => {
+      const records = qsoToUpload.map(e => {
         const fullCall = (e.callsign || "") + (e.callsign_suffix || "");
         const fields = [
           `<call:${fullCall.length}>${fullCall}`,
@@ -238,7 +272,7 @@ export default function Log() {
     }
   };
 
-  // PUNKT 5: Club-Log-Sync — lädt QSOs vom QRZ Club-Logbuch herunter und importiert sie
+  // v0.9003 Problem 2: Club-Log-Sync — backend now parses ADIF + saves with is_clubstation=true
   const handleClubLogSync = async () => {
     setClubSyncLoading(true);
     setQrzUploadResult(null);
@@ -246,34 +280,13 @@ export default function Log() {
       const res = await base44.functions.invoke("fetchQrzClubLog", {});
       if (res.data?.error) {
         setQrzUploadResult({ success: false, message: res.data.error });
-      } else if (res.data?.status === "success" && res.data?.adif_data) {
-        const adifData = res.data.adif_data;
-        // Parse ADIF and import into Log entity
-        const { parseAdifContent, mapAdifRecord } = await import("@/lib/adifParser");
-        const rawRecords = parseAdifContent(adifData);
-        let imported = 0;
-        let skipped = 0;
-        for (const raw of rawRecords) {
-          const { record, isValid } = mapAdifRecord(raw);
-          if (isValid && record.callsign && record.qso_date && record.frequency) {
-            record.is_clubstation = true;
-            record.wavelog_imported = true;
-            record.wavelog_import_date = new Date().toISOString();
-            try {
-              await createEntry(record);
-              imported++;
-            } catch {
-              skipped++;
-            }
-          } else {
-            skipped++;
-          }
-        }
+      } else if (res.data?.status === "success") {
         setQrzUploadResult({
           success: true,
-          message: `Club-Log-Sync: ${imported} QSOs importiert, ${skipped} übersprungen`,
+          message: res.data.message || `Club-Log-Sync: ${res.data.imported || 0} importiert`,
         });
         loadEntries();
+        if (filterSource === "club") loadClubEntries();
       } else {
         setQrzUploadResult({ success: false, message: "Keine QSOs im Club-Logbuch gefunden" });
       }
@@ -281,6 +294,31 @@ export default function Log() {
       setQrzUploadResult({ success: false, message: e.message || "Fehler beim Club-Log-Sync" });
     } finally {
       setClubSyncLoading(false);
+      setTimeout(() => setQrzUploadResult(null), 5000);
+    }
+  };
+
+  // v0.9003 Problem 4: ClubLog Upload — uploads private QSOs to clublog.org
+  const handleClubLogUpload = async () => {
+    setClubLogUploading(true);
+    setQrzUploadResult(null);
+    try {
+      const res = await base44.functions.invoke("syncClubLog", {});
+      if (res.data?.error) {
+        setQrzUploadResult({ success: false, message: res.data.error });
+      } else if (res.data?.status === "success") {
+        setQrzUploadResult({
+          success: true,
+          message: res.data.message || `${res.data.uploaded || 0} QSOs an ClubLog gesendet`,
+        });
+        loadEntries();
+      } else {
+        setQrzUploadResult({ success: false, message: "ClubLog-Upload fehlgeschlagen" });
+      }
+    } catch (e) {
+      setQrzUploadResult({ success: false, message: e.message || "Fehler beim ClubLog-Upload" });
+    } finally {
+      setClubLogUploading(false);
       setTimeout(() => setQrzUploadResult(null), 5000);
     }
   };
@@ -547,6 +585,15 @@ export default function Log() {
                       {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Club-Sync
                     </button>
                   )}
+                  {/* v0.9003 Problem 4: ClubLog Upload — private QSOs zu clublog.org */}
+                  <button
+                    onClick={handleClubLogUpload}
+                    disabled={clubLogUploading}
+                    className="px-3 py-1.5 text-sm font-medium text-cyan-600 border border-cyan-200 rounded-lg hover:bg-cyan-50 disabled:opacity-40 flex items-center gap-1.5"
+                    title="Private QSOs (is_clubstation: false) zu ClubLog (clublog.org) hochladen"
+                  >
+                    {clubLogUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} ClubLog
+                  </button>
                 </>
               )}
               {/* Wavelog Sync Buttons — nur wenn Wavelog aktiviert */}

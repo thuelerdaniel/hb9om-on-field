@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Loader2, Upload, Download, RefreshCw, CloudOff, CheckCircle2 } from "lucide-react";
-import { uploadToWavelog, importFromWavelog, getOfflineQueueLength } from "@/lib/wavelogSync";
+import { uploadToWavelog, importFromWavelog, fullImportFromWavelog, getOfflineQueueLength } from "@/lib/wavelogSync";
 
 // Wavelog Sync Buttons für das Logbuch — v0.9022
 // Wird nur angezeigt wenn Wavelog in den Settings aktiviert ist.
@@ -9,6 +9,7 @@ export default function WavelogSyncButtons({ onSynced }) {
   const [settings, setSettings] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [fullImporting, setFullImporting] = useState(false);
   const [result, setResult] = useState(null);
   const [queueLength, setQueueLength] = useState(getOfflineQueueLength());
 
@@ -73,7 +74,6 @@ export default function WavelogSyncButtons({ onSynced }) {
     try {
       const r = await importFromWavelog(config);
       setResult(r);
-      // lastfetchedid speichern
       if (r.lastfetchedid != null) {
         await base44.entities.UserHuntingSettings.update(settings.id, {
           wavelog_last_fetch_id: r.lastfetchedid,
@@ -85,6 +85,27 @@ export default function WavelogSyncButtons({ onSynced }) {
     } finally {
       setImporting(false);
       setTimeout(() => setResult(null), 5000);
+    }
+  };
+
+  const handleFullImport = async () => {
+    if (!confirm('Voll-Import startet ab ID 0 und lädt ALLE QSOs von Wavelog. Fortfahren?')) return;
+    setFullImporting(true);
+    setResult(null);
+    try {
+      const r = await fullImportFromWavelog(config);
+      setResult(r);
+      if (r.lastfetchedid != null) {
+        await base44.entities.UserHuntingSettings.update(settings.id, {
+          wavelog_last_fetch_id: r.lastfetchedid,
+        });
+      }
+      if (r.success && onSynced) onSynced();
+    } catch (e) {
+      setResult({ success: false, message: e.message });
+    } finally {
+      setFullImporting(false);
+      setTimeout(() => setResult(null), 8000);
     }
   };
 
@@ -101,12 +122,21 @@ export default function WavelogSyncButtons({ onSynced }) {
       </button>
       <button
         onClick={handleImport}
-        disabled={!wavelogConfigured || importing}
+        disabled={!wavelogConfigured || importing || fullImporting}
         className="px-3 py-1.5 text-sm font-medium text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-50 disabled:opacity-40 flex items-center gap-1.5"
         title="Neue QSOs von Wavelog importieren (Delta-Sync)"
       >
         {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         Wavelog Import
+      </button>
+      <button
+        onClick={handleFullImport}
+        disabled={!wavelogConfigured || importing || fullImporting}
+        className="px-3 py-1.5 text-sm font-medium text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
+        title="ALLE QSOs von Wavelog importieren (Voll-Neuimport ab ID 0)"
+      >
+        {fullImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+        Wavelog Voll-Import
       </button>
       {/* Auto-Sync Status */}
       {settings.wavelog_auto_sync && (

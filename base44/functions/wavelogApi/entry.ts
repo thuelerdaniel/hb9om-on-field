@@ -268,17 +268,26 @@ export default async function(req: Request): Promise<Response> {
 
         console.log(`[Wavelog] Parsed ${qsos.length} QSOs, ${parseErrors.length} parse errors`);
 
-        // v0.9036: Dedup — fetch existing wavelog_imported logs and skip duplicates
-        // Prevents duplicate QSOs when retrying failed imports (last_fetch_id not updated on error)
-        const existingLogs = await base44.entities.Log.filter(
-          { wavelog_imported: true },
-          '-created_date', 5000
-        );
-        const existingKeys = new Set(
-          existingLogs.map(l => `${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}`)
-        );
+        // v0.9003: Dedup — paginated loading of ALL existing wavelog_imported logs (not just 5000).
+        // Key includes club_callsign to distinguish club vs private QSOs with same call/date/time/freq.
+        const existingKeys = new Set<string>();
+        try {
+          const DEDUP_LIMIT = 5000;
+          const MAX_DEDUP_PAGES = 20;
+          for (let page = 0; page < MAX_DEDUP_PAGES; page++) {
+            const batch = await base44.entities.Log.filter(
+              { wavelog_imported: true },
+              '-created_date', DEDUP_LIMIT, page * DEDUP_LIMIT
+            );
+            if (!Array.isArray(batch) || batch.length === 0) break;
+            for (const l of batch) {
+              existingKeys.add(`${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}|${l.club_callsign || ''}`);
+            }
+            if (batch.length < DEDUP_LIMIT) break;
+          }
+        } catch {}
         const newQsos = qsos.filter(q => {
-          const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}`;
+          const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}|${q.club_callsign || ''}`;
           return !existingKeys.has(key);
         });
         const duplicateCount = qsos.length - newQsos.length;
@@ -340,6 +349,181 @@ export default async function(req: Request): Promise<Response> {
           parse_errors: parseErrors.slice(0, 5),
           import_errors: importErrors,
           message: `Importiert: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler`,
+        });
+      }
+
+      case 'full_import': {
+        // v0.9003 Problem 1: Full import from Wavelog — starts from fetchfromid: 0.
+        // Reads config from UserHuntingSettings (per-user, NOT from body).
+        // Paginated dedup against ALL existing wavelog_imported logs (up to 100k).
+        if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const userSettings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
+        if (!userSettings || userSettings.length === 0) {
+          return Response.json({ error: 'Keine Wavelog-Settings gefunden' }, { status: 400 });
+        }
+        const settings = userSettings[0];
+        if (!settings.wavelog_api_key) {
+          return Response.json({ error: 'Kein Wavelog API-Key konfiguriert' }, { status: 400 });
+        }
+        const wavelogUrl = (settings.wavelog_wan_url || settings.wavelog_lan_url || '').replace(/\/+$/, '');
+        if (!wavelogUrl) {
+          return Response.json({ error: 'Keine Wavelog-Server-URL konfiguriert' }, { status: 400 });
+        }
+
+        // Call get_contacts_adif with fetchfromid: 0 (full import from beginning)
+        const r = await tryFetch(wavelogUrl, 'get_contacts_adif', {
+          key: settings.wavelog_api_key,
+          station_id: settings.wavelog_station_id || '1',
+          fetchfromid: 0,
+        }, 30000);
+
+        const wavelogData = r.data;
+        if (!r.ok || !wavelogData) {
+          return Response.json({ success: false, error: 'Wavelog API Fehler', ok: r.ok });
+        }
+        if (!wavelogData.adif || wavelogData.exported_qsos === 0) {
+          return Response.json({
+            success: true, imported: 0, skipped: 0, errors: 0,
+            message: 'Keine QSOs bei Wavelog gefunden',
+            lastfetchedid: wavelogData.lastfetchedid || 0,
+          });
+        }
+
+        const adif = wavelogData.adif;
+        const exported_qsos = wavelogData.exported_qsos || 0;
+        const lastfetchedid = wavelogData.lastfetchedid || '0';
+
+        // Parse ADIF
+        const eohIndex = adif.toUpperCase().indexOf('<EOH>');
+        let adifData = adif;
+        if (eohIndex >= 0) adifData = adif.substring(eohIndex + 5);
+        const records = adifData.split(/<EOR>/i).filter(rec => rec.trim().length > 0);
+        console.log(`[Wavelog Full-Import] Parsing ${records.length} ADIF records (exported: ${exported_qsos})`);
+
+        function parseAdifRec(record: string): Record<string, string> {
+          const fields: Record<string, string> = {};
+          const regex = /<([A-Z_]+):(\d+)(?::[A-Z]+)?>([^<]*)/gi;
+          let match;
+          while ((match = regex.exec(record)) !== null) {
+            const name = match[1].toUpperCase();
+            const length = parseInt(match[2]);
+            let value = match[3] || '';
+            if (length > 0 && value.length > length) value = value.substring(0, length);
+            value = value.replace(/[\r\n]+/g, '').trim();
+            fields[name] = value;
+          }
+          return fields;
+        }
+
+        function fmtDate(d: string): string {
+          if (!d || d.length !== 8) return d || '';
+          return d.substring(0, 4) + '-' + d.substring(4, 6) + '-' + d.substring(6, 8);
+        }
+
+        function fmtTime(t: string): string {
+          if (!t) return '';
+          const p = t.padStart(6, '0');
+          return p.substring(0, 2) + ':' + p.substring(2, 4) + ':' + p.substring(4, 6);
+        }
+
+        const qsos: any[] = [];
+        for (let i = 0; i < records.length; i++) {
+          try {
+            const f = parseAdifRec(records[i]);
+            if (!f.CALL) continue;
+            const freq = parseFloat(f.FREQ || '0');
+            const isClub = !!(f.STATION_CALLSIGN && f.OPERATOR && f.OPERATOR !== f.STATION_CALLSIGN);
+            qsos.push({
+              callsign: f.CALL,
+              frequency: freq || undefined,
+              band: f.BAND || undefined,
+              mode: f.MODE || undefined,
+              qso_date: fmtDate(f.QSO_DATE || ''),
+              time_start: fmtTime(f.TIME_ON || ''),
+              time_end: fmtTime(f.TIME_OFF || '') || undefined,
+              rst_sent: f.RST_SENT || undefined,
+              rst_received: f.RST_RCVD || undefined,
+              power: parseFloat(f.TX_PWR || '0') || undefined,
+              operator_name: f.NAME || undefined,
+              operator_email: f.EMAIL || undefined,
+              operator_country: f.COUNTRY || undefined,
+              operator_grid: f.GRIDSQUARE || undefined,
+              operator_address: f.QTH || undefined,
+              notes: f.COMMENT || undefined,
+              wavelog_imported: true,
+              wavelog_import_date: new Date().toISOString(),
+              wavelog_synced: false,
+              is_clubstation: isClub,
+              club_callsign: f.STATION_CALLSIGN || undefined,
+              club_operator_callsign: isClub ? f.OPERATOR : undefined,
+              my_grid: f.MY_GRIDSQUARE || undefined,
+              my_reference_name: f.MY_CITY || undefined,
+              my_country_name: f.MY_COUNTRY || undefined,
+              my_country_prefix: f.MY_STATE || undefined,
+            });
+          } catch {}
+        }
+
+        // Paginated dedup — load ALL existing wavelog_imported logs (up to 100k)
+        const existingKeys = new Set<string>();
+        try {
+          const DEDUP_LIMIT = 5000;
+          const MAX_DEDUP_PAGES = 20;
+          for (let page = 0; page < MAX_DEDUP_PAGES; page++) {
+            const batch = await base44.entities.Log.filter(
+              { wavelog_imported: true },
+              '-created_date', DEDUP_LIMIT, page * DEDUP_LIMIT
+            );
+            if (!Array.isArray(batch) || batch.length === 0) break;
+            for (const l of batch) {
+              existingKeys.add(`${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}|${l.club_callsign || ''}`);
+            }
+            if (batch.length < DEDUP_LIMIT) break;
+          }
+        } catch {}
+        const newQsos = qsos.filter(q => {
+          const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}|${q.club_callsign || ''}`;
+          return !existingKeys.has(key);
+        });
+        const duplicateCount = qsos.length - newQsos.length;
+        console.log(`[Wavelog Full-Import] Dedup: ${newQsos.length} new, ${duplicateCount} duplicates skipped`);
+
+        // Bulk create in batches of 500
+        let importedCount = 0;
+        let errorCount = 0;
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < newQsos.length; i += BATCH_SIZE) {
+          const batch = newQsos.slice(i, i + BATCH_SIZE);
+          try {
+            await base44.entities.Log.bulkCreate(batch);
+            importedCount += batch.length;
+          } catch {
+            for (const qso of batch) {
+              try { await base44.entities.Log.create(qso); importedCount++; }
+              catch { errorCount++; }
+            }
+          }
+        }
+
+        // Update wavelog_last_fetch_id only if no errors
+        if (errorCount === 0) {
+          try {
+            await base44.entities.UserHuntingSettings.update(settings.id, {
+              wavelog_last_fetch_id: parseInt(lastfetchedid),
+            });
+          } catch {}
+        }
+
+        return Response.json({
+          success: true,
+          imported: importedCount,
+          duplicates: duplicateCount,
+          errors: errorCount,
+          total_parsed: qsos.length,
+          total_from_wavelog: exported_qsos,
+          lastfetchedid: errorCount === 0 ? lastfetchedid : '0',
+          message: `Voll-Import: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler`,
         });
       }
 
