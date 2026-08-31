@@ -7,7 +7,7 @@
 // Parallel bulkCreate (5 concurrent batches) speeds up creation of 90K+ records.
 
 const BATCH_SIZE = 500; // SDK bulkCreate max is 500 records per call
-const PARALLEL_BATCHES = 5; // Number of concurrent bulkCreate calls
+const PARALLEL_BATCHES = 3; // v0.9018: 3 concurrent — 5 verursacht Rate-Limit bei 125k+ Records
 
 /**
  * Upsert points for a given entity type.
@@ -63,6 +63,8 @@ export async function upsertPoints(
         lastError = r.reason?.message || String(r.reason);
       }
     }
+    // v0.9018: 200ms pause between parallel groups to avoid rate limiting
+    await new Promise(r => setTimeout(r, 200));
   }
 
   // 2. Delete old records — v0.9018: Single deleteMany query (no pagination needed)
