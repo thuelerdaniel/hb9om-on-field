@@ -1,9 +1,11 @@
-// MobilActiveRepeaterPanel — Prominente Anzeige des empfohlenen Repeaters im Start-Modus.
-// Große Schrift, alle wichtigen Daten, "außerhalb Reichweite" Warnung bei Fallback.
+// MobilActiveRepeaterPanel — Prominente Anzeige des aktiven Repeaters im Start-Modus.
+// Große Schrift, alle wichtigen Daten, Input-Frequenz (klein), normalisierter Offset.
+// "außerhalb Reichweite" Warnung bei Fallback.
 
 import React from "react";
-import { Radio, Navigation, MapPin, AlertCircle, AlertTriangle } from "lucide-react";
+import { Radio, Navigation, MapPin, AlertCircle, AlertTriangle, ArrowUp } from "lucide-react";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
+import { normalizeOffset, getInputFrequency } from "@/lib/repeaterOffset";
 
 export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, reachable, gpsActive }) {
   if (!repeater) {
@@ -21,6 +23,8 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
   }
 
   const color = getModeColor(repeater.primary_mode);
+  const normOffset = normalizeOffset(repeater.offset_mhz, repeater.band);
+  const inputFreq = getInputFrequency(repeater.frequency, normOffset);
 
   return (
     <div
@@ -55,23 +59,29 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
             {repeater.callsign}
           </p>
 
-          {/* Frequency — groß, prominent */}
+          {/* Output-Frequenz — groß, prominent */}
           <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 leading-tight mt-1">
             {repeater.frequency?.toFixed(4)}{" "}
             <span className="text-base font-normal text-gray-400">MHz</span>
           </p>
 
+          {/* Input-Frequenz — klein, grau, mit Pfeil */}
+          {inputFreq != null && (
+            <p className="text-sm text-gray-400 dark:text-slate-500 leading-tight mt-0.5 flex items-center gap-1">
+              <ArrowUp className="w-3 h-3" />
+              {inputFreq.toFixed(4)} MHz
+            </p>
+          )}
+
           {/* Offset + Tone */}
           <div className="flex items-center gap-3 mt-2 text-sm">
-            {repeater.offset_mhz != null && (
-              <span className="font-medium text-gray-700 dark:text-slate-200">
-                Offset:{" "}
-                <span className={repeater.offset_mhz > 0 ? "text-green-600" : "text-red-500"}>
-                  {repeater.offset_mhz > 0 ? "+" : ""}
-                  {repeater.offset_mhz.toFixed(3)}
-                </span>
+            <span className="font-medium text-gray-700 dark:text-slate-200">
+              Offset:{" "}
+              <span className={normOffset > 0 ? "text-green-600" : "text-red-500"}>
+                {normOffset > 0 ? "+" : ""}
+                {normOffset.toFixed(1)}
               </span>
-            )}
+            </span>
             {repeater.tone && (
               <span className="font-medium text-gray-700 dark:text-slate-200">
                 Tone: <span className="text-gray-900 dark:text-slate-100">{repeater.tone}</span>

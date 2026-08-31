@@ -1,13 +1,16 @@
 // MobilMapView — Vereinheitlichte Kartenansicht für den Mobil-Tab.
 // Zeigt Route (Polyline), GPS-Marker, Repeater-Marker, Repeater-Abdeckung (Polygon oder Kreis),
-// und eigene Reichweite (Polygon) an.
+// eigene Reichweite (Polygon), Auto-Zoom-Button und blinkenden aktiven Repeater-Marker.
 //
 // Repeater-Abdeckung:
 //   - Wenn der Repeater ein coverage_polygon (GeoJSON) hat → als Polygon zeichnen
-//   - Sonst →Fallback-Kreis mit calculateRange(band)
+//   - Sonst → Fallback-Kreis mit calculateRange(band)
 //   - Farbe: grün wenn erreichbar, orange wenn Fallback (außerhalb Reichweite)
+//
+// Auto-Zoom: Button unten-rechts auf der Karte. fitBounds(GPS + aktiver Repeater + Route).
+// Blinken: aktiver Repeater-Marker blinkt (fillOpacity toggle alle 500ms), rot umrandet.
 
-import React, { useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -18,6 +21,7 @@ import {
   Popup,
   useMap,
 } from "react-leaflet";
+import { Crosshair } from "lucide-react";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { calculateRange } from "@/lib/equipmentRange";
 
@@ -29,6 +33,15 @@ function FitBounds({ bounds }) {
       map.fitBounds(bounds, { padding: [30, 30] });
     }
   }, [bounds, map]);
+  return null;
+}
+
+// MapRefSetter — gibt die map-Instanz nach außen (für Auto-Zoom).
+function MapRefSetter({ onReady }) {
+  const map = useMap();
+  useEffect(() => {
+    onReady(map);
+  }, [map, onReady]);
   return null;
 }
 
@@ -44,8 +57,22 @@ export default function MobilMapView({
   ownCoveragePolygon,
   isRecommendedReachable = true,
   equipmentType,
-  height = "40vh",
+  height = "45vh",
 }) {
+  const [mapInstance, setMapInstance] = useState(null);
+  const [autoZoom, setAutoZoom] = useState(false);
+  const [blinkVisible, setBlinkVisible] = useState(true);
+  const autoZoomTrigger = useRef(0);
+
+  // Blink animation for active repeater
+  useEffect(() => {
+    if (!recommendedRepeater) return;
+    const interval = setInterval(() => {
+      setBlinkVisible((v) => !v);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [recommendedRepeater?.id]);
+
   // Calculate bounds from all points
   const bounds = useMemo(() => {
     const points = [];
@@ -69,12 +96,44 @@ export default function MobilMapView({
     ];
   }, [routeCoords, gpsPosition, repeaters]);
 
+  // Auto-zoom: fit bounds to GPS + active repeater (+ route)
+  const doAutoZoom = useMemo(() => {
+    return () => {
+      if (!mapInstance) return;
+      const points = [];
+      if (gpsPosition) points.push([gpsPosition.lat, gpsPosition.lon]);
+      if (recommendedRepeater && recommendedRepeater.lat != null) {
+        points.push([recommendedRepeater.lat, recommendedRepeater.lng]);
+      }
+      if (routeCoords && routeCoords.length > 0) {
+        routeCoords.forEach(([lat, lon]) => points.push([lat, lon]));
+      }
+      if (points.length >= 2) {
+        const lats = points.map((p) => p[0]);
+        const lons = points.map((p) => p[1]);
+        const b = [
+          [Math.min(...lats), Math.min(...lons)],
+          [Math.max(...lats), Math.max(...lons)],
+        ];
+        mapInstance.fitBounds(b, { padding: [50, 50], animate: true, duration: 0.5 });
+      } else if (points.length === 1) {
+        mapInstance.setView(points[0], 12, { animate: true, duration: 0.5 });
+      }
+    };
+  }, [mapInstance, gpsPosition, recommendedRepeater, routeCoords]);
+
+  // Auto-zoom when toggled ON or when position/active repeater changes (if autoZoom is ON)
+  useEffect(() => {
+    if (autoZoom && mapInstance) {
+      doAutoZoom();
+    }
+  }, [autoZoom, mapInstance, gpsPosition, recommendedRepeater?.id, routeCoords]);
+
   // Repeater coverage: use cached GeoJSON polygon if available, else fallback circle
   const repeaterCoverageLeaflet = useMemo(() => {
     if (!showRepeaterCoverage || !recommendedRepeater) return null;
     const poly = recommendedRepeater.coverage_polygon;
     if (poly && poly.coordinates && Array.isArray(poly.coordinates[0])) {
-      // GeoJSON Polygon: coordinates[0] = outer ring of [lon, lat] pairs
       return poly.coordinates[0].map(([lon, lat]) => [lat, lon]);
     }
     return null;
@@ -84,7 +143,6 @@ export default function MobilMapView({
     ? calculateRange(equipmentType, recommendedRepeater.band) * 1000
     : 0;
 
-  // Coverage color: green if reachable, orange if fallback
   const coverageColor = isRecommendedReachable ? "#22c55e" : "#f97316";
 
   // Own coverage polygon: GeoJSON [lon, lat] → Leaflet [lat, lon]
@@ -93,9 +151,11 @@ export default function MobilMapView({
     return ownCoveragePolygon.map(([lon, lat]) => [lat, lon]);
   }, [ownCoveragePolygon]);
 
+  const activeRepeaterId = recommendedRepeater?.id;
+
   return (
     <div
-      style={{ height }}
+      style={{ height, position: "relative" }}
       className="rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700"
     >
       <MapContainer
@@ -104,12 +164,13 @@ export default function MobilMapView({
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
       >
+        <MapRefSetter onReady={setMapInstance} />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap"
         />
 
-        {bounds && <FitBounds bounds={bounds} />}
+        {bounds && !autoZoom && <FitBounds bounds={bounds} />}
 
         {/* Route polyline */}
         {routeCoords && routeCoords.length > 1 && (
@@ -202,22 +263,22 @@ export default function MobilMapView({
         {(repeaters || []).map((r, i) => {
           if (r.lat == null || r.lng == null) return null;
           const color = getModeColor(r.primary_mode);
-          const isRecommended =
-            recommendedRepeater && r.id === recommendedRepeater.id;
-          const isSelected = selectedRepeater && r.id === selectedRepeater.id;
+          const isActive = activeRepeaterId && r.id === activeRepeaterId;
           return (
             <CircleMarker
               key={r.id || i}
               center={[r.lat, r.lng]}
-              radius={isRecommended ? 8 : 5}
+              radius={isActive ? 10 : 5}
               pathOptions={{
-                color: color,
+                color: isActive ? "#ef4444" : color,
                 fillColor: color,
-                fillOpacity: isRecommended ? 0.8 : 0.5,
-                weight: isRecommended ? 3 : 1,
+                fillOpacity: isActive
+                  ? (blinkVisible ? 0.9 : 0.2)
+                  : 0.5,
+                weight: isActive ? 4 : 1,
               }}
             >
-              {(isSelected || isRecommended) && (
+              {isActive && (
                 <Popup>
                   <div className="text-xs">
                     <p className="font-bold font-mono">{r.callsign}</p>
@@ -237,6 +298,28 @@ export default function MobilMapView({
           );
         })}
       </MapContainer>
+
+      {/* Auto-Zoom Button — unten-rechts auf der Karte, 48x48px, halbtransparent */}
+      <button
+        onClick={() => {
+          if (autoZoom) {
+            setAutoZoom(false);
+          } else {
+            setAutoZoom(true);
+            // Immediate zoom
+            autoZoomTrigger.current++;
+          }
+        }}
+        className={`absolute bottom-3 right-3 z-[1000] flex items-center justify-center rounded-full shadow-lg transition-colors ${
+          autoZoom
+            ? "bg-blue-500 text-white"
+            : "bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700"
+        }`}
+        style={{ width: 48, height: 48 }}
+        title="Auto-Zoom: GPS + Repeater"
+      >
+        <Crosshair className="w-5 h-5" />
+      </button>
     </div>
   );
 }

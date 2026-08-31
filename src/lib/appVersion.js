@@ -8,16 +8,23 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9009";
+export const APP_VERSION = "0.9010";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608311013";
+export const APP_BUILD = "202608311027";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9010: High-Badge Schwelle auf 1500m ü.M. erhöht (vorher 1000m)",
+  "v0.9010: Stop + Coverage-Toggle Buttons vergrößert (min 44x44px Touch-Ziel, px-3/py-2)",
+  "v0.9010: Auto-Zoom Button auf Karte (unten-rechts) — fitBounds(GPS + Repeater + Route), Toggle-Modus",
+  "v0.9010: Offset-Normalisierung — fehlerhafte offset_mhz Werte (kHz statt MHz, 0, falsch) korrigiert in Anzeige",
+  "v0.9010: Empfangsfrequenz (Input) im Detail-Panel — klein, grau, mit Pfeil unter der Sendefrequenz",
+  "v0.9010: Selektierter Repeater blinkt auf Karte (rot umrandet, fillOpacity toggle alle 500ms)",
+  "v0.9010: normalizeRepeaterOffsets Backend-Function — korrigiert alle fehlerhaften Offsets in der DB (Admin)",
   "v0.9009: Repeater-Liste nach unten verschoben (unter die Karte) — Layout: Panel → Karte → Liste",
   "v0.9009: Repeater aus Liste antippen → wird aktiver Repeater (Detail-Panel + Abdeckung + Marker-Highlight)",
   "v0.9009: Repeater-Liste begrenzt — 15 nächste + High-Repeater (elevation_m > 1000m) mit 🏔 Badge",

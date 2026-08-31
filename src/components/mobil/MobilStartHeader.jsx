@@ -1,5 +1,6 @@
 // MobilStartHeader — Header-Leiste im Start-Modus.
-// Stop-Button (rot), Equipment-Anzeige, Modus-Anzeige, Coverage-Toggles.
+// Stop-Button (rot, min 48x80px), Equipment-Anzeige, Modus-Anzeige, Coverage-Toggles (min 44x44px).
+// Touch-Ziele nach Apple/Google Richtlinie (min 44x44px).
 
 import React from "react";
 import { Square, Car, Radio, Route, MapPin, Circle, Users } from "lucide-react";
@@ -18,12 +19,13 @@ export default function MobilStartHeader({
       className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-3 py-2 flex items-center gap-2 flex-wrap"
       style={{ paddingTop: "max(8px, env(safe-area-inset-top))" }}
     >
-      {/* Stop button */}
+      {/* Stop button — min 48x80px, text-base, gut mit Daumen erreichbar */}
       <button
         onClick={onStop}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-colors"
+        className="flex items-center gap-1.5 px-4 bg-red-500 text-white rounded-lg text-base font-bold hover:bg-red-600 transition-colors"
+        style={{ minHeight: 48, minWidth: 80 }}
       >
-        <Square className="w-4 h-4 fill-current" />
+        <Square className="w-5 h-5 fill-current" />
         Stop
       </button>
 
@@ -51,27 +53,29 @@ export default function MobilStartHeader({
 
       <div className="flex-1" />
 
-      {/* Coverage toggles */}
+      {/* Coverage toggles — min 44x44px touch target, px-3 py-2 */}
       <button
         onClick={onToggleRepeaterCoverage}
-        className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg transition-colors ${
+        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
           showRepeaterCoverage
             ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
             : "bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400"
         }`}
+        style={{ minHeight: 44, minWidth: 44 }}
       >
-        <Circle className="w-3 h-3" />
+        <Circle className="w-4 h-4" />
         Repeater
       </button>
       <button
         onClick={onToggleOwnCoverage}
-        className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg transition-colors ${
+        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
           showOwnCoverage
             ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
             : "bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400"
         }`}
+        style={{ minHeight: 44, minWidth: 44 }}
       >
-        <Users className="w-3 h-3" />
+        <Users className="w-4 h-4" />
         Eigene
       </button>
     </div>

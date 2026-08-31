@@ -7,6 +7,19 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9010",
+    title: "Mobil-Tab — High-Schwelle, Touch-Ziele, Auto-Zoom, Offset-Fix, Blinken",
+    changes: [
+      "High-Badge Schwelle auf 1500m ü.M. erhöht (vorher 1000m)",
+      "Stop + Coverage-Toggle Buttons vergrößert (min 44x44px Touch-Ziel)",
+      "Auto-Zoom Button auf Karte (unten-rechts) — fitBounds(GPS + Repeater + Route)",
+      "Offset-Normalisierung — fehlerhafte offset_mhz Werte in Anzeige korrigiert",
+      "Empfangsfrequenz (Input) im Detail-Panel — klein, grau, mit Pfeil",
+      "Selektierter Repeater blinkt auf Karte (rot umrandet, fillOpacity toggle)",
+      "normalizeRepeaterOffsets Backend-Function — korrigiert alle Offsets in DB (Admin)",
+    ],
+  },
+  {
     version: "0.9009",
     title: "Mobil-Tab — Liste nach unten, Repeater-Auswahl, High-Badge",
     changes: [

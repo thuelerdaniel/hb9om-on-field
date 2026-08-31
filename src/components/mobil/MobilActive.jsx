@@ -2,7 +2,7 @@
 // Layout: Header → Repeater-Panel (oben) → Karte (mitte, ~45%) → Repeater-Liste (unten).
 // Der aktive Repeater (Detail-Panel + Abdeckung + Marker-Highlight) folgt der User-Auswahl,
 // fällt zurück auf den empfohlenen (nächsten erreichbaren) wenn nichts selektiert.
-// Liste begrenzt: 15 nächste + High-Repeater (elevation_m > 1000).
+// Liste begrenzt: 15 nächste + High-Repeater (elevation_m > 1500).
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
@@ -14,9 +14,9 @@ import { calculateRange, isRepeaterReachable } from "@/lib/equipmentRange";
 import { haversine, bearing } from "@/lib/geoUtilsFrontend";
 
 const LIST_LIMIT = 15;
-const HIGH_ELEVATION_M = 1000;
+const HIGH_ELEVATION_M = 1500;
 
-// High-Repeater: elevation_m > 1000 ü.M. (ERP-Feld existiert im Schema nicht)
+// High-Repeater: elevation_m > 1500 ü.M. (ERP-Feld existiert im Schema nicht)
 function isHighRepeater(r) {
   return (r.elevation_m != null && r.elevation_m > HIGH_ELEVATION_M);
 }
