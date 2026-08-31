@@ -196,6 +196,8 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
       const totaStats = await countAllRecords("TotaPoint", null);
       const llotaStats = await countAllRecords("LlotaRef", null);
       const privateNodeStats = await countAllRecords("PrivateNode", null);
+      // Fix 9: Count Lighthouse entity directly — ReferenceData.total_count may be stale (showing 6 instead of 1669)
+      const lighthouseStats = await countAllRecords("Lighthouse", null);
       setExtraCounts({
         tota: totaStats?.total || 0,
         llota: llotaStats?.total || 0,
@@ -205,9 +207,10 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
         repeaters: repeaterStats?.total || 0,
         repeatersWithCoords: repeaterStats?.withCoords || 0,
         privateNodes: privateNodeStats?.total || 0,
+        lighthouse: lighthouseStats?.total || 0,
       });
     } catch (e) {
-      setExtraCounts({ tota: 0, llota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0 });
+      setExtraCounts({ tota: 0, llota: 0, repeaterLinks: 0, repeaters: 0, privateNodes: 0, lighthouse: 0 });
     } finally {
       setLoading(false);
     }
@@ -274,7 +277,10 @@ export default function DataCacheOverview({ cacheStatus, coverageProgress, aprsC
     if (layerKey === "tota") return extraCounts?.tota ?? 0;
     if (layerKey === "llota") return refEntry?.total_count ?? (extraCounts?.llota ?? 0);
     if (layerKey === "repeaterLinks") return extraCounts?.repeaterLinks ?? 0;
-    // SOTA, POTA, WWFF, WWBOTA, castle, lighthouse, iota — use ReferenceData
+    // Fix 9: Lighthouse — use direct entity count (extraCounts.lighthouse) as primary,
+    // not stale ReferenceData.total_count which may show 6 instead of 1669
+    if (layerKey === "lighthouse") return extraCounts?.lighthouse ?? Math.max(refEntry?.references?.length || 0, refEntry?.total_count || 0);
+    // SOTA, POTA, WWFF, WWBOTA, castle, iota — use ReferenceData
     const refs = refEntry?.references || [];
     const refCount = refs.length;
     const totalCount = refEntry?.total_count || 0;

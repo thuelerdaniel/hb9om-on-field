@@ -40,7 +40,10 @@ export default async function(req) {
       return Response.json({ status: 'failed', error: 'APRS.fi API-Key nicht konfiguriert (persönlich, Club oder global)' }, { status: 500 });
     }
 
-    const result = await fetchAprsData(base44, apiKey);
+    // Fix 4: For scheduled runs, skip the slow repeater/log callsign enrichment (131s → ~60s).
+    // Only do BrandMeister devices + BrandMeister linking. Manual runs still do full enrichment.
+    const skipEnrichment = body.scheduled === true;
+    const result = await fetchAprsData(base44, apiKey, skipEnrichment);
 
     return Response.json({
       status: 'success',

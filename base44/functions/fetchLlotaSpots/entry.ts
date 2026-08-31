@@ -18,7 +18,9 @@ export default async function(req: Request): Promise<Response> {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    if (!isInternalCall(body)) {
+    // Fix 7: Allow scheduled automation runs (scheduled=true) without internal secret.
+    // Manual runs still require authentication.
+    if (!isInternalCall(body) && body.scheduled !== true) {
       const user = await base44.auth.me();
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }

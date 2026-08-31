@@ -8,16 +8,28 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.95";
+export const APP_VERSION = "0.96";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608301130";
+export const APP_BUILD = "202608310530";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.96: SOTA Sync-Loop — fetchSOTA wird in runDailySyncBatch geloopt bis has_more=false (vorher nur 1 Chunk pro Tick)",
+  "v0.96: WWFF Import — CSV-Download direkt von wwff.co (24MB, 68K Records), delete-all + bulk-create statt upsert (kein 500-Error mehr)",
+  "v0.96: Leuchttürme Sync — fetchLighthouses wird jetzt im Wochen-Sync aufgerufen (weekly_enabled=true für alle Quellen)",
+  "v0.96: APRS.fi Timeout — 180s Timeout für APRS, skipEnrichment für geplante Runs (131s → 99s, nur BrandMeister Devices)",
+  "v0.96: CH-Relais-Links — Sync-Status zeigt matchedCount (191) statt linksCreated (0), keine 'nicht erreichbar' Warnung mehr",
+  "v0.96: LLOTA Referenzen — fetchLlotaRefs wird jetzt im Wochen-Sync aufgerufen (weekly_enabled=true)",
+  "v0.96: LLOTA Spots — stündliche Abfrage (vorher wöchentlich), eigene Automation alle 1 Stunde",
+  "v0.96: US-Relais — RepeaterBook JSON API state-by-state (statt HTML-Scraping), mit Hearham Fallback",
+  "v0.96: Leuchtturm Cache-Counter — direkte Entity-Zählung statt veraltetem ReferenceData.total_count (6 → 1669)",
+  "v0.96: Repeater Sync — 180s Timeout (vorher 120s) für 9500+ Records",
+  "v0.96: AprsStation — paginiertes Laden (kein 5000-Record-Limit mehr bei upsert)",
+  "v0.96: TOTA — upsertPoints (create-first-then-delete) statt upsertPointsByCode, 5277 worldwide Refs gespeichert",
   "v0.95: Coverage-Kreis-Fix — Filterung nutzt Fallback-Position Bern wenn kein GPS verfügbar",
   "v0.95: Grenzen-Funktion — 'Alle Grenzen anzeigen/entfernen' jetzt für alle Layer-Filter (SOTA, POTA, WWFF, IOTA, WCA, WWBOTA, LLOTA, Leuchttürme)",
   "v0.95: WWBOTA-Filter — vollwertiger Filter mit Länder-Auswahl statt einfachem Such-Filter",

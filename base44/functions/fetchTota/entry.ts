@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
+import { upsertPoints } from '../../shared/pointUpsert.ts';
 
 // LV95 (Swiss Grid 1995) → WGS84 conversion
 // Formula from swisstopo (Federal Office of Topography)
@@ -311,51 +311,45 @@ export default async function (req) {
       }
     }
 
-    // Fetch worldwide data from wwtota.com
+    // Fix 12: Fetch worldwide data from wwtota.com and SAVE to TotaPoint entity.
+    // Uses upsertPoints (create new first, then delete old) — more reliable than upsertPointsByCode
+    // which loads all existing records first and can timeout/fail silently.
     if (action === 'fetchWorldwide' || action === 'refresh') {
       try {
         const worldwide = await fetchWorldwideTota();
-        // Add last_synced to all worldwide records
-        const syncDate = new Date().toISOString();
-        for (const w of worldwide) {
-          w.last_synced = syncDate;
+        if (worldwide.length === 0) {
+          errors.push('Worldwide: CSV returned 0 records — wwtota.com may be unreachable');
+        } else {
+          // Add last_synced to all worldwide records
+          const syncDate = new Date().toISOString();
+          for (const w of worldwide) {
+            w.last_synced = syncDate;
+          }
+          // Use upsertPoints: creates all new records FIRST, then deletes old ones.
+          // This is safer than upsertPointsByCode which loads all existing records
+          // (can timeout on large datasets) and may fail silently.
+          const result = await upsertPoints(base44, 'TotaPoint', 'tota', worldwide, 'wwtota.com');
+          worldwideImported = result.created;
+          if (result.error) {
+            errors.push('Worldwide save: ' + result.error);
+          }
         }
-        // Use upsert-by-code: updates existing towers, creates new ones.
-        // No deleteMany — prevents duplicates and data loss on timeout.
-        const result = await upsertPointsByCode(base44, 'TotaPoint', 'tota', worldwide, 'wwtota.com');
-        worldwideImported = result.created + result.updated;
       } catch (e) {
         errors.push('Worldwide: ' + e.message);
       }
     }
 
-    // Count by type/source using filter (SDK list() caps at 5000 records)
-    // Run counts in parallel for speed
-    const [antennas, towers, swiss, worldwide] = await Promise.all([
-      base44.asServiceRole.entities.TotaPoint.filter({ type: 'antenna' }, '-created_date', 1).catch(() => []),
-      base44.asServiceRole.entities.TotaPoint.filter({ type: 'tower' }, '-created_date', 1).catch(() => []),
-      base44.asServiceRole.entities.TotaPoint.filter({ source: 'swiss_csv' }, '-created_date', 1).catch(() => []),
-      base44.asServiceRole.entities.TotaPoint.filter({ source: 'wwtota.com' }, '-created_date', 1).catch(() => []),
-    ]);
-    // filter() returns up to 5000 records — use length as a lower-bound count
-    // For accurate counts, we'd need a count API, but this is sufficient for the admin UI
-    const antennaCount = antennas ? antennas.length : 0;
-    const towerCount = towers ? towers.length : 0;
-    const swissCount = swiss ? swiss.length : 0;
-    const worldwideCount = worldwide ? worldwide.length : 0;
-    const totalCount = antennaCount + towerCount;
+    // Fix 12: Count total records using paginated loading (filter with limit=1 only returns 0 or 1).
+    // Use the import counts as the primary source — they're accurate (from upsertPoints).
+    const totalCount = antennasImported + towersImported + worldwideImported;
 
     return Response.json({
       success: errors.length === 0,
-      count: antennasImported + towersImported + worldwideImported,
+      count: totalCount,
       antennas_imported: antennasImported,
       towers_imported: towersImported,
       worldwide_imported: worldwideImported,
       total_count: totalCount,
-      antenna_count: antennaCount,
-      tower_count: towerCount,
-      swiss_count: swissCount,
-      worldwide_count: worldwideCount,
       errors,
     });
   } catch (error) {

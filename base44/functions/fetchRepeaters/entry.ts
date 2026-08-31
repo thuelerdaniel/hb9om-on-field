@@ -13,6 +13,74 @@ const BATCH_SIZE = 10;        // Countries per batch — keeps memory low
 const DETAIL_BATCH = 6;       // Priority 1 countries get detail pages
 const DETAIL_PER_COUNTRY = 50; // Limited detail fetches for coordinates
 
+// Fix 8: US RepeaterBook JSON API — state-by-state fetching.
+// The HTML scraping times out for USA (~20K+ repeaters). The JSON API is faster.
+// API: https://www.repeaterbook.com/api/export.php?country=United States&state_id=XX
+// Falls back to Hearham API if RepeaterBook API fails.
+const RB_API_BASE = 'https://www.repeaterbook.com/api/export.php';
+const RB_API_TIMEOUT_MS = 15000;
+const RB_API_DELAY_MS = 200;
+
+async function fetchUsStateRepeatersApi(stateId: string, stateName: string): Promise<any[]> {
+  const apiToken = process.env.REPEATERBOOK_API_TOKEN || '';
+  const params = new URLSearchParams({
+    country: 'United States',
+    state_id: stateId,
+  });
+  const headers: any = {
+    'User-Agent': 'HB9OM-OnField/1.0 (hb9om@gmail.com)',
+    'Accept': 'application/json',
+  };
+  if (apiToken) headers['X-RB-App-Token'] = apiToken;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), RB_API_TIMEOUT_MS);
+    const resp = await fetch(`${RB_API_BASE}?${params}`, { headers, signal: controller.signal });
+    clearTimeout(timer);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    // Response format: { count: N, results: [...] } or array
+    const results = Array.isArray(data) ? data : (data.results || data.data || []);
+    if (!Array.isArray(results)) return [];
+
+    const repeaters: any[] = [];
+    for (const r of results) {
+      const callsign = r.Callsign || r.callsign || r.call || '';
+      const frequency = parseFloat(r.Frequency || r.frequency || r.freq || 0);
+      if (!callsign || !frequency) continue;
+      const inputFreq = parseFloat(r.InputFreq || r.input_freq || r.offset || 0);
+      const offset = inputFreq ? inputFreq - frequency : 0;
+      const lat = parseFloat(r.Latitude || r.latitude || r.lat || 0);
+      const lng = parseFloat(r.Longitude || r.longitude || r.lng || r.lon || 0);
+      const mode = r.Mode || r.mode || r.Modulation || '';
+      const modes = mode ? mode.split(/[,/]/).map((m: string) => m.trim()).filter(Boolean) : ['FM'];
+      repeaters.push({
+        callsign,
+        frequency,
+        offset_mhz: offset,
+        tone: r.PL || r.Tone || r.CTCSS || r.tone || '',
+        modes: modes.length > 0 ? modes : ['FM'],
+        primary_mode: modes[0] || 'FM',
+        location_name: r.Location || r.location || r.QTH || r.city || '',
+        country: 'United States',
+        country_code: 'US',
+        lat: (!isNaN(lat) && lat !== 0) ? lat : null,
+        lng: (!isNaN(lng) && lng !== 0) ? lng : null,
+        band: getBand(frequency),
+        status: r.Use === 'Open' || r.use === 'Open' ? 'on-air' : 'unknown',
+        web_url: r.WebSite || r.web_url || '',
+        echolink_node: r.EchoLink || r.echolink || '',
+        source_id: r.ID || r.id || '',
+        locator: r.Locator || r.locator || '',
+      });
+    }
+    return repeaters;
+  } catch {
+    return [];
+  }
+}
+
 // PUNKT 8: US-Repeater nach Bundesstaat — Chunked Sync mit Zeitbudget
 // US hat 50+ Staaten, jeder mit eigener RepeaterBook-Seite (200-1000+ Relais).
 // Alle auf einmal überschreitet das Platform-Timeout.
@@ -274,6 +342,14 @@ export default async function(req) {
             const isNA = country.region_type === 'north_america';
             const stateId = country.state_id || country.code;
             const cc = country.country_code || country.code;
+
+            // Fix 8: US states — use RepeaterBook JSON API (faster than HTML scraping)
+            if (cc === 'US' && stateId) {
+              const apiRepeaters = await fetchUsStateRepeatersApi(String(stateId).padStart(2, '0'), country.name);
+              if (apiRepeaters.length > 0) return apiRepeaters;
+              // Fall through to HTML scraping if API returns 0
+            }
+
             const url = isNA
               ? `${NA_LIST_BASE}?state_id=${stateId}&country_code=${cc}&${LIST_PARAMS}`
               : `${LIST_BASE}?state_id=${country.code}&${LIST_PARAMS}`;

@@ -140,10 +140,16 @@ export default async function(req: Request): Promise<Response> {
       // Find existing record for this source
       const existing = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: src.source });
       
+      // Fix 3+6: Set weekly_enabled=true and weekly_days for ALL sources
+      // so runDailySyncBatch includes lighthouses and LLOTA refs.
+      // APRS and LLOTA spots run via separate daily/hourly automations.
+      const isDailySource = src.source === 'aprs' || src.source === 'llota_spots';
       const recordData = {
         source: src.source,
         label: src.label,
         enabled: true,
+        weekly_enabled: isDailySource ? false : true,
+        weekly_days: isDailySource ? [] : ['Monday'],
         function_name: src.function_name,
         function_payload: src.function_payload,
         scheduled_time_utc: scheduledTime,

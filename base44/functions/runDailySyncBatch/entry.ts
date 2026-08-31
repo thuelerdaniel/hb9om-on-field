@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
-import { todayUTC, isToday, extractCount, extractStatus, shuffle } from '../../shared/syncHelpers.ts';
+import { todayUTC, isToday, extractCount, extractStatus, shuffle, isSourceReachable } from '../../shared/syncHelpers.ts';
 import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
 
 // ─── Weekly Sync Batch Scheduler ───
@@ -20,10 +20,15 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 
 const SOURCE_TIMEOUT_MS = 120000;
 const SOTA_TIMEOUT_MS = 200000; // SOTA needs more time for CSV download + chunk processing
+const APRS_TIMEOUT_MS = 180000; // Fix 4: APRS.fi needs 131s — increased from 120s to 180s
+const REPEATER_TIMEOUT_MS = 180000; // Fix 10: Repeater sync needs more time for 9500+ records
 const LIGHTHOUSE_TIMEOUT_MS = 60000;
 const RETRY_DELAY_MS = 30000;
 const HEAVY_PAUSE_MS = 10000;
 const HEAVY_SOURCES = new Set(['sota', 'hbff', 'castle']);
+// Fix 1: SOTA loop — max iterations within a single tick to complete all chunks
+const SOTA_MAX_LOOP_ITERATIONS = 5;
+const SOTA_LOOP_TOTAL_BUDGET_MS = 300000; // 5 min total budget for SOTA looping
 
 // Time windows per day (UTC hours)
 const WINDOWS: Record<string, { start: number; deadline: number; hardEnd: number }> = {
@@ -286,6 +291,10 @@ export default async function (req: Request): Promise<Response> {
     const taskStart = Date.now();
     const timeout = nextSource.source === 'sota'
       ? SOTA_TIMEOUT_MS
+      : nextSource.source === 'aprs'
+      ? APRS_TIMEOUT_MS // Fix 4: APRS.fi needs 180s
+      : nextSource.source.startsWith('repeater')
+      ? REPEATER_TIMEOUT_MS // Fix 10: Repeater sync needs 180s for 9500+ records
       : nextSource.source.startsWith('lighthouse')
       ? LIGHTHOUSE_TIMEOUT_MS
       : SOURCE_TIMEOUT_MS;
@@ -309,34 +318,57 @@ export default async function (req: Request): Promise<Response> {
 
     const duration = Date.now() - taskStart;
 
-    // ─── SOTA chunked: if hasMore=true, keep status='pending' to resume next tick ───
+    // ─── Fix 1: SOTA chunked loop — call fetchSOTA repeatedly until has_more=false ───
+    // Instead of returning after the first chunk and waiting for the next 5-min tick,
+    // loop within this tick (up to SOTA_MAX_LOOP_ITERATIONS or SOTA_LOOP_TOTAL_BUDGET_MS).
     if (nextSource.source === 'sota' && result.ok && result.data?.has_more) {
-      const progressPct = result.data.progress_pct || 0;
-      const processedSoFar = result.data.processed_so_far || 0;
-      const totalCount = result.data.total || 0;
+      let loopIteration = 1;
+      let totalProcessed = result.data.processed_so_far || 0;
+      let totalCount = result.data.total || 0;
+      let loopStartTime = Date.now();
+      let lastLoopResult = result;
+
+      while (lastLoopResult.ok && lastLoopResult.data?.has_more && loopIteration < SOTA_MAX_LOOP_ITERATIONS) {
+        if (Date.now() - loopStartTime > SOTA_LOOP_TOTAL_BUDGET_MS) break;
+        // Brief pause between iterations to avoid rate-limiting
+        await new Promise(r => setTimeout(r, 1000));
+        const loopResult = await runSourceWithTimeout(base44, nextSource, SOTA_TIMEOUT_MS, cfg.incremental);
+        loopIteration++;
+        if (loopResult.ok && loopResult.data) {
+          totalProcessed = loopResult.data.processed_so_far || totalProcessed;
+          totalCount = loopResult.data.total || totalCount;
+          lastLoopResult = loopResult;
+        } else {
+          break;
+        }
+      }
+
+      const finalHasMore = lastLoopResult.data?.has_more || false;
+      const finalProgress = lastLoopResult.data?.progress_pct || (totalCount > 0 ? Math.round((totalProcessed / totalCount) * 100) : 100);
+      const totalDuration = Date.now() - taskStart;
+
       try {
         await base44.asServiceRole.entities.DailyRefreshSchedule.update(nextSource.id, {
           last_run_time: new Date().toISOString(),
-          last_status: 'pending', // Keep pending so it runs again next tick
-          last_count: processedSoFar,
-          last_duration_ms: duration,
-          last_error: `Chunked: ${progressPct}% verarbeitet (${processedSoFar}/${totalCount})`,
+          last_status: finalHasMore ? 'pending' : 'success',
+          last_count: totalProcessed,
+          last_duration_ms: totalDuration,
+          last_error: finalHasMore ? `Chunked: ${finalProgress}% verarbeitet (${totalProcessed}/${totalCount}) — Loop ${loopIteration}x` : '',
         });
       } catch {}
 
-      // Write SyncLog for the chunk
       try {
         await base44.asServiceRole.entities.SyncLog.create({
           timestamp: new Date().toISOString(),
-          overall_status: 'partial',
-          total_duration_ms: duration,
+          overall_status: finalHasMore ? 'partial' : 'success',
+          total_duration_ms: totalDuration,
           results: [{
             source: 'sota',
             label: nextSource.label,
-            status: 'partial',
-            count: result.data.count || 0,
-            duration_ms: duration,
-            error: `Chunk ${progressPct}% (${processedSoFar}/${totalCount})`,
+            status: finalHasMore ? 'partial' : 'success',
+            count: totalProcessed,
+            duration_ms: totalDuration,
+            error: finalHasMore ? `Chunk ${finalProgress}% (${totalProcessed}/${totalCount}) — Loop ${loopIteration}x` : `Komplett nach ${loopIteration} Loop-Iterationen`,
             retried: false,
           }],
           trigger: body.scheduled ? 'scheduled' : 'manual',
@@ -344,14 +376,15 @@ export default async function (req: Request): Promise<Response> {
       } catch {}
 
       return Response.json({
-        status: 'processed_chunk',
+        status: finalHasMore ? 'processed_chunk' : 'processed',
         day: effectiveDay,
         source: 'sota',
-        progress_pct: progressPct,
-        processed_so_far: processedSoFar,
+        progress_pct: finalProgress,
+        processed_so_far: totalProcessed,
         total: totalCount,
-        has_more: true,
-        duration_ms: duration,
+        has_more: finalHasMore,
+        loop_iterations: loopIteration,
+        duration_ms: totalDuration,
       });
     }
 
@@ -403,9 +436,11 @@ export default async function (req: Request): Promise<Response> {
       ? 'timeout'
       : extractStatus(result.data);
     const count = result.timedOut ? 0 : extractCount(result.data);
+    // Fix 5: Don't show "0 Einträge" warning when source is reachable (e.g. CH-Links with matchedCount > 0)
+    const reachable = !result.timedOut && isSourceReachable(result.data);
     const errorMsg = result.timedOut
       ? `Timeout nach ${timeout / 1000}s`
-      : (result.data?.error || (status === 'success' && count === 0 ? 'Warnung: 0 Einträge geladen' : ''));
+      : (result.data?.error || (status === 'success' && count === 0 && !reachable ? 'Warnung: 0 Einträge geladen' : ''));
 
     let errorDetail = '';
     if (status !== 'success') {

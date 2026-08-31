@@ -161,8 +161,20 @@ export default async function (req: Request): Promise<Response> {
     }
     const newOffset = (offset + DISCOVERY_BATCH) % seedList.length;
 
-    // 4. Get existing AprsStation records (for upsert)
-    const existingStations = await base44.asServiceRole.entities.AprsStation.list('id', 5000);
+    // Fix 11: Get existing AprsStation records (paginated — no 5000-record limit).
+    // Previous code used list('id', 5000) which only loaded the first 5000 records,
+    // causing upsert to create duplicates for records beyond 5000.
+    const existingStations: any[] = [];
+    try {
+      const LIMIT = 5000;
+      const MAX_PAGES = 40; // 40 * 5000 = 200k records max
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const batch = await base44.asServiceRole.entities.AprsStation.list('id', LIMIT, page * LIMIT);
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        existingStations.push(...batch);
+        if (batch.length < LIMIT) break;
+      }
+    } catch {}
     const existingMap = new Map<string, any>();
     for (const s of existingStations) {
       if (s.callsign) existingMap.set(s.callsign.toUpperCase(), s);

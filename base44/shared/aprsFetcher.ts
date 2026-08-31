@@ -161,7 +161,8 @@ async function fetchBrandMeisterDevices(): Promise<any[]> {
 // Core APRS fetch — optimized to avoid platform timeout.
 // Strategy: full refresh for BrandMeister (delete + re-create), enrichment via aprs.fi
 // for repeater/log callsigns only (not BM — they already have coordinates).
-export async function fetchAprsData(base44: any, apiKey: string) {
+// Fix 4: skipEnrichment option skips the slow repeater/log callsign lookup (131s → ~60s).
+export async function fetchAprsData(base44: any, apiKey: string, skipEnrichment: boolean = false) {
   const startTime = Date.now();
   let aprsNodesFound = 0;
   let nodesSaved = 0;
@@ -189,6 +190,24 @@ export async function fetchAprsData(base44: any, apiKey: string) {
 
   // Step 3: Query aprs.fi for repeater + log callsigns ONLY (not BM — already have coords).
   // This is the enrichment step: finds APRS stations not in BrandMeister.
+  // Fix 4: skipEnrichment=true (scheduled runs) skips this slow step (131s → ~60s).
+  if (skipEnrichment) {
+    return {
+      repeaters_queried: 0,
+      log_callsigns_queried: 0,
+      total_callsigns_queried: 0,
+      new_callsigns_queried: 0,
+      repeaters_updated_with_coords: 0,
+      aprs_nodes_found: 0,
+      private_nodes_saved: 0,
+      brandmeister_links: 0,
+      brandmeister_devices_found: bmDevices.length,
+      brandmeister_devices_saved: bmDevicesSaved,
+      duration_ms: Date.now() - startTime,
+      enrichment_skipped: true,
+    };
+  }
+
   const repeaters = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
   const logs = await base44.asServiceRole.entities.Log.list("-created_date", 5000);
 

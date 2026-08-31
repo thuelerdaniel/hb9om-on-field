@@ -260,9 +260,12 @@ export default async function(req) {
       });
     }
 
+    const matchedCount = uskaRepeaters.length - unmatched.length;
     return Response.json({
+      status: 'success',
+      count: matchedCount, // Fix 5: count = matchedCount so sync-batch reports 191 not 0
       uskaCount: uskaRepeaters.length,
-      matchedCount: uskaRepeaters.length - unmatched.length,
+      matchedCount,
       updatedCount,
       linksCreated: createdLinks.length,
       links: createdLinks,
