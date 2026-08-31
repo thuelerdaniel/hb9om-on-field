@@ -1,13 +1,14 @@
 // MobilRepeaterList — Scrollbare Repeater-Liste im Start-Modus (unten).
-// Eine Zeile pro Repeater: Callsign | Frequenz | Mode | Entfernung | High-Badge.
+// Eine Zeile pro Repeater: Callsign | Frequenz | Mode | ITM-Qualität | Entfernung | High-Badge.
 // Tippen → wird aktiver Repeater (Detail-Panel + Karte + Abdeckung).
-// Liste begrenzt: 15 nächste + High-Repeater (elevation_m > 1000m) — siehe MobilActive.
+// ITM-Qualitäts-Badge aus itmResultsMap (Top 5 nächste Repeater).
 
 import React from "react";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { Mountain, Check } from "lucide-react";
+import { getQualityColor, getQualityShort } from "@/lib/itmPropagation";
 
-export default function MobilRepeaterList({ repeaters, onSelect, selectedId, recommendedId }) {
+export default function MobilRepeaterList({ repeaters, onSelect, selectedId, recommendedId, itmResultsMap }) {
   if (!repeaters || repeaters.length === 0) return null;
 
   return (
@@ -28,6 +29,8 @@ export default function MobilRepeaterList({ repeaters, onSelect, selectedId, rec
           const isSelected = selectedId === r.id;
           const isRecommended = recommendedId === r.id;
           const dist = r._distToPos != null ? r._distToPos : r._distToRoute;
+          const itm = itmResultsMap?.[r.id];
+          const qualityColor = itm ? getQualityColor(itm.quality) : null;
           return (
             <button
               key={r.id || i}
@@ -38,7 +41,6 @@ export default function MobilRepeaterList({ repeaters, onSelect, selectedId, rec
                   : "hover:bg-gray-50 dark:hover:bg-slate-700"
               }`}
             >
-              {/* Selection checkmark */}
               {isSelected ? (
                 <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
               ) : (
@@ -59,6 +61,16 @@ export default function MobilRepeaterList({ repeaters, onSelect, selectedId, rec
               <span className="text-[10px] text-gray-400 flex-shrink-0">
                 {getModeLabel(r.primary_mode)}
               </span>
+              {/* ITM Quality Badge */}
+              {itm && (
+                <span
+                  className="px-1 py-0.5 rounded text-[9px] font-bold text-white flex-shrink-0"
+                  style={{ backgroundColor: qualityColor }}
+                  title={`${itm.rx_signal_dbm?.toFixed(1)} dBm`}
+                >
+                  {getQualityShort(itm.quality)}
+                </span>
+              )}
               {/* High-Repeater badge */}
               {r._isHigh && (
                 <span className="flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded text-[9px] font-bold flex-shrink-0">

@@ -1,14 +1,14 @@
 // MobilMapView — Vereinheitlichte Kartenansicht für den Mobil-Tab.
-// Zeigt Route (Polyline), GPS-Marker, Repeater-Marker, Repeater-Abdeckung (Polygon oder Kreis),
-// eigene Reichweite (Polygon), Auto-Zoom-Button und blinkenden aktiven Repeater-Marker.
+// Zeigt Route (Polyline), GPS-Marker, Repeater-Marker, Repeater-Abdeckung (ITM-Polygon oder Kreis),
+// eigene Reichweite (Polygon), Auto-Zoom-Button (verschiebbar) und blinkenden aktiven Repeater-Marker.
 //
-// Repeater-Abdeckung:
-//   - Wenn der Repeater ein coverage_polygon (GeoJSON) hat → als Polygon zeichnen
-//   - Sonst → Fallback-Kreis mit calculateRange(band)
-//   - Farbe: grün wenn erreichbar, orange wenn Fallback (außerhalb Reichweite)
+// Repeater-Abdeckung Priorität:
+//   1. ITM-Coverage-Polygon (itmCoveragePolygon) — Terrain-basiert, 16 Richtungen
+//   2. GeoJSON coverage_polygon (cached) — falls verfügbar
+//   3. Fallback-Kreis mit calculateRange(band)
 //
-// Auto-Zoom: Button unten-rechts auf der Karte. fitBounds(GPS + aktiver Repeater + Route).
-// Blinken: aktiver Repeater-Marker blinkt (fillOpacity toggle alle 500ms), rot umrandet.
+// Auto-Zoom Button: verschiebbar (Long-Press 500ms auf Mobile, Maus auf Desktop).
+// Position wird in localStorage gespeichert (useDraggableButton Hook).
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -23,8 +23,8 @@ import {
 } from "react-leaflet";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { calculateRange } from "@/lib/equipmentRange";
+import { useDraggableButton } from "@/hooks/useDraggableButton";
 
-// FitBounds — passt Kartenansicht an alle Punkte an.
 function FitBounds({ bounds }) {
   const map = useMap();
   useEffect(() => {
@@ -35,7 +35,6 @@ function FitBounds({ bounds }) {
   return null;
 }
 
-// MapRefSetter — gibt die map-Instanz nach außen (für Auto-Zoom).
 function MapRefSetter({ onReady }) {
   const map = useMap();
   useEffect(() => {
@@ -54,6 +53,7 @@ export default function MobilMapView({
   showRepeaterCoverage,
   showOwnCoverage,
   ownCoveragePolygon,
+  itmCoveragePolygon,
   isRecommendedReachable = true,
   equipmentType,
   height = "45vh",
@@ -62,7 +62,12 @@ export default function MobilMapView({
   const [autoZoom, setAutoZoom] = useState(false);
   const [blinkVisible, setBlinkVisible] = useState(true);
 
-  // Blink animation for active repeater
+  // Draggable auto-zoom button
+  const { buttonRef: autoZoomBtnRef, dragState: autoZoomDragState } = useDraggableButton(
+    "mobilAutoZoomBtn",
+    null
+  );
+
   useEffect(() => {
     if (!recommendedRepeater) return;
     const interval = setInterval(() => {
@@ -71,7 +76,6 @@ export default function MobilMapView({
     return () => clearInterval(interval);
   }, [recommendedRepeater?.id]);
 
-  // Calculate bounds from all points
   const bounds = useMemo(() => {
     const points = [];
     if (routeCoords && routeCoords.length > 0) {
@@ -94,7 +98,6 @@ export default function MobilMapView({
     ];
   }, [routeCoords, gpsPosition, repeaters]);
 
-  // Auto-zoom: fit bounds to GPS + active repeater (+ route)
   const doAutoZoom = useMemo(() => {
     return () => {
       if (!mapInstance) return;
@@ -120,22 +123,21 @@ export default function MobilMapView({
     };
   }, [mapInstance, gpsPosition, recommendedRepeater, routeCoords]);
 
-  // Auto-zoom when toggled ON or when position/active repeater changes (if autoZoom is ON)
   useEffect(() => {
     if (autoZoom && mapInstance) {
       doAutoZoom();
     }
   }, [autoZoom, mapInstance, gpsPosition, recommendedRepeater?.id, routeCoords]);
 
-  // Repeater coverage: use cached GeoJSON polygon if available, else fallback circle
+  // Cached GeoJSON polygon (fallback if no ITM polygon)
   const repeaterCoverageLeaflet = useMemo(() => {
-    if (!showRepeaterCoverage || !recommendedRepeater) return null;
+    if (!showRepeaterCoverage || !recommendedRepeater || itmCoveragePolygon) return null;
     const poly = recommendedRepeater.coverage_polygon;
     if (poly && poly.coordinates && Array.isArray(poly.coordinates[0])) {
       return poly.coordinates[0].map(([lon, lat]) => [lat, lon]);
     }
     return null;
-  }, [showRepeaterCoverage, recommendedRepeater]);
+  }, [showRepeaterCoverage, recommendedRepeater, itmCoveragePolygon]);
 
   const repeaterCoverageRadius = recommendedRepeater
     ? calculateRange(equipmentType, recommendedRepeater.band) * 1000
@@ -143,13 +145,27 @@ export default function MobilMapView({
 
   const coverageColor = isRecommendedReachable ? "#22c55e" : "#f97316";
 
+  // ITM coverage polygon is already [lat, lng] — no conversion needed
+  const itmCoverageLeaflet = itmCoveragePolygon || null;
+
   // Own coverage polygon: GeoJSON [lon, lat] → Leaflet [lat, lon]
   const ownCoverageLeaflet = useMemo(() => {
     if (!ownCoveragePolygon || ownCoveragePolygon.length === 0) return null;
-    return ownCoveragePolygon.map(([lon, lat]) => [lat, lon]);
+    // Check if it's already [lat, lng] or [lon, lat] format
+    if (Array.isArray(ownCoveragePolygon[0]) && ownCoveragePolygon[0].length >= 2) {
+      // Assume [lon, lat] from GeoJSON — convert to [lat, lon]
+      return ownCoveragePolygon.map(([lon, lat]) => [lat, lon]);
+    }
+    return null;
   }, [ownCoveragePolygon]);
 
   const activeRepeaterId = recommendedRepeater?.id;
+
+  const handleAutoZoomClick = () => {
+    // Don't toggle if the button was dragged
+    if (autoZoomDragState.current.moved) return;
+    setAutoZoom((v) => !v);
+  };
 
   return (
     <div
@@ -188,10 +204,10 @@ export default function MobilMapView({
           />
         )}
 
-        {/* Repeater coverage — Polygon (terrain-based) if available */}
-        {showRepeaterCoverage && repeaterCoverageLeaflet && (
+        {/* ITM Coverage polygon (priority over cached polygon) */}
+        {showRepeaterCoverage && itmCoverageLeaflet && (
           <Polygon
-            positions={repeaterCoverageLeaflet}
+            positions={itmCoverageLeaflet}
             pathOptions={{
               color: coverageColor,
               fillColor: coverageColor,
@@ -201,8 +217,24 @@ export default function MobilMapView({
           />
         )}
 
-        {/* Repeater coverage — Fallback circle if no polygon cached */}
+        {/* Cached GeoJSON coverage polygon (fallback if no ITM) */}
         {showRepeaterCoverage &&
+          !itmCoverageLeaflet &&
+          repeaterCoverageLeaflet && (
+            <Polygon
+              positions={repeaterCoverageLeaflet}
+              pathOptions={{
+                color: coverageColor,
+                fillColor: coverageColor,
+                fillOpacity: 0.15,
+                weight: 2,
+              }}
+            />
+          )}
+
+        {/* Fallback circle if no polygon (ITM or cached) */}
+        {showRepeaterCoverage &&
+          !itmCoverageLeaflet &&
           !repeaterCoverageLeaflet &&
           recommendedRepeater &&
           recommendedRepeater.lat != null &&
@@ -297,10 +329,11 @@ export default function MobilMapView({
         })}
       </MapContainer>
 
-      {/* Auto-Zoom Button — unten-rechts auf der Karte, 56x56px, weiß mit blauem Border */}
+      {/* Auto-Zoom Button — verschiebbar (Long-Press 500ms), Position wird gespeichert */}
       <button
-        onClick={() => setAutoZoom((v) => !v)}
-        className="absolute z-[1000] flex items-center justify-center rounded-full transition-colors"
+        ref={autoZoomBtnRef}
+        onClick={handleAutoZoomClick}
+        className="fixed z-[1000] flex items-center justify-center rounded-full transition-colors"
         style={{
           bottom: 80,
           right: 16,
@@ -309,8 +342,9 @@ export default function MobilMapView({
           backgroundColor: autoZoom ? "#3b82f6" : "#ffffff",
           border: "2px solid #3b82f6",
           boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+          touchAction: "none",
         }}
-        title="Auto-Zoom: GPS + Repeater"
+        title="Auto-Zoom: GPS + Repeater (Long-Press zum Verschieben)"
       >
         <svg
           width="28"

@@ -1,8 +1,7 @@
 // MobilActive — Start-Modus nach Drücken von "Start".
 // Layout: Header → Repeater-Panel (oben) → Karte (mitte, ~45%) → Repeater-Liste (unten).
-// Der aktive Repeater (Detail-Panel + Abdeckung + Marker-Highlight) folgt der User-Auswahl,
-// fällt zurück auf den empfohlenen (nächsten erreichbaren) wenn nichts selektiert.
-// Liste begrenzt: 15 nächste + High-Repeater (elevation_m > 1500).
+// ITM (Longley-Rice) Propagation für Repeater-Empfehlung + Coverage-Polygon.
+// Der aktive Repeater folgt der User-Auswahl, fällt zurück auf den empfohlenen.
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
@@ -12,11 +11,12 @@ import MobilActiveRepeaterPanel from "./MobilActiveRepeaterPanel";
 import MobilRepeaterList from "./MobilRepeaterList";
 import { calculateRange, isRepeaterReachable } from "@/lib/equipmentRange";
 import { haversine, bearing } from "@/lib/geoUtilsFrontend";
+import { computeItmPropagation, computeItmCoverage } from "@/lib/itmPropagation";
 
 const LIST_LIMIT = 15;
 const HIGH_ELEVATION_M = 1500;
+const ITM_LIST_LIMIT = 5;
 
-// High-Repeater: elevation_m > 1500 ü.M. (ERP-Feld existiert im Schema nicht)
 function isHighRepeater(r) {
   return (r.elevation_m != null && r.elevation_m > HIGH_ELEVATION_M);
 }
@@ -41,9 +41,17 @@ export default function MobilActive({
   const [ownCoveragePolygon, setOwnCoveragePolygon] = useState(null);
   const [coverageCountdown, setCoverageCountdown] = useState(60);
   const [coverageLoading, setCoverageLoading] = useState(false);
-  const countdownRef = useRef(null);
 
-  // Calculate distances + reachability for each repeater
+  // ITM state
+  const [itmResult, setItmResult] = useState(null);
+  const [itmLoading, setItmLoading] = useState(false);
+  const [itmCoveragePolygon, setItmCoveragePolygon] = useState(null);
+  const [itmCoverageLoading, setItmCoverageLoading] = useState(false);
+  const [itmResultsMap, setItmResultsMap] = useState({});
+
+  const countdownRef = useRef(null);
+  const itmDebounceRef = useRef(null);
+
   const repeatersWithDist = useMemo(() => {
     const refPoint =
       gpsPosition ||
@@ -62,7 +70,6 @@ export default function MobilActive({
       .sort((a, b) => (a._distToPos || 0) - (b._distToPos || 0));
   }, [repeaters, gpsPosition, routeCoords, equipmentType]);
 
-  // Recommended repeater = nearest reachable, fallback = nearest overall
   const reachableRepeaters = repeatersWithDist.filter((r) => r._reachable);
   const recommendedRepeater =
     reachableRepeaters.length > 0
@@ -70,7 +77,6 @@ export default function MobilActive({
       : repeatersWithDist[0] || null;
   const isRecommendedReachable = reachableRepeaters.length > 0;
 
-  // Active repeater = user selection, or recommended if nothing selected
   const activeRepeater = useMemo(() => {
     if (selectedRepeaterId) {
       const found = repeatersWithDist.find((r) => r.id === selectedRepeaterId);
@@ -81,7 +87,6 @@ export default function MobilActive({
 
   const isActiveReachable = activeRepeater?._reachable ?? isRecommendedReachable;
 
-  // Filtered list: 15 nearest + all high repeaters beyond the 15
   const listRepeaters = useMemo(() => {
     if (repeatersWithDist.length === 0) return [];
     const nearest = repeatersWithDist.slice(0, LIST_LIMIT);
@@ -92,7 +97,118 @@ export default function MobilActive({
     return [...nearest, ...highBeyond];
   }, [repeatersWithDist]);
 
-  // Fetch own coverage polygon from backend
+  // ITM: Fetch propagation for active repeater
+  useEffect(() => {
+    if (!activeRepeater || !gpsPosition) {
+      setItmResult(null);
+      return;
+    }
+
+    let cancelled = false;
+    setItmLoading(true);
+
+    computeItmPropagation({
+      lat1: activeRepeater.lat,
+      lng1: activeRepeater.lng,
+      lat2: gpsPosition.lat,
+      lng2: gpsPosition.lon,
+      frequency_mhz: activeRepeater.frequency,
+      tx_height_m: activeRepeater.elevation_m || 10,
+      rx_height_m: equipmentType === "mobil" ? 2 : 1.5,
+      tx_power_w: 50,
+      tx_gain_db: 6,
+      climate: 5,
+    }).then((result) => {
+      if (!cancelled) {
+        setItmResult(result);
+        setItmLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setItmResult(null);
+        setItmLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [activeRepeater?.id, gpsPosition?.lat, gpsPosition?.lon, equipmentType]);
+
+  // ITM: Fetch coverage polygon for active repeater
+  useEffect(() => {
+    if (!showRepeaterCoverage || !activeRepeater) {
+      setItmCoveragePolygon(null);
+      return;
+    }
+
+    let cancelled = false;
+    setItmCoverageLoading(true);
+
+    computeItmCoverage({
+      lat: activeRepeater.lat,
+      lng: activeRepeater.lng,
+      frequency_mhz: activeRepeater.frequency,
+      tx_height_m: activeRepeater.elevation_m || 10,
+      tx_power_w: 50,
+      tx_gain_db: 6,
+      band: activeRepeater.band,
+      directions: 16,
+      step_km: 5,
+      climate: 5,
+    }).then((result) => {
+      if (!cancelled && result?.coverage_polygon) {
+        setItmCoveragePolygon(result.coverage_polygon);
+        setItmCoverageLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setItmCoveragePolygon(null);
+        setItmCoverageLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [showRepeaterCoverage, activeRepeater?.id]);
+
+  // ITM: Fetch propagation for top N nearest repeaters (debounced, for list badges)
+  useEffect(() => {
+    if (!gpsPosition || repeatersWithDist.length === 0) {
+      setItmResultsMap({});
+      return;
+    }
+
+    if (itmDebounceRef.current) clearTimeout(itmDebounceRef.current);
+
+    itmDebounceRef.current = setTimeout(async () => {
+      const topRepeaters = repeatersWithDist.slice(0, ITM_LIST_LIMIT);
+      const results = {};
+
+      await Promise.all(
+        topRepeaters.map(async (r) => {
+          const result = await computeItmPropagation({
+            lat1: r.lat,
+            lng1: r.lng,
+            lat2: gpsPosition.lat,
+            lng2: gpsPosition.lon,
+            frequency_mhz: r.frequency,
+            tx_height_m: r.elevation_m || 10,
+            rx_height_m: equipmentType === "mobil" ? 2 : 1.5,
+            tx_power_w: 50,
+            tx_gain_db: 6,
+            climate: 5,
+          });
+          if (result) results[r.id] = result;
+        })
+      );
+
+      setItmResultsMap(results);
+    }, 1000);
+
+    return () => {
+      if (itmDebounceRef.current) clearTimeout(itmDebounceRef.current);
+    };
+  }, [repeatersWithDist, gpsPosition, equipmentType]);
+
+  // Own coverage (existing)
   const fetchOwnCoverage = useCallback(
     async (lat, lon) => {
       if (!showOwnCoverage) return;
@@ -115,7 +231,6 @@ export default function MobilActive({
           null;
         if (Array.isArray(polygon)) setOwnCoveragePolygon(polygon);
       } catch {
-        // Silent fail — coverage is optional
       } finally {
         setCoverageLoading(false);
       }
@@ -128,22 +243,17 @@ export default function MobilActive({
       setOwnCoveragePolygon(null);
       return;
     }
-
     fetchOwnCoverage(gpsPosition.lat, gpsPosition.lon);
     setCoverageCountdown(60);
-
     countdownRef.current = setInterval(() => {
       setCoverageCountdown((prev) => {
         if (prev <= 1) {
-          if (gpsPosition) {
-            fetchOwnCoverage(gpsPosition.lat, gpsPosition.lon);
-          }
+          if (gpsPosition) fetchOwnCoverage(gpsPosition.lat, gpsPosition.lon);
           return 60;
         }
         return prev - 1;
       });
     }, 1000);
-
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
@@ -157,7 +267,6 @@ export default function MobilActive({
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-slate-900">
-      {/* Header with stop + toggles */}
       <MobilStartHeader
         mode={mode}
         equipmentType={equipmentType}
@@ -168,7 +277,6 @@ export default function MobilActive({
         onStop={onStop}
       />
 
-      {/* Active repeater panel — OBEN (prominent) */}
       <div className="px-3 py-2">
         <MobilActiveRepeaterPanel
           repeater={activeRepeater}
@@ -176,10 +284,11 @@ export default function MobilActive({
           azimuth={activeRepeater?._azimuthToPos}
           reachable={isActiveReachable}
           gpsActive={gpsActive}
+          itmResult={itmResult}
+          itmLoading={itmLoading}
         />
       </div>
 
-      {/* Own coverage countdown */}
       {showOwnCoverage && (
         <div className="px-3 py-0.5 text-[10px] text-blue-600 dark:text-blue-400 text-center">
           {coverageLoading
@@ -188,7 +297,12 @@ export default function MobilActive({
         </div>
       )}
 
-      {/* Map — MITTE (~45% of screen) */}
+      {showRepeaterCoverage && itmCoverageLoading && (
+        <div className="px-3 py-0.5 text-[10px] text-green-600 dark:text-green-400 text-center">
+          Berechne ITM-Abdeckung (Terrain + Clutter)...
+        </div>
+      )}
+
       <MobilMapView
         routeCoords={routeCoords}
         gpsPosition={gpsPosition}
@@ -199,18 +313,19 @@ export default function MobilActive({
         showRepeaterCoverage={showRepeaterCoverage}
         showOwnCoverage={showOwnCoverage}
         ownCoveragePolygon={ownCoveragePolygon}
+        itmCoveragePolygon={itmCoveragePolygon}
         isRecommendedReachable={isActiveReachable}
         equipmentType={equipmentType}
         height="45vh"
       />
 
-      {/* Repeater list — UNTEN (scrollable, compact) */}
       <div className="px-3 pb-20 flex-1 overflow-hidden">
         <MobilRepeaterList
           repeaters={listRepeaters}
           onSelect={(r) => setSelectedRepeaterId(r.id)}
           selectedId={activeRepeater?.id}
           recommendedId={recommendedRepeater?.id}
+          itmResultsMap={itmResultsMap}
         />
       </div>
     </div>

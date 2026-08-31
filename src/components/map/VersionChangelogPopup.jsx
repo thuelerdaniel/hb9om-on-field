@@ -7,6 +7,23 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9012",
+    title: "Longley-Rice ITM Propagation + Draggable Buttons",
+    changes: [
+      "Longley-Rice ITM Propagation Model mit SRTM 30m Höhendaten + Clutter-Korrektur",
+      "computeItmPropagation: ITM Path-Loss zwischen zwei Punkten (Elevation via OpenTopoData API)",
+      "computeItmCoverage: ITM Coverage-Polygon — 16 Richtungen, 5km Schritte, Batch-Elevation-Fetch",
+      "Mobil-Modul: Repeater-Empfehlung nutzt ITM statt einfacher Freiraumdämpfung",
+      "Mobil-Modul: Signalstärke in dBm + Qualität-Badge (🟢🔵🟡🟠🔴) im Detail-Panel",
+      "Mobil-Modul: ITM-Details — Path Loss, ITM Loss, Clutter Loss, Fresnel Clearance",
+      "Mobil-Modul: ITM-Qualitäts-Badges in Repeater-Liste (Top 5 nächste Repeater)",
+      "Mobil-Modul: ITM-Coverage-Polygon statt Kreis — Terrain-basiert, realistische Form",
+      "Draggable Buttons: Position wird gespeichert (localStorage, Long-Press 500ms auf Mobile)",
+      "Auto-Zoom Button verschiebbar — Position persistiert über Sessions hinweg",
+      "UserHuntingSettings: neues Feld draggable_button_positions (JSON object)",
+    ],
+  },
+  {
     version: "0.9011",
     title: "Mobil-Tab — Auto-Zoom Button & Leaflet Attribution",
     changes: [

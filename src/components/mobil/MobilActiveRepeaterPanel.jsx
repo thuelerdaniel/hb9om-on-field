@@ -1,13 +1,14 @@
 // MobilActiveRepeaterPanel — Prominente Anzeige des aktiven Repeaters im Start-Modus.
 // Große Schrift, alle wichtigen Daten, Input-Frequenz (klein), normalisierter Offset.
-// "außerhalb Reichweite" Warnung bei Fallback.
+// ITM (Longley-Rice) Signal-Qualität: dBm, Qualität-Badge, Path/ITM/Clutter Loss, Fresnel.
 
 import React from "react";
-import { Radio, Navigation, MapPin, AlertCircle, AlertTriangle, ArrowUp } from "lucide-react";
+import { Radio, Navigation, MapPin, AlertCircle, AlertTriangle, ArrowUp, Signal, Activity, Mountain } from "lucide-react";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { normalizeOffset, getInputFrequency } from "@/lib/repeaterOffset";
+import { getQualityColor, getQualityBadge, getQualityLabel } from "@/lib/itmPropagation";
 
-export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, reachable, gpsActive }) {
+export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, reachable, gpsActive, itmResult, itmLoading }) {
   if (!repeater) {
     return (
       <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-700/50 rounded-2xl p-4 text-center">
@@ -25,6 +26,8 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
   const color = getModeColor(repeater.primary_mode);
   const normOffset = normalizeOffset(repeater.offset_mhz, repeater.band);
   const inputFreq = getInputFrequency(repeater.frequency, normOffset);
+  const qualityColor = itmResult ? getQualityColor(itmResult.quality) : null;
+  const qualityBadge = itmResult ? getQualityBadge(itmResult.quality) : null;
 
   return (
     <div
@@ -54,18 +57,15 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
 
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          {/* Callsign — groß */}
           <p className="text-2xl font-mono font-bold text-gray-900 dark:text-slate-100 leading-tight">
             {repeater.callsign}
           </p>
 
-          {/* Output-Frequenz — groß, prominent */}
           <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 leading-tight mt-1">
             {repeater.frequency?.toFixed(4)}{" "}
             <span className="text-base font-normal text-gray-400">MHz</span>
           </p>
 
-          {/* Input-Frequenz — klein, grau, mit Pfeil */}
           {inputFreq != null && (
             <p className="text-sm text-gray-400 dark:text-slate-500 leading-tight mt-0.5 flex items-center gap-1">
               <ArrowUp className="w-3 h-3" />
@@ -73,7 +73,6 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
             </p>
           )}
 
-          {/* Offset + Tone */}
           <div className="flex items-center gap-3 mt-2 text-sm">
             <span className="font-medium text-gray-700 dark:text-slate-200">
               Offset:{" "}
@@ -89,7 +88,6 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
             )}
           </div>
 
-          {/* Mode + Band */}
           <div className="flex items-center gap-2 mt-2">
             <span
               className="px-2 py-0.5 text-xs font-bold text-white rounded-full"
@@ -103,7 +101,6 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
           </div>
         </div>
 
-        {/* Distanz + Azimuth — rechts */}
         <div className="text-right flex-shrink-0">
           <div className="flex items-center gap-1 justify-end">
             <Navigation
@@ -121,7 +118,59 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
         </div>
       </div>
 
-      {/* Standort */}
+      {/* ITM Signal Quality Section */}
+      {itmLoading && (
+        <div className="mt-3 pt-2 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2 text-xs text-gray-400">
+          <Activity className="w-3 h-3 animate-pulse" />
+          <span>Berechne ITM-Propagation (Longley-Rice + Terrain)...</span>
+        </div>
+      )}
+
+      {itmResult && !itmLoading && (
+        <div className="mt-3 pt-2 border-t border-gray-100 dark:border-slate-700">
+          <div className="flex items-center gap-2 mb-2">
+            <Signal className="w-4 h-4" style={{ color: qualityColor }} />
+            <span className="text-sm font-bold" style={{ color: qualityColor }}>
+              {qualityBadge} {getQualityLabel(itmResult.quality)}
+            </span>
+            <span className="text-sm font-mono font-bold text-gray-900 dark:text-slate-100 ml-auto">
+              {itmResult.rx_signal_dbm?.toFixed(1)} dBm
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-[10px]">
+            <div className="bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+              <p className="text-gray-400 dark:text-slate-500">Path Loss</p>
+              <p className="font-mono font-bold text-gray-700 dark:text-slate-200">
+                {itmResult.path_loss_db?.toFixed(1)} dB
+              </p>
+            </div>
+            <div className="bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+              <p className="text-gray-400 dark:text-slate-500">ITM Loss</p>
+              <p className="font-mono font-bold text-gray-700 dark:text-slate-200">
+                {itmResult.itm_loss_db?.toFixed(1)} dB
+              </p>
+            </div>
+            <div className="bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+              <p className="text-gray-400 dark:text-slate-500">Clutter</p>
+              <p className="font-mono font-bold text-gray-700 dark:text-slate-200">
+                {itmResult.clutter_loss_db?.toFixed(1)} dB
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500 dark:text-slate-400">
+            <span className="flex items-center gap-1">
+              <Mountain className="w-3 h-3" />
+              Fresnel: {itmResult.fresnel_clearance?.toFixed(0)}m
+            </span>
+            <span>
+              Distanz: {itmResult.distance_km?.toFixed(1)} km
+            </span>
+          </div>
+        </div>
+      )}
+
       {repeater.location_name && (
         <div className="flex items-center gap-1 mt-2 text-xs text-gray-500 dark:text-slate-400">
           <MapPin className="w-3 h-3" />

@@ -8,16 +8,28 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9011";
+export const APP_VERSION = "0.9012";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608311056";
+export const APP_BUILD = "202608311113";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9012: Longley-Rice ITM Propagation Model mit SRTM 30m Höhendaten + Clutter-Korrektur",
+  "v0.9012: computeItmPropagation Backend-Function — ITM Path-Loss zwischen zwei Punkten (OpenTopoData API)",
+  "v0.9012: computeItmCoverage Backend-Function — ITM Coverage-Polygon (16 Richtungen, 5km Schritte, Batch-Elevation)",
+  "v0.9012: Mobil-Modul — Repeater-Empfehlung nutzt ITM statt Freiraumdämpfung",
+  "v0.9012: Mobil-Modul — Signalstärke in dBm + Qualität-Badge (🟢🔵🟡🟠🔴) im Detail-Panel",
+  "v0.9012: Mobil-Modul — ITM-Details: Path Loss, ITM Loss, Clutter Loss, Fresnel Clearance",
+  "v0.9012: Mobil-Modul — ITM-Qualitäts-Badges in Repeater-Liste (Top 5 nächste, debounced)",
+  "v0.9012: Mobil-Modul — ITM-Coverage-Polygon statt Kreis (Terrain-basiert, 16 Richtungen)",
+  "v0.9012: Draggable Buttons — Position wird gespeichert (localStorage, Long-Press 500ms auf Mobile)",
+  "v0.9012: Auto-Zoom Button verschiebbar — Position persistiert über Sessions hinweg",
+  "v0.9012: UserHuntingSettings — neues Feld draggable_button_positions (JSON object)",
+  "v0.9012: itmModel.ts Shared Module — haversine, destinationPoint, fetchElevationProfile, computeLongleyRice, computeClutterLoss",
   "v0.9011: Auto-Zoom Button vergrößert (56x56px, weiß mit blauem Border, unten-rechts 80px/16px)",
   "v0.9011: Leaflet Attribution kompakter (font 8px, max-width 140px, ganz unten-rechts)",
   "v0.9010: High-Badge Schwelle auf 1500m ü.M. erhöht (vorher 1000m)",

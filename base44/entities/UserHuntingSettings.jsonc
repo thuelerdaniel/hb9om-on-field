@@ -131,6 +131,11 @@
       },
       "description": "UI-Einstellungen: Feldbreiten und Button-Positionen pro Geraet"
     },
+    "draggable_button_positions": {
+      "type": "object",
+      "description": "Gespeicherte Positionen verschiebbarer Buttons (buttonId -> {x, y in px relativ zum Viewport)",
+      "additionalProperties": true
+    },
     "last_user_lat": {
       "type": "number",
       "description": "Letzter Breitengrad des Users"
