@@ -1,6 +1,11 @@
 // MobilMapView — Vereinheitlichte Kartenansicht für den Mobil-Tab.
-// Zeigt Route (Polyline), GPS-Marker, Repeater-Marker, Repeater-Abdeckung (Kreis),
+// Zeigt Route (Polyline), GPS-Marker, Repeater-Marker, Repeater-Abdeckung (Polygon oder Kreis),
 // und eigene Reichweite (Polygon) an.
+//
+// Repeater-Abdeckung:
+//   - Wenn der Repeater ein coverage_polygon (GeoJSON) hat → als Polygon zeichnen
+//   - Sonst →Fallback-Kreis mit calculateRange(band)
+//   - Farbe: grün wenn erreichbar, orange wenn Fallback (außerhalb Reichweite)
 
 import React, { useEffect, useMemo } from "react";
 import {
@@ -37,8 +42,9 @@ export default function MobilMapView({
   showRepeaterCoverage,
   showOwnCoverage,
   ownCoveragePolygon,
+  isRecommendedReachable = true,
   equipmentType,
-  height = "60vh",
+  height = "40vh",
 }) {
   // Calculate bounds from all points
   const bounds = useMemo(() => {
@@ -63,10 +69,23 @@ export default function MobilMapView({
     ];
   }, [routeCoords, gpsPosition, repeaters]);
 
-  // Repeater coverage radius in meters
+  // Repeater coverage: use cached GeoJSON polygon if available, else fallback circle
+  const repeaterCoverageLeaflet = useMemo(() => {
+    if (!showRepeaterCoverage || !recommendedRepeater) return null;
+    const poly = recommendedRepeater.coverage_polygon;
+    if (poly && poly.coordinates && Array.isArray(poly.coordinates[0])) {
+      // GeoJSON Polygon: coordinates[0] = outer ring of [lon, lat] pairs
+      return poly.coordinates[0].map(([lon, lat]) => [lat, lon]);
+    }
+    return null;
+  }, [showRepeaterCoverage, recommendedRepeater]);
+
   const repeaterCoverageRadius = recommendedRepeater
     ? calculateRange(equipmentType, recommendedRepeater.band) * 1000
     : 0;
+
+  // Coverage color: green if reachable, orange if fallback
+  const coverageColor = isRecommendedReachable ? "#22c55e" : "#f97316";
 
   // Own coverage polygon: GeoJSON [lon, lat] → Leaflet [lat, lon]
   const ownCoverageLeaflet = useMemo(() => {
@@ -110,8 +129,22 @@ export default function MobilMapView({
           />
         )}
 
-        {/* Repeater coverage circle */}
+        {/* Repeater coverage — Polygon (terrain-based) if available */}
+        {showRepeaterCoverage && repeaterCoverageLeaflet && (
+          <Polygon
+            positions={repeaterCoverageLeaflet}
+            pathOptions={{
+              color: coverageColor,
+              fillColor: coverageColor,
+              fillOpacity: 0.15,
+              weight: 2,
+            }}
+          />
+        )}
+
+        {/* Repeater coverage — Fallback circle if no polygon cached */}
         {showRepeaterCoverage &&
+          !repeaterCoverageLeaflet &&
           recommendedRepeater &&
           recommendedRepeater.lat != null &&
           recommendedRepeater.lng != null && (
@@ -119,8 +152,8 @@ export default function MobilMapView({
               center={[recommendedRepeater.lat, recommendedRepeater.lng]}
               radius={repeaterCoverageRadius}
               pathOptions={{
-                color: "#22c55e",
-                fillColor: "#22c55e",
+                color: coverageColor,
+                fillColor: coverageColor,
                 fillOpacity: 0.1,
                 weight: 2,
               }}

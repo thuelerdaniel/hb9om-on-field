@@ -8,16 +8,23 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9007";
+export const APP_VERSION = "0.9009";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608310858";
+export const APP_BUILD = "202608311013";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9009: Repeater-Liste nach unten verschoben (unter die Karte) — Layout: Panel → Karte → Liste",
+  "v0.9009: Repeater aus Liste antippen → wird aktiver Repeater (Detail-Panel + Abdeckung + Marker-Highlight)",
+  "v0.9009: Repeater-Liste begrenzt — 15 nächste + High-Repeater (elevation_m > 1000m) mit 🏔 Badge",
+  "v0.9008: resolveGoogleMapsLink — extrahiert ALLE Waypoints (Start + Zwischenhalt + Ziel) aus Google Maps Links",
+  "v0.9008: Layout getauscht — Repeater-Panel OBEN, Repeater-Liste MITTE, Karte UNTEN (~40%) im Start-Modus",
+  "v0.9008: Repeater-Abdeckung zeigt Terrain-Polygon (coverage_polygon) statt nur Kreis — grün/orange nach Reichweite",
+  "v0.9008: Eigene Reichweite Polygon-Extraktion repariert (GeoJSON coordinates[0] statt ganzes Objekt)",
   "v0.9007: Mobil-Tab KOMPLETT neu implementiert — Start-Modus, Equipment-Typ, Coverage-Toggles, Backend-Function",
   "v0.9007: Start-Modus: Versteckt alle Konfiguration, zeigt nur Header (Stop+Toggles) + Karte (60%) + Repeater-Panel + Liste",
   "v0.9007: Equipment-Typ (Mobil 50W / Portable 5W) statt Slider — dynamische Reichweitenberechnung pro Band",

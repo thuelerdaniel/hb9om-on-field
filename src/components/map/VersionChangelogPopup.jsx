@@ -7,6 +7,25 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9009",
+    title: "Mobil-Tab — Liste nach unten, Repeater-Auswahl, High-Badge",
+    changes: [
+      "Repeater-Liste nach unten verschoben (unter die Karte) — Layout: Panel → Karte → Liste",
+      "Repeater aus Liste antippen → wird aktiver Repeater (Detail-Panel + Abdeckung + Marker-Highlight)",
+      "Repeater-Liste begrenzt — 15 nächste + High-Repeater (elevation_m > 1000m) mit 🏔 Badge",
+    ],
+  },
+  {
+    version: "0.9008",
+    title: "Mobil-Tab Fixes — Google Maps Import, Layout, Abdeckung",
+    changes: [
+      "resolveGoogleMapsLink: Extrahiert jetzt ALLE Waypoints (Start + Zwischenhalt + Ziel) aus Google Maps Links",
+      "Layout getauscht: Repeater-Panel OBEN, Repeater-Liste MITTE, Karte UNTEN (~40%) im Start-Modus",
+      "Repeater-Abdeckung zeigt Terrain-Polygon (coverage_polygon) statt nur Kreis — grün/orange nach Reichweite",
+      "Eigene Reichweite Polygon-Extraktion repariert (GeoJSON coordinates[0] statt ganzes Objekt)",
+    ],
+  },
+  {
     version: "0.9007",
     title: "Mobil-Tab Komplett-Neuimplementierung",
     changes: [

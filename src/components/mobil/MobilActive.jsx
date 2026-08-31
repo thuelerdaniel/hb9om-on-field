@@ -1,6 +1,8 @@
 // MobilActive — Start-Modus nach Drücken von "Start".
-// Zeigt nur Header (Stop + Toggles), Karte (60%), aktiven Repeater-Panel und Repeater-Liste.
-// Verwaltet Repeater-Abdeckung (Kreis) und eigene Reichweite (Polygon, 60s Auto-Update).
+// Layout: Header → Repeater-Panel (oben) → Karte (mitte, ~45%) → Repeater-Liste (unten).
+// Der aktive Repeater (Detail-Panel + Abdeckung + Marker-Highlight) folgt der User-Auswahl,
+// fällt zurück auf den empfohlenen (nächsten erreichbaren) wenn nichts selektiert.
+// Liste begrenzt: 15 nächste + High-Repeater (elevation_m > 1000).
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
@@ -10,6 +12,14 @@ import MobilActiveRepeaterPanel from "./MobilActiveRepeaterPanel";
 import MobilRepeaterList from "./MobilRepeaterList";
 import { calculateRange, isRepeaterReachable } from "@/lib/equipmentRange";
 import { haversine, bearing } from "@/lib/geoUtilsFrontend";
+
+const LIST_LIMIT = 15;
+const HIGH_ELEVATION_M = 1000;
+
+// High-Repeater: elevation_m > 1000 ü.M. (ERP-Feld existiert im Schema nicht)
+function isHighRepeater(r) {
+  return (r.elevation_m != null && r.elevation_m > HIGH_ELEVATION_M);
+}
 
 export default function MobilActive({
   mode,
@@ -27,7 +37,7 @@ export default function MobilActive({
   onToggleOwnCoverage,
   onStop,
 }) {
-  const [selectedRepeater, setSelectedRepeater] = useState(null);
+  const [selectedRepeaterId, setSelectedRepeaterId] = useState(null);
   const [ownCoveragePolygon, setOwnCoveragePolygon] = useState(null);
   const [coverageCountdown, setCoverageCountdown] = useState(60);
   const [coverageLoading, setCoverageLoading] = useState(false);
@@ -47,7 +57,7 @@ export default function MobilActive({
         const dist = haversine(refPoint.lat, refPoint.lon, r.lat, r.lng);
         const az = bearing(refPoint.lat, refPoint.lon, r.lat, r.lng);
         const reachable = isRepeaterReachable(dist, equipmentType, r.band);
-        return { ...r, _distToPos: dist, _azimuthToPos: az, _reachable: reachable };
+        return { ...r, _distToPos: dist, _azimuthToPos: az, _reachable: reachable, _isHigh: isHighRepeater(r) };
       })
       .sort((a, b) => (a._distToPos || 0) - (b._distToPos || 0));
   }, [repeaters, gpsPosition, routeCoords, equipmentType]);
@@ -59,6 +69,28 @@ export default function MobilActive({
       ? reachableRepeaters[0]
       : repeatersWithDist[0] || null;
   const isRecommendedReachable = reachableRepeaters.length > 0;
+
+  // Active repeater = user selection, or recommended if nothing selected
+  const activeRepeater = useMemo(() => {
+    if (selectedRepeaterId) {
+      const found = repeatersWithDist.find((r) => r.id === selectedRepeaterId);
+      if (found) return found;
+    }
+    return recommendedRepeater;
+  }, [selectedRepeaterId, repeatersWithDist, recommendedRepeater]);
+
+  const isActiveReachable = activeRepeater?._reachable ?? isRecommendedReachable;
+
+  // Filtered list: 15 nearest + all high repeaters beyond the 15
+  const listRepeaters = useMemo(() => {
+    if (repeatersWithDist.length === 0) return [];
+    const nearest = repeatersWithDist.slice(0, LIST_LIMIT);
+    const nearestIds = new Set(nearest.map((r) => r.id));
+    const highBeyond = repeatersWithDist.filter(
+      (r) => !nearestIds.has(r.id) && r._isHigh
+    );
+    return [...nearest, ...highBeyond];
+  }, [repeatersWithDist]);
 
   // Fetch own coverage polygon from backend
   const fetchOwnCoverage = useCallback(
@@ -74,8 +106,6 @@ export default function MobilActive({
           lng: lon,
         });
         const data = res?.data;
-        // Backend returns GeoJSON Polygon: { type, coordinates: [[[lon,lat], ...]] }
-        // Extract the outer ring (coordinates[0]) — a flat array of [lon, lat] pairs.
         const polygon =
           data?.polygon?.coordinates?.[0] ||
           data?.geojson?.coordinates?.[0] ||
@@ -93,18 +123,15 @@ export default function MobilActive({
     [showOwnCoverage, equipmentType, selectedBands]
   );
 
-  // Initial fetch + auto-update every 60s
   useEffect(() => {
     if (!showOwnCoverage || !gpsPosition) {
       setOwnCoveragePolygon(null);
       return;
     }
 
-    // Initial fetch
     fetchOwnCoverage(gpsPosition.lat, gpsPosition.lon);
     setCoverageCountdown(60);
 
-    // Countdown timer
     countdownRef.current = setInterval(() => {
       setCoverageCountdown((prev) => {
         if (prev <= 1) {
@@ -122,7 +149,6 @@ export default function MobilActive({
     };
   }, [showOwnCoverage, gpsPosition, fetchOwnCoverage]);
 
-  // Re-fetch immediately when equipment type changes
   useEffect(() => {
     if (showOwnCoverage && gpsPosition) {
       fetchOwnCoverage(gpsPosition.lat, gpsPosition.lon);
@@ -142,47 +168,49 @@ export default function MobilActive({
         onStop={onStop}
       />
 
-      {/* Map — 60% of screen */}
-      <MobilMapView
-        routeCoords={routeCoords}
-        gpsPosition={gpsPosition}
-        accuracy={accuracy}
-        repeaters={repeatersWithDist}
-        recommendedRepeater={recommendedRepeater}
-        selectedRepeater={selectedRepeater}
-        showRepeaterCoverage={showRepeaterCoverage}
-        showOwnCoverage={showOwnCoverage}
-        ownCoveragePolygon={ownCoveragePolygon}
-        equipmentType={equipmentType}
-        height="55vh"
-      />
+      {/* Active repeater panel — OBEN (prominent) */}
+      <div className="px-3 py-2">
+        <MobilActiveRepeaterPanel
+          repeater={activeRepeater}
+          distance={activeRepeater?._distToPos}
+          azimuth={activeRepeater?._azimuthToPos}
+          reachable={isActiveReachable}
+          gpsActive={gpsActive}
+        />
+      </div>
 
       {/* Own coverage countdown */}
       {showOwnCoverage && (
-        <div className="px-3 py-1 text-[10px] text-blue-600 dark:text-blue-400 text-center">
+        <div className="px-3 py-0.5 text-[10px] text-blue-600 dark:text-blue-400 text-center">
           {coverageLoading
             ? "Aktualisiere Eigene Reichweite..."
             : `Nächste Aktualisierung in ${coverageCountdown} Sekunden`}
         </div>
       )}
 
-      {/* Active repeater panel — prominent */}
-      <div className="px-3 py-2">
-        <MobilActiveRepeaterPanel
-          repeater={recommendedRepeater}
-          distance={recommendedRepeater?._distToPos}
-          azimuth={recommendedRepeater?._azimuthToPos}
-          reachable={isRecommendedReachable}
-          gpsActive={gpsActive}
-        />
-      </div>
+      {/* Map — MITTE (~45% of screen) */}
+      <MobilMapView
+        routeCoords={routeCoords}
+        gpsPosition={gpsPosition}
+        accuracy={accuracy}
+        repeaters={listRepeaters}
+        recommendedRepeater={activeRepeater}
+        selectedRepeater={activeRepeater}
+        showRepeaterCoverage={showRepeaterCoverage}
+        showOwnCoverage={showOwnCoverage}
+        ownCoveragePolygon={ownCoveragePolygon}
+        isRecommendedReachable={isActiveReachable}
+        equipmentType={equipmentType}
+        height="45vh"
+      />
 
-      {/* Repeater list — scrollable */}
+      {/* Repeater list — UNTEN (scrollable, compact) */}
       <div className="px-3 pb-20 flex-1 overflow-hidden">
         <MobilRepeaterList
-          repeaters={repeatersWithDist}
-          onSelect={setSelectedRepeater}
-          selectedId={selectedRepeater?.id}
+          repeaters={listRepeaters}
+          onSelect={(r) => setSelectedRepeaterId(r.id)}
+          selectedId={activeRepeater?.id}
+          recommendedId={recommendedRepeater?.id}
         />
       </div>
     </div>
