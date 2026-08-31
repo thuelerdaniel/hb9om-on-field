@@ -7,6 +7,19 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9018",
+    title: "4 kritische Fixes: Club-Filter, SOTA/WWFF Sync, Reference Data",
+    changes: [
+      "Clubstation Filter — fetchQrzClubLog verwendet immer HB9OM als club_callsign (ignoriert ADIF STATION_CALLSIGN Feld)",
+      "Clubstation Filter — normalizeLogClubCall Backend-Function korrigiert bestehende Einträge (HB3YNF → HB9OM)",
+      "Clubstation Filter — Logbuch-Filter zeigt 'Persönlich (HB3YNF)' und 'Clubstation (HB9OM)' Labels",
+      "SOTA Sync — upsertPointsByCode mit Parallel-Batches (5 concurrent) + 250s Time-Budget verarbeitet alle 181k Einträge",
+      "SOTA Sync — Kein Delete-Phase mehr (upsert by code) → keine Datenverluste bei Timeout, keine Duplikate",
+      "WWFF Sync — upsertPointsByCode verarbeitet alle 65.815 Einträge (vorher nur 9.000 wegen 110s Time-Budget)",
+      "Reference Data — 10 kanonische Einträge bestätigt (einer pro Typ), keine alten Duplikate mehr in der DB",
+    ],
+  },
+  {
     version: "0.9017",
     title: "8 Bugfixes — Cronjobs, Filter, Dark Mode, GPX-Import",
     changes: [

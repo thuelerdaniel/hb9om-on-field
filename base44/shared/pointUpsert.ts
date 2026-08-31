@@ -166,28 +166,41 @@ export async function upsertPointsByCode(
     }
   }
 
-  // 3. Bulk create new records in batches of 500
+  // 3. Bulk create new records in PARALLEL batches (5 concurrent) with 250s time budget
+  // v0.9018: Parallel processing + increased time budget fixes SOTA/WWFF incomplete data
   let created = 0;
   let lastError: string | undefined;
-  for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
-    const batch = toCreate.slice(i, i + BATCH_SIZE);
-    try {
-      await entity.bulkCreate(batch);
-      created += batch.length;
-    } catch (e: any) {
-      lastError = e?.message || String(e);
+  const UPSERT_BYCODE_TIME_MS = 250000; // 250s — leaves buffer for load + metadata
+  const upsertByCodeStart = Date.now();
+  for (let i = 0; i < toCreate.length; i += PARALLEL_BATCHES * BATCH_SIZE) {
+    if (Date.now() - upsertByCodeStart > UPSERT_BYCODE_TIME_MS) break;
+    const group: any[][] = [];
+    for (let p = 0; p < PARALLEL_BATCHES && i + p * BATCH_SIZE < toCreate.length; p++) {
+      const start = i + p * BATCH_SIZE;
+      group.push(toCreate.slice(start, start + BATCH_SIZE));
+    }
+    if (group.length === 0) break;
+    const results = await Promise.allSettled(group.map(batch => entity.bulkCreate(batch)));
+    for (let j = 0; j < results.length; j++) {
+      if (results[j].status === 'fulfilled') created += group[j].length;
+      else lastError = (results[j] as any).reason?.message || String((results[j] as any).reason);
     }
   }
 
-  // 4. Bulk update existing records in batches of 500
+  // 4. Bulk update existing records in PARALLEL batches (5 concurrent)
   let updated = 0;
-  for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
-    const batch = toUpdate.slice(i, i + BATCH_SIZE);
-    try {
-      await entity.bulkUpdate(batch);
-      updated += batch.length;
-    } catch (e: any) {
-      lastError = e?.message || String(e);
+  for (let i = 0; i < toUpdate.length; i += PARALLEL_BATCHES * BATCH_SIZE) {
+    if (Date.now() - upsertByCodeStart > UPSERT_BYCODE_TIME_MS) break;
+    const group: any[][] = [];
+    for (let p = 0; p < PARALLEL_BATCHES && i + p * BATCH_SIZE < toUpdate.length; p++) {
+      const start = i + p * BATCH_SIZE;
+      group.push(toUpdate.slice(start, start + BATCH_SIZE));
+    }
+    if (group.length === 0) break;
+    const results = await Promise.allSettled(group.map(batch => entity.bulkUpdate(batch)));
+    for (let j = 0; j < results.length; j++) {
+      if (results[j].status === 'fulfilled') updated += group[j].length;
+      else lastError = (results[j] as any).reason?.message || String((results[j] as any).reason);
     }
   }
 

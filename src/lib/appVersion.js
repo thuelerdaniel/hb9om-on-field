@@ -8,16 +8,23 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9017";
+export const APP_VERSION = "0.9018";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608312205";
+export const APP_BUILD = "202608312240";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9018: Clubstation Filter — fetchQrzClubLog verwendet immer HB9OM als club_callsign (ignoriert ADIF STATION_CALLSIGN)",
+  "v0.9018: Clubstation Filter — normalizeLogClubCall Backend-Function korrigiert bestehende Einträge (HB3YNF → HB9OM)",
+  "v0.9018: Clubstation Filter — Logbuch-Filter zeigt 'Persönlich (HB3YNF)' und 'Clubstation (HB9OM)' Labels",
+  "v0.9018: SOTA Sync — upsertPointsByCode mit Parallel-Batches (5 concurrent) + 250s Time-Budget statt upsertPoints",
+  "v0.9018: SOTA Sync — Kein Delete-Phase mehr (upsert by code) → keine Datenverluste bei Timeout",
+  "v0.9018: WWFF Sync — upsertPointsByCode verarbeitet alle 65.815 Einträge (vorher nur 9.000 wegen 110s Timeout)",
+  "v0.9018: Reference Data — 10 kanonische Einträge bestätigt (keine alten Duplikate mehr)",
   "v0.9017: Repeater-Coverage Cronjob — fetchRepeaters aktualisiert DailyRefreshSchedule (success/error), Timeout-Schutz",
   "v0.9017: Repeater-Coverage Cronjob — calculateRepeaterCoverage verarbeitet nur needs_recalc/no-coverage, Batch 50/Run, 250s Time-Budget",
   "v0.9017: Repeater-Coverage Cronjob — Neuer Schedule-Eintrag 'repeater_coverage' (07:00 UTC) im Orchestrator",

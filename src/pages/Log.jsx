@@ -528,8 +528,8 @@ export default function Log() {
             triggerClassName="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
             options={[
               { value: "all", label: "Alle QSOs" },
-              { value: "personal", label: "Persönlich" },
-              { value: "club", label: "Clubstation" }
+              { value: "personal", label: "Persönlich (HB3YNF)" },
+              { value: "club", label: "Clubstation (HB9OM)" }
             ]}
           />
 

@@ -138,7 +138,8 @@ export default async function(req: Request): Promise<Response> {
           operator_address: f.QTH || undefined,
           notes: f.COMMENT || undefined,
           is_clubstation: true,
-          club_callsign: f.STATION_CALLSIGN || CLUB_CALLSIGN,
+          // v0.9018: ALWAYS use HB9OM as club_callsign — QRZ ADIF may contain HB3YNF (personal call)
+          club_callsign: CLUB_CALLSIGN,
           club_operator_callsign: f.OPERATOR || undefined,
           my_grid: f.MY_GRIDSQUARE || undefined,
           wavelog_imported: true,

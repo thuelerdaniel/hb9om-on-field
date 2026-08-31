@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { fetchWwffData } from '../../shared/referenceFetchers.ts';
-import { upsertPoints } from '../../shared/pointUpsert.ts';
+import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 
 // WWFF (World Wide Flora & Fauna) — worldwide data source.
 // Replaces the former Swiss-only HBFF (hbff.ch) with the global WWFF directory CSV.
@@ -25,7 +25,8 @@ Deno.serve(async (req) => {
         lng: r.lng,
         link: r.link || 'https://wwff.co/directory/',
       }));
-      const upsertResult = await upsertPoints(base44, 'WwffPoint', 'hbff', points, 'wwff.co CSV (worldwide)');
+      // v0.9018: Use upsertPointsByCode (parallel, no deletion, resumable) — fixes incomplete WWFF data
+      const upsertResult = await upsertPointsByCode(base44, 'WwffPoint', 'hbff', points, 'wwff.co CSV (worldwide)');
       return Response.json({
         saved: true,
         count: upsertResult.created,

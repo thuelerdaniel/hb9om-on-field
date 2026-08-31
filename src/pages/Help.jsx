@@ -931,6 +931,10 @@ const ADMIN_SECTIONS = [
     description: "Alle Versionen seit v0.8 mit Änderungen — das Versions-Popup zeigt nur die neuesten Versionen.",
     items: [
       {
+        title: "v0.9018 — 4 kritische Fixes: Club-Filter, SOTA/WWFF Sync",
+        body: "Clubstation Filter: fetchQrzClubLog verwendet immer HB9OM als club_callsign (ignoriert ADIF STATION_CALLSIGN). normalizeLogClubCall Backend-Function korrigiert bestehende Einträge (HB3YNF → HB9OM). Logbuch-Filter zeigt 'Persönlich (HB3YNF)' und 'Clubstation (HB9OM)' Labels. SOTA Sync: upsertPointsByCode mit Parallel-Batches (5 concurrent) + 250s Time-Budget verarbeitet alle 181k Einträge. WWFF Sync: upsertPointsByCode verarbeitet alle 65.815 Einträge (vorher nur 9.000). Kein Delete-Phase mehr (upsert by code) → keine Datenverluste bei Timeout.",
+      },
+      {
         title: "v0.9017 — 8 Bugfixes: Cronjobs, Filter, Dark Mode, GPX",
         body: "Repeater-Coverage Cronjob: fetchRepeaters aktualisiert DailyRefreshSchedule (success/error), calculateRepeaterCoverage verarbeitet nur needs_recalc/no-coverage (Batch 50, 250s Time-Budget), neuer Schedule-Eintrag 'Repeater Abdeckung' (07:00 UTC). LLOTA: fetchLlotaSpots schreibt last_error/last_error_detail bei Fehlern. Reference Data: getReferencesInBounds & searchReferences laden nur neuesten/größten Eintrag pro Typ — 5 alte Duplikate gelöscht. WWFF: upsertPoints mit 120s Time-Budget verhindert Timeout bei 65k Einträgen. Clubstation Filter: Logbuch filtert explizit is_clubstation===true/false. fetchQrzClubLog: STATION_CALLSIGN=HB9OM verhindert Abruf von HB3YNF QSOs. normalizeLogData Backend-Function: Bänder zu lowercase, club_operator_callsign Korrektur, Duplikat-Erkennung (2012 Duplikate gefunden). Dark Mode Logbuch: dunkler Hintergrund (#1a1a1a), heller Text (#e0e0e0), Tabellen-Header (#2a2a2a), blaue Akzentfarbe. GPX Import: File-Input über Button+Ref (klickbar auf Mobile).",
       },
