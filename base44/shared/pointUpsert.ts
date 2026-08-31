@@ -256,7 +256,10 @@ export async function loadAllPoints(
 
   try {
     for (let page = 0; page < MAX_PAGES; page++) {
-      const result: any[] = await entity.list('-created_date', LIMIT, page * LIMIT);
+      // v0.9018: Use filter({}, sort, limit, skip) instead of list(sort, limit, skip)
+      // list() does NOT support skip — it returns the same first page every time,
+      // causing OOM when loading 60 pages × 5000 = 300k duplicate records.
+      const result: any[] = await entity.filter({}, '-created_date', LIMIT, page * LIMIT);
       if (!Array.isArray(result) || result.length === 0) break;
       allPoints.push(...result);
       if (result.length < LIMIT) break;
