@@ -50,7 +50,21 @@ Deno.serve(async (req) => {
     // PUNKT 7: Sichere Refresh-Strategie — neue Records ERST erstellen, dann alte löschen.
     // Verhindert Datenverlust bei Timeout während bulkCreate.
     // Timestamp markiert den Start — alte Records werden erst am Ende gelöscht.
-    const syncStartTime = new Date().toISOString();
+    // v0.9018: syncStartTime wird in AppSettings persistiert — bei Chunked-Sync (mehrere Calls)
+    // darf der 2. Call nicht die Records vom 1. Call löschen. syncStartTime bleibt über alle Calls konstant.
+    const syncStartKey = 'sota_sync_start_time';
+    let syncStartTime: string;
+    try {
+      const syncStartSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: syncStartKey });
+      if (syncStartSettings.length > 0 && syncStartSettings[0].value) {
+        syncStartTime = syncStartSettings[0].value;
+      } else {
+        syncStartTime = new Date().toISOString();
+        await base44.asServiceRole.entities.AppSetting.create({ key: syncStartKey, value: syncStartTime });
+      }
+    } catch {
+      syncStartTime = new Date().toISOString();
+    }
 
     // Process from offset with time budget — PARALLEL batches (5 concurrent)
     const startTime = Date.now();
@@ -109,6 +123,13 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.SotaPoint.deleteMany({
           created_date: { $lt: syncStartTime }
         });
+      } catch {}
+      // v0.9018: Clear persisted syncStartTime after completion
+      try {
+        const syncStartSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: syncStartKey });
+        if (syncStartSettings.length > 0) {
+          await base44.asServiceRole.entities.AppSetting.update(syncStartSettings[0].id, { value: '' });
+        }
       } catch {}
     }
 
