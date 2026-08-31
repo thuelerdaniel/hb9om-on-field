@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { fetchReferenceSource, SOURCE_LABELS } from '../../shared/referenceFetchers.ts';
-import { upsertPoints, upsertPointsByCode } from '../../shared/pointUpsert.ts';
+import { upsertPoints } from '../../shared/pointUpsert.ts';
 
 // Types that use individual point entities instead of ReferenceData.references
 const POINT_ENTITY_MAP = {
@@ -117,11 +117,10 @@ export default async function(req: Request): Promise<Response> {
         }
       } catch {}
     } else if (POINT_ENTITY_MAP[source]) {
-      // v0.9018: Use upsertPointsByCode (parallel, no deletion, resumable) instead of upsertPoints
-      // upsertPointsByCode updates by code → no data loss on timeout, no duplicates, no slow deletion phase
+      // v0.9018: upsertPoints with 240s time budget + fast deleteMany — no OOM from loading existing records
       const ptConfig = POINT_ENTITY_MAP[source];
-      const upsertResult = await upsertPointsByCode(base44, ptConfig.entity, source, items, ptConfig.source);
-      savedCount = upsertResult.created + upsertResult.updated;
+      const upsertResult = await upsertPoints(base44, ptConfig.entity, source, items, ptConfig.source);
+      savedCount = upsertResult.created;
     } else {
       // Save to ReferenceData entity (wwbota, lighthouse, castle, iota)
       const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: source });

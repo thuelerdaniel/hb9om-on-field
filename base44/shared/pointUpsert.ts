@@ -45,8 +45,8 @@ export async function upsertPoints(
     batches.push(points.slice(i, i + BATCH_SIZE));
   }
 
-  // BUG 4: Time budget — stop creating after 110s to leave buffer for deletion + metadata
-  const UPSERT_TIME_BUDGET_MS = 110000;
+  // v0.9018: Increased from 110s to 240s — enough for 125k SOTA + 65k WWFF records
+  const UPSERT_TIME_BUDGET_MS = 240000;
   const upsertStartTime = Date.now();
   // Process batches in parallel groups of PARALLEL_BATCHES
   for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
@@ -65,24 +65,12 @@ export async function upsertPoints(
     }
   }
 
-  // 2. Delete old records in small batches — single deleteMany times out on MongoDB
-  //    when there are thousands of old records (20s server-side timeout).
-  //    Strategy: query old records in batches of 500, collect IDs, delete by IDs.
+  // 2. Delete old records — v0.9018: Single deleteMany query (no pagination needed)
+  //    Old approach loaded 500 records + deleted by ID (slow, 200 rounds for 100k records).
+  //    New approach: single deleteMany with created_date filter — one MongoDB operation.
   if (created > 0) {
-    const DELETE_BATCH = 500;
-    const MAX_DELETE_ROUNDS = 200; // 200 * 500 = 100k records max
     try {
-      for (let round = 0; round < MAX_DELETE_ROUNDS; round++) {
-        const oldRecords = await entity.filter(
-          { created_date: { $lt: syncStartTime.toISOString() } },
-          undefined, DELETE_BATCH, 0
-        );
-        if (!Array.isArray(oldRecords) || oldRecords.length === 0) break;
-        const ids = oldRecords.map(r => r.id).filter(Boolean);
-        if (ids.length === 0) break;
-        await entity.deleteMany({ id: { $in: ids } });
-        if (oldRecords.length < DELETE_BATCH) break;
-      }
+      await entity.deleteMany({ created_date: { $lt: syncStartTime.toISOString() } });
     } catch (e) {
       // Non-fatal — old records remain but new ones are saved
     }
