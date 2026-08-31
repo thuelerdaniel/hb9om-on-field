@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall } from '../../shared/internalAuth.ts';
+import { dedupKey } from '../../shared/logDedup.ts';
 
 // Wavelog API Proxy — v0.9022
 // Vermeidet Mixed-Content Blocking (App ist HTTPS, Wavelog-Server ist HTTP).
@@ -472,8 +473,8 @@ export default async function(req: Request): Promise<Response> {
           });
         }
 
-        // Paginated dedup — load ALL existing wavelog_imported logs (up to 100k)
-        // Key: callsign + qso_date + time_start + frequency + club_callsign
+        // v0.9004: Normalized dedup — strips /P/M/PM/MM suffixes and truncates time to HH:MM
+        // so Wavelog QSOs match existing records despite format differences.
         const existingKeys = new Set<string>();
         try {
           const DEDUP_LIMIT = 5000;
@@ -485,13 +486,13 @@ export default async function(req: Request): Promise<Response> {
             );
             if (!Array.isArray(batch) || batch.length === 0) break;
             for (const l of batch) {
-              existingKeys.add(`${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}|${l.club_callsign || ''}`);
+              existingKeys.add(dedupKey(l.callsign, l.qso_date, l.time_start, l.frequency, l.club_callsign));
             }
             if (batch.length < DEDUP_LIMIT) break;
           }
         } catch {}
         const newQsos = allQsos.filter(q => {
-          const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}|${q.club_callsign || ''}`;
+          const key = dedupKey(q.callsign, q.qso_date, q.time_start, q.frequency, q.club_callsign);
           return !existingKeys.has(key);
         });
         const duplicateCount = allQsos.length - newQsos.length;
@@ -523,16 +524,39 @@ export default async function(req: Request): Promise<Response> {
           } catch {}
         }
 
+        // v0.9004: Save import progress to AppSetting for UI tracking
+        const totalPages = Math.ceil(totalExported / 500) || 1;
+        try {
+          const existingProgress = await base44.entities.AppSetting.filter({ key: 'wavelog_import_progress' });
+          const progressValue = JSON.stringify({
+            total_pages: totalPages,
+            current_page: totalPages,
+            total_qsos: totalExported,
+            imported: importedCount,
+            duplicates: duplicateCount,
+            errors: errorCount,
+            completed_at: new Date().toISOString(),
+          });
+          if (existingProgress && existingProgress.length > 0) {
+            await base44.entities.AppSetting.update(existingProgress[0].id, { value: progressValue });
+          } else {
+            await base44.entities.AppSetting.create({ key: 'wavelog_import_progress', value: progressValue });
+          }
+        } catch {}
+
         return Response.json({
           success: true,
           imported: importedCount,
+          skipped_duplicates: duplicateCount,
           duplicates: duplicateCount,
           errors: errorCount,
           total_parsed: allQsos.length,
           total_from_wavelog: totalExported,
-          pages: Math.ceil(totalExported / 500) || 1,
+          total_pages: totalPages,
+          current_page: totalPages,
+          pages: totalPages,
           lastfetchedid: errorCount === 0 ? String(lastFetchedId) : '0',
-          message: `Voll-Import: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler (${Math.ceil(totalExported / 500) || 1} Seiten)`,
+          message: `Voll-Import: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler (${totalPages} Seiten)`,
         });
       }
 

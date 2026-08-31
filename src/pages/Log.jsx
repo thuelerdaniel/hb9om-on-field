@@ -31,7 +31,10 @@ export default function Log() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showConfirmDeleteSingle, setShowConfirmDeleteSingle] = useState(null);
   const [showConfirmArchive, setShowConfirmArchive] = useState(null);
+  const [deletingSingle, setDeletingSingle] = useState(false);
+  const [deletingSelected, setDeletingSelected] = useState(false);
   const [sortBy, setSortBy] = useState("date_desc");
   const [showQsoForm, setShowQsoForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -340,11 +343,33 @@ export default function Log() {
     } catch (e) { }
   };
 
-  const handleDeleteSingle = async (id) => {
+  const handleDeleteSingle = async (entry) => {
+    setShowConfirmDeleteSingle(entry);
+  };
+
+  const confirmDeleteSingle = async () => {
+    if (!showConfirmDeleteSingle) return;
+    setDeletingSingle(true);
     try {
-      await deleteEntry(id);
+      await deleteEntry(showConfirmDeleteSingle.id);
+      setShowConfirmDeleteSingle(null);
       loadEntries();
-    } catch (e) { }
+    } catch (e) { } finally {
+      setDeletingSingle(false);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    setDeletingSelected(true);
+    try {
+      await deleteMany(selectedIds);
+      setSelectedIds([]);
+      setSelectMode(false);
+      loadEntries();
+    } catch (e) { } finally {
+      setDeletingSelected(false);
+    }
   };
 
   const handleUnarchive = async (id) => {
@@ -449,6 +474,13 @@ export default function Log() {
               className="px-3 py-1.5 text-sm font-medium bg-white text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 flex items-center gap-1.5"
             >
               <User className="w-4 h-4" /> Umbuchen
+            </button>
+            <button
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.length === 0 || deletingSelected}
+              className="px-3 py-1.5 text-sm font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {deletingSelected ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Löschen ({selectedIds.length})
             </button>
           </div>
         )}
@@ -732,7 +764,7 @@ export default function Log() {
                       </button>
                     )}
                     <button
-                      onClick={() => handleDeleteSingle(entry.id)}
+                      onClick={() => handleDeleteSingle(entry)}
                       className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500"
                       title="Löschen"
                     >
@@ -820,6 +852,35 @@ export default function Log() {
               </button>
               <button onClick={() => handleArchive(showConfirmArchive)} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600">
                 Archivieren
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Single Modal — v0.9004 BUG 1 */}
+      {showConfirmDeleteSingle && (
+        <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4" onClick={() => !deletingSingle && setShowConfirmDeleteSingle(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100">QSO löschen?</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 text-center mt-2">
+              QSO mit <strong className="text-gray-900 dark:text-slate-100">{showConfirmDeleteSingle.callsign}{showConfirmDeleteSingle.callsign_suffix || ''}</strong> am <strong className="text-gray-900 dark:text-slate-100">{showConfirmDeleteSingle.qso_date}</strong> unwiderruflich löschen?
+            </p>
+            {showConfirmDeleteSingle.is_clubstation && (
+              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2">
+                <Building className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span className="text-xs text-amber-700">Dies ist ein Club-Log-Eintrag ({showConfirmDeleteSingle.club_callsign || 'Clubstation'})</span>
+              </div>
+            )}
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setShowConfirmDeleteSingle(null)} disabled={deletingSingle} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50">
+                Abbrechen
+              </button>
+              <button onClick={confirmDeleteSingle} disabled={deletingSingle} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {deletingSingle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Löschen
               </button>
             </div>
           </div>

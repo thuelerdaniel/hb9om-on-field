@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { dedupKey } from '../../shared/logDedup.ts';
 
 // fetchQrzClubLog — v0.9003 Problem 2
 // Downloads QSOs from the QRZ.com Club Logbook (station_callsign: HB9OM),
@@ -145,7 +146,9 @@ export default async function(req: Request): Promise<Response> {
       } catch {}
     }
 
-    // 5. Dedup against existing club QSOs — paginated
+    // 5. Dedup against existing club QSOs — paginated, NORMALIZED keys (v0.9004)
+    // Normalization: strips /P/M/PM/MM suffixes + truncates time to HH:MM
+    // so "HB9CCS/P 00:07:50" matches "HB9CCS 07:50"
     const existingKeys = new Set<string>();
     try {
       const DEDUP_LIMIT = 5000;
@@ -157,14 +160,14 @@ export default async function(req: Request): Promise<Response> {
         );
         if (!Array.isArray(batch) || batch.length === 0) break;
         for (const l of batch) {
-          existingKeys.add(`${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}|${l.club_callsign || ''}`);
+          existingKeys.add(dedupKey(l.callsign, l.qso_date, l.time_start, l.frequency, l.club_callsign));
         }
         if (batch.length < DEDUP_LIMIT) break;
       }
     } catch {}
 
     const newQsos = qsos.filter(q => {
-      const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}|${q.club_callsign || ''}`;
+      const key = dedupKey(q.callsign, q.qso_date, q.time_start, q.frequency, q.club_callsign);
       return !existingKeys.has(key);
     });
     const duplicateCount = qsos.length - newQsos.length;
@@ -188,10 +191,13 @@ export default async function(req: Request): Promise<Response> {
 
     return Response.json({
       status: 'success',
+      success: true,
       count,
       imported: importedCount,
       duplicates: duplicateCount,
+      duplicates_skipped: duplicateCount,
       errors: errorCount,
+      total: qsos.length,
       message: `Club-Log-Sync: ${importedCount} QSOs importiert, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler`,
     });
   } catch (error: any) {

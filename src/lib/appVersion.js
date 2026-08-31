@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9003";
+export const APP_VERSION = "0.9004";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,10 @@ export const APP_BUILD = "202608310554";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9004: Logbuch Löschen — Bestätigungs-Dialog pro Eintrag + Batch-Löschung (Select All / Delete Selected)",
+  "v0.9004: Wavelog Voll-Import — Normalisierter Dedup-Key (Suffix-Stripping /P/M/PM/MM + Zeit HH:MM) + Progress-Tracking",
+  "v0.9004: QRZ Club-Log — Normalisierter Dedup-Key verhindert Duplikate durch Format-Unterschiede (Zeit HH:MM:SS vs HH:MM)",
+  "v0.9004: cleanupLogDuplicates — Backend-Function zum Bereinigen existierender Duplikate (Admin)",
   "v0.9003: Wavelog Import — Paging (500 QSOs/Batch) + Dedup (callsign+date+time+freq+club)",
   "v0.9003: QRZ Club Sync — Download mit is_clubstation=true, Upload nur Club-QSOs",
   "v0.9003: Club-Log Filter — Toggle 'Nur Club-Log' im Logbuch (is_clubstation: true)",

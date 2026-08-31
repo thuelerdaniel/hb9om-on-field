@@ -7,6 +7,18 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9004",
+    title: "Logbuch Bugfixes — Löschen, Dedup & Duplikat-Bereinigung",
+    changes: [
+      "Logbuch Löschen: Bestätigungs-Dialog pro Eintrag mit Rufzeichen + Datum + Club-Warnung",
+      "Batch-Löschung: 'Select All / Delete Selected' Modus für mehrere Einträge gleichzeitig",
+      "Wavelog Voll-Import: Normalisierter Dedup-Key (Suffix-Stripping /P/M/PM/MM + Zeit HH:MM)",
+      "Wavelog Voll-Import: Progress-Tracking in AppSetting nach jeder Seite",
+      "QRZ Club-Log: Normalisierter Dedup-Key verhindert Duplikate durch Format-Unterschiede",
+      "cleanupLogDuplicates: Backend-Function zum Bereinigen existierender Duplikate (Admin)",
+    ],
+  },
+  {
     version: "0.9003",
     title: "LLOTA-Integration, SwissTopo-Grenzen & Hunting-Fixes",
     changes: [
