@@ -74,14 +74,16 @@ export default function MobilActive({
           lng: lon,
         });
         const data = res?.data;
-        // Handle multiple response formats
+        // Backend returns GeoJSON Polygon: { type, coordinates: [[[lon,lat], ...]] }
+        // Extract the outer ring (coordinates[0]) — a flat array of [lon, lat] pairs.
         const polygon =
-          data?.polygon ||
+          data?.polygon?.coordinates?.[0] ||
           data?.geojson?.coordinates?.[0] ||
-          data?.coverage_polygon ||
-          data?.coordinates?.[0] ||
+          data?.coverage_polygon?.coordinates?.[0] ||
+          (Array.isArray(data?.coordinates) ? (data.coordinates[0] || data.coordinates) : null) ||
+          (Array.isArray(data?.polygon) ? data.polygon : null) ||
           null;
-        if (polygon) setOwnCoveragePolygon(polygon);
+        if (Array.isArray(polygon)) setOwnCoveragePolygon(polygon);
       } catch {
         // Silent fail — coverage is optional
       } finally {
