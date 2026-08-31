@@ -931,6 +931,10 @@ const ADMIN_SECTIONS = [
     description: "Alle Versionen seit v0.8 mit Änderungen — das Versions-Popup zeigt nur die neuesten Versionen.",
     items: [
       {
+        title: "v0.9017 — 8 Bugfixes: Cronjobs, Filter, Dark Mode, GPX",
+        body: "Repeater-Coverage Cronjob: fetchRepeaters aktualisiert DailyRefreshSchedule (success/error), calculateRepeaterCoverage verarbeitet nur needs_recalc/no-coverage (Batch 50, 250s Time-Budget), neuer Schedule-Eintrag 'Repeater Abdeckung' (07:00 UTC). LLOTA: fetchLlotaSpots schreibt last_error/last_error_detail bei Fehlern. Reference Data: getReferencesInBounds & searchReferences laden nur neuesten/größten Eintrag pro Typ — 5 alte Duplikate gelöscht. WWFF: upsertPoints mit 120s Time-Budget verhindert Timeout bei 65k Einträgen. Clubstation Filter: Logbuch filtert explizit is_clubstation===true/false. fetchQrzClubLog: STATION_CALLSIGN=HB9OM verhindert Abruf von HB3YNF QSOs. normalizeLogData Backend-Function: Bänder zu lowercase, club_operator_callsign Korrektur, Duplikat-Erkennung (2012 Duplikate gefunden). Dark Mode Logbuch: dunkler Hintergrund (#1a1a1a), heller Text (#e0e0e0), Tabellen-Header (#2a2a2a), blaue Akzentfarbe. GPX Import: File-Input über Button+Ref (klickbar auf Mobile).",
+      },
+      {
         title: "v0.9016 — Mobil: Map Jumping, dBm Flicker, Marker",
         body: "Karte springt nicht mehr bei manueller Interaktion (Auto-Center pausiert 5s nach Drag/Zoom). GPS Auto-Center mit panTo Animation statt fitBounds Sprung, throttled (max 1x/3s, >10m). dBm-Ampel flackert nicht mehr (stabile HTML-Struktur, ITM Loading nur bei Repeater-Wechsel). Kleinere Marker: Repeater 6px, GPS 10px. Coverage-Polygone dezenter (fillOpacity 0.08).",
       },
@@ -1083,7 +1087,7 @@ export default function Help() {
     setFlyerLoading(true);
     try {
       await generateFlyer();
-      toast({ title: "Flyer heruntergeladen", description: "HB9OM On Field Flyer (v0.9007)", duration: 3000 });
+      toast({ title: "Flyer heruntergeladen", description: "HB9OM On Field Flyer (v0.9017)", duration: 3000 });
     } catch (e) {
       // ignore
     } finally {
@@ -1095,7 +1099,7 @@ export default function Help() {
     setTrifoldLoading(true);
     try {
       await generateTrifoldFlyer();
-      toast({ title: "Faltflyer heruntergeladen", description: "HB9OM On Field Faltflyer (v0.9007)", duration: 3000 });
+      toast({ title: "Faltflyer heruntergeladen", description: "HB9OM On Field Faltflyer (v0.9017)", duration: 3000 });
     } catch (e) {
       // ignore
     } finally {
@@ -1205,7 +1209,7 @@ export default function Help() {
             {flyerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
             <div className="text-left">
               <h3 className="text-xs font-bold">Flyer</h3>
-              <p className="text-[10px] text-green-100">Info-Flyer v0.9007</p>
+              <p className="text-[10px] text-green-100">Info-Flyer v0.9017</p>
             </div>
           </button>
           <button
@@ -1216,7 +1220,7 @@ export default function Help() {
             {trifoldLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
             <div className="text-left">
               <h3 className="text-xs font-bold">Faltflyer</h3>
-              <p className="text-[10px] text-green-100">Trifold v0.9007</p>
+              <p className="text-[10px] text-green-100">Trifold v0.9017</p>
             </div>
           </button>
         </div>
