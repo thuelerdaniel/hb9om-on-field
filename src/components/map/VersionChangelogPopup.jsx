@@ -7,6 +7,17 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9013",
+    title: "ITM Terrain-Fix + Draggable Button Persistence",
+    changes: [
+      "ITM Coverage — Terrain-Obstruktion wird jetzt im LOS-Bereich geprüft (vorher: perfekter Kreis in allen Richtungen)",
+      "computeLongleyRice — maxObstruction Check VOR LOS-Check, Diffraction Loss auch bei Line-of-Sight-Obstruktion",
+      "computeItmCoverage — step_km von 5 auf 3 reduziert für feinere Terrain-Auflösung",
+      "Draggable Buttons — Position wird jetzt auch in UserHuntingSettings gespeichert (Cross-Device-Sync)",
+      "Draggable Buttons — Beim Map-Init werden Positionen aus UserHuntingSettings geladen (überschreibt localStorage)",
+    ],
+  },
+  {
     version: "0.9012",
     title: "Longley-Rice ITM Propagation + Draggable Buttons",
     changes: [

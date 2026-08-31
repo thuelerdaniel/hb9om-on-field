@@ -27,7 +27,7 @@ export default async function(req: any): Promise<Response> {
     const {
       lat, lng, frequency_mhz,
       tx_height_m = 10, tx_power_w = 50, tx_gain_db = 6,
-      band, max_range_km, directions = 16, step_km = 5,
+      band, max_range_km, directions = 16, step_km = 3,
       climate = 5,
     } = body;
 

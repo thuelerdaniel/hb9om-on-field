@@ -116,20 +116,10 @@ export function computeLongleyRice(params: {
   const h1 = Math.max(tx_height_m, 1);
   const h2 = Math.max(rx_height_m, 1);
 
-  // Radio horizon (km)
-  const d_h1 = 3.57 * Math.sqrt(h1);
-  const d_h2 = 3.57 * Math.sqrt(h2);
-  const d_horizon = d_h1 + d_h2;
-
   // Free space path loss
   const fspl = 32.45 + 20 * Math.log10(f_mhz) + 20 * Math.log10(Math.max(distance_km, 0.1));
 
-  if (distance_km <= d_horizon) {
-    // Line-of-sight: two-ray approximation
-    return Math.max(fspl - 6, fspl * 0.85);
-  }
-
-  // Diffraction region: find max obstruction
+  // ALWAYS check for terrain obstructions along the path (even in LOS region)
   const profile = elevation_profile || [];
   let maxObstruction = 0;
   let obstructionDistance = 0;
@@ -150,7 +140,17 @@ export function computeLongleyRice(params: {
     }
   }
 
-  // Knife-edge diffraction loss
+  // Radio horizon (km)
+  const d_h1 = 3.57 * Math.sqrt(h1);
+  const d_h2 = 3.57 * Math.sqrt(h2);
+  const d_horizon = d_h1 + d_h2;
+
+  // If LOS and NO terrain obstructions: two-ray approximation
+  if (distance_km <= d_horizon && maxObstruction <= 0) {
+    return Math.max(fspl - 6, fspl * 0.85);
+  }
+
+  // Obstructed or beyond horizon: add knife-edge diffraction loss
   let diffLoss = 0;
   if (maxObstruction > 0) {
     const d1 = obstructionDistance;

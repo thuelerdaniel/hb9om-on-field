@@ -8,16 +8,21 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9012";
+export const APP_VERSION = "0.9013";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608311113";
+export const APP_BUILD = "202608311124";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9013: ITM Coverage — Terrain-Obstruktion wird JETZT im LOS-Bereich geprüft (vorher: perfekter Kreis)",
+  "v0.9013: computeLongleyRice — maxObstruction Check VOR LOS-Check, Diffraction Loss auch bei LOS-Obstruktion",
+  "v0.9013: computeItmCoverage — step_km von 5 auf 3 reduziert (feinere Terrain-Auflösung)",
+  "v0.9013: Draggable Buttons — Position wird JETZT auch in UserHuntingSettings gespeichert (Cross-Device-Sync)",
+  "v0.9013: Draggable Buttons — Beim Map-Init werden Positionen aus UserHuntingSettings geladen (überschreibt localStorage)",
   "v0.9012: Longley-Rice ITM Propagation Model mit SRTM 30m Höhendaten + Clutter-Korrektur",
   "v0.9012: computeItmPropagation Backend-Function — ITM Path-Loss zwischen zwei Punkten (OpenTopoData API)",
   "v0.9012: computeItmCoverage Backend-Function — ITM Coverage-Polygon (16 Richtungen, 5km Schritte, Batch-Elevation)",
