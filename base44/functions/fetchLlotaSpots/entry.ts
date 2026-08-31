@@ -254,6 +254,21 @@ export default async function(req: Request): Promise<Response> {
       await safeUpdate('LLOTA Spots (Spothole)', 'API', 'https://spothole.app/api/v2/spots?sig=LLOTA', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
     } catch {}
 
+    // BUG 2: Update DailyRefreshSchedule with success status + error logging
+    try {
+      const scheduleRecords = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: 'llota_spots' });
+      if (scheduleRecords && scheduleRecords.length > 0) {
+        const warning = [llotaWarning, spotholeWarning].filter(Boolean).join('; ') || null;
+        await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleRecords[0].id, {
+          last_status: savedCount > 0 ? 'success' : (warning ? 'failed' : 'success'),
+          last_count: savedCount,
+          last_run_time: new Date().toISOString(),
+          last_error: warning || '',
+          last_error_detail: warning ? `LLOTA direct: ${llotaWarning || 'OK'}; Spothole: ${spotholeWarning || 'OK'}` : '',
+        });
+      }
+    } catch {}
+
     return Response.json({
       success: true,
       fetched: llotaSpots.length + spotholeSpots.length,
@@ -264,7 +279,21 @@ export default async function(req: Request): Promise<Response> {
       warning: [llotaWarning, spotholeWarning].filter(Boolean).join('; ') || null,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: any) {
+    // BUG 2: Update DailyRefreshSchedule with error status on failure
+    try {
+      const base44 = createClientFromRequest(req);
+      const scheduleRecords = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: 'llota_spots' });
+      if (scheduleRecords && scheduleRecords.length > 0) {
+        await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleRecords[0].id, {
+          last_status: 'failed',
+          last_count: 0,
+          last_run_time: new Date().toISOString(),
+          last_error: (error?.message || 'Unbekannter Fehler').substring(0, 200),
+          last_error_detail: error?.stack || '',
+        });
+      }
+    } catch {}
     return Response.json({ error: error.message || 'Unbekannter Fehler' }, { status: 500 });
   }
 }

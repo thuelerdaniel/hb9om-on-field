@@ -15,6 +15,7 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
   const [gmapsUrl, setGmapsUrl] = useState("");
   const [gmapsError, setGmapsError] = useState(null);
   const debounceRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const doSearch = useCallback(async (q) => {
     if (q.length < 3) {
@@ -146,11 +147,20 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
 
       {/* Import-Bereich */}
       <div className="flex items-center gap-2 flex-wrap">
-        <label className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-600">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-600"
+        >
           <FileUp className="w-3.5 h-3.5" />
           GPX
-          <input type="file" accept=".gpx,application/gpx+xml" onChange={handleGpxImport} className="hidden" />
-        </label>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".gpx,application/gpx+xml"
+          onChange={handleGpxImport}
+          style={{ display: "none" }}
+        />
 
         <div className="flex items-center gap-1 flex-1 min-w-[160px]">
           <input

@@ -8,16 +8,28 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9016";
+export const APP_VERSION = "0.9017";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608311240";
+export const APP_BUILD = "202608312205";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9017: Repeater-Coverage Cronjob — fetchRepeaters aktualisiert DailyRefreshSchedule (success/error), Timeout-Schutz",
+  "v0.9017: Repeater-Coverage Cronjob — calculateRepeaterCoverage verarbeitet nur needs_recalc/no-coverage, Batch 50/Run, 250s Time-Budget",
+  "v0.9017: Repeater-Coverage Cronjob — Neuer Schedule-Eintrag 'repeater_coverage' (07:00 UTC) im Orchestrator",
+  "v0.9017: LLOTA Live Spots — fetchLlotaSpots aktualisiert DailyRefreshSchedule mit last_error/last_error_detail bei Fehlern",
+  "v0.9017: Reference Data — getReferencesInBounds & searchReferences verwenden nur neuesten/größten Eintrag pro Typ (keine alten Duplikate)",
+  "v0.9017: Reference Data — 5 alte duplikate ReferenceData-Einträge gelöscht (castle/sota/wwbota/hbff/lighthouse)",
+  "v0.9017: WWFF Sync — upsertPoints mit 120s Time-Budget verhindert Platform-Timeout bei 65k Einträgen",
+  "v0.9017: Clubstation Filter — Logbuch filtert explizit is_clubstation===true (Club) / !is_clubstation (Persönlich)",
+  "v0.9017: fetchQrzClubLog — STATION_CALLSIGN=HB9OM Parameter verhindert Abruf von HB3YNF QSOs",
+  "v0.9017: Log Daten — normalizeLogData Backend-Function: Bänder zu lowercase, club_operator_callsign Korrektur, Duplikat-Erkennung",
+  "v0.9017: Dark Mode Logbuch — dunkler Hintergrund (#1a1a1a), heller Text (#e0e0e0), Tabellen-Header (#2a2a2a), blaue Akzentfarbe",
+  "v0.9017: GPX Import — File-Input über Button+Ref (klickbar auf Mobile), display:none statt hidden class",
   "v0.9016: Mobil-Modul — Karte springt nicht mehr bei manueller Interaktion (Auto-Center pausiert 5s nach Drag/Zoom)",
   "v0.9016: Mobil-Modul — GPS Auto-Center verwendet panTo mit Animation statt fitBounds Sprung",
   "v0.9016: Mobil-Modul — Throttled GPS-Updates (max 1x/3s, >10m Bewegung) verhindern ständiges Nachzentrieren",

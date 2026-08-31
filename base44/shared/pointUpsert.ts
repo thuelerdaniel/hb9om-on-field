@@ -45,8 +45,12 @@ export async function upsertPoints(
     batches.push(points.slice(i, i + BATCH_SIZE));
   }
 
+  // BUG 4: Time budget — stop creating after 110s to leave buffer for deletion + metadata
+  const UPSERT_TIME_BUDGET_MS = 110000;
+  const upsertStartTime = Date.now();
   // Process batches in parallel groups of PARALLEL_BATCHES
   for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
+    if (Date.now() - upsertStartTime > UPSERT_TIME_BUDGET_MS) break;
     const group = batches.slice(i, i + PARALLEL_BATCHES);
     const results = await Promise.allSettled(
       group.map(batch => entity.bulkCreate(batch))

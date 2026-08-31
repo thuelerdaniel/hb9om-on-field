@@ -163,8 +163,38 @@ export default async function(req: Request): Promise<Response> {
       });
     } catch {}
 
+    // BUG 1/4: Update DailyRefreshSchedule with success status
+    try {
+      const scheduleRecords = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source });
+      if (scheduleRecords && scheduleRecords.length > 0) {
+        await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleRecords[0].id, {
+          last_status: 'success',
+          last_count: savedCount,
+          last_run_time: now,
+          last_duration_ms: duration_ms,
+          last_error: '',
+          last_error_detail: '',
+        });
+      }
+    } catch {}
+
     return Response.json(result);
   } catch (error: any) {
+    // BUG 1/4: Update DailyRefreshSchedule with error status
+    try {
+      const base44 = createClientFromRequest(req);
+      const src = body?.source || 'unknown';
+      const scheduleRecords = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: src });
+      if (scheduleRecords && scheduleRecords.length > 0) {
+        await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleRecords[0].id, {
+          last_status: 'failed',
+          last_count: 0,
+          last_run_time: new Date().toISOString(),
+          last_error: (error.message || String(error)).substring(0, 200),
+          last_error_detail: error.stack || '',
+        });
+      }
+    } catch {}
     // Detailed error response for admins — not just the error number
     return Response.json({ 
       status: 'failed',

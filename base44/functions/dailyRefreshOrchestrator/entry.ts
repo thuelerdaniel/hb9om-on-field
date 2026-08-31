@@ -34,6 +34,8 @@ const SOURCES = [
   { source: 'llota_spots', label: 'LLOTA Spots', function_name: 'fetchLlotaSpots', function_payload: { scheduled: true }, order: 14 },
   { source: 'fm_funknetz', label: 'FM-Funknetz TGs', function_name: 'fetchFmFunknetz', function_payload: { scheduled: true }, order: 11 },
   { source: 'ch_repeater_links', label: 'CH-Relais-Links', function_name: 'fetchCHRepeaterLinks', function_payload: { scheduled: true }, order: 12 },
+  // BUG 1: Separate schedule for repeater coverage calculation (ITM terrain-based)
+  { source: 'repeater_coverage', label: 'Repeater Abdeckung', function_name: 'calculateRepeaterCoverage', function_payload: { scheduled: true, batch_limit: 50 }, order: 95 },
 ];
 
 // Staggered sync schedule — sources grouped by type, 1x daily 03:00–07:00 UTC.
@@ -58,6 +60,7 @@ const SOURCE_GROUP_TIMES: Record<string, string> = {
   llota_spots: '06:30',
   fm_funknetz: '06:30',
   ch_repeater_links: '06:30',
+  repeater_coverage: '07:00',
 };
 
 // Track per-group slot counters so sub-sources within a group get sequential times

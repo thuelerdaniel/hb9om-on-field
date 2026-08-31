@@ -140,32 +140,42 @@ export default async function(req: any): Promise<Response> {
     }
 
     // --- Batch mode (admin or cron) ---
-    // Worldwide coverage: process repeaters that haven't been calculated yet (oldest/null first).
-    // This ensures all repeaters get coverage within ~1 year of daily cron runs.
-    // A specific country can be requested via country_code; 'all' or omitting it processes worldwide.
+    // BUG 1: Process only repeaters with needs_recalc=true OR without coverage_polygon.
+    // Batch of 50 per run with a 250s time budget to stay within the 300s platform timeout.
     const scope = countryCode || 'all';
-    // Filter for repeaters WITH coordinates — those without can't be coverage-calculated.
-    // Sort by coverage_updated ASCENDING — null/oldest first, so uncalculated repeaters
-    // are prioritized. This ensures the cron job progresses through all repeaters over time.
-    const filter = scope === 'all'
-      ? { lat: { $ne: null } }
-      : { country_code: scope, lat: { $ne: null } };
-    const repeaters = await base44.asServiceRole.entities.Repeater.filter(filter, 'coverage_updated', 500);
+    // Priority 1: repeaters with needs_recalc=true
+    const filterRecalc = scope === 'all'
+      ? { lat: { $ne: null }, needs_recalc: true }
+      : { country_code: scope, lat: { $ne: null }, needs_recalc: true };
+    let repeaters = await base44.asServiceRole.entities.Repeater.filter(filterRecalc, 'coverage_updated', 500);
+
+    // Priority 2: if not enough needs_recalc, also fetch those without coverage_polygon
+    if (repeaters.length < 50) {
+      const filterNoCov = scope === 'all'
+        ? { lat: { $ne: null }, coverage_polygon: null }
+        : { country_code: scope, lat: { $ne: null }, coverage_polygon: null };
+      const noCovRepeaters = await base44.asServiceRole.entities.Repeater.filter(filterNoCov, 'coverage_updated', 500 - repeaters.length);
+      // Merge and deduplicate by id
+      const seenIds = new Set(repeaters.map((r: any) => r.id));
+      for (const r of noCovRepeaters) {
+        if (!seenIds.has(r.id)) { repeaters.push(r); seenIds.add(r.id); }
+      }
+    }
 
     let calculated = 0, errors = 0, skipped = 0;
     const errorDetails: string[] = [];
     const startTime = Date.now();
-    // Batch limit per run — keeps within function timeout (300s).
-    // Each repeater with 72 radials × dynamic range takes ~60-150s (elevation API calls).
-    // 3 repeaters per run × ~80s = ~240s, within the 300s timeout.
-    // Over 365 daily runs = ~1,095 repeaters/year — enough to progress through all.
-    const BATCH_LIMIT = body?.batch_limit || 3;
+    // BUG 1: Batch limit 50 per run, with 250s time budget (leaves 50s buffer for API overhead)
+    const BATCH_LIMIT = body?.batch_limit || 50;
+    const TIME_BUDGET_MS = 250000; // 250 seconds
     const delayMs = body?.delay_ms || 500;
     // Use fewer radials in batch mode for speed (36 instead of 72)
     const batchRadials = body?.radials || 36;
 
     for (const r of repeaters) {
       if (calculated >= BATCH_LIMIT) break;
+      // BUG 1: Time budget check — stop if approaching platform timeout
+      if (Date.now() - startTime > TIME_BUDGET_MS) break;
       if (r.lat == null || r.lng == null) { skipped++; continue; }
       // Skip if already has terrain_los coverage newer than 168h (7 days) unless forced.
       // This prevents recalculating the same repeaters every run.

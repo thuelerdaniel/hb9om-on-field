@@ -174,6 +174,8 @@ export default function Log() {
     let result = filterSource === "club" ? [...clubEntries] : [...entries];
     if (filterType !== "all") result = result.filter(e => e.my_reference_type === filterType);
     if (filterStatus !== "all") result = result.filter(e => e.status === filterStatus);
+    // BUG 5: Explicit club/personal filtering — club filters is_clubstation===true, personal filters !is_clubstation
+    if (filterSource === "club") result = result.filter(e => e.is_clubstation === true);
     if (filterSource === "personal") result = result.filter(e => !e.is_clubstation);
     if (filterDateFrom) result = result.filter(e => (e.qso_date || "") >= filterDateFrom);
     if (filterDateTo) result = result.filter(e => (e.qso_date || "") <= filterDateTo);

@@ -303,6 +303,75 @@
   background-color: #000511 !important;
 }
 
+/* BUG 7: Dark Mode Logbuch Lesbarkeit — v0.9017 */
+.dark .bg-gray-50 {
+  background-color: #1a1a1a !important;
+}
+.dark .bg-white {
+  background-color: #1a1a1a !important;
+}
+.dark .text-gray-900 {
+  color: #e0e0e0 !important;
+}
+.dark .text-gray-700 {
+  color: #c0c0c0 !important;
+}
+.dark .text-gray-500 {
+  color: #999999 !important;
+}
+.dark .text-gray-400 {
+  color: #888888 !important;
+}
+.dark .border-gray-200 {
+  border-color: #333333 !important;
+}
+.dark .border-gray-100 {
+  border-color: #2a2a2a !important;
+}
+.dark .hover\:bg-gray-100:hover {
+  background-color: #2a2a2a !important;
+}
+.dark .hover\:bg-gray-50:hover {
+  background-color: #2a2a2a !important;
+}
+/* Dark mode inputs — date, select, search fields */
+.dark input[type="date"] {
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
+  border-color: #444444 !important;
+  color-scheme: dark;
+}
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+.dark select {
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
+  border-color: #444444 !important;
+}
+.dark option {
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
+}
+/* Dark mode callsigns/links — hellblau */
+.dark .font-mono.text-gray-900 {
+  color: #7dd3fc !important;
+}
+.dark a {
+  color: #7dd3fc !important;
+}
+/* Dark mode selected row — blaue Akzentfarbe */
+.dark .ring-blue-500 {
+  --tw-ring-color: #3b82f6 !important;
+}
+.dark .border-blue-400 {
+  border-color: #3b82f6 !important;
+}
+/* Dark mode table header */
+.dark .bg-gray-100 {
+  background-color: #2a2a2a !important;
+}
+
 /* Fix 2: Spot-Bemerkungen komplett lesbar — kein Abschneiden */
 .spot-comments {
   font-size: 8px;

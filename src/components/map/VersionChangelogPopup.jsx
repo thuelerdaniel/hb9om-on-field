@@ -7,6 +7,24 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9017",
+    title: "8 Bugfixes — Cronjobs, Filter, Dark Mode, GPX-Import",
+    changes: [
+      "Repeater-Coverage Cronjob — fetchRepeaters aktualisiert DailyRefreshSchedule mit success/error Status, Timeout-Schutz",
+      "Repeater-Coverage Cronjob — calculateRepeaterCoverage verarbeitet nur needs_recalc/no-coverage Repeater, Batch 50/Run mit 250s Time-Budget",
+      "Repeater-Coverage Cronjob — Neuer Schedule-Eintrag 'Repeater Abdeckung' (07:00 UTC) im Tages-Orchestrator",
+      "LLOTA Live Spots — fetchLlotaSpots schreibt last_error und last_error_detail in DailyRefreshSchedule bei Fehlern",
+      "Reference Data — getReferencesInBounds & searchReferences laden nur den neuesten/größten Eintrag pro Typ (keine alten Duplikate mehr)",
+      "Reference Data — 5 alte duplikate ReferenceData-Einträge gelöscht (castle 938, sota 1341, wwbota 3803, hbff 681, lighthouse 6)",
+      "WWFF Sync — upsertPoints mit 120s Time-Budget verhindert Platform-Timeout bei 65.815 Einträgen",
+      "Clubstation Filter — Logbuch filtert explizit is_clubstation===true (Clubstation) bzw. !is_clubstation (Persönlich)",
+      "fetchQrzClubLog — STATION_CALLSIGN=HB9OM Parameter im QRZ-API-Call verhindert Abruf von HB3YNF QSOs",
+      "Log Daten — neue normalizeLogData Backend-Function: Bänder zu lowercase, club_operator_callsign Korrektur, Duplikat-Erkennung",
+      "Dark Mode Logbuch — dunkler Hintergrund (#1a1a1a), heller Text (#e0e0e0), Tabellen-Header (#2a2a2a), blaue Akzentfarbe, hellblaue Callsigns",
+      "GPX Import — File-Input über Button+Ref löst klickbares Problem auf Mobile (display:none statt Tailwind hidden class)",
+    ],
+  },
+  {
     version: "0.9016",
     title: "Mobil-Modul: Map Jumping, dBm Flicker, Marker Size",
     changes: [

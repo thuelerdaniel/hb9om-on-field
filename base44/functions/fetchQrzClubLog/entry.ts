@@ -39,6 +39,8 @@ export default async function(req: Request): Promise<Response> {
     const params = new URLSearchParams();
     params.append('KEY', apiKey);
     params.append('ACTION', 'FETCH');
+    // BUG 5: Explicitly request HB9OM (club call) QSOs — prevents fetching personal HB3YNF QSOs
+    params.append('STATION_CALLSIGN', 'HB9OM');
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);

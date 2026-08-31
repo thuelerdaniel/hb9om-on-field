@@ -154,11 +154,18 @@ const POINT_TYPES: Record<string, { entity: 'SotaPoint' | 'PotaPoint' | 'WwffPoi
 async function loadReferenceData(base44, type: string): Promise<any[]> {
   const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
   if (!records || records.length === 0) return [];
-  let refs: any[] = [];
+  // BUG 3: Pick only the newest/largest record per type — prevents old duplicates from being loaded
+  let best = records[0];
   for (const rec of records) {
-    if (Array.isArray(rec.references)) refs = refs.concat(rec.references);
+    const bestCount = best.total_count || 0;
+    const recCount = rec.total_count || 0;
+    const bestTime = best.last_updated ? new Date(best.last_updated).getTime() : 0;
+    const recTime = rec.last_updated ? new Date(rec.last_updated).getTime() : 0;
+    if (recCount > bestCount || (recCount === bestCount && recTime > bestTime)) {
+      best = rec;
+    }
   }
-  return refs;
+  return Array.isArray(best.references) ? best.references : [];
 }
 
 async function loadType(base44, type: string, bounds?: { north: number; south: number; east: number; west: number }): Promise<any[]> {

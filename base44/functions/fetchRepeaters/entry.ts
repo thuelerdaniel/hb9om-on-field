@@ -489,6 +489,22 @@ export default async function(req) {
       }
     } catch {}
 
+    // BUG 1: Update DailyRefreshSchedule with success status
+    try {
+      const scheduleSource = `repeater_${region}`;
+      const scheduleRecords = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: scheduleSource });
+      if (scheduleRecords && scheduleRecords.length > 0) {
+        await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleRecords[0].id, {
+          last_status: 'success',
+          last_count: totalSaved,
+          last_run_time: new Date().toISOString(),
+          last_duration_ms: Date.now() - startTime,
+          last_error: '',
+          last_error_detail: '',
+        });
+      }
+    } catch {}
+
     return Response.json({
       status: 'success',
       region,
@@ -505,6 +521,21 @@ export default async function(req) {
   } catch (error: any) {
     const errMsg = `Schwerwiegender Fehler beim Relais-Update (Schritt: ${currentStep}): ${error.message || error}`;
     if (base44) {
+      // BUG 1: Update DailyRefreshSchedule with error status
+      try {
+        const scheduleSource = `repeater_${body?.region || 'all'}`;
+        const scheduleRecords = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: scheduleSource });
+        if (scheduleRecords && scheduleRecords.length > 0) {
+          await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleRecords[0].id, {
+            last_status: 'failed',
+            last_count: 0,
+            last_run_time: new Date().toISOString(),
+            last_duration_ms: Date.now() - startTime,
+            last_error: errMsg.substring(0, 200),
+            last_error_detail: error.stack || '',
+          });
+        }
+      } catch {}
       try {
         await base44.asServiceRole.entities.SyncLog.create({
           timestamp: new Date().toISOString(),

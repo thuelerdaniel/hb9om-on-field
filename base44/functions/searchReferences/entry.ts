@@ -182,15 +182,25 @@ async function searchReferenceDataType(base44: any, type: string, q: string, cen
     const records = await base44.asServiceRole.entities.ReferenceData.filter({ type });
     if (!records || records.length === 0) return [];
 
-    const matches: any[] = [];
+    // BUG 3: Pick only the newest/largest record per type — prevents old duplicates from being loaded
+    let best = records[0];
     for (const rec of records) {
-      if (Array.isArray(rec.references)) {
-        for (const ref of rec.references) {
-          const code = (ref.code || ref.reference || '').toLowerCase();
-          const name = (ref.name || '').toLowerCase();
-          if (code.includes(q) || name.includes(q)) {
-            matches.push({ ...ref, code: ref.code || ref.reference, reference: ref.reference || ref.code });
-          }
+      const bestCount = best.total_count || 0;
+      const recCount = rec.total_count || 0;
+      const bestTime = best.last_updated ? new Date(best.last_updated).getTime() : 0;
+      const recTime = rec.last_updated ? new Date(rec.last_updated).getTime() : 0;
+      if (recCount > bestCount || (recCount === bestCount && recTime > bestTime)) {
+        best = rec;
+      }
+    }
+
+    const matches: any[] = [];
+    if (Array.isArray(best.references)) {
+      for (const ref of best.references) {
+        const code = (ref.code || ref.reference || '').toLowerCase();
+        const name = (ref.name || '').toLowerCase();
+        if (code.includes(q) || name.includes(q)) {
+          matches.push({ ...ref, code: ref.code || ref.reference, reference: ref.reference || ref.code });
         }
       }
     }
