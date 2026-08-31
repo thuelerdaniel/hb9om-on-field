@@ -214,6 +214,16 @@
       "type": "string",
       "format": "date-time",
       "description": "Wann QSO von Wavelog importiert wurde"
+    },
+    "clublog_synced": {
+      "type": "boolean",
+      "default": false,
+      "description": "QSO an ClubLog (clublog.org) gesendet"
+    },
+    "clublog_sync_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wann QSO an ClubLog gesendet wurde"
     }
   },
   "required": [
@@ -227,7 +237,14 @@
       "created_by_id": "{{user.id}}"
     },
     "read": {
-      "created_by_id": "{{user.id}}"
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.is_clubstation": true
+        }
+      ]
     },
     "update": {
       "created_by_id": "{{user.id}}"
