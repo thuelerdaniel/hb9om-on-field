@@ -7,6 +7,24 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9007",
+    title: "Mobil-Tab Komplett-Neuimplementierung",
+    changes: [
+      "Start-Modus: 'Start' Button versteckt alle Konfiguration, zeigt nur Header + Karte + Repeater",
+      "Equipment-Typ Auswahl: Mobil (Auto, 50W) oder Portable (Handheld, 5W) statt festem Slider",
+      "Dynamische Reichweitenberechnung: 2m Mobil 80km, 70cm 50km, 10m 150km / Portable entsprechend weniger",
+      "Empfohlener Repeater = nächster erreichbarer Repeater (Distanz <= Reichweite UND Modus passt)",
+      "Fallback: nächstgelegener Repeater mit 'außerhalb Reichweite' Warnung falls keiner erreichbar",
+      "Repeater-Abdeckung Toggle: Kreis um empfohlenen Repeater (Radius = berechnete Reichweite)",
+      "Eigene Reichweite Toggle: Polygon von calculateUserCoverage, Auto-Update alle 60s mit Countdown",
+      "resolveGoogleMapsLink Backend-Function: löst Short-Links (maps.app.goo.gl) serverseitig auf",
+      "Einklappbare Modulations-Filter (Chevron-Pfeil) — FM, DMR, D-STAR, C4FM, System Fusion",
+      "Aktiver Repeater Panel: Callsign/Frequenz groß, Offset/Tone/Mode/Band, Distanz+Richtung",
+      "Repeater-Liste: scrollbar, Tippen zeigt Marker-Popup auf Karte",
+      "Wake Lock aktiv solange Mobil-Tab offen, GPS watchPosition mit High-Accuracy",
+    ],
+  },
+  {
     version: "0.9006",
     title: "Unteres Menüband — Button-Abstand reduziert",
     changes: [

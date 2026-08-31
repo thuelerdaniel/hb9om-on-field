@@ -8,16 +8,25 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9006";
+export const APP_VERSION = "0.9007";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608310848";
+export const APP_BUILD = "202608310858";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9007: Mobil-Tab KOMPLETT neu implementiert — Start-Modus, Equipment-Typ, Coverage-Toggles, Backend-Function",
+  "v0.9007: Start-Modus: Versteckt alle Konfiguration, zeigt nur Header (Stop+Toggles) + Karte (60%) + Repeater-Panel + Liste",
+  "v0.9007: Equipment-Typ (Mobil 50W / Portable 5W) statt Slider — dynamische Reichweitenberechnung pro Band",
+  "v0.9007: Repeater-Abdeckung Toggle — Kreis um empfohlenen Repeater (Radius = berechnete Reichweite)",
+  "v0.9007: Eigene Reichweite Toggle — Polygon von calculateUserCoverage, Auto-Update alle 60s mit Countdown",
+  "v0.9007: resolveGoogleMapsLink Backend-Function — löst Short-Links (maps.app.goo.gl) serverseitig auf",
+  "v0.9007: Einklappbare Modulations-Filter (Chevron) — FM, DMR, D-STAR, C4FM, etc.",
+  "v0.9007: Aktiver Repeater Panel prominent — Callsign/Frequenz groß, 'außerhalb Reichweite' Warnung bei Fallback",
+  "v0.9007: Wake Lock aktiv solange Mobil-Tab offen (useMobilGps Hook)",
   "v0.9006: Unteres Menüband — Button-Abstand reduziert, alle Menüpunkte passen auf einen Screen (auch Admin)",
   "v0.9006: Unteres Menüband — flex-1 gleichbreite Buttons, min. 44px Touch-Target, horizontaler Scroll als Fallback",
   "v0.9005: Mobil-Tab — Routing & Live-Repeater-Modul (neuer Menüpunkt im unteren Menüband)",

@@ -115,7 +115,7 @@ export async function generateTrifoldFlyer(options = {}) {
   // Version footer
   doc.setTextColor(150, 150, 150);
   doc.setFontSize(6);
-  doc.text("v0.9006 · Made in Switzerland", PW / 2, H - 8, { align: "center" });
+  doc.text("v0.9007 · Made in Switzerland", PW / 2, H - 8, { align: "center" });
 
   drawFoldLine(PW);
 
@@ -439,7 +439,7 @@ export async function generateTrifoldFlyer(options = {}) {
   doc.setTextColor(180, 180, 180);
   doc.setFontSize(6);
   doc.setFont("helvetica", "normal");
-  doc.text("HB9OM On Field · v0.9006", rx2 + PW / 2, H - 4, { align: "center" });
+  doc.text("HB9OM On Field · v0.9007", rx2 + PW / 2, H - 4, { align: "center" });
 
   if (returnBlob) {
     return doc.output("blob");

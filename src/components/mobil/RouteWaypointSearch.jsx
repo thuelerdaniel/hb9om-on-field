@@ -67,16 +67,42 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
     e.target.value = "";
   };
 
-  const handleGmapsImport = () => {
+  const [gmapsLoading, setGmapsLoading] = useState(false);
+
+  const handleGmapsImport = async () => {
     setGmapsError(null);
     if (!gmapsUrl.trim()) return;
-    const wps = parseGoogleMapsUrl(gmapsUrl.trim());
-    if (wps.length > 0) {
-      onAddMultipleWaypoints(wps);
-      setGmapsUrl("");
-    } else {
-      setGmapsError("Keine Koordinaten in URL gefunden");
+    setGmapsLoading(true);
+    try {
+      // Try frontend parser first (for direct URLs with coordinates)
+      const wps = parseGoogleMapsUrl(gmapsUrl.trim());
+      if (wps.length > 0) {
+        onAddMultipleWaypoints(wps);
+        setGmapsUrl("");
+        return;
+      }
+      // Fallback: call resolveGoogleMapsLink backend function (for short links)
+      const res = await base44.functions.invoke("resolveGoogleMapsLink", { url: gmapsUrl.trim() });
+      const data = res?.data;
+      if (data?.success && data.waypoints?.length > 0) {
+        onAddMultipleWaypoints(
+          data.waypoints.map((wp) => ({
+            lat: wp.lat,
+            lon: wp.lng,
+            name: wp.name || `${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}`,
+            order: 0,
+          }))
+        );
+        setGmapsUrl("");
+      } else {
+        setGmapsError(data?.error || "Keine Koordinaten gefunden");
+        setTimeout(() => setGmapsError(null), 5000);
+      }
+    } catch (err) {
+      setGmapsError("Google Maps Link konnte nicht aufgelöst werden");
       setTimeout(() => setGmapsError(null), 5000);
+    } finally {
+      setGmapsLoading(false);
     }
   };
 
