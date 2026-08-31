@@ -10,7 +10,7 @@
 // Auto-Zoom: Button unten-rechts auf der Karte. fitBounds(GPS + aktiver Repeater + Route).
 // Blinken: aktiver Repeater-Marker blinkt (fillOpacity toggle alle 500ms), rot umrandet.
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -21,7 +21,6 @@ import {
   Popup,
   useMap,
 } from "react-leaflet";
-import { Crosshair } from "lucide-react";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { calculateRange } from "@/lib/equipmentRange";
 
@@ -62,7 +61,6 @@ export default function MobilMapView({
   const [mapInstance, setMapInstance] = useState(null);
   const [autoZoom, setAutoZoom] = useState(false);
   const [blinkVisible, setBlinkVisible] = useState(true);
-  const autoZoomTrigger = useRef(0);
 
   // Blink animation for active repeater
   useEffect(() => {
@@ -299,26 +297,36 @@ export default function MobilMapView({
         })}
       </MapContainer>
 
-      {/* Auto-Zoom Button — unten-rechts auf der Karte, 48x48px, halbtransparent */}
+      {/* Auto-Zoom Button — unten-rechts auf der Karte, 56x56px, weiß mit blauem Border */}
       <button
-        onClick={() => {
-          if (autoZoom) {
-            setAutoZoom(false);
-          } else {
-            setAutoZoom(true);
-            // Immediate zoom
-            autoZoomTrigger.current++;
-          }
+        onClick={() => setAutoZoom((v) => !v)}
+        className="absolute z-[1000] flex items-center justify-center rounded-full transition-colors"
+        style={{
+          bottom: 80,
+          right: 16,
+          width: 56,
+          height: 56,
+          backgroundColor: autoZoom ? "#3b82f6" : "#ffffff",
+          border: "2px solid #3b82f6",
+          boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
         }}
-        className={`absolute bottom-3 right-3 z-[1000] flex items-center justify-center rounded-full shadow-lg transition-colors ${
-          autoZoom
-            ? "bg-blue-500 text-white"
-            : "bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700"
-        }`}
-        style={{ width: 48, height: 48 }}
         title="Auto-Zoom: GPS + Repeater"
       >
-        <Crosshair className="w-5 h-5" />
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={autoZoom ? "#ffffff" : "#3b82f6"}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <line x1="12" y1="2" x2="12" y2="6" />
+          <line x1="12" y1="18" x2="12" y2="22" />
+          <line x1="2" y1="12" x2="6" y2="12" />
+          <line x1="18" y1="12" x2="22" y2="12" />
+        </svg>
       </button>
     </div>
   );

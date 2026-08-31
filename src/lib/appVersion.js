@@ -8,16 +8,18 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9010";
+export const APP_VERSION = "0.9011";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608311027";
+export const APP_BUILD = "202608311056";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9011: Auto-Zoom Button vergrößert (56x56px, weiß mit blauem Border, unten-rechts 80px/16px)",
+  "v0.9011: Leaflet Attribution kompakter (font 8px, max-width 140px, ganz unten-rechts)",
   "v0.9010: High-Badge Schwelle auf 1500m ü.M. erhöht (vorher 1000m)",
   "v0.9010: Stop + Coverage-Toggle Buttons vergrößert (min 44x44px Touch-Ziel, px-3/py-2)",
   "v0.9010: Auto-Zoom Button auf Karte (unten-rechts) — fitBounds(GPS + Repeater + Route), Toggle-Modus",

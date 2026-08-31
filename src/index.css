@@ -92,12 +92,23 @@
 /* Static red header for viewport limit hint (no blinking — keeps text readable) */
 
 .leaflet-control-attribution {
-  margin-bottom: calc(36px + env(safe-area-inset-bottom)) !important;
+  margin-bottom: 0 !important;
   border-radius: 4px 0 0 0 !important;
-  background: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(4px);
-  font-size: 10px !important;
-  padding: 2px 6px !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(2px);
+  font-size: 8px !important;
+  padding: 1px 4px !important;
+  max-width: 140px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+@media (max-height: 600px) {
+  .leaflet-control-attribution {
+    font-size: 7px !important;
+    max-width: 100px !important;
+  }
 }
 
 @layer base {

@@ -7,6 +7,15 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9011",
+    title: "Mobil-Tab — Auto-Zoom Button & Leaflet Attribution",
+    changes: [
+      "Auto-Zoom Button vergrößert (56x56px) — weiß mit blauem Border, deutliches Crosshair-Icon",
+      "Auto-Zoom Position: unten-rechts 80px/16px (nicht vom Copyright verdeckt)",
+      "Leaflet Attribution kompakter — font 8px, max-width 140px, ganz unten-rechts",
+    ],
+  },
+  {
     version: "0.9010",
     title: "Mobil-Tab — High-Schwelle, Touch-Ziele, Auto-Zoom, Offset-Fix, Blinken",
     changes: [
