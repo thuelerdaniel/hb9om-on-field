@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { upsertPoints } from '../../shared/pointUpsert.ts';
+import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 
 // LV95 (Swiss Grid 1995) → WGS84 conversion
 // Formula from swisstopo (Federal Office of Topography)
@@ -312,8 +312,9 @@ export default async function (req) {
     }
 
     // Fix 12: Fetch worldwide data from wwtota.com and SAVE to TotaPoint entity.
-    // Uses upsertPoints (create new first, then delete old) — more reliable than upsertPointsByCode
-    // which loads all existing records first and can timeout/fail silently.
+    // Uses upsertPointsByCode (update if code exists, insert if new) — prevents duplicates
+    // even if the function times out. The old upsertPoints (create-all-then-delete-old)
+    // caused duplicates when the delete phase timed out.
     if (action === 'fetchWorldwide' || action === 'refresh') {
       try {
         const worldwide = await fetchWorldwideTota();
@@ -325,11 +326,10 @@ export default async function (req) {
           for (const w of worldwide) {
             w.last_synced = syncDate;
           }
-          // Use upsertPoints: creates all new records FIRST, then deletes old ones.
-          // This is safer than upsertPointsByCode which loads all existing records
-          // (can timeout on large datasets) and may fail silently.
-          const result = await upsertPoints(base44, 'TotaPoint', 'tota', worldwide, 'wwtota.com');
-          worldwideImported = result.created;
+          // Use upsertPointsByCode: updates existing records by code, creates only new ones.
+          // No duplicates can accumulate even on timeout — no delete phase needed.
+          const result = await upsertPointsByCode(base44, 'TotaPoint', 'tota', worldwide, 'wwtota.com');
+          worldwideImported = result.created + result.updated;
           if (result.error) {
             errors.push('Worldwide save: ' + result.error);
           }

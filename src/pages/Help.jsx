@@ -931,6 +931,10 @@ const ADMIN_SECTIONS = [
     description: "Alle Versionen seit v0.8 mit Änderungen — das Versions-Popup zeigt nur die neuesten Versionen.",
     items: [
       {
+        title: "v0.9015 — Datenkonsistenz: Castle, TotaPoint, POTA",
+        body: "Castle-Layer: 43 Schweizer WCA-Schlösser (HB-XXXXX) mit OSM-Daten gemergt — Schweizer Schlösser wieder sichtbar. TotaPoint: 5277 Duplikate entfernt (Sync lief zweimal). deduplicateTotaPoints Backend-Function für zukünftige Bereinigung. POTA ReferenceData total_count korrigiert (war 0, jetzt 89650). fetchTota verwendet upsertPointsByCode (keine Duplikate mehr bei Timeout).",
+      },
+      {
         title: "v0.9003 — Hunting-Fixes",
         body: "Spot-Konsolidierung (Call+Frequenz = ein Eintrag mit Nx Badge), mobile Tabelle ohne horizontales Scrollen (6 Spalten), DX Opportunity klickbar (scrollt zum Spot mit Highlight), QSO loggen aus Spot-Detail (grün, QRZ-Vorausfüllung), Priority DX konsolidiert (max 5 unique), Hear-Score differenziert (Distanz/Alter/Confidence/Band), SOTA API mit CORS-Proxy, DX-Backend löscht alle Spots vor Neuladen, Fox-Modus QSO-Button verschiebbar.",
       },
