@@ -1,11 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
-// syncClubLog — v0.9003 Problem 4
+// syncClubLog — v0.9003
 // Uploads PRIVATE QSOs (is_clubstation: false) to ClubLog (clublog.org).
-// ClubLog API: POST https://clublog.org/cfm.php with params: call, api, adif.
-// ClubLog API key from UserHuntingSettings (per-user) or AppSetting (shared fallback).
+// Uses service-role to load QSOs (bypasses RLS for multi-user access).
+// ClubLog API: POST https://clublog.org/cfm.php with call=HB3YNF, api=USER_CLUBLOG_KEY, adif=ADIF_DATA
 // After upload: sets clublog_synced=true and clublog_sync_date.
-// NEVER uploads club QSOs — only private QSOs go to ClubLog.
+// NEVER uploads club QSOs — only private QSOs (is_clubstation: false).
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -14,48 +14,32 @@ export default async function(req: Request): Promise<Response> {
 
     // 1. Read ClubLog API key — per-user from UserHuntingSettings, fallback to AppSetting
     let clublogApiKey = '';
-    let privateCallsign = '';
-
     const userSettings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
     if (userSettings && userSettings.length > 0) {
       clublogApiKey = (userSettings[0] as any).clublog_api_key || '';
     }
-
     if (!clublogApiKey) {
       const appSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'clublog_api_key' });
       if (appSettings && appSettings.length > 0) {
         clublogApiKey = appSettings[0].value || '';
       }
     }
-
     if (!clublogApiKey) {
-      return Response.json({ error: 'Kein ClubLog API-Key konfiguriert (UserHuntingSettings oder AppSetting)' }, { status: 400 });
+      return Response.json({ error: 'Kein ClubLog API-Key konfiguriert (UserHuntingSettings.clublog_api_key oder AppSetting clublog_api_key)' }, { status: 400 });
     }
 
-    // 2. Get private callsign from station_info AppSetting
-    const stationInfoSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'station_info' });
-    if (stationInfoSettings && stationInfoSettings.length > 0) {
-      try {
-        const stationInfo = JSON.parse(stationInfoSettings[0].value || '{}');
-        privateCallsign = stationInfo.private_callsign || stationInfo.callsign || '';
-      } catch {}
-    }
-    if (!privateCallsign && userSettings && userSettings.length > 0) {
-      privateCallsign = (userSettings[0] as any).callsign || (user as any).full_name || '';
-    }
+    // 2. Private callsign — fixed HB3YNF per spec
+    const privateCallsign = 'HB3YNF';
 
-    if (!privateCallsign) {
-      return Response.json({ error: 'Kein privates Rufzeichen konfiguriert (station_info.private_callsign)' }, { status: 400 });
-    }
-
-    // 3. Get private QSOs not yet synced to ClubLog — ONLY is_clubstation: false
-    const privateQsos = await base44.entities.Log.filter(
-      { is_clubstation: false, clublog_synced: false, status: 'active' },
+    // 3. Load private QSOs via service-role — ONLY is_clubstation: false, not yet synced
+    const sr = base44.asServiceRole;
+    const privateQsos = await sr.entities.Log.filter(
+      { is_clubstation: false, clublog_synced: { $ne: true }, status: 'active' },
       '-qso_date', 500
     );
 
     if (!privateQsos || privateQsos.length === 0) {
-      return Response.json({ status: 'success', uploaded: 0, message: 'Keine neuen QSOs für ClubLog' });
+      return Response.json({ success: true, uploaded: 0, message: 'Keine neuen QSOs für ClubLog' });
     }
 
     // 4. Convert QSOs to ADIF string
@@ -86,7 +70,6 @@ export default async function(req: Request): Promise<Response> {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
-
     const response = await fetch('https://clublog.org/cfm.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -98,12 +81,12 @@ export default async function(req: Request): Promise<Response> {
     const resultText = await response.text();
 
     if (response.ok && !resultText.toLowerCase().includes('error')) {
-      // 6. Mark QSOs as synced
+      // 6. Mark QSOs as synced via service-role
       const now = new Date().toISOString();
       let syncedCount = 0;
       for (const qso of privateQsos) {
         try {
-          await base44.entities.Log.update(qso.id, {
+          await sr.entities.Log.update(qso.id, {
             clublog_synced: true,
             clublog_sync_date: now,
           });
@@ -112,13 +95,13 @@ export default async function(req: Request): Promise<Response> {
       }
 
       return Response.json({
-        status: 'success',
+        success: true,
         uploaded: syncedCount,
         message: `${syncedCount} QSOs an ClubLog (${privateCallsign}) gesendet`,
       });
     } else {
       return Response.json({
-        status: 'error',
+        success: false,
         error: `ClubLog: ${resultText.substring(0, 200)}`,
       });
     }

@@ -10,7 +10,41 @@ export default async function(req: Request): Promise<Response> {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Nicht angemeldet' }, { status: 401 });
 
-    const { adif_data, target } = await req.json();
+    const body = await req.json();
+    let { adif_data, target } = body;
+
+    // v0.9003: Backend-Filter — when target=club, load QSOs from entity (is_clubstation: true only).
+    // This ensures the backend controls what gets uploaded, not the frontend.
+    // Private QSOs (is_clubstation: false) are NEVER uploaded to QRZ.
+    if (target === 'club') {
+      const clubQsos = await base44.asServiceRole.entities.Log.filter(
+        { is_clubstation: true, club_callsign: 'HB9OM', status: 'active' },
+        '-qso_date', 500
+      );
+      if (!clubQsos || clubQsos.length === 0) {
+        return Response.json({ error: 'Keine Club-QSOs (is_clubstation: true, club_callsign: HB9OM) zum Hochladen' }, { status: 200 });
+      }
+      // Generate ADIF from club QSOs — backend controls content
+      adif_data = '<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n';
+      for (const qso of clubQsos) {
+        const fullCall = (qso.callsign || '') + (qso.callsign_suffix || '');
+        if (fullCall) adif_data += `<CALL:${fullCall.length}>${fullCall}`;
+        if (qso.band) adif_data += `<BAND:${qso.band.length}>${qso.band}`;
+        if (qso.mode) adif_data += `<MODE:${qso.mode.length}>${qso.mode}`;
+        if (qso.frequency) { const f = String(qso.frequency); adif_data += `<FREQ:${f.length}>${f}`; }
+        if (qso.qso_date) { const d = qso.qso_date.replace(/-/g, ''); adif_data += `<QSO_DATE:8>${d}`; }
+        if (qso.time_start) { const t = qso.time_start.replace(/:/g, '').substring(0, 6); adif_data += `<TIME_ON:6>${t}`; }
+        if (qso.rst_sent) adif_data += `<RST_SENT:${qso.rst_sent.length}>${qso.rst_sent}`;
+        if (qso.rst_received) adif_data += `<RST_RCVD:${qso.rst_received.length}>${qso.rst_received}`;
+        if (qso.operator_name) adif_data += `<NAME:${qso.operator_name.length}>${qso.operator_name}`;
+        if (qso.operator_country) adif_data += `<COUNTRY:${qso.operator_country.length}>${qso.operator_country}`;
+        if (qso.operator_grid) adif_data += `<GRIDSQUARE:${qso.operator_grid.length}>${qso.operator_grid}`;
+        if (qso.notes) adif_data += `<COMMENT:${qso.notes.length}>${qso.notes}`;
+        if (qso.my_grid) adif_data += `<MY_GRIDSQUARE:${qso.my_grid.length}>${qso.my_grid}`;
+        adif_data += '<EOR>';
+      }
+    }
+
     if (!adif_data) return Response.json({ error: 'Keine ADIF-Daten übermittelt' }, { status: 400 });
 
     // PUNKT 4: Demo-Block — Demo-Account darf keine QSOs zu QRZ hochladen

@@ -132,13 +132,13 @@ export default function Log() {
     };
   }, []);
 
-  // v0.9003 Problem 6: Load club entries via getClubLog (service-role, bypasses RLS)
+  // v0.9003: Load club entries via getClubLog (service-role, bypasses RLS)
   const loadClubEntries = async () => {
     setClubLogLoading(true);
     try {
-      const res = await base44.functions.invoke("getClubLog", {});
-      if (res.data?.status === "success") {
-        setClubEntries(res.data.logs || []);
+      const res = await base44.functions.invoke("getClubLog", { limit: 500, skip: 0 });
+      if (res.data?.success) {
+        setClubEntries(res.data.records || []);
       }
     } catch {} finally {
       setClubLogLoading(false);

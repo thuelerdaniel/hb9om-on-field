@@ -353,9 +353,9 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'full_import': {
-        // v0.9003 Problem 1: Full import from Wavelog — starts from fetchfromid: 0.
+        // v0.9003: Full import from Wavelog with PAGING — batches of 500 QSOs.
+        // Uses fetchfromid as cursor, loops until response has < 500 QSOs.
         // Reads config from UserHuntingSettings (per-user, NOT from body).
-        // Paginated dedup against ALL existing wavelog_imported logs (up to 100k).
         if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
         const userSettings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
@@ -371,36 +371,6 @@ export default async function(req: Request): Promise<Response> {
           return Response.json({ error: 'Keine Wavelog-Server-URL konfiguriert' }, { status: 400 });
         }
 
-        // Call get_contacts_adif with fetchfromid: 0 (full import from beginning)
-        const r = await tryFetch(wavelogUrl, 'get_contacts_adif', {
-          key: settings.wavelog_api_key,
-          station_id: settings.wavelog_station_id || '1',
-          fetchfromid: 0,
-        }, 30000);
-
-        const wavelogData = r.data;
-        if (!r.ok || !wavelogData) {
-          return Response.json({ success: false, error: 'Wavelog API Fehler', ok: r.ok });
-        }
-        if (!wavelogData.adif || wavelogData.exported_qsos === 0) {
-          return Response.json({
-            success: true, imported: 0, skipped: 0, errors: 0,
-            message: 'Keine QSOs bei Wavelog gefunden',
-            lastfetchedid: wavelogData.lastfetchedid || 0,
-          });
-        }
-
-        const adif = wavelogData.adif;
-        const exported_qsos = wavelogData.exported_qsos || 0;
-        const lastfetchedid = wavelogData.lastfetchedid || '0';
-
-        // Parse ADIF
-        const eohIndex = adif.toUpperCase().indexOf('<EOH>');
-        let adifData = adif;
-        if (eohIndex >= 0) adifData = adif.substring(eohIndex + 5);
-        const records = adifData.split(/<EOR>/i).filter(rec => rec.trim().length > 0);
-        console.log(`[Wavelog Full-Import] Parsing ${records.length} ADIF records (exported: ${exported_qsos})`);
-
         function parseAdifRec(record: string): Record<string, string> {
           const fields: Record<string, string> = {};
           const regex = /<([A-Z_]+):(\d+)(?::[A-Z]+)?>([^<]*)/gi;
@@ -415,57 +385,95 @@ export default async function(req: Request): Promise<Response> {
           }
           return fields;
         }
-
         function fmtDate(d: string): string {
           if (!d || d.length !== 8) return d || '';
           return d.substring(0, 4) + '-' + d.substring(4, 6) + '-' + d.substring(6, 8);
         }
-
         function fmtTime(t: string): string {
           if (!t) return '';
           const p = t.padStart(6, '0');
           return p.substring(0, 2) + ':' + p.substring(2, 4) + ':' + p.substring(4, 6);
         }
 
-        const qsos: any[] = [];
-        for (let i = 0; i < records.length; i++) {
-          try {
-            const f = parseAdifRec(records[i]);
-            if (!f.CALL) continue;
-            const freq = parseFloat(f.FREQ || '0');
-            const isClub = !!(f.STATION_CALLSIGN && f.OPERATOR && f.OPERATOR !== f.STATION_CALLSIGN);
-            qsos.push({
-              callsign: f.CALL,
-              frequency: freq || undefined,
-              band: f.BAND || undefined,
-              mode: f.MODE || undefined,
-              qso_date: fmtDate(f.QSO_DATE || ''),
-              time_start: fmtTime(f.TIME_ON || ''),
-              time_end: fmtTime(f.TIME_OFF || '') || undefined,
-              rst_sent: f.RST_SENT || undefined,
-              rst_received: f.RST_RCVD || undefined,
-              power: parseFloat(f.TX_PWR || '0') || undefined,
-              operator_name: f.NAME || undefined,
-              operator_email: f.EMAIL || undefined,
-              operator_country: f.COUNTRY || undefined,
-              operator_grid: f.GRIDSQUARE || undefined,
-              operator_address: f.QTH || undefined,
-              notes: f.COMMENT || undefined,
-              wavelog_imported: true,
-              wavelog_import_date: new Date().toISOString(),
-              wavelog_synced: false,
-              is_clubstation: isClub,
-              club_callsign: f.STATION_CALLSIGN || undefined,
-              club_operator_callsign: isClub ? f.OPERATOR : undefined,
-              my_grid: f.MY_GRIDSQUARE || undefined,
-              my_reference_name: f.MY_CITY || undefined,
-              my_country_name: f.MY_COUNTRY || undefined,
-              my_country_prefix: f.MY_STATE || undefined,
-            });
-          } catch {}
+        // Paging loop — fetch QSOs in batches of 500 using fetchfromid cursor
+        let allQsos: any[] = [];
+        let currentFetchFromId = 0;
+        let totalExported = 0;
+        let lastFetchedId = 0;
+        const MAX_PAGES = 50;
+
+        for (let page = 0; page < MAX_PAGES; page++) {
+          const r = await tryFetch(wavelogUrl, 'get_contacts_adif', {
+            key: settings.wavelog_api_key,
+            station_id: settings.wavelog_station_id || '1',
+            fetchfromid: currentFetchFromId,
+          }, 30000);
+
+          const wavelogData = r.data;
+          if (!r.ok || !wavelogData) break;
+          if (!wavelogData.adif || wavelogData.exported_qsos === 0) break;
+
+          const adif = wavelogData.adif;
+          const eohIndex = adif.toUpperCase().indexOf('<EOH>');
+          let adifData = adif;
+          if (eohIndex >= 0) adifData = adif.substring(eohIndex + 5);
+          const records = adifData.split(/<EOR>/i).filter(rec => rec.trim().length > 0);
+
+          for (let i = 0; i < records.length; i++) {
+            try {
+              const f = parseAdifRec(records[i]);
+              if (!f.CALL) continue;
+              const freq = parseFloat(f.FREQ || '0');
+              const isClub = !!(f.STATION_CALLSIGN && f.OPERATOR && f.OPERATOR !== f.STATION_CALLSIGN);
+              allQsos.push({
+                callsign: f.CALL,
+                frequency: freq || undefined,
+                band: f.BAND || undefined,
+                mode: f.MODE || undefined,
+                qso_date: fmtDate(f.QSO_DATE || ''),
+                time_start: fmtTime(f.TIME_ON || ''),
+                time_end: fmtTime(f.TIME_OFF || '') || undefined,
+                rst_sent: f.RST_SENT || undefined,
+                rst_received: f.RST_RCVD || undefined,
+                power: parseFloat(f.TX_PWR || '0') || undefined,
+                operator_name: f.NAME || undefined,
+                operator_email: f.EMAIL || undefined,
+                operator_country: f.COUNTRY || undefined,
+                operator_grid: f.GRIDSQUARE || undefined,
+                operator_address: f.QTH || undefined,
+                notes: f.COMMENT || undefined,
+                wavelog_imported: true,
+                wavelog_import_date: new Date().toISOString(),
+                wavelog_synced: false,
+                is_clubstation: isClub,
+                club_callsign: f.STATION_CALLSIGN || undefined,
+                club_operator_callsign: isClub ? f.OPERATOR : undefined,
+                my_grid: f.MY_GRIDSQUARE || undefined,
+                my_reference_name: f.MY_CITY || undefined,
+                my_country_name: f.MY_COUNTRY || undefined,
+                my_country_prefix: f.MY_STATE || undefined,
+              });
+            } catch {}
+          }
+
+          totalExported += wavelogData.exported_qsos;
+          lastFetchedId = parseInt(wavelogData.lastfetchedid) || lastFetchedId;
+          currentFetchFromId = lastFetchedId;
+          console.log(`[Wavelog Full-Import] Page ${page + 1}: ${wavelogData.exported_qsos} QSOs (total: ${totalExported})`);
+
+          if (wavelogData.exported_qsos < 500) break; // Last page
+        }
+
+        if (allQsos.length === 0) {
+          return Response.json({
+            success: true, imported: 0, skipped: 0, errors: 0,
+            message: 'Keine QSOs bei Wavelog gefunden',
+            lastfetchedid: lastFetchedId,
+          });
         }
 
         // Paginated dedup — load ALL existing wavelog_imported logs (up to 100k)
+        // Key: callsign + qso_date + time_start + frequency + club_callsign
         const existingKeys = new Set<string>();
         try {
           const DEDUP_LIMIT = 5000;
@@ -482,11 +490,11 @@ export default async function(req: Request): Promise<Response> {
             if (batch.length < DEDUP_LIMIT) break;
           }
         } catch {}
-        const newQsos = qsos.filter(q => {
+        const newQsos = allQsos.filter(q => {
           const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}|${q.club_callsign || ''}`;
           return !existingKeys.has(key);
         });
-        const duplicateCount = qsos.length - newQsos.length;
+        const duplicateCount = allQsos.length - newQsos.length;
         console.log(`[Wavelog Full-Import] Dedup: ${newQsos.length} new, ${duplicateCount} duplicates skipped`);
 
         // Bulk create in batches of 500
@@ -510,7 +518,7 @@ export default async function(req: Request): Promise<Response> {
         if (errorCount === 0) {
           try {
             await base44.entities.UserHuntingSettings.update(settings.id, {
-              wavelog_last_fetch_id: parseInt(lastfetchedid),
+              wavelog_last_fetch_id: lastFetchedId,
             });
           } catch {}
         }
@@ -520,10 +528,11 @@ export default async function(req: Request): Promise<Response> {
           imported: importedCount,
           duplicates: duplicateCount,
           errors: errorCount,
-          total_parsed: qsos.length,
-          total_from_wavelog: exported_qsos,
-          lastfetchedid: errorCount === 0 ? lastfetchedid : '0',
-          message: `Voll-Import: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler`,
+          total_parsed: allQsos.length,
+          total_from_wavelog: totalExported,
+          pages: Math.ceil(totalExported / 500) || 1,
+          lastfetchedid: errorCount === 0 ? String(lastFetchedId) : '0',
+          message: `Voll-Import: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler (${Math.ceil(totalExported / 500) || 1} Seiten)`,
         });
       }
 
