@@ -8,16 +8,24 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9015";
+export const APP_VERSION = "0.9016";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608311155";
+export const APP_BUILD = "202608311240";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9016: Mobil-Modul — Karte springt nicht mehr bei manueller Interaktion (Auto-Center pausiert 5s nach Drag/Zoom)",
+  "v0.9016: Mobil-Modul — GPS Auto-Center verwendet panTo mit Animation statt fitBounds Sprung",
+  "v0.9016: Mobil-Modul — Throttled GPS-Updates (max 1x/3s, >10m Bewegung) verhindern ständiges Nachzentrieren",
+  "v0.9016: Mobil-Modul — dBm-Ampel und Signal-Balken flackern nicht mehr (stabile HTML-Struktur, Werte aktualisieren in-place)",
+  "v0.9016: Mobil-Modul — ITM Loading-Spinner nur bei Repeater-Wechsel, nicht bei jedem GPS-Update",
+  "v0.9016: Mobil-Modul — Kleinere Marker: Repeater 10px→6px (aktiv), 10px→6px (normal), GPS 16px→10px",
+  "v0.9016: Mobil-Modul — Coverage-Polygone dezenter (fillOpacity 0.15→0.08, weight 2→1)",
+  "v0.9016: Mobil-Modul — Auto-Zoom Button: blauer Indikator wenn aktiv, sofortiger Sprung bei Tap",
   "v0.9015: Datenkonsistenz — Castle-Layer: 43 Schweizer WCA-Schlösser (HB-XXXXX) mit ReferenceData gemergt",
   "v0.9015: Datenkonsistenz — TotaPoint Duplikate entfernt (Sync lief zweimal, doppelte Records pro Code)",
   "v0.9015: Datenkonsistenz — deduplicateTotaPoints Backend-Function für zukünftige Bereinigung",

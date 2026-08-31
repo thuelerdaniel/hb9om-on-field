@@ -51,6 +51,8 @@ export default function MobilActive({
 
   const countdownRef = useRef(null);
   const itmDebounceRef = useRef(null);
+  // Track which repeater ID we have a loaded ITM result for — prevents flicker on GPS updates
+  const itmLoadedForRepeaterRef = useRef(null);
 
   const repeatersWithDist = useMemo(() => {
     const refPoint =
@@ -97,15 +99,25 @@ export default function MobilActive({
     return [...nearest, ...highBeyond];
   }, [repeatersWithDist]);
 
-  // ITM: Fetch propagation for active repeater
+  // ITM: Fetch propagation for active repeater.
+  // Only shows loading spinner on first load or repeater change — keeps old values
+  // during GPS-update refetch to prevent dBm display flicker.
   useEffect(() => {
     if (!activeRepeater || !gpsPosition) {
       setItmResult(null);
+      setItmLoading(false);
+      itmLoadedForRepeaterRef.current = null;
       return;
     }
 
+    const repeaterChanged = itmLoadedForRepeaterRef.current !== activeRepeater.id;
+    // Only show loading spinner when the repeater changes (not on every GPS update)
+    if (repeaterChanged) {
+      setItmLoading(true);
+      itmLoadedForRepeaterRef.current = activeRepeater.id;
+    }
+
     let cancelled = false;
-    setItmLoading(true);
 
     computeItmPropagation({
       lat1: activeRepeater.lat,
@@ -125,7 +137,7 @@ export default function MobilActive({
       }
     }).catch(() => {
       if (!cancelled) {
-        setItmResult(null);
+        // Keep old result on error — prevents flicker (don't clear itmResult)
         setItmLoading(false);
       }
     });

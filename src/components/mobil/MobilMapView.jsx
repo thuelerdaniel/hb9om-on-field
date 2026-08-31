@@ -10,7 +10,7 @@
 // Auto-Zoom Button: verschiebbar (Long-Press 500ms auf Mobile, Maus auf Desktop).
 // Position wird in localStorage gespeichert (useDraggableButton Hook).
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -23,6 +23,7 @@ import {
 } from "react-leaflet";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { calculateRange } from "@/lib/equipmentRange";
+import { haversine } from "@/lib/geoUtilsFrontend";
 import { useDraggableButton } from "@/hooks/useDraggableButton";
 
 function FitBounds({ bounds }) {
@@ -40,6 +41,36 @@ function MapRefSetter({ onReady }) {
   useEffect(() => {
     onReady(map);
   }, [map, onReady]);
+  return null;
+}
+
+// MapInteractionTracker — detects user drag/zoom and sets a ref flag.
+// Auto-center is paused for 5s after the last interaction to prevent map jumping.
+function MapInteractionTracker({ userInteractingRef, interactionTimeoutRef }) {
+  const map = useMap();
+  useEffect(() => {
+    const setInteracting = () => {
+      userInteractingRef.current = true;
+      if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
+    };
+    const clearInteracting = () => {
+      if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
+      interactionTimeoutRef.current = setTimeout(() => {
+        userInteractingRef.current = false;
+      }, 5000);
+    };
+    map.on("dragstart", setInteracting);
+    map.on("dragend", clearInteracting);
+    map.on("zoomstart", setInteracting);
+    map.on("zoomend", clearInteracting);
+    return () => {
+      map.off("dragstart", setInteracting);
+      map.off("dragend", clearInteracting);
+      map.off("zoomstart", setInteracting);
+      map.off("zoomend", clearInteracting);
+      if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
+    };
+  }, [map, userInteractingRef, interactionTimeoutRef]);
   return null;
 }
 
@@ -61,6 +92,13 @@ export default function MobilMapView({
   const [mapInstance, setMapInstance] = useState(null);
   const [autoZoom, setAutoZoom] = useState(false);
   const [blinkVisible, setBlinkVisible] = useState(true);
+
+  // Refs for interaction-aware auto-center (prevent map jumping while user drags/zooms)
+  const userInteractingRef = useRef(false);
+  const interactionTimeoutRef = useRef(null);
+  const lastPanTimeRef = useRef(0);
+  const lastPanPosRef = useRef(null);
+  const autoZoomInitRef = useRef(false);
 
   // Draggable auto-zoom button
   const { buttonRef: autoZoomBtnRef, dragState: autoZoomDragState } = useDraggableButton(
@@ -123,11 +161,37 @@ export default function MobilMapView({
     };
   }, [mapInstance, gpsPosition, recommendedRepeater, routeCoords]);
 
+  // Effect: Initial fitBounds when autoZoom is toggled on (button tap) or repeater changes.
+  // Does NOT fire on every GPS update — that's handled by the throttled panTo effect below.
   useEffect(() => {
     if (autoZoom && mapInstance) {
       doAutoZoom();
+      autoZoomInitRef.current = true;
     }
-  }, [autoZoom, mapInstance, gpsPosition, recommendedRepeater?.id, routeCoords]);
+  }, [autoZoom, mapInstance, recommendedRepeater?.id, routeCoords]);
+
+  // Effect: GPS-driven panTo — throttled (max 1x/3s), only if moved >10m, paused during user interaction.
+  // Uses smooth panTo animation instead of hard fitBounds jump.
+  useEffect(() => {
+    if (!autoZoom || !mapInstance || !gpsPosition) return;
+    if (userInteractingRef.current) return;
+
+    const now = Date.now();
+    const movedEnough =
+      !lastPanPosRef.current ||
+      haversine(lastPanPosRef.current.lat, lastPanPosRef.current.lon, gpsPosition.lat, gpsPosition.lon) * 1000 > 10;
+    const timeOk = now - lastPanTimeRef.current > 3000;
+
+    if (movedEnough && timeOk) {
+      mapInstance.panTo([gpsPosition.lat, gpsPosition.lon], {
+        animate: true,
+        duration: 1.0,
+        easeLinearity: 0.5,
+      });
+      lastPanTimeRef.current = now;
+      lastPanPosRef.current = { lat: gpsPosition.lat, lon: gpsPosition.lon };
+    }
+  }, [gpsPosition, autoZoom, mapInstance]);
 
   // Cached GeoJSON polygon (fallback if no ITM polygon)
   const repeaterCoverageLeaflet = useMemo(() => {
@@ -179,6 +243,10 @@ export default function MobilMapView({
         scrollWheelZoom={true}
       >
         <MapRefSetter onReady={setMapInstance} />
+        <MapInteractionTracker
+          userInteractingRef={userInteractingRef}
+          interactionTimeoutRef={interactionTimeoutRef}
+        />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap"
@@ -198,8 +266,8 @@ export default function MobilMapView({
             pathOptions={{
               color: "#3b82f6",
               fillColor: "#3b82f6",
-              fillOpacity: 0.15,
-              weight: 2,
+              fillOpacity: 0.08,
+              weight: 1,
             }}
           />
         )}
@@ -211,8 +279,8 @@ export default function MobilMapView({
             pathOptions={{
               color: coverageColor,
               fillColor: coverageColor,
-              fillOpacity: 0.15,
-              weight: 2,
+              fillOpacity: 0.08,
+              weight: 1,
             }}
           />
         )}
@@ -226,8 +294,8 @@ export default function MobilMapView({
               pathOptions={{
                 color: coverageColor,
                 fillColor: coverageColor,
-                fillOpacity: 0.15,
-                weight: 2,
+                fillOpacity: 0.08,
+                weight: 1,
               }}
             />
           )}
@@ -245,8 +313,8 @@ export default function MobilMapView({
               pathOptions={{
                 color: coverageColor,
                 fillColor: coverageColor,
-                fillOpacity: 0.1,
-                weight: 2,
+                fillOpacity: 0.06,
+                weight: 1,
               }}
             />
           )}
@@ -256,12 +324,12 @@ export default function MobilMapView({
           <>
             <CircleMarker
               center={[gpsPosition.lat, gpsPosition.lon]}
-              radius={8}
+              radius={5}
               pathOptions={{
                 color: "#2563eb",
                 fillColor: "#2563eb",
                 fillOpacity: 1,
-                weight: 2,
+                weight: 1.5,
               }}
             >
               <Popup>
@@ -281,8 +349,8 @@ export default function MobilMapView({
                 pathOptions={{
                   color: "#2563eb",
                   fillColor: "#2563eb",
-                  fillOpacity: 0.05,
-                  weight: 1,
+                  fillOpacity: 0.03,
+                  weight: 0.5,
                 }}
               />
             )}
@@ -298,14 +366,14 @@ export default function MobilMapView({
             <CircleMarker
               key={r.id || i}
               center={[r.lat, r.lng]}
-              radius={isActive ? 10 : 5}
+              radius={isActive ? 6 : 3}
               pathOptions={{
                 color: isActive ? "#ef4444" : color,
                 fillColor: color,
                 fillOpacity: isActive
-                  ? (blinkVisible ? 0.9 : 0.2)
-                  : 0.5,
-                weight: isActive ? 4 : 1,
+                  ? (blinkVisible ? 0.8 : 0.3)
+                  : 0.4,
+                weight: isActive ? 2.5 : 1,
               }}
             >
               {isActive && (

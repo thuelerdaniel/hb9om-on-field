@@ -7,6 +7,20 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9016",
+    title: "Mobil-Modul: Map Jumping, dBm Flicker, Marker Size",
+    changes: [
+      "Karte springt nicht mehr — Auto-Center pausiert 5s nach manueller Interaktion (Drag/Zoom)",
+      "GPS Auto-Center verwendet panTo mit Animation statt fitBounds Sprung bei jedem GPS-Update",
+      "Throttled GPS-Updates: max 1x/3s, nur bei >10m Bewegung — keine ständige Nachzentrierung",
+      "dBm-Ampel und Signal-Balken flackern nicht mehr — stabile HTML-Struktur, Werte aktualisieren in-place",
+      "ITM Loading-Spinner nur bei Repeater-Wechsel, nicht bei jedem GPS-Update (alte Werte bleiben sichtbar)",
+      "Kleinere Marker: Repeater 10px→6px (aktiv), 10px→6px (normal), GPS 16px→10px (ca. 35% kleiner)",
+      "Coverage-Polygone dezenter: fillOpacity 0.15→0.08, weight 2→1 (sehr dezent)",
+      "Auto-Zoom Button: blauer Indikator wenn aktiv, sofortiger Sprung bei Tap dann auto-follow",
+    ],
+  },
+  {
     version: "0.9015",
     title: "Datenkonsistenz: Castle-Layer, TotaPoint Duplikate, POTA Count",
     changes: [

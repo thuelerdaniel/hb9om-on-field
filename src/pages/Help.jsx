@@ -931,6 +931,10 @@ const ADMIN_SECTIONS = [
     description: "Alle Versionen seit v0.8 mit Änderungen — das Versions-Popup zeigt nur die neuesten Versionen.",
     items: [
       {
+        title: "v0.9016 — Mobil: Map Jumping, dBm Flicker, Marker",
+        body: "Karte springt nicht mehr bei manueller Interaktion (Auto-Center pausiert 5s nach Drag/Zoom). GPS Auto-Center mit panTo Animation statt fitBounds Sprung, throttled (max 1x/3s, >10m). dBm-Ampel flackert nicht mehr (stabile HTML-Struktur, ITM Loading nur bei Repeater-Wechsel). Kleinere Marker: Repeater 6px, GPS 10px. Coverage-Polygone dezenter (fillOpacity 0.08).",
+      },
+      {
         title: "v0.9015 — Datenkonsistenz: Castle, TotaPoint, POTA",
         body: "Castle-Layer: 43 Schweizer WCA-Schlösser (HB-XXXXX) mit OSM-Daten gemergt — Schweizer Schlösser wieder sichtbar. TotaPoint: 5277 Duplikate entfernt (Sync lief zweimal). deduplicateTotaPoints Backend-Function für zukünftige Bereinigung. POTA ReferenceData total_count korrigiert (war 0, jetzt 89650). fetchTota verwendet upsertPointsByCode (keine Duplikate mehr bei Timeout).",
       },

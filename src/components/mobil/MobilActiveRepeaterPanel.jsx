@@ -118,23 +118,26 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
         </div>
       </div>
 
-      {/* ITM Signal Quality Section */}
-      {itmLoading && (
-        <div className="mt-3 pt-2 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2 text-xs text-gray-400">
-          <Activity className="w-3 h-3 animate-pulse" />
-          <span>Berechne ITM-Propagation (Longley-Rice + Terrain)...</span>
-        </div>
-      )}
-
-      {itmResult && !itmLoading && (
+      {/* ITM Signal Quality Section — stable structure, values update in place (no flicker) */}
+      {(itmResult || itmLoading) && (
         <div className="mt-3 pt-2 border-t border-gray-100 dark:border-slate-700">
           <div className="flex items-center gap-2 mb-2">
-            <Signal className="w-4 h-4" style={{ color: qualityColor }} />
-            <span className="text-sm font-bold" style={{ color: qualityColor }}>
-              {qualityBadge} {getQualityLabel(itmResult.quality)}
+            <Signal
+              className="w-4 h-4"
+              style={{ color: itmResult ? qualityColor : "#9ca3af" }}
+            />
+            <span
+              className="text-sm font-bold"
+              style={{ color: itmResult ? qualityColor : "#9ca3af" }}
+            >
+              {itmResult
+                ? `${qualityBadge} ${getQualityLabel(itmResult.quality)}`
+                : itmLoading
+                ? "Berechne ITM..."
+                : "—"}
             </span>
             <span className="text-sm font-mono font-bold text-gray-900 dark:text-slate-100 ml-auto">
-              {itmResult.rx_signal_dbm?.toFixed(1)} dBm
+              {itmResult ? `${itmResult.rx_signal_dbm?.toFixed(1)} dBm` : "— dBm"}
             </span>
           </div>
 
@@ -142,19 +145,19 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
             <div className="bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
               <p className="text-gray-400 dark:text-slate-500">Path Loss</p>
               <p className="font-mono font-bold text-gray-700 dark:text-slate-200">
-                {itmResult.path_loss_db?.toFixed(1)} dB
+                {itmResult ? `${itmResult.path_loss_db?.toFixed(1)} dB` : "—"}
               </p>
             </div>
             <div className="bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
               <p className="text-gray-400 dark:text-slate-500">ITM Loss</p>
               <p className="font-mono font-bold text-gray-700 dark:text-slate-200">
-                {itmResult.itm_loss_db?.toFixed(1)} dB
+                {itmResult ? `${itmResult.itm_loss_db?.toFixed(1)} dB` : "—"}
               </p>
             </div>
             <div className="bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
               <p className="text-gray-400 dark:text-slate-500">Clutter</p>
               <p className="font-mono font-bold text-gray-700 dark:text-slate-200">
-                {itmResult.clutter_loss_db?.toFixed(1)} dB
+                {itmResult ? `${itmResult.clutter_loss_db?.toFixed(1)} dB` : "—"}
               </p>
             </div>
           </div>
@@ -162,10 +165,10 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
           <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500 dark:text-slate-400">
             <span className="flex items-center gap-1">
               <Mountain className="w-3 h-3" />
-              Fresnel: {itmResult.fresnel_clearance?.toFixed(0)}m
+              Fresnel: {itmResult ? `${itmResult.fresnel_clearance?.toFixed(0)}m` : "—"}
             </span>
             <span>
-              Distanz: {itmResult.distance_km?.toFixed(1)} km
+              Distanz: {itmResult ? `${itmResult.distance_km?.toFixed(1)} km` : "—"}
             </span>
           </div>
         </div>
