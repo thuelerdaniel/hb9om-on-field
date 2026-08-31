@@ -8,16 +8,21 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9014";
+export const APP_VERSION = "0.9015";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608311146";
+export const APP_BUILD = "202608311155";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9015: Datenkonsistenz — Castle-Layer: 43 Schweizer WCA-Schlösser (HB-XXXXX) mit ReferenceData gemergt",
+  "v0.9015: Datenkonsistenz — TotaPoint Duplikate entfernt (Sync lief zweimal, doppelte Records pro Code)",
+  "v0.9015: Datenkonsistenz — deduplicateTotaPoints Backend-Function für zukünftige Bereinigung",
+  "v0.9015: Datenkonsistenz — POTA ReferenceData total_count korrigiert (war 0, jetzt 89650)",
+  "v0.9015: Datenkonsistenz — Alte duplikate ReferenceData-Einträge bereits gelöscht (5 alte IDs bestätigt nicht vorhanden)",
   "v0.9014: Elevation API Robustheit — Open-Elevation Fallback API bei OpenTopoData Rate-Limit",
   "v0.9014: Elevation API — In-Memory Cache verhindert redundante API-Calls für gleiche Koordinaten",
   "v0.9014: Elevation API — Variierter Fallback (±40m Sinus) statt flacher 500m bei API-Ausfall",

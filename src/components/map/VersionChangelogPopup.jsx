@@ -7,6 +7,18 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9015",
+    title: "Datenkonsistenz: Castle-Layer, TotaPoint Duplikate, POTA Count",
+    changes: [
+      "Castle-Layer — 43 Schweizer WCA-Schlösser (HB-XXXXX Codes) mit OSM-Daten gemergt (vorher fehlten alle Schweizer Schlösser)",
+      "Castle-Layer — Deduplizierung nach Koordinaten, WCA-Einträge haben Priorität (bessere Metadaten)",
+      "TotaPoint — Duplikate entfernt (Sync lief zweimal, jeder Eintrag existierte doppelt mit verschiedenen IDs)",
+      "TotaPoint — deduplicateTotaPoints Backend-Function für zukünftige Bereinigung (Admin)",
+      "POTA — ReferenceData total_count korrigiert (war 0, jetzt 89650)",
+      "ReferenceData — Alte duplikate Einträge bestätigt nicht mehr vorhanden (bereits gelöscht)",
+    ],
+  },
+  {
     version: "0.9014",
     title: "Elevation API Robustheit + Per-Device-Type Buttons",
     changes: [
