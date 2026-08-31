@@ -7,6 +7,16 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9006",
+    title: "Unteres Menüband — Button-Abstand reduziert",
+    changes: [
+      "Button-Abstand im unteren Menüband reduziert — alle Menüpunkte passen auf einen Screen",
+      "Gleichbreite Buttons (flex-1) mit min. 44px Touch-Target für gute Tappbarkeit",
+      "Horizontaler Scroll als Fallback falls Bildschirm zu schmal für alle Buttons",
+      "Auch für Admin-User: alle Admin-Menüpunkte + Standard-Menüpunkte sichtbar ohne Scrollen",
+    ],
+  },
+  {
     version: "0.9005",
     title: "Mobil-Tab — Routing & Live-Repeater-Modul",
     changes: [

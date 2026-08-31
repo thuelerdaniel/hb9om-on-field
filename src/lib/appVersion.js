@@ -8,16 +8,18 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9005";
+export const APP_VERSION = "0.9006";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608310823";
+export const APP_BUILD = "202608310848";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9006: Unteres Menüband — Button-Abstand reduziert, alle Menüpunkte passen auf einen Screen (auch Admin)",
+  "v0.9006: Unteres Menüband — flex-1 gleichbreite Buttons, min. 44px Touch-Target, horizontaler Scroll als Fallback",
   "v0.9005: Mobil-Tab — Routing & Live-Repeater-Modul (neuer Menüpunkt im unteren Menüband)",
   "v0.9005: Routenplanung — OSRM-Routing, Nominatim-Ortssuche, GPX-Import, Google Maps Link-Import",
   "v0.9005: Routenplanung — Wegpunkte Drag-to-Reorder, Reichweite-Korridor, Repeater-Filter nach Modus/Band",

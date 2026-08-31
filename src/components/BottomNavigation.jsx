@@ -41,8 +41,8 @@ export default function BottomNavigation() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-[1000] bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-center justify-around gap-1"
-      style={{ paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))" }}
+      className="fixed bottom-0 left-0 right-0 z-[1000] bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-stretch gap-0 overflow-x-auto"
+      style={{ paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))", scrollbarWidth: "none" }}
     >
       {navItems.map(item => {
         const active = location.pathname === item.path;
@@ -51,7 +51,7 @@ export default function BottomNavigation() {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}
+            className={`flex-1 min-w-[44px] flex flex-col items-center gap-0.5 px-1 py-1.5 transition-colors ${active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}
             title={item.label}
           >
             <Icon className={`w-4 h-4 ${active ? "scale-110" : ""} transition-transform`} />
@@ -64,7 +64,7 @@ export default function BottomNavigation() {
       {isAdmin && (
         <Link
           to="/settings"
-          className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${
+          className={`flex-1 min-w-[44px] flex flex-col items-center gap-0.5 px-1 py-1.5 transition-colors ${
             location.pathname.startsWith("/admin")
               ? "text-red-600 dark:text-red-400"
               : "text-red-500 dark:text-red-400 hover:text-red-600"
@@ -78,7 +78,7 @@ export default function BottomNavigation() {
 
       <button
         onClick={handleLogout}
-        className="flex flex-col items-center gap-0.5 px-2 py-1 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+        className="flex-1 min-w-[44px] flex flex-col items-center gap-0.5 px-1 py-1.5 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
         title="Abmelden"
       >
         <LogOut className="w-4 h-4" />
