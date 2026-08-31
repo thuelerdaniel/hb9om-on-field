@@ -42,16 +42,29 @@ Deno.serve(async (req) => {
 
     console.log(`[fetchCastles] Storing ${stripped.length} castles in ReferenceData...`);
 
-    // Upsert into ReferenceData
+    // Upsert into ReferenceData — update the entry with the highest total_count,
+    // delete any other duplicate castle entries to prevent accumulation.
     const now = new Date().toISOString();
     const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'castle' });
     if (existing.length > 0) {
-      await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
+      // Sort by total_count descending — keep the one with the most data
+      existing.sort((a, b) => (b.total_count || 0) - (a.total_count || 0));
+      const primary = existing[0];
+      await base44.asServiceRole.entities.ReferenceData.update(primary.id, {
         references: stripped,
         total_count: stripped.length,
         source: 'WCA list (worldwide) + Maidenhead locators',
         last_updated: now
       });
+      // Delete any other duplicate castle entries
+      for (let i = 1; i < existing.length; i++) {
+        try {
+          await base44.asServiceRole.entities.ReferenceData.delete(existing[i].id);
+          console.log(`[fetchCastles] Deleted duplicate castle entry: ${existing[i].id}`);
+        } catch (e) {
+          console.log(`[fetchCastles] Could not delete duplicate ${existing[i].id}: ${e.message}`);
+        }
+      }
     } else {
       await base44.asServiceRole.entities.ReferenceData.create({
         type: 'castle',
