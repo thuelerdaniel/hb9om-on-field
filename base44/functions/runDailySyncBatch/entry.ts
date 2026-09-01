@@ -25,7 +25,8 @@ const REPEATER_TIMEOUT_MS = 180000; // Fix 10: Repeater sync needs more time for
 const LIGHTHOUSE_TIMEOUT_MS = 60000;
 const RETRY_DELAY_MS = 30000;
 const HEAVY_PAUSE_MS = 10000;
-const HEAVY_SOURCES = new Set(['sota', 'hbff', 'castle']);
+const HEAVY_SOURCES = new Set(['sota', 'hbff', 'castle', 'castle_overpass']);
+const CASTLE_OVERPASS_TIMEOUT_MS = 180000; // 15 countries via Overpass API needs more time
 // Fix 1: SOTA loop — max iterations within a single tick to complete all chunks
 const SOTA_MAX_LOOP_ITERATIONS = 5;
 const SOTA_LOOP_TOTAL_BUDGET_MS = 300000; // 5 min total budget for SOTA looping
@@ -297,6 +298,8 @@ export default async function (req: Request): Promise<Response> {
       ? REPEATER_TIMEOUT_MS // Fix 10: Repeater sync needs 180s for 9500+ records
       : nextSource.source.startsWith('lighthouse')
       ? LIGHTHOUSE_TIMEOUT_MS
+      : nextSource.source === 'castle_overpass'
+      ? CASTLE_OVERPASS_TIMEOUT_MS
       : SOURCE_TIMEOUT_MS;
 
     // Get per-source config for this source

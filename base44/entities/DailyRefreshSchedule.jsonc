@@ -44,7 +44,8 @@
         "llota_refs",
         "llota_spots",
         "fm_funknetz",
-        "ch_repeater_links"
+        "ch_repeater_links",
+        "castle_overpass"
       ],
       "description": "Datenquelle"
     },

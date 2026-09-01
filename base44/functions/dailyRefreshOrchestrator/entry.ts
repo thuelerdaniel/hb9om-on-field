@@ -11,6 +11,7 @@ const SOURCES = [
   { source: 'pota', label: 'POTA', function_name: 'refreshDataSource', function_payload: { source: 'pota', scheduled: true }, order: 2 },
   { source: 'hbff', label: 'WWFF', function_name: 'refreshDataSource', function_payload: { source: 'hbff', scheduled: true }, order: 3 },
   { source: 'castle', label: 'Burgen/Schlösser', function_name: 'refreshDataSource', function_payload: { source: 'castle', scheduled: true }, order: 5 },
+  { source: 'castle_overpass', label: 'Burgen (Overpass Zusatz)', function_name: 'fetchCastlesOverpass', function_payload: { scheduled: true }, order: 6 },
   // Lighthouse: Single worldwide fetch via ILLW official list (wllw.org).
   // PUNKT 5: Consolidated 13 regional sources into 1 global source.
   { source: 'lighthouse_illw', label: 'Leuchttürme (ILLW wllw.org)', function_name: 'fetchLighthouses', function_payload: { region: 'all', scheduled: true }, order: 59 },
@@ -52,6 +53,7 @@ const SOURCE_GROUP_TIMES: Record<string, string> = {
   pota: '03:30',
   hbff: '04:00',
   castle: '04:30',
+  castle_overpass: '04:30',
   lighthouse: '05:30',
   repeater: '05:00',
   aprs: '06:00',
