@@ -274,6 +274,21 @@ export default async function(req: Request): Promise<Response> {
           ]);
           if (!refs || refs.length === 0) return { type, filtered: [] };
 
+          if (type === 'castle') {
+            console.log(`[filter] castle refs=${refs.length} bounds=${JSON.stringify(bounds)}`);
+            const withCoords = refs.filter(r => r.lat != null && r.lng != null).length;
+            console.log(`[filter] castle withCoords=${withCoords}`);
+            const inBounds = refs.filter(r => r.lat != null && r.lng != null &&
+              r.lat <= bounds.north && r.lat >= bounds.south &&
+              r.lng >= bounds.west && r.lng <= bounds.east).length;
+            console.log(`[filter] castle inBounds=${inBounds}`);
+            if (refs.length > 0) {
+              console.log(`[filter] castle sample[0]=${JSON.stringify({lat: refs[0].lat, lng: refs[0].lng, code: refs[0].code})}`);
+              const taSample = refs.find(r => r.code && r.code.startsWith('TA'));
+              if (taSample) console.log(`[filter] castle TA sample=${JSON.stringify({lat: taSample.lat, lng: taSample.lng, code: taSample.code})}`);
+            }
+          }
+
           const filtered: any[] = [];
           const seenKeys = new Set<string>(); // Deduplicate by dedupField (code/callsign/id)
           const ptConfig = POINT_TYPES[type];
