@@ -7,6 +7,21 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.9019",
+    title: "3 Fehlerkorrekturen: BAKOM-Link, Report-Button, Türkische Burgen",
+    changes: [
+      "BAKOM-Link korrigiert — Hilfe-Seite verwendet jetzt https://www.bakom.admin.ch/de/amateurfunk statt veralteter Frequenzplan-URL",
+      "USKA Bandplan Link hinzugefügt — praktische Frequenzübersicht unter uska.ch/bandplan/ (öffnet in neuem Tab)",
+      "Report-Button im Relais-Popup reaktiviert — neuer gelber 'Fehler melden' Button mit Formular (Fehlertyp, Beschreibung)",
+      "Neue RepeaterReport Entity — speichert Fehlermeldungen mit Status 'open' (Admins können prüfen und bearbeiten)",
+      "Neue reportRepeaterError Backend-Function — validiert Eingaben, speichert Meldung mit reported_by und Zeitstempel",
+      "Türkische Burgen im COTA-Layer — fetchCastlesOverpass lädt 404+ Burgen aus OpenStreetMap für die Türkei (vorher nur 1 WCA-Eintrag)",
+      "COTA-Layer erweitert — 15 Länder über Overpass API: Türkei (TA), Griechenland (SX), Georgien (4L), Armenien (EK), Bulgarien (LZ), Rumänien (YO), Serbien (YU), Albanien (ZA), Nordmazedonien (Z3), Bosnien (E7), Montenegro (4O), Marokko (CN), Tunesien (3V), Libanon (OD), Jordanien (JY)",
+      "WCA-kompatible Referenzen — Overpass-Burgen erhalten generierte Codes (TA-00001, SX-00001 etc.), bestehende WCA-Einträge werden nicht überschrieben",
+      "Koordinaten-Deduplizierung — Overpass-Burgen an gleichen Koordinaten wie WCA-Burgen werden übersprungen",
+    ],
+  },
+  {
     version: "0.9018",
     title: "4 kritische Fixes: Club-Filter, SOTA/WWFF Sync, Reference Data",
     changes: [

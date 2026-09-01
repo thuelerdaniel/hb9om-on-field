@@ -1310,7 +1310,8 @@ export default function Help() {
                 Diese App und der enthaltene Bandplan dienen ausschliesslich als praktische Orientierungshilfe und
                 stellen <strong>keine rechtsverbindliche Grundlage</strong> dar. Massgeblich ist stets der offizielle
                 Frequenzplan des{" "}
-                <a href="https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html" target="_blank" rel="noopener noreferrer" className="text-red-900 underline font-bold">BAKOM</a>.
+                <a href="https://www.bakom.admin.ch/de/amateurfunk" target="_blank" rel="noopener noreferrer" className="text-red-900 underline font-bold">BAKOM Amateurfunk</a>{" "}und{" "}
+                <a href="https://uska.ch/bandplan/" target="_blank" rel="noopener noreferrer" className="text-red-900 underline font-bold">USKA Bandplan</a>.
                 Es wird keine Haftung für Fehler, Datenverluste oder andere Probleme übernommen.
               </p>
             </div>

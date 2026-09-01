@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9018";
+export const APP_VERSION = "0.9019";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,10 @@ export const APP_BUILD = "202608312240";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9019: BAKOM-Link korrigiert — Hilfe-Seite verwendet https://www.bakom.admin.ch/de/amateurfunk + USKA Bandplan Link",
+  "v0.9019: Report-Button im Relais-Popup reaktiviert — neues RepeaterReport Entity + reportRepeaterError Backend-Function",
+  "v0.9019: Türkische Burgen — fetchCastlesOverpass lädt 404+ Burgen aus OpenStreetMap für COTA-Layer (Türkei, Balkan, MENA)",
+  "v0.9019: COTA-Layer erweitert — 15 Länder über Overpass API (TA, SX, 4L, EK, LZ, YO, YU, ZA, Z3, E7, 4O, CN, 3V, OD, JY)",
   "v0.9018: Clubstation Filter — fetchQrzClubLog verwendet immer HB9OM als club_callsign (ignoriert ADIF STATION_CALLSIGN)",
   "v0.9018: Clubstation Filter — normalizeLogClubCall Backend-Function korrigiert bestehende Einträge (HB3YNF → HB9OM)",
   "v0.9018: Clubstation Filter — Logbuch-Filter zeigt 'Persönlich (HB3YNF)' und 'Clubstation (HB9OM)' Labels",

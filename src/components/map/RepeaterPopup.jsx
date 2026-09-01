@@ -3,6 +3,7 @@ import { Radio, Globe, Headphones, Link2, ExternalLink, Signal, Navigation, MapP
 import { base44 } from "@/api/base44Client";
 import { MODE_COLORS, MODE_LABELS, STATUS_LABELS } from "@/lib/repeaterModes";
 import RepeaterCorrectionDialog from "@/components/map/RepeaterCorrectionDialog";
+import RepeaterReportForm from "@/components/map/RepeaterReportForm";
 import SwissArtgInfo from "@/components/map/SwissArtgInfo";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -34,6 +35,7 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcResult, setCalcResult] = useState(null);
   const [showCorrection, setShowCorrection] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [expanded, setExpanded] = useState(true);
 
   // JSON-imported repeaters have no external source link — show "JSON" badge instead
@@ -577,14 +579,22 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
               </a>
             )}
             <button
-              onClick={() => setShowCorrection(true)}
-              className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50"
+              onClick={() => setShowReport(true)}
+              className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-bold text-white bg-amber-500 border border-amber-600 rounded-lg hover:bg-amber-600"
+              style={{ pointerEvents: 'auto', cursor: 'pointer', zIndex: 1001 }}
             >
               <AlertTriangle className="w-3 h-3" />
-              Falsche Angaben melden
+              Fehler melden
             </button>
           </div>
         </>
+      )}
+
+      {showReport && (
+        <RepeaterReportForm
+          repeater={repeater}
+          onClose={() => setShowReport(false)}
+        />
       )}
 
       {showCorrection && (

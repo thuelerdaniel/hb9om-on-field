@@ -206,8 +206,9 @@ export default function BandPlanInfo() {
               (Bundesamt für Kommunikation).
             </p>
             <p>
-              Konsultieren Sie für rechtlich verbindliche Informationen stets die{" "}
-              <a href="https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-medium">offizielle BAKOM-Frequenztabelle</a>.
+              Konsultieren Sie für rechtlich verbindliche Informationen stets{" "}
+              <a href="https://www.bakom.admin.ch/de/amateurfunk" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-medium">BAKOM Amateurfunk</a>{" "}und{" "}
+              <a href="https://uska.ch/bandplan/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-medium">USKA Bandplan</a>.
             </p>
           </div>
 
@@ -240,14 +241,24 @@ export default function BandPlanInfo() {
             ))}
           </div>
 
-          <a
-            href="https://www.bakom.admin.ch/bakom/de/home/frequenzen-antennen/frequenzplan.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 block text-center text-xs text-indigo-600 hover:underline"
-          >
-            Offizieller BAKOM-Frequenzplan öffnen →
-          </a>
+          <div className="mt-3 flex flex-wrap gap-2 justify-center">
+            <a
+              href="https://www.bakom.admin.ch/de/amateurfunk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
+            >
+              BAKOM Amateurfunk
+            </a>
+            <a
+              href="https://uska.ch/bandplan/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
+            >
+              USKA Bandplan
+            </a>
+          </div>
         </div>
       )}
     </div>
