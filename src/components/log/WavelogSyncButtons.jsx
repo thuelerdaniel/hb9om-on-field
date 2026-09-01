@@ -1,27 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Upload, Download, RefreshCw, CloudOff, CheckCircle2 } from "lucide-react";
+import { Loader2, Upload, Download, RefreshCw, CloudOff } from "lucide-react";
 import { uploadToWavelog, importFromWavelog, fullImportFromWavelog, getOfflineQueueLength } from "@/lib/wavelogSync";
+import { toast } from "@/components/ui/use-toast";
 
-// Wavelog Sync Buttons für das Logbuch — v0.9022
-// Wird nur angezeigt wenn Wavelog in den Settings aktiviert ist.
-export default function WavelogSyncButtons({ onSynced }) {
+// Wavelog Sync Buttons für das Logbuch — v0.9018
+// Rendert 3 Buttons: Club Log Wavelog (Upload), Wavelog Import, Wavelog Voll Import
+// syncPaused=true deaktiviert alle Buttons (Löschen-Button bleibt in Log.jsx aktiv)
+export default function WavelogSyncButtons({ onSynced, syncPaused }) {
   const [settings, setSettings] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [fullImporting, setFullImporting] = useState(false);
-  const [result, setResult] = useState(null);
   const [queueLength, setQueueLength] = useState(getOfflineQueueLength());
 
   useEffect(() => {
-    // Load user's Wavelog settings
     base44.entities.UserHuntingSettings.list()
       .then(data => {
         if (data && data.length > 0) {
           const s = data[0];
-          // Auto-Fallback: Wenn Wavelog aktiviert aber keine station_id → "1" setzen
           if (s.wavelog_enabled && s.logging_backend === "wavelog" && s.wavelog_api_key && (s.wavelog_lan_url || s.wavelog_wan_url) && !s.wavelog_station_id) {
-            console.log('[Wavelog] Auto-setting station_id to "1"');
             base44.entities.UserHuntingSettings.update(s.id, { wavelog_station_id: "1" })
               .then(() => setSettings({ ...s, wavelog_station_id: "1" }))
               .catch(() => setSettings(s));
@@ -33,7 +31,6 @@ export default function WavelogSyncButtons({ onSynced }) {
       .catch(() => {});
   }, []);
 
-  // Update queue length when component receives focus
   useEffect(() => {
     const update = () => setQueueLength(getOfflineQueueLength());
     window.addEventListener("online", update);
@@ -52,94 +49,105 @@ export default function WavelogSyncButtons({ onSynced }) {
   };
 
   const wavelogConfigured = !!(config.wavelog_api_key && (config.wavelog_lan_url || config.wavelog_wan_url) && config.wavelog_station_id);
+  const disabled = syncPaused || !wavelogConfigured;
 
   const handleUpload = async () => {
+    if (disabled) return;
     setUploading(true);
-    setResult(null);
     try {
       const r = await uploadToWavelog(config);
-      setResult(r);
+      toast({
+        title: r.success ? "Club Log Wavelog" : "Fehler",
+        description: r.message || (r.success ? "Upload abgeschlossen" : "Upload fehlgeschlagen"),
+        variant: r.success ? "default" : "destructive",
+        duration: 5000,
+      });
       if (r.success && onSynced) onSynced();
     } catch (e) {
-      setResult({ success: false, message: e.message });
+      toast({ title: "Fehler", description: e.message, variant: "destructive", duration: 5000 });
     } finally {
       setUploading(false);
-      setTimeout(() => setResult(null), 5000);
     }
   };
 
   const handleImport = async () => {
+    if (disabled) return;
     setImporting(true);
-    setResult(null);
     try {
       const r = await importFromWavelog(config);
-      setResult(r);
+      toast({
+        title: r.success ? "Wavelog Import" : "Fehler",
+        description: r.message || `${r.imported || 0} Einträge importiert`,
+        variant: r.success ? "default" : "destructive",
+        duration: 5000,
+      });
       if (r.lastfetchedid != null) {
-        await base44.entities.UserHuntingSettings.update(settings.id, {
-          wavelog_last_fetch_id: r.lastfetchedid,
-        });
+        await base44.entities.UserHuntingSettings.update(settings.id, { wavelog_last_fetch_id: r.lastfetchedid });
       }
       if (r.success && onSynced) onSynced();
     } catch (e) {
-      setResult({ success: false, message: e.message });
+      toast({ title: "Fehler", description: e.message, variant: "destructive", duration: 5000 });
     } finally {
       setImporting(false);
-      setTimeout(() => setResult(null), 5000);
     }
   };
 
   const handleFullImport = async () => {
+    if (disabled) return;
     if (!confirm('Voll-Import startet ab ID 0 und lädt ALLE QSOs von Wavelog. Fortfahren?')) return;
     setFullImporting(true);
-    setResult(null);
     try {
       const r = await fullImportFromWavelog(config);
-      setResult(r);
+      toast({
+        title: r.success ? "Wavelog Voll-Import" : "Fehler",
+        description: r.message || `${r.imported || 0} Einträge importiert`,
+        variant: r.success ? "default" : "destructive",
+        duration: 8000,
+      });
       if (r.lastfetchedid != null) {
-        await base44.entities.UserHuntingSettings.update(settings.id, {
-          wavelog_last_fetch_id: r.lastfetchedid,
-        });
+        await base44.entities.UserHuntingSettings.update(settings.id, { wavelog_last_fetch_id: r.lastfetchedid });
       }
       if (r.success && onSynced) onSynced();
     } catch (e) {
-      setResult({ success: false, message: e.message });
+      toast({ title: "Fehler", description: e.message, variant: "destructive", duration: 5000 });
     } finally {
       setFullImporting(false);
-      setTimeout(() => setResult(null), 8000);
     }
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <>
+      {/* 3. Club Log Wavelog — Upload zu Wavelog */}
       <button
         onClick={handleUpload}
-        disabled={!wavelogConfigured || uploading}
-        className="px-3 py-1.5 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 disabled:opacity-40 flex items-center gap-1.5"
-        title="Alle nicht gesendeten QSOs an Wavelog senden"
+        disabled={disabled || uploading}
+        className="px-3 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+        title={syncPaused ? "Sync ist gestoppt" : "Alle nicht gesendeten QSOs an Wavelog senden"}
       >
         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-        Wavelog Upload
+        Club Log Wavelog
       </button>
+      {/* 4. Wavelog Import — inkrementell */}
       <button
         onClick={handleImport}
-        disabled={!wavelogConfigured || importing || fullImporting}
-        className="px-3 py-1.5 text-sm font-medium text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-50 disabled:opacity-40 flex items-center gap-1.5"
-        title="Neue QSOs von Wavelog importieren (Delta-Sync)"
+        disabled={disabled || importing || fullImporting}
+        className="px-3 py-2 text-sm font-medium text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+        title={syncPaused ? "Sync ist gestoppt" : "Neue QSOs von Wavelog importieren (Delta-Sync)"}
       >
         {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         Wavelog Import
       </button>
+      {/* 5. Wavelog Voll Import — alle QSOs neu importieren */}
       <button
         onClick={handleFullImport}
-        disabled={!wavelogConfigured || importing || fullImporting}
-        className="px-3 py-1.5 text-sm font-medium text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
-        title="ALLE QSOs von Wavelog importieren (Voll-Neuimport ab ID 0)"
+        disabled={disabled || importing || fullImporting}
+        className="px-3 py-2 text-sm font-medium text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+        title={syncPaused ? "Sync ist gestoppt" : "ALLE QSOs von Wavelog importieren (Voll-Neuimport ab ID 0)"}
       >
         {fullImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-        Wavelog Voll-Import
+        Wavelog Voll Import
       </button>
-      {/* Auto-Sync Status */}
-      {settings.wavelog_auto_sync && (
+      {settings.wavelog_auto_sync && !syncPaused && (
         <span className="flex items-center gap-1 text-[10px] text-green-600" title="Permanent Sync aktiv">
           <RefreshCw className="w-3 h-3" /> Auto-Sync
         </span>
@@ -149,11 +157,6 @@ export default function WavelogSyncButtons({ onSynced }) {
           <CloudOff className="w-3 h-3" /> {queueLength} warten
         </span>
       )}
-      {result && (
-        <span className={`text-[10px] font-medium ${result.success ? "text-green-600" : "text-red-600"}`}>
-          {result.message}
-        </span>
-      )}
-    </div>
+    </>
   );
 }

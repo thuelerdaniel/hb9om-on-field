@@ -322,11 +322,16 @@ export default function Log() {
       const res = await base44.functions.invoke("uploadToQrz", { adif_data: adif, target });
       if (res.data?.error) {
         setQrzUploadResult({ success: false, message: res.data.error });
+        toast({ title: "QRZ Upload Fehler", description: res.data.error, variant: "destructive", duration: 5000 });
       } else {
-        setQrzUploadResult({ success: true, message: res.data?.message || "Upload erfolgreich" });
+        const msg = res.data?.message || "Upload erfolgreich";
+        setQrzUploadResult({ success: true, message: msg });
+        toast({ title: "QRZ Upload", description: msg, duration: 5000 });
       }
     } catch (e) {
-      setQrzUploadResult({ success: false, message: e.message || "Fehler beim Upload" });
+      const msg = e.message || "Fehler beim Upload";
+      setQrzUploadResult({ success: false, message: msg });
+      toast({ title: "QRZ Upload Fehler", description: msg, variant: "destructive", duration: 5000 });
     } finally {
       setQrzUploading(false);
       setTimeout(() => setQrzUploadResult(null), 5000);
@@ -341,18 +346,21 @@ export default function Log() {
       const res = await base44.functions.invoke("fetchQrzClubLog", {});
       if (res.data?.error) {
         setQrzUploadResult({ success: false, message: res.data.error });
+        toast({ title: "QRZ Club Fehler", description: res.data.error, variant: "destructive", duration: 5000 });
       } else if (res.data?.status === "success") {
-        setQrzUploadResult({
-          success: true,
-          message: res.data.message || `Club-Log-Sync: ${res.data.imported || 0} importiert`,
-        });
+        const msg = res.data.message || `QRZ Club: ${res.data.imported || 0} Einträge importiert`;
+        setQrzUploadResult({ success: true, message: msg });
+        toast({ title: "QRZ Club", description: msg, duration: 5000 });
         loadEntries();
         if (filterSource === "club") loadClubEntries();
       } else {
         setQrzUploadResult({ success: false, message: "Keine QSOs im Club-Logbuch gefunden" });
+        toast({ title: "QRZ Club", description: "Keine QSOs im Club-Logbuch gefunden", variant: "destructive", duration: 5000 });
       }
     } catch (e) {
-      setQrzUploadResult({ success: false, message: e.message || "Fehler beim Club-Log-Sync" });
+      const msg = e.message || "Fehler beim QRZ Club Download";
+      setQrzUploadResult({ success: false, message: msg });
+      toast({ title: "QRZ Club Fehler", description: msg, variant: "destructive", duration: 5000 });
     } finally {
       setClubSyncLoading(false);
       setTimeout(() => setQrzUploadResult(null), 5000);
@@ -367,17 +375,20 @@ export default function Log() {
       const res = await base44.functions.invoke("syncClubLog", {});
       if (res.data?.error) {
         setQrzUploadResult({ success: false, message: res.data.error });
+        toast({ title: "Club Sync Fehler", description: res.data.error, variant: "destructive", duration: 5000 });
       } else if (res.data?.status === "success") {
-        setQrzUploadResult({
-          success: true,
-          message: res.data.message || `${res.data.uploaded || 0} QSOs an ClubLog gesendet`,
-        });
+        const msg = res.data.message || `${res.data.uploaded || 0} QSOs an ClubLog gesendet`;
+        setQrzUploadResult({ success: true, message: msg });
+        toast({ title: "Club Sync", description: msg, duration: 5000 });
         loadEntries();
       } else {
         setQrzUploadResult({ success: false, message: "ClubLog-Upload fehlgeschlagen" });
+        toast({ title: "Club Sync Fehler", description: "ClubLog-Upload fehlgeschlagen", variant: "destructive", duration: 5000 });
       }
     } catch (e) {
-      setQrzUploadResult({ success: false, message: e.message || "Fehler beim ClubLog-Upload" });
+      const msg = e.message || "Fehler beim Club Sync";
+      setQrzUploadResult({ success: false, message: msg });
+      toast({ title: "Club Sync Fehler", description: msg, variant: "destructive", duration: 5000 });
     } finally {
       setClubLogUploading(false);
       setTimeout(() => setQrzUploadResult(null), 5000);
@@ -700,7 +711,7 @@ export default function Log() {
                     className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 disabled:opacity-40 flex items-center gap-1.5"
                     title="Gefilterte QSOs zu QRZ.com Club-Logbuch hochladen"
                   >
-                    {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Club
+                    {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Club Upload
                   </button>
                   {/* QRZ Personal — nur wenn Wahlschalter auf "qrz" (nicht "wavelog") */}
                   {loggingBackend !== "wavelog" && (
@@ -714,29 +725,8 @@ export default function Log() {
                     </button>
                   )}
                   {/* PUNKT 5: Club-Log-Sync — nur für Admins */}
-                  {isAdmin && (
-                    <button
-                      onClick={handleClubLogSync}
-                      disabled={clubSyncLoading}
-                      className="px-3 py-1.5 text-sm font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 flex items-center gap-1.5"
-                      title="QSOs vom QRZ Club-Logbuch herunterladen und importieren"
-                    >
-                      {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Club-Sync
-                    </button>
-                  )}
-                  {/* v0.9003 Problem 4: ClubLog Upload — private QSOs zu clublog.org */}
-                  <button
-                    onClick={handleClubLogUpload}
-                    disabled={clubLogUploading}
-                    className="px-3 py-1.5 text-sm font-medium text-cyan-600 border border-cyan-200 rounded-lg hover:bg-cyan-50 disabled:opacity-40 flex items-center gap-1.5"
-                    title="Private QSOs (is_clubstation: false) zu ClubLog (clublog.org) hochladen"
-                  >
-                    {clubLogUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} ClubLog
-                  </button>
                 </>
               )}
-              {/* Wavelog Sync Buttons — nur wenn Wavelog aktiviert */}
-              <WavelogSyncButtons onSynced={loadEntries} />
             </div>
           )}
           {qrzUploadResult && (
@@ -744,16 +734,54 @@ export default function Log() {
               {qrzUploadResult.message}
             </div>
           )}
-
-          {filtered.length > 0 && filterStatus !== "archived" && (
-            <button
-              onClick={() => setShowConfirmDelete(true)}
-              className="px-3 py-1.5 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-1.5"
-            >
-              <Trash2 className="w-4 h-4" /> Löschen
-            </button>
-          )}
         </div>
+
+        {/* Action Buttons Group — v0.9018 — 6 Buttons clearly visible, not hidden in dropdown */}
+        {filtered.length > 0 && (
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3 mb-4">
+            {syncPaused && (
+              <div className="mb-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                <Pause className="w-3.5 h-3.5" /> Sync ist gestoppt — Import/Sync-Buttons sind deaktiviert
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* 1. QRZ Club — fetchQrzClubLog (Download from QRZ Club Logbook) */}
+              {isAdmin && (
+                <button
+                  onClick={handleClubLogSync}
+                  disabled={syncPaused || clubSyncLoading}
+                  className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  title={syncPaused ? "Sync ist gestoppt" : "QSOs vom QRZ Club-Logbuch herunterladen und importieren"}
+                >
+                  {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  QRZ Club
+                </button>
+              )}
+              {/* 2. Club Sync — syncClubLog (Upload to clublog.org) */}
+              <button
+                onClick={handleClubLogUpload}
+                disabled={syncPaused || clubLogUploading}
+                className="px-3 py-2 text-sm font-medium text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                title={syncPaused ? "Sync ist gestoppt" : "Private QSOs zu ClubLog (clublog.org) hochladen"}
+              >
+                {clubLogUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                Club Sync
+              </button>
+              {/* 3-5. Wavelog: Club Log Wavelog + Wavelog Import + Wavelog Voll Import */}
+              <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
+              {/* 6. Löschen — always active, even when sync is paused */}
+              {filterStatus !== "archived" && (
+                <button
+                  onClick={() => setShowConfirmDelete(true)}
+                  className="px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-1.5 ml-auto"
+                  title="Alle gefilterten Log-Einträge löschen"
+                >
+                  <Trash2 className="w-4 h-4" /> Löschen
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Entries */}
         {view === "stats" ? null : loading ? (
