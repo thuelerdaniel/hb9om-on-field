@@ -190,7 +190,9 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
   }
 
   // Non-point types (wwbota, castle) use ReferenceData arrays
-  const cached = typeCache[type];
+  // Castle uses a versioned cache key to ensure Overpass merge is always applied
+  const cacheKey = type === 'castle' ? 'castle_v2' : type;
+  const cached = typeCache[cacheKey];
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
   let refs = await loadReferenceData(base44, type);
@@ -204,7 +206,7 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
   }
 
   if (refs.length > 0) {
-    typeCache[type] = { refs, time: Date.now() };
+    typeCache[cacheKey] = { refs, time: Date.now() };
   }
   return refs;
 }
