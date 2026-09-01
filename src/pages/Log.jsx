@@ -640,16 +640,26 @@ export default function Log() {
               { value: "callsign", label: "Rufzeichen (A-Z)" }
             ]}
           />
-          <MobileSelect
-            value={filterSource}
-            onValueChange={setFilterSource}
-            triggerClassName="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
-            options={[
+          {/* v0.9018: Toggle-Buttons Alle | Privat | Club */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 rounded-lg p-0.5">
+            {[
               { value: "all", label: "Alle" },
               { value: "private", label: "Privat" },
               { value: "club", label: "Club" }
-            ]}
-          />
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setFilterSource(opt.value)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  filterSource === opt.value
+                    ? "bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 shadow-sm"
+                    : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
 
           <div className="flex items-center gap-1">
             <input
