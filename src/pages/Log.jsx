@@ -6,6 +6,8 @@ import LogEntryForm from "@/components/map/LogEntryForm";
 import AdifImportDialog from "@/components/log/AdifImportDialog";
 import BulkEditDialog from "@/components/log/BulkEditDialog";
 import PullToRefresh from "@/components/log/PullToRefresh";
+import DeleteProgressOverlay from "@/components/log/DeleteProgressOverlay";
+import { toast } from "@/components/ui/use-toast";
 import MobileSelect from "@/components/ui/MobileSelect";
 import BottomNavigation from "@/components/BottomNavigation";
 import DonationPopup from "@/components/DonationPopup";
@@ -57,6 +59,8 @@ export default function Log() {
   const [syncPaused, setSyncPaused] = useState(false);
   const [syncPauseLoading, setSyncPauseLoading] = useState(false);
   const [hasWavelogConfig, setHasWavelogConfig] = useState(false);
+  // v0.9018 FORTSCHRITSANZEIGE: Delete progress overlay state
+  const [deleteProgress, setDeleteProgress] = useState(null); // { phase, count, total, message }
 
   // v0.9018 NACHFOLGE: Load per-user sync-pause status on mount
   const loadSyncPauseStatus = async () => {
@@ -71,8 +75,26 @@ export default function Log() {
     setSyncPauseLoading(true);
     try {
       const res = await base44.functions.invoke("manageSyncPause", { action: "set", paused: !syncPaused });
-      if (res.data) setSyncPaused(res.data.paused === true);
-    } catch {} finally {
+      if (res.data) {
+        const nowPaused = res.data.paused === true;
+        setSyncPaused(nowPaused);
+        // v0.9018 FORTSCHRITSANZEIGE: Toast confirmation for sync start/stop
+        toast({
+          title: nowPaused ? "Sync gestoppt" : "Sync gestartet",
+          description: nowPaused
+            ? "Wavelog-Import wurde pausiert."
+            : "Wavelog-Import läuft wieder.",
+          duration: 4000,
+        });
+      }
+    } catch {
+      toast({
+        title: "Fehler",
+        description: "Sync-Status konnte nicht geändert werden.",
+        variant: "destructive",
+        duration: 4000,
+      });
+    } finally {
       setSyncPauseLoading(false);
     }
   };
@@ -371,19 +393,23 @@ export default function Log() {
   };
 
   const handleDeleteAll = async () => {
+    const toDelete = filtered.map(e => e.id);
+    const total = toDelete.length;
+    // v0.9018 FORTSCHRITSANZEIGE: Show progress overlay
+    setDeleteProgress({ phase: "deleting", count: 0, total });
     try {
-      const toDelete = filtered.map(e => e.id);
-      // v0.9018 NACHFOLGE: Use service-role backend function to bypass RLS
-      // (wavelog-imported entries are created by service-role, user-token delete fails)
-      try {
-        await base44.functions.invoke("deleteUserLogEntries", { ids: toDelete });
-      } catch {}
-      // Also remove from local cache immediately
+      const res = await base44.functions.invoke("deleteUserLogEntries", { ids: toDelete });
+      const deletedCount = res.data?.deletedCount || total;
+      // Remove from local cache immediately
       const local = loadLocal();
       saveLocal(local.filter(e => !toDelete.includes(e.id)));
       setShowConfirmDelete(false);
+      // Show success state in overlay
+      setDeleteProgress({ phase: "done", count: deletedCount, total, message: `${deletedCount} Einträge erfolgreich gelöscht` });
       loadEntries();
-    } catch (e) { }
+    } catch (e) {
+      setDeleteProgress({ phase: "error", message: e.message || "Löschen fehlgeschlagen" });
+    }
   };
 
   const handleDeleteSingle = async (entry) => {
@@ -393,36 +419,41 @@ export default function Log() {
   const confirmDeleteSingle = async () => {
     if (!showConfirmDeleteSingle) return;
     setDeletingSingle(true);
+    setDeleteProgress({ phase: "deleting", count: 0, total: 1 });
     try {
-      // v0.9018 NACHFOLGE: Use service-role backend function to bypass RLS
-      try {
-        await base44.functions.invoke("deleteUserLogEntries", { ids: [showConfirmDeleteSingle.id] });
-      } catch {}
+      const res = await base44.functions.invoke("deleteUserLogEntries", { ids: [showConfirmDeleteSingle.id] });
+      const deletedCount = res.data?.deletedCount || 1;
       // Also remove from local cache immediately
       const local = loadLocal();
       saveLocal(local.filter(e => e.id !== showConfirmDeleteSingle.id));
       setShowConfirmDeleteSingle(null);
+      setDeleteProgress({ phase: "done", count: deletedCount, total: 1, message: `QSO erfolgreich gelöscht` });
       loadEntries();
-    } catch (e) { } finally {
+    } catch (e) {
+      setDeleteProgress({ phase: "error", message: e.message || "Löschen fehlgeschlagen" });
+    } finally {
       setDeletingSingle(false);
     }
   };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
+    const total = selectedIds.length;
     setDeletingSelected(true);
+    setDeleteProgress({ phase: "deleting", count: 0, total });
     try {
-      // v0.9018 NACHFOLGE: Use service-role backend function to bypass RLS
-      try {
-        await base44.functions.invoke("deleteUserLogEntries", { ids: selectedIds });
-      } catch {}
+      const res = await base44.functions.invoke("deleteUserLogEntries", { ids: selectedIds });
+      const deletedCount = res.data?.deletedCount || total;
       // Also remove from local cache immediately
       const local = loadLocal();
       saveLocal(local.filter(e => !selectedIds.includes(e.id)));
       setSelectedIds([]);
       setSelectMode(false);
+      setDeleteProgress({ phase: "done", count: deletedCount, total, message: `${deletedCount} Einträge erfolgreich gelöscht` });
       loadEntries();
-    } catch (e) { } finally {
+    } catch (e) {
+      setDeleteProgress({ phase: "error", message: e.message || "Löschen fehlgeschlagen" });
+    } finally {
       setDeletingSelected(false);
     }
   };
@@ -962,6 +993,15 @@ export default function Log() {
           </div>
         </div>
       )}
+
+      {/* v0.9018 FORTSCHRITSANZEIGE: Delete progress overlay */}
+      <DeleteProgressOverlay
+        phase={deleteProgress?.phase}
+        count={deleteProgress?.count}
+        total={deleteProgress?.total}
+        message={deleteProgress?.message}
+        onClose={() => setDeleteProgress(null)}
+      />
 
       <DonationPopup />
       <BottomNavigation />
