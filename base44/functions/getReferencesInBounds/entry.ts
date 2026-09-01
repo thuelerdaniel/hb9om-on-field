@@ -196,12 +196,15 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
   let refs = await loadReferenceData(base44, type);
+  console.log(`[loadType] type=${type} WCA refs=${refs.length}`);
 
   // For 'castle' type, also merge Overpass castles (castle_overpass)
   if (type === 'castle') {
     const overpassRefs = await loadReferenceData(base44, 'castle_overpass');
+    console.log(`[loadType] castle_overpass refs=${overpassRefs.length}`);
     if (overpassRefs.length > 0) {
       refs = [...refs, ...overpassRefs];
+      console.log(`[loadType] merged castle total=${refs.length}`);
     }
   }
 
