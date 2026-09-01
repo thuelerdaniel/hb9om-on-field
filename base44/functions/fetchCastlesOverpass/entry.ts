@@ -37,30 +37,44 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter',
 ];
 
 async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
-  const query = `[out:json][timeout:60];
+  const query = `[out:json][timeout:90];
 (
   node["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
   node["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
   way["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
   way["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
 );
-out center 1000;`;
+out center 2000;`;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
+      console.log(`[fetchCastlesOverpass] Trying endpoint: ${endpoint}`);
       const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'data=' + encodeURIComponent(query),
       });
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      if (data && data.elements) return data.elements;
+      if (!resp.ok) {
+        console.log(`[fetchCastlesOverpass] ${endpoint} returned ${resp.status}`);
+        continue;
+      }
+      const text = await resp.text();
+      const data = JSON.parse(text);
+      if (data && data.elements && data.elements.length > 0) {
+        console.log(`[fetchCastlesOverpass] ${endpoint} returned ${data.elements.length} elements`);
+        return data.elements;
+      }
+      if (data && data.elements && data.elements.length === 0) {
+        console.log(`[fetchCastlesOverpass] ${endpoint} returned 0 elements`);
+        return [];
+      }
     } catch (e) {
-      // Try next endpoint
+      console.log(`[fetchCastlesOverpass] ${endpoint} error: ${e.message}`);
     }
   }
   return [];

@@ -204,6 +204,29 @@ async function searchReferenceDataType(base44: any, type: string, q: string, cen
         }
       }
     }
+
+    // For 'castle' type, also search Overpass castles (castle_overpass)
+    if (type === 'castle') {
+      try {
+        const overpassRecords = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'castle_overpass' });
+        if (overpassRecords && overpassRecords.length > 0) {
+          let overpassBest = overpassRecords[0];
+          for (const rec of overpassRecords) {
+            if ((rec.total_count || 0) > (overpassBest.total_count || 0)) overpassBest = rec;
+          }
+          if (Array.isArray(overpassBest.references)) {
+            for (const ref of overpassBest.references) {
+              const code = (ref.code || ref.reference || '').toLowerCase();
+              const name = (ref.name || '').toLowerCase();
+              if (code.includes(q) || name.includes(q)) {
+                matches.push({ ...ref, code: ref.code || ref.reference, reference: ref.reference || ref.code });
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
     return dedupAndSort(matches, center);
   } catch {
     return [];
