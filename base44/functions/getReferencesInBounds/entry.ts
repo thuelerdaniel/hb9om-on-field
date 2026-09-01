@@ -193,7 +193,15 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
   const cached = typeCache[type];
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
-  const refs = await loadReferenceData(base44, type);
+  let refs = await loadReferenceData(base44, type);
+
+  // For 'castle' type, also merge Overpass castles (castle_overpass)
+  if (type === 'castle') {
+    const overpassRefs = await loadReferenceData(base44, 'castle_overpass');
+    if (overpassRefs.length > 0) {
+      refs = [...refs, ...overpassRefs];
+    }
+  }
 
   if (refs.length > 0) {
     typeCache[type] = { refs, time: Date.now() };
