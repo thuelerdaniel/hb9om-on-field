@@ -196,15 +196,12 @@ async function loadType(base44, type: string, bounds?: { north: number; south: n
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.refs;
 
   let refs = await loadReferenceData(base44, type);
-  console.log(`[loadType] type=${type} WCA refs=${refs.length}`);
 
   // For 'castle' type, also merge Overpass castles (castle_overpass)
   if (type === 'castle') {
     const overpassRefs = await loadReferenceData(base44, 'castle_overpass');
-    console.log(`[loadType] castle_overpass refs=${overpassRefs.length}`);
     if (overpassRefs.length > 0) {
       refs = [...refs, ...overpassRefs];
-      console.log(`[loadType] merged castle total=${refs.length}`);
     }
   }
 
@@ -273,21 +270,6 @@ export default async function(req: Request): Promise<Response> {
             typeTimeout,
           ]);
           if (!refs || refs.length === 0) return { type, filtered: [] };
-
-          if (type === 'castle') {
-            console.log(`[filter] castle refs=${refs.length} bounds=${JSON.stringify(bounds)}`);
-            const withCoords = refs.filter(r => r.lat != null && r.lng != null).length;
-            console.log(`[filter] castle withCoords=${withCoords}`);
-            const inBounds = refs.filter(r => r.lat != null && r.lng != null &&
-              r.lat <= bounds.north && r.lat >= bounds.south &&
-              r.lng >= bounds.west && r.lng <= bounds.east).length;
-            console.log(`[filter] castle inBounds=${inBounds}`);
-            if (refs.length > 0) {
-              console.log(`[filter] castle sample[0]=${JSON.stringify({lat: refs[0].lat, lng: refs[0].lng, code: refs[0].code})}`);
-              const taSample = refs.find(r => r.code && r.code.startsWith('TA'));
-              if (taSample) console.log(`[filter] castle TA sample=${JSON.stringify({lat: taSample.lat, lng: taSample.lng, code: taSample.code})}`);
-            }
-          }
 
           const filtered: any[] = [];
           const seenKeys = new Set<string>(); // Deduplicate by dedupField (code/callsign/id)
