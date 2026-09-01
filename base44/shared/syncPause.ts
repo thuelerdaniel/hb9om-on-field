@@ -1,12 +1,20 @@
-// Shared helper: checks if the global log-sync pause flag is set.
-// When true, all log sync functions (wavelogApi permanent_sync, fetchQrzClubLog, syncClubLog)
-// skip execution and return immediately.
-// The flag is stored in AppSetting with key='sync_paused', value='true'/'false'.
+// Shared helper: checks if log-sync is paused.
+// v0.9018 NACHFOLGE: Per-user pause — each user controls their own sync independently.
+// The flag is stored in UserHuntingSettings.sync_paused (boolean, default false).
+// Falls back to the legacy global AppSetting 'sync_paused' for admin-level global halt.
 
-export async function isSyncPaused(base44: any): Promise<boolean> {
+export async function isSyncPaused(base44: any, userId?: string): Promise<boolean> {
   try {
-    const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'sync_paused' });
-    return !!(settings && settings.length > 0 && settings[0].value === 'true');
+    // Per-user pause (preferred)
+    if (userId) {
+      const settings = await base44.asServiceRole.entities.UserHuntingSettings.filter({ user_id: userId });
+      if (settings && settings.length > 0 && settings[0].sync_paused === true) {
+        return true;
+      }
+    }
+    // Legacy global pause (admin emergency stop)
+    const globalSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'sync_paused' });
+    return !!(globalSettings && globalSettings.length > 0 && globalSettings[0].value === 'true');
   } catch {
     return false;
   }

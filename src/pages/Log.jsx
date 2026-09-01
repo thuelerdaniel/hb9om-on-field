@@ -13,7 +13,7 @@ import LogStats from "@/components/log/LogStats";
 import WavelogSyncButtons from "@/components/log/WavelogSyncButtons";
 import { importFromWavelog, processWavelogOfflineQueue } from "@/lib/wavelogSync";
 import { DEMO_EMAIL } from "@/lib/constants";
-import { loadLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync, syncPending, getPendingCount } from "@/lib/localLogStore";
+import { loadLocal, saveLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync, syncPending, getPendingCount } from "@/lib/localLogStore";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -56,8 +56,9 @@ export default function Log() {
   const [loggingBackend, setLoggingBackend] = useState("qrz");
   const [syncPaused, setSyncPaused] = useState(false);
   const [syncPauseLoading, setSyncPauseLoading] = useState(false);
+  const [hasWavelogConfig, setHasWavelogConfig] = useState(false);
 
-  // v0.9018 BUGFIX 1: Load sync-pause status on mount
+  // v0.9018 NACHFOLGE: Load per-user sync-pause status on mount
   const loadSyncPauseStatus = async () => {
     try {
       const res = await base44.functions.invoke("manageSyncPause", { action: "get" });
@@ -65,7 +66,7 @@ export default function Log() {
     } catch {}
   };
 
-  // v0.9018 BUGFIX 1: Toggle sync-pause flag
+  // v0.9018 NACHFOLGE: Toggle per-user sync-pause flag
   const toggleSyncPause = async () => {
     setSyncPauseLoading(true);
     try {
@@ -84,9 +85,16 @@ export default function Log() {
       setIsDemo(me?.email === DEMO_EMAIL);
       setIsAdmin(me?.role === "admin");
     }).catch(() => {});
-    // Load logging_backend setting (Wahlschalter: qrz oder wavelog)
+    // Load logging_backend setting + Wavelog config (Wahlschalter: qrz oder wavelog)
     base44.entities.UserHuntingSettings.list()
-      .then(data => { if (data && data.length > 0) setLoggingBackend(data[0].logging_backend || "qrz"); })
+      .then(data => {
+        if (data && data.length > 0) {
+          const s = data[0];
+          setLoggingBackend(s.logging_backend || "qrz");
+          // v0.9018 NACHFOLGE: Sync-Stop button visible for users with Wavelog config
+          setHasWavelogConfig(!!(s.wavelog_enabled && s.wavelog_api_key && (s.wavelog_lan_url || s.wavelog_wan_url)));
+        }
+      })
       .catch(() => {});
     // Wavelog: Auto-Import + Offline Queue beim Öffnen des Logbuches
     // v0.9018 BUGFIX 1: Skip auto-import if sync is paused
@@ -365,7 +373,14 @@ export default function Log() {
   const handleDeleteAll = async () => {
     try {
       const toDelete = filtered.map(e => e.id);
-      await deleteMany(toDelete);
+      // v0.9018 NACHFOLGE: Use service-role backend function to bypass RLS
+      // (wavelog-imported entries are created by service-role, user-token delete fails)
+      try {
+        await base44.functions.invoke("deleteUserLogEntries", { ids: toDelete });
+      } catch {}
+      // Also remove from local cache immediately
+      const local = loadLocal();
+      saveLocal(local.filter(e => !toDelete.includes(e.id)));
       setShowConfirmDelete(false);
       loadEntries();
     } catch (e) { }
@@ -472,7 +487,7 @@ export default function Log() {
           >
             <CheckSquare className="w-5 h-5" />
           </button>
-          {isAdmin && (
+          {hasWavelogConfig && (
             <button
               onClick={toggleSyncPause}
               disabled={syncPauseLoading}

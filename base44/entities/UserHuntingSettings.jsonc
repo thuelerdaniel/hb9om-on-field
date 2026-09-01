@@ -197,6 +197,11 @@
     "wavelog_offline_queue": {
       "type": "string",
       "description": "JSON Array von QSO-IDs die offline geloggt wurden und noch an Wavelog gesendet werden muessen"
+    },
+    "sync_paused": {
+      "type": "boolean",
+      "default": false,
+      "description": "Per-User Sync-Stop \u2014 true pausiert den Wavelog-Import fuer diesen User"
     }
   },
   "required": [

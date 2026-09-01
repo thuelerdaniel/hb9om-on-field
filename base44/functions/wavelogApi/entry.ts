@@ -562,10 +562,6 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'permanent_sync': {
-        // v0.9018 BUGFIX 1: Check sync_paused flag — skip if paused
-        if (await isSyncPaused(base44)) {
-          return Response.json({ success: false, paused: true, message: 'Sync ist pausiert' });
-        }
         // v0.9025: No auth check — reads config from UserHuntingSettings, safe operation
         const sr = base44.asServiceRole;
         const settings = await sr.entities.UserHuntingSettings.filter(
@@ -578,6 +574,11 @@ export default async function(req: Request): Promise<Response> {
         for (const setting of settings) {
           if (!setting.wavelog_api_key) continue;
           const userId = setting.user_id || setting.created_by_id;
+          // v0.9018 NACHFOLGE: Per-user sync pause — skip users who paused their own sync
+          if (await isSyncPaused(base44, userId)) {
+            results.push({ user_id: userId, status: 'skipped', reason: 'sync_paused' });
+            continue;
+          }
           const syncBaseUrl = (setting.wavelog_wan_url || setting.wavelog_lan_url || '').replace(/\/+$/, '');
           if (!syncBaseUrl) {
             results.push({ user_id: userId, error: 'Keine Server-URL', status: 'skipped' });
