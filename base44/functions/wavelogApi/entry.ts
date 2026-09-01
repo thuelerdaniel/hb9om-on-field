@@ -264,11 +264,12 @@ export default async function(req: Request): Promise<Response> {
               wavelog_import_date: new Date().toISOString(),
               wavelog_synced: false,
               is_clubstation: isClub,
-              club_callsign: f.STATION_CALLSIGN || undefined,
+              // v0.9018 FIX: club_callsign = "HB9OM" for club, null for private (NOT the private callsign!)
+              club_callsign: isClub ? 'HB9OM' : undefined,
               club_operator_callsign: isClub ? f.OPERATOR : undefined,
               // v0.9018 FIX: log_type + operator_callsign for correct filter assignment
               log_type: isClub ? 'club' : 'private',
-              operator_callsign: isClub ? (f.STATION_CALLSIGN || 'HB9OM') : (userPrivateCallsign || undefined),
+              operator_callsign: isClub ? 'HB9OM' : (userPrivateCallsign || 'HB3YNF'),
               my_grid: f.MY_GRIDSQUARE || undefined,
               my_reference_name: f.MY_CITY || undefined,
               my_country_name: f.MY_COUNTRY || undefined,
@@ -468,11 +469,12 @@ export default async function(req: Request): Promise<Response> {
                 wavelog_import_date: new Date().toISOString(),
                 wavelog_synced: false,
                 is_clubstation: isClub,
-                club_callsign: f.STATION_CALLSIGN || undefined,
+                // v0.9018 FIX: club_callsign = "HB9OM" for club, null for private (NOT the private callsign!)
+                club_callsign: isClub ? 'HB9OM' : undefined,
                 club_operator_callsign: isClub ? f.OPERATOR : undefined,
                 // v0.9018 FIX: log_type + operator_callsign for correct filter assignment
                 log_type: isClub ? 'club' : 'private',
-                operator_callsign: isClub ? (f.STATION_CALLSIGN || 'HB9OM') : (userPrivateCallsign || undefined),
+                operator_callsign: isClub ? 'HB9OM' : (userPrivateCallsign || 'HB3YNF'),
                 my_grid: f.MY_GRIDSQUARE || undefined,
                 my_reference_name: f.MY_CITY || undefined,
                 my_country_name: f.MY_COUNTRY || undefined,
@@ -593,6 +595,16 @@ export default async function(req: Request): Promise<Response> {
         );
 
         const results: any[] = [];
+
+        // v0.9018 FIX: Get user's private callsign for log_type assignment
+        let syncUserPrivateCallsign = '';
+        try {
+          const callsignSettings = await base44.entities.AppSetting.filter({ key: 'hb9om_my_callsign' });
+          if (callsignSettings && callsignSettings.length > 0) {
+            syncUserPrivateCallsign = callsignSettings[0].value || '';
+          }
+        } catch {}
+        if (!syncUserPrivateCallsign) syncUserPrivateCallsign = 'HB3YNF';
 
         for (const setting of settings) {
           if (!setting.wavelog_api_key) continue;
