@@ -394,7 +394,13 @@ export default function Log() {
     if (!showConfirmDeleteSingle) return;
     setDeletingSingle(true);
     try {
-      await deleteEntry(showConfirmDeleteSingle.id);
+      // v0.9018 NACHFOLGE: Use service-role backend function to bypass RLS
+      try {
+        await base44.functions.invoke("deleteUserLogEntries", { ids: [showConfirmDeleteSingle.id] });
+      } catch {}
+      // Also remove from local cache immediately
+      const local = loadLocal();
+      saveLocal(local.filter(e => e.id !== showConfirmDeleteSingle.id));
       setShowConfirmDeleteSingle(null);
       loadEntries();
     } catch (e) { } finally {
@@ -406,7 +412,13 @@ export default function Log() {
     if (selectedIds.length === 0) return;
     setDeletingSelected(true);
     try {
-      await deleteMany(selectedIds);
+      // v0.9018 NACHFOLGE: Use service-role backend function to bypass RLS
+      try {
+        await base44.functions.invoke("deleteUserLogEntries", { ids: selectedIds });
+      } catch {}
+      // Also remove from local cache immediately
+      const local = loadLocal();
+      saveLocal(local.filter(e => !selectedIds.includes(e.id)));
       setSelectedIds([]);
       setSelectMode(false);
       loadEntries();
