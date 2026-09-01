@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall } from '../../shared/internalAuth.ts';
 import { dedupKey } from '../../shared/logDedup.ts';
+import { isSyncPaused } from '../../shared/syncPause.ts';
 
 // Wavelog API Proxy — v0.9022
 // Vermeidet Mixed-Content Blocking (App ist HTTPS, Wavelog-Server ist HTTP).
@@ -561,6 +562,10 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'permanent_sync': {
+        // v0.9018 BUGFIX 1: Check sync_paused flag — skip if paused
+        if (await isSyncPaused(base44)) {
+          return Response.json({ success: false, paused: true, message: 'Sync ist pausiert' });
+        }
         // v0.9025: No auth check — reads config from UserHuntingSettings, safe operation
         const sr = base44.asServiceRole;
         const settings = await sr.entities.UserHuntingSettings.filter(

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Radio, Plus, Download, Archive, Trash2, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff, Upload, CheckSquare, Square, User } from "lucide-react";
+import { Radio, Plus, Download, Archive, Trash2, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff, Upload, CheckSquare, Square, User, Pause, Play } from "lucide-react";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import AdifImportDialog from "@/components/log/AdifImportDialog";
 import BulkEditDialog from "@/components/log/BulkEditDialog";
@@ -54,9 +54,31 @@ export default function Log() {
   const [clubLogLoading, setClubLogLoading] = useState(false);
   const [clubLogUploading, setClubLogUploading] = useState(false);
   const [loggingBackend, setLoggingBackend] = useState("qrz");
+  const [syncPaused, setSyncPaused] = useState(false);
+  const [syncPauseLoading, setSyncPauseLoading] = useState(false);
+
+  // v0.9018 BUGFIX 1: Load sync-pause status on mount
+  const loadSyncPauseStatus = async () => {
+    try {
+      const res = await base44.functions.invoke("manageSyncPause", { action: "get" });
+      if (res.data) setSyncPaused(res.data.paused === true);
+    } catch {}
+  };
+
+  // v0.9018 BUGFIX 1: Toggle sync-pause flag
+  const toggleSyncPause = async () => {
+    setSyncPauseLoading(true);
+    try {
+      const res = await base44.functions.invoke("manageSyncPause", { action: "set", paused: !syncPaused });
+      if (res.data) setSyncPaused(res.data.paused === true);
+    } catch {} finally {
+      setSyncPauseLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadEntries();
+    loadSyncPauseStatus();
     // Check if demo account (point 13)
     base44.auth.me().then(me => {
       setIsDemo(me?.email === DEMO_EMAIL);
@@ -67,10 +89,14 @@ export default function Log() {
       .then(data => { if (data && data.length > 0) setLoggingBackend(data[0].logging_backend || "qrz"); })
       .catch(() => {});
     // Wavelog: Auto-Import + Offline Queue beim Öffnen des Logbuches
+    // v0.9018 BUGFIX 1: Skip auto-import if sync is paused
     (async () => {
       try {
         const me = await base44.auth.me();
         if (!me) return;
+        // Check sync_paused flag before importing
+        const pauseRes = await base44.functions.invoke("manageSyncPause", { action: "get" });
+        if (pauseRes.data?.paused === true) return; // Sync paused — skip auto-import
         const hs = await base44.entities.UserHuntingSettings.list();
         if (hs && hs.length > 0) {
           const s = hs[0];
@@ -446,6 +472,27 @@ export default function Log() {
           >
             <CheckSquare className="w-5 h-5" />
           </button>
+          {isAdmin && (
+            <button
+              onClick={toggleSyncPause}
+              disabled={syncPauseLoading}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                syncPaused
+                  ? "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
+                  : "bg-red-100 text-red-700 hover:bg-red-200 border border-red-300"
+              } ${syncPauseLoading ? "opacity-50" : ""}`}
+              title={syncPaused ? "Sync ist pausiert — Klick zum Starten" : "Sync läuft — Klick zum Stoppen"}
+            >
+              {syncPauseLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : syncPaused ? (
+                <Play className="w-3.5 h-3.5" />
+              ) : (
+                <Pause className="w-3.5 h-3.5" />
+              )}
+              {syncPaused ? "Sync Starten" : "Sync Stoppen"}
+            </button>
+          )}
           <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
             <HelpCircle className="w-5 h-5" />
           </Link>

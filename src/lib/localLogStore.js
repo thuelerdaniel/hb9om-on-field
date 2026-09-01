@@ -54,7 +54,20 @@ export async function syncFromServer() {
   if (!isOnline()) return local;
 
   try {
-    const serverData = await base44.entities.Log.list("-qso_date", 500);
+    // v0.9018 BUGFIX 2: Paginate to load ALL entries — not just the first 500.
+    // This ensures entries.length reflects the true total count.
+    const allServerData = [];
+    const PAGE_SIZE = 500;
+    let skip = 0;
+    const MAX_PAGES = 20; // Safety limit: max 10000 entries
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const batch = await base44.entities.Log.list("-qso_date", PAGE_SIZE, skip);
+      if (!batch || batch.length === 0) break;
+      allServerData.push(...batch);
+      skip += batch.length;
+      if (batch.length < PAGE_SIZE) break;
+    }
+    const serverData = allServerData;
     if (serverData) {
       const serverIds = new Set(serverData.map(e => e.id));
       // Keep pending entries not yet on server, plus pending updates/deletes, plus optimistic in-flight

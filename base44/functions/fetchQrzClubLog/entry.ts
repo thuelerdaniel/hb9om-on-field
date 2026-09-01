@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { dedupKey } from '../../shared/logDedup.ts';
+import { isSyncPaused } from '../../shared/syncPause.ts';
 
 // fetchQrzClubLog — v0.9003 Problem 2
 // Downloads QSOs from the QRZ.com Club Logbook (station_callsign: HB9OM),
@@ -17,6 +18,11 @@ export default async function(req: Request): Promise<Response> {
     if (!user) return Response.json({ error: 'Nicht angemeldet' }, { status: 401 });
     if ((user as any).role !== 'admin') {
       return Response.json({ error: 'Club-Log-Sync nur für Admins' }, { status: 403 });
+    }
+
+    // v0.9018 BUGFIX 1: Check sync_paused flag — skip if paused
+    if (await isSyncPaused(base44)) {
+      return Response.json({ status: 'success', imported: 0, message: 'Sync ist pausiert — Club-Log-Sync übersprungen', paused: true });
     }
 
     // 1. Read API key from AppSetting, fall back to QRZ_API_KEY secret

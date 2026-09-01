@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { isSyncPaused } from '../../shared/syncPause.ts';
 
 // syncClubLog — v0.9003
 // Uploads PRIVATE QSOs (is_clubstation: false) to ClubLog (clublog.org).
@@ -11,6 +12,11 @@ export default async function(req: Request): Promise<Response> {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Nicht angemeldet' }, { status: 401 });
+
+    // v0.9018 BUGFIX 1: Check sync_paused flag — skip if paused
+    if (await isSyncPaused(base44)) {
+      return Response.json({ success: true, uploaded: 0, message: 'Sync ist pausiert — ClubLog-Upload übersprungen', paused: true });
+    }
 
     // 1. Read ClubLog API key — per-user from UserHuntingSettings, fallback to AppSetting
     let clublogApiKey = '';
