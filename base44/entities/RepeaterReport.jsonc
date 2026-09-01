@@ -1,0 +1,83 @@
+{
+  "name": "RepeaterReport",
+  "type": "object",
+  "properties": {
+    "repeater_callsign": {
+      "type": "string",
+      "description": "Rufzeichen des gemeldeten Relais"
+    },
+    "repeater_id": {
+      "type": "string",
+      "description": "ID des Relais in der Datenbank"
+    },
+    "repeater_frequency": {
+      "type": "number",
+      "description": "Frequenz des Relais in MHz"
+    },
+    "error_type": {
+      "type": "string",
+      "enum": [
+        "wrong_frequency",
+        "wrong_location",
+        "offline_defect",
+        "wrong_info",
+        "other"
+      ],
+      "description": "Fehlertyp"
+    },
+    "description": {
+      "type": "string",
+      "description": "Beschreibung des Fehlers",
+      "maxLength": 1000
+    },
+    "reported_by": {
+      "type": "string",
+      "description": "Rufzeichen oder Name des Melders"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "reviewed",
+        "resolved"
+      ],
+      "default": "open",
+      "description": "Status der Meldung"
+    },
+    "admin_comment": {
+      "type": "string",
+      "description": "Kommentar des Admins bei Pruefung"
+    }
+  },
+  "required": [
+    "repeater_callsign",
+    "error_type"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
