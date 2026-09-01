@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Radio, Plus, Download, Archive, Trash2, Filter, Loader2, CheckCircle2, ArchiveRestore, Pencil, Building, HelpCircle, BarChart3, List, Cloud, CloudOff, Upload, CheckSquare, Square, User, Pause, Play } from "lucide-react";
@@ -61,6 +61,7 @@ export default function Log() {
   const [hasWavelogConfig, setHasWavelogConfig] = useState(false);
   // v0.9018 FORTSCHRITSANZEIGE: Delete progress overlay state
   const [deleteProgress, setDeleteProgress] = useState(null); // { phase, count, total, message }
+  const cancelDeleteRef = useRef(false);
 
   // v0.9018 NACHFOLGE: Load per-user sync-pause status on mount
   const loadSyncPauseStatus = async () => {
@@ -80,10 +81,10 @@ export default function Log() {
         setSyncPaused(nowPaused);
         // v0.9018 FORTSCHRITSANZEIGE: Toast confirmation for sync start/stop
         toast({
-          title: nowPaused ? "Sync gestoppt" : "Sync gestartet",
+          title: nowPaused ? "Auto-Sync deaktiviert" : "Auto-Sync aktiviert",
           description: nowPaused
-            ? "Wavelog-Import wurde pausiert."
-            : "Wavelog-Import läuft wieder.",
+            ? "Automatischer Wavelog-Import wurde gestoppt."
+            : "Automatischer Wavelog-Import läuft wieder.",
           duration: 4000,
         });
       }
@@ -226,22 +227,23 @@ export default function Log() {
   };
 
   const filtered = useMemo(() => {
-    // v0.9018 FIX: Filter by log_type with backward compat for legacy entries (is_clubstation fallback)
-    const getLogType = (e) => e.log_type || (e.is_clubstation ? "club" : "private");
-    // v0.9003 Problem 6: When club filter is active, use clubEntries (from getClubLog service-role)
-    let result = filterSource === "club" ? [...clubEntries] : [...entries];
+    // v0.9018 FIX point 5: Filter by log_type directly (not is_clubstation)
+    let result = [...entries];
+    if (filterSource === "private") result = result.filter(e => e.log_type === "private");
+    if (filterSource === "club") result = result.filter(e => e.log_type === "club");
     if (filterType !== "all") result = result.filter(e => e.my_reference_type === filterType);
     if (filterStatus !== "all") result = result.filter(e => e.status === filterStatus);
-    // v0.9018 FIX: Filter by log_type — "private" shows only private, "club" shows only club
-    if (filterSource === "private") result = result.filter(e => getLogType(e) === "private");
-    if (filterSource === "club") result = result.filter(e => getLogType(e) === "club");
     if (filterDateFrom) result = result.filter(e => (e.qso_date || "") >= filterDateFrom);
     if (filterDateTo) result = result.filter(e => (e.qso_date || "") <= filterDateTo);
     if (sortBy === "date_desc") result.sort((a, b) => (b.qso_date || "").localeCompare(a.qso_date || ""));
     if (sortBy === "date_asc") result.sort((a, b) => (a.qso_date || "").localeCompare(b.qso_date || ""));
     if (sortBy === "callsign") result.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
     return result;
-  }, [entries, clubEntries, filterType, filterStatus, sortBy, filterSource, filterDateFrom, filterDateTo]);
+  }, [entries, filterType, filterStatus, sortBy, filterSource, filterDateFrom, filterDateTo]);
+
+  // v0.9018 point 8: Separate Private/Club QSO counters
+  const privateTotal = useMemo(() => entries.filter(e => e.log_type === "private").length, [entries]);
+  const clubTotal = useMemo(() => entries.filter(e => e.log_type === "club").length, [entries]);
 
   const handleExport = () => {
     const header = "HB9OM On Field - ADIF Export\n<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
@@ -408,17 +410,27 @@ export default function Log() {
   const handleDeleteAll = async () => {
     const toDelete = filtered.map(e => e.id);
     const total = toDelete.length;
-    // v0.9018 FORTSCHRITSANZEIGE: Show progress overlay
+    const BATCH_SIZE = 500;
+    let deleted = 0;
+    cancelDeleteRef.current = false;
     setDeleteProgress({ phase: "deleting", count: 0, total });
     try {
-      const res = await base44.functions.invoke("deleteUserLogEntries", { ids: toDelete });
-      const deletedCount = res.data?.deletedCount || total;
-      // Remove from local cache immediately
+      for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
+        if (cancelDeleteRef.current) break;
+        const batch = toDelete.slice(i, i + BATCH_SIZE);
+        await base44.functions.invoke("bulkDeleteLogs", { ids: batch });
+        deleted += batch.length;
+        setDeleteProgress({ phase: "deleting", count: deleted, total });
+      }
+      const deletedIdSet = new Set(toDelete.slice(0, deleted));
       const local = loadLocal();
-      saveLocal(local.filter(e => !toDelete.includes(e.id)));
+      saveLocal(local.filter(e => !deletedIdSet.has(e.id)));
       setShowConfirmDelete(false);
-      // Show success state in overlay
-      setDeleteProgress({ phase: "done", count: deletedCount, total, message: `${deletedCount} Einträge erfolgreich gelöscht` });
+      if (cancelDeleteRef.current && deleted < total) {
+        setDeleteProgress({ phase: "done", count: deleted, total, message: `Abgebrochen: ${deleted} von ${total} Einträgen gelöscht` });
+      } else {
+        setDeleteProgress({ phase: "done", count: deleted, total, message: `${deleted} Einträge erfolgreich gelöscht` });
+      }
       loadEntries();
     } catch (e) {
       setDeleteProgress({ phase: "error", message: e.message || "Löschen fehlgeschlagen" });
@@ -434,8 +446,8 @@ export default function Log() {
     setDeletingSingle(true);
     setDeleteProgress({ phase: "deleting", count: 0, total: 1 });
     try {
-      const res = await base44.functions.invoke("deleteUserLogEntries", { ids: [showConfirmDeleteSingle.id] });
-      const deletedCount = res.data?.deletedCount || 1;
+      const res = await base44.functions.invoke("bulkDeleteLogs", { ids: [showConfirmDeleteSingle.id] });
+      const deletedCount = res.data?.deleted || 1;
       // Also remove from local cache immediately
       const local = loadLocal();
       saveLocal(local.filter(e => e.id !== showConfirmDeleteSingle.id));
@@ -452,17 +464,29 @@ export default function Log() {
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
     const total = selectedIds.length;
+    const BATCH_SIZE = 500;
+    let deleted = 0;
+    cancelDeleteRef.current = false;
     setDeletingSelected(true);
     setDeleteProgress({ phase: "deleting", count: 0, total });
     try {
-      const res = await base44.functions.invoke("deleteUserLogEntries", { ids: selectedIds });
-      const deletedCount = res.data?.deletedCount || total;
-      // Also remove from local cache immediately
+      for (let i = 0; i < selectedIds.length; i += BATCH_SIZE) {
+        if (cancelDeleteRef.current) break;
+        const batch = selectedIds.slice(i, i + BATCH_SIZE);
+        await base44.functions.invoke("bulkDeleteLogs", { ids: batch });
+        deleted += batch.length;
+        setDeleteProgress({ phase: "deleting", count: deleted, total });
+      }
+      const deletedIdSet = new Set(selectedIds.slice(0, deleted));
       const local = loadLocal();
-      saveLocal(local.filter(e => !selectedIds.includes(e.id)));
+      saveLocal(local.filter(e => !deletedIdSet.has(e.id)));
       setSelectedIds([]);
       setSelectMode(false);
-      setDeleteProgress({ phase: "done", count: deletedCount, total, message: `${deletedCount} Einträge erfolgreich gelöscht` });
+      if (cancelDeleteRef.current && deleted < total) {
+        setDeleteProgress({ phase: "done", count: deleted, total, message: `Abgebrochen: ${deleted} von ${total} Einträgen gelöscht` });
+      } else {
+        setDeleteProgress({ phase: "done", count: deleted, total, message: `${deleted} Einträge erfolgreich gelöscht` });
+      }
       loadEntries();
     } catch (e) {
       setDeleteProgress({ phase: "error", message: e.message || "Löschen fehlgeschlagen" });
@@ -509,7 +533,11 @@ export default function Log() {
             <div>
               <h1 className="text-sm font-bold text-gray-900">QSO-Logbuch</h1>
               <div className="flex items-center gap-1.5">
-                <p className="text-[10px] text-gray-400">{entries.length} Einträge</p>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="text-gray-400">{entries.length} Einträge</span>
+                  <span className="text-blue-500">Private: {privateTotal}</span>
+                  <span className="text-emerald-500">Club: {clubTotal}</span>
+                </div>
                 {pendingCount > 0 ? (
                   <span className="flex items-center gap-0.5 text-[10px] text-amber-500" title={`${pendingCount} Eintrag${pendingCount !== 1 ? 'en' : ''} wartet auf Synchronisation`}>
                     <CloudOff className="w-2.5 h-2.5" /> {pendingCount} ausstehend
@@ -549,10 +577,10 @@ export default function Log() {
               disabled={syncPauseLoading}
               className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
                 syncPaused
-                  ? "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
-                  : "bg-red-100 text-red-700 hover:bg-red-200 border border-red-300"
+                  ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"
+                  : "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
               } ${syncPauseLoading ? "opacity-50" : ""}`}
-              title={syncPaused ? "Sync ist pausiert — Klick zum Starten" : "Sync läuft — Klick zum Stoppen"}
+              title={syncPaused ? "Auto-Sync ist deaktiviert — Klick zum Aktivieren" : "Auto-Sync ist aktiv — Klick zum Deaktivieren"}
             >
               {syncPauseLoading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -561,7 +589,7 @@ export default function Log() {
               ) : (
                 <Pause className="w-3.5 h-3.5" />
               )}
-              {syncPaused ? "Sync Starten" : "Sync Stoppen"}
+              Auto-Sync: {syncPaused ? "AUS" : "AN"}
             </button>
           )}
           <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
@@ -690,7 +718,9 @@ export default function Log() {
 
           <div className="flex-1" />
 
-          <span className="text-xs text-gray-400">{filtered.length} Einträge</span>
+          <span className="text-xs text-gray-400">
+            {filterSource === "private" ? `Private QSOs: ${filtered.length}` : filterSource === "club" ? `Club QSOs: ${filtered.length}` : `Total QSOs: ${filtered.length}`}
+          </span>
 
           <button
             onClick={() => setShowImport(true)}
@@ -707,39 +737,15 @@ export default function Log() {
             <Download className="w-4 h-4" /> Export (ADIF)
           </button>
 
-          {filtered.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {isDemo ? (
-                <span className="px-3 py-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-1.5" title="QRZ-Upload im Demo-Konto gesperrt">
-                  <Upload className="w-4 h-4 opacity-40" />
-                  <span className="opacity-60">QRZ-Upload (Demo gesperrt)</span>
-                </span>
-              ) : (
-                <>
-                  {/* QRZ Club — immer sichtbar (Ausnahme: Club-Log kann immer QRZ verwenden) */}
-                  <button
-                    onClick={() => handleQrzUpload('club')}
-                    disabled={qrzUploading}
-                    className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 disabled:opacity-40 flex items-center gap-1.5"
-                    title="Gefilterte QSOs zu QRZ.com Club-Logbuch hochladen"
-                  >
-                    {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Club Upload
-                  </button>
-                  {/* QRZ Personal — nur wenn Wahlschalter auf "qrz" (nicht "wavelog") */}
-                  {loggingBackend !== "wavelog" && (
-                    <button
-                      onClick={() => handleQrzUpload('personal')}
-                      disabled={qrzUploading}
-                      className="px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
-                      title="Gefilterte QSOs zu persönlichem QRZ-Logbuch hochladen"
-                    >
-                      {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Pers.
-                    </button>
-                  )}
-                  {/* PUNKT 5: Club-Log-Sync — nur für Admins */}
-                </>
-              )}
-            </div>
+          {filtered.length > 0 && loggingBackend !== "wavelog" && !isDemo && (
+            <button
+              onClick={() => handleQrzUpload('personal')}
+              disabled={qrzUploading}
+              className="px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 flex items-center gap-1.5"
+              title="Gefilterte QSOs zu persönlichem QRZ-Logbuch hochladen"
+            >
+              {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} QRZ Pers.
+            </button>
           )}
           {qrzUploadResult && (
             <div className={`text-xs font-medium px-2 py-1 rounded ${qrzUploadResult.success ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
@@ -752,14 +758,14 @@ export default function Log() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3 mb-4">
           {syncPaused && (
             <div className="mb-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-              <Pause className="w-3.5 h-3.5" /> Sync ist gestoppt — Import/Sync-Buttons sind deaktiviert
+              <Pause className="w-3.5 h-3.5" /> Auto-Sync ist deaktiviert — manuelle Import/Buttons bleiben funktionsfähig
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
             {/* 1. QRZ Club — fetchQrzClubLog (Download from QRZ Club Logbook) */}
             <button
               onClick={handleClubLogSync}
-              disabled={syncPaused || clubSyncLoading}
+              disabled={clubSyncLoading}
               className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
               title={syncPaused ? "Sync ist gestoppt" : "QSOs vom QRZ Club-Logbuch herunterladen und importieren"}
             >
@@ -769,7 +775,7 @@ export default function Log() {
             {/* 2. Club Sync — syncClubLog (Upload to clublog.org) */}
             <button
               onClick={handleClubLogUpload}
-              disabled={syncPaused || clubLogUploading}
+              disabled={clubLogUploading}
               className="px-3 py-2 text-sm font-medium text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
               title={syncPaused ? "Sync ist gestoppt" : "Private QSOs zu ClubLog (clublog.org) hochladen"}
             >
@@ -778,6 +784,18 @@ export default function Log() {
             </button>
             {/* 3-5. Wavelog: Club Log Wavelog + Wavelog Import + Wavelog Voll Import */}
             <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
+            {/* v0.9018 point 3: QRZ Club Upload moved to action button group */}
+            {!isDemo && (
+              <button
+                onClick={() => handleQrzUpload('club')}
+                disabled={qrzUploading}
+                className="px-3 py-2 text-sm font-medium text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 disabled:opacity-40 flex items-center gap-1.5"
+                title="Gefilterte QSOs zu QRZ.com Club-Logbuch hochladen"
+              >
+                {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                QRZ Club Upload
+              </button>
+            )}
             {/* 6. Löschen — always active, even when sync is paused */}
             <button
               onClick={() => setShowConfirmDelete(true)}
@@ -1036,6 +1054,7 @@ export default function Log() {
         total={deleteProgress?.total}
         message={deleteProgress?.message}
         onClose={() => setDeleteProgress(null)}
+        onCancel={() => { cancelDeleteRef.current = true; }}
       />
 
       <DonationPopup />
