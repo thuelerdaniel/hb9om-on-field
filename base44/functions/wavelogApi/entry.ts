@@ -685,8 +685,12 @@ export default async function(req: Request): Promise<Response> {
                   wavelog_import_date: new Date().toISOString(),
                   wavelog_synced: true,
                   is_clubstation: isClub,
-                  club_callsign: fields.STATION_CALLSIGN || undefined,
+                  // v0.9018 FIX: club_callsign = "HB9OM" for club, null for private
+                  club_callsign: isClub ? 'HB9OM' : undefined,
                   club_operator_callsign: isClub ? fields.OPERATOR : undefined,
+                  // v0.9018 FIX: log_type + operator_callsign for correct filter assignment
+                  log_type: isClub ? 'club' : 'private',
+                  operator_callsign: isClub ? 'HB9OM' : syncUserPrivateCallsign,
                   my_grid: fields.MY_GRIDSQUARE || undefined,
                   created_by_id: userId,
                 });

@@ -374,6 +374,19 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
     setSaving(true);
     setSaveError("");
     try {
+      // v0.9018 FIX: Get user's private callsign for log_type assignment
+      let myPrivateCall = safeGetItem("hb9om_my_callsign") || "";
+      if (!myPrivateCall) {
+        try {
+          const callSettings = await base44.entities.AppSetting.filter({ key: "hb9om_my_callsign" });
+          if (callSettings && callSettings.length > 0) {
+            myPrivateCall = callSettings[0].value || "";
+            safeSetItem("hb9om_my_callsign", myPrivateCall);
+          }
+        } catch {}
+      }
+      if (!myPrivateCall) myPrivateCall = "HB3YNF";
+
       const payload = {
         callsign: callsign.toUpperCase().trim(),
         callsign_suffix: callsignSuffix,
@@ -404,7 +417,10 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
         my_license_class: myCountryCode ? myLicenseClass : "",
         my_grid: refType === "generell" ? myGrid : "",
         notes,
-        status: editEntry?.status || "active"
+        status: editEntry?.status || "active",
+        // v0.9018 FIX: log_type + operator_callsign for correct filter assignment
+        log_type: isClubstation ? "club" : "private",
+        operator_callsign: isClubstation ? (clubCallsign.toUpperCase().trim() || "HB9OM") : myPrivateCall,
       };
 
       if (isEditing) {
