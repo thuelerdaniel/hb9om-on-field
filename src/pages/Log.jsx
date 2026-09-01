@@ -736,52 +736,47 @@ export default function Log() {
           )}
         </div>
 
-        {/* Action Buttons Group — v0.9018 — 6 Buttons clearly visible, not hidden in dropdown */}
-        {filtered.length > 0 && (
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3 mb-4">
-            {syncPaused && (
-              <div className="mb-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                <Pause className="w-3.5 h-3.5" /> Sync ist gestoppt — Import/Sync-Buttons sind deaktiviert
-              </div>
-            )}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* 1. QRZ Club — fetchQrzClubLog (Download from QRZ Club Logbook) */}
-              {isAdmin && (
-                <button
-                  onClick={handleClubLogSync}
-                  disabled={syncPaused || clubSyncLoading}
-                  className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                  title={syncPaused ? "Sync ist gestoppt" : "QSOs vom QRZ Club-Logbuch herunterladen und importieren"}
-                >
-                  {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  QRZ Club
-                </button>
-              )}
-              {/* 2. Club Sync — syncClubLog (Upload to clublog.org) */}
-              <button
-                onClick={handleClubLogUpload}
-                disabled={syncPaused || clubLogUploading}
-                className="px-3 py-2 text-sm font-medium text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                title={syncPaused ? "Sync ist gestoppt" : "Private QSOs zu ClubLog (clublog.org) hochladen"}
-              >
-                {clubLogUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                Club Sync
-              </button>
-              {/* 3-5. Wavelog: Club Log Wavelog + Wavelog Import + Wavelog Voll Import */}
-              <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
-              {/* 6. Löschen — always active, even when sync is paused */}
-              {filterStatus !== "archived" && (
-                <button
-                  onClick={() => setShowConfirmDelete(true)}
-                  className="px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-1.5 ml-auto"
-                  title="Alle gefilterten Log-Einträge löschen"
-                >
-                  <Trash2 className="w-4 h-4" /> Löschen
-                </button>
-              )}
+        {/* Action Buttons Group — v0.9018 — 6 Buttons ALWAYS visible, no conditional rendering */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3 mb-4">
+          {syncPaused && (
+            <div className="mb-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <Pause className="w-3.5 h-3.5" /> Sync ist gestoppt — Import/Sync-Buttons sind deaktiviert
             </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* 1. QRZ Club — fetchQrzClubLog (Download from QRZ Club Logbook) */}
+            <button
+              onClick={handleClubLogSync}
+              disabled={syncPaused || clubSyncLoading}
+              className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+              title={syncPaused ? "Sync ist gestoppt" : "QSOs vom QRZ Club-Logbuch herunterladen und importieren"}
+            >
+              {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              QRZ Club
+            </button>
+            {/* 2. Club Sync — syncClubLog (Upload to clublog.org) */}
+            <button
+              onClick={handleClubLogUpload}
+              disabled={syncPaused || clubLogUploading}
+              className="px-3 py-2 text-sm font-medium text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+              title={syncPaused ? "Sync ist gestoppt" : "Private QSOs zu ClubLog (clublog.org) hochladen"}
+            >
+              {clubLogUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              Club Sync
+            </button>
+            {/* 3-5. Wavelog: Club Log Wavelog + Wavelog Import + Wavelog Voll Import */}
+            <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
+            {/* 6. Löschen — always active, even when sync is paused */}
+            <button
+              onClick={() => setShowConfirmDelete(true)}
+              disabled={filtered.length === 0}
+              className="px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 ml-auto"
+              title={filtered.length === 0 ? "Keine Einträge zum Löschen" : "Alle gefilterten Log-Einträge löschen"}
+            >
+              <Trash2 className="w-4 h-4" /> Löschen
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Entries */}
         {view === "stats" ? null : loading ? (

@@ -37,19 +37,19 @@ export default function WavelogSyncButtons({ onSynced, syncPaused }) {
     return () => window.removeEventListener("online", update);
   }, []);
 
-  if (!settings?.wavelog_enabled || settings?.logging_backend !== "wavelog") return null;
-
+  // v0.9018 FIX: Always render the 3 Wavelog buttons — disable if not configured
+  const wavelogEnabled = !!(settings?.wavelog_enabled && settings?.logging_backend === "wavelog");
   const config = {
-    wavelog_enabled: settings.wavelog_enabled,
-    wavelog_lan_url: settings.wavelog_lan_url,
-    wavelog_wan_url: settings.wavelog_wan_url,
-    wavelog_api_key: settings.wavelog_api_key,
-    wavelog_station_id: settings.wavelog_station_id,
-    wavelog_last_fetch_id: settings.wavelog_last_fetch_id || 0,
+    wavelog_enabled: settings?.wavelog_enabled,
+    wavelog_lan_url: settings?.wavelog_lan_url,
+    wavelog_wan_url: settings?.wavelog_wan_url,
+    wavelog_api_key: settings?.wavelog_api_key,
+    wavelog_station_id: settings?.wavelog_station_id,
+    wavelog_last_fetch_id: settings?.wavelog_last_fetch_id || 0,
   };
 
   const wavelogConfigured = !!(config.wavelog_api_key && (config.wavelog_lan_url || config.wavelog_wan_url) && config.wavelog_station_id);
-  const disabled = syncPaused || !wavelogConfigured;
+  const disabled = syncPaused || !wavelogEnabled || !wavelogConfigured;
 
   const handleUpload = async () => {
     if (disabled) return;
@@ -122,7 +122,7 @@ export default function WavelogSyncButtons({ onSynced, syncPaused }) {
         onClick={handleUpload}
         disabled={disabled || uploading}
         className="px-3 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-        title={syncPaused ? "Sync ist gestoppt" : "Alle nicht gesendeten QSOs an Wavelog senden"}
+        title={syncPaused ? "Sync ist gestoppt" : !wavelogEnabled ? "Wavelog nicht aktiviert — in Einstellungen konfigurieren" : !wavelogConfigured ? "Wavelog nicht vollständig konfiguriert" : "Alle nicht gesendeten QSOs an Wavelog senden"}
       >
         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
         Club Log Wavelog
@@ -132,7 +132,7 @@ export default function WavelogSyncButtons({ onSynced, syncPaused }) {
         onClick={handleImport}
         disabled={disabled || importing || fullImporting}
         className="px-3 py-2 text-sm font-medium text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-        title={syncPaused ? "Sync ist gestoppt" : "Neue QSOs von Wavelog importieren (Delta-Sync)"}
+        title={syncPaused ? "Sync ist gestoppt" : !wavelogEnabled ? "Wavelog nicht aktiviert — in Einstellungen konfigurieren" : !wavelogConfigured ? "Wavelog nicht vollständig konfiguriert" : "Neue QSOs von Wavelog importieren (Delta-Sync)"}
       >
         {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         Wavelog Import
@@ -142,12 +142,12 @@ export default function WavelogSyncButtons({ onSynced, syncPaused }) {
         onClick={handleFullImport}
         disabled={disabled || importing || fullImporting}
         className="px-3 py-2 text-sm font-medium text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-        title={syncPaused ? "Sync ist gestoppt" : "ALLE QSOs von Wavelog importieren (Voll-Neuimport ab ID 0)"}
+        title={syncPaused ? "Sync ist gestoppt" : !wavelogEnabled ? "Wavelog nicht aktiviert — in Einstellungen konfigurieren" : !wavelogConfigured ? "Wavelog nicht vollständig konfiguriert" : "ALLE QSOs von Wavelog importieren (Voll-Neuimport ab ID 0)"}
       >
         {fullImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         Wavelog Voll Import
       </button>
-      {settings.wavelog_auto_sync && !syncPaused && (
+      {wavelogEnabled && settings.wavelog_auto_sync && !syncPaused && (
         <span className="flex items-center gap-1 text-[10px] text-green-600" title="Permanent Sync aktiv">
           <RefreshCw className="w-3 h-3" /> Auto-Sync
         </span>
