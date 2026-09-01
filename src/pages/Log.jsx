@@ -226,20 +226,22 @@ export default function Log() {
   };
 
   const filtered = useMemo(() => {
+    // v0.9018 FIX: Filter by log_type with backward compat for legacy entries (is_clubstation fallback)
+    const getLogType = (e) => e.log_type || (e.is_clubstation ? "club" : "private");
     // v0.9003 Problem 6: When club filter is active, use clubEntries (from getClubLog service-role)
     let result = filterSource === "club" ? [...clubEntries] : [...entries];
     if (filterType !== "all") result = result.filter(e => e.my_reference_type === filterType);
     if (filterStatus !== "all") result = result.filter(e => e.status === filterStatus);
-    // BUG 5: Explicit club/personal filtering — club filters is_clubstation===true, personal filters !is_clubstation
-    if (filterSource === "club") result = result.filter(e => e.is_clubstation === true);
-    if (filterSource === "personal") result = result.filter(e => !e.is_clubstation);
+    // v0.9018 FIX: Filter by log_type — "private" shows only private, "club" shows only club
+    if (filterSource === "private") result = result.filter(e => getLogType(e) === "private");
+    if (filterSource === "club") result = result.filter(e => getLogType(e) === "club");
     if (filterDateFrom) result = result.filter(e => (e.qso_date || "") >= filterDateFrom);
     if (filterDateTo) result = result.filter(e => (e.qso_date || "") <= filterDateTo);
     if (sortBy === "date_desc") result.sort((a, b) => (b.qso_date || "").localeCompare(a.qso_date || ""));
     if (sortBy === "date_asc") result.sort((a, b) => (a.qso_date || "").localeCompare(b.qso_date || ""));
     if (sortBy === "callsign") result.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
     return result;
-  }, [entries, filterType, filterStatus, sortBy, filterSource, filterDateFrom, filterDateTo]);
+  }, [entries, clubEntries, filterType, filterStatus, sortBy, filterSource, filterDateFrom, filterDateTo]);
 
   const handleExport = () => {
     const header = "HB9OM On Field - ADIF Export\n<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
@@ -643,9 +645,9 @@ export default function Log() {
             onValueChange={setFilterSource}
             triggerClassName="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 h-9"
             options={[
-              { value: "all", label: "Alle QSOs" },
-              { value: "personal", label: "Persönlich (HB3YNF)" },
-              { value: "club", label: "Clubstation (HB9OM)" }
+              { value: "all", label: "Alle" },
+              { value: "private", label: "Privat" },
+              { value: "club", label: "Club" }
             ]}
           />
 

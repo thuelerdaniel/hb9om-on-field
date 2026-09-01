@@ -166,6 +166,14 @@ export default async function(req: Request): Promise<Response> {
         const baseUrl = await resolveBaseUrl();
         if (!baseUrl) return Response.json({ error: 'Server nicht erreichbar' }, { status: 502 });
         const fetchfromid = body.fetchfromid || 0;
+        // v0.9018 FIX: Get user's private callsign for log_type assignment
+        let userPrivateCallsign = '';
+        try {
+          const callsignSettings = await base44.entities.AppSetting.filter({ key: 'hb9om_my_callsign' });
+          if (callsignSettings && callsignSettings.length > 0) {
+            userPrivateCallsign = callsignSettings[0].value || '';
+          }
+        } catch {}
         const r = await tryFetch(baseUrl, 'get_contacts_adif', {
           key: config.api_key,
           station_id: config.station_id,
@@ -258,6 +266,9 @@ export default async function(req: Request): Promise<Response> {
               is_clubstation: isClub,
               club_callsign: f.STATION_CALLSIGN || undefined,
               club_operator_callsign: isClub ? f.OPERATOR : undefined,
+              // v0.9018 FIX: log_type + operator_callsign for correct filter assignment
+              log_type: isClub ? 'club' : 'private',
+              operator_callsign: isClub ? (f.STATION_CALLSIGN || 'HB9OM') : (userPrivateCallsign || undefined),
               my_grid: f.MY_GRIDSQUARE || undefined,
               my_reference_name: f.MY_CITY || undefined,
               my_country_name: f.MY_COUNTRY || undefined,
@@ -373,6 +384,15 @@ export default async function(req: Request): Promise<Response> {
           return Response.json({ error: 'Keine Wavelog-Server-URL konfiguriert' }, { status: 400 });
         }
 
+        // v0.9018 FIX: Get user's private callsign for log_type assignment
+        let userPrivateCallsign = '';
+        try {
+          const callsignSettings = await base44.entities.AppSetting.filter({ key: 'hb9om_my_callsign' });
+          if (callsignSettings && callsignSettings.length > 0) {
+            userPrivateCallsign = callsignSettings[0].value || '';
+          }
+        } catch {}
+
         function parseAdifRec(record: string): Record<string, string> {
           const fields: Record<string, string> = {};
           const regex = /<([A-Z_]+):(\d+)(?::[A-Z]+)?>([^<]*)/gi;
@@ -450,6 +470,9 @@ export default async function(req: Request): Promise<Response> {
                 is_clubstation: isClub,
                 club_callsign: f.STATION_CALLSIGN || undefined,
                 club_operator_callsign: isClub ? f.OPERATOR : undefined,
+                // v0.9018 FIX: log_type + operator_callsign for correct filter assignment
+                log_type: isClub ? 'club' : 'private',
+                operator_callsign: isClub ? (f.STATION_CALLSIGN || 'HB9OM') : (userPrivateCallsign || undefined),
                 my_grid: f.MY_GRIDSQUARE || undefined,
                 my_reference_name: f.MY_CITY || undefined,
                 my_country_name: f.MY_COUNTRY || undefined,

@@ -147,6 +147,9 @@ export default async function(req: Request): Promise<Response> {
           // v0.9018: ALWAYS use HB9OM as club_callsign — QRZ ADIF may contain HB3YNF (personal call)
           club_callsign: CLUB_CALLSIGN,
           club_operator_callsign: f.OPERATOR || undefined,
+          // v0.9018 FIX: log_type + operator_callsign for correct filter assignment
+          log_type: 'club',
+          operator_callsign: CLUB_CALLSIGN,
           my_grid: f.MY_GRIDSQUARE || undefined,
           wavelog_imported: true,
           wavelog_import_date: new Date().toISOString(),

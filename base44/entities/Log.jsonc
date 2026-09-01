@@ -121,6 +121,19 @@
       "type": "string",
       "description": "Operator Name (bei Clubstation)"
     },
+    "log_type": {
+      "type": "string",
+      "enum": [
+        "private",
+        "club"
+      ],
+      "default": "private",
+      "description": "Log-Typ: private (persoenlich) oder club (Clubstation)"
+    },
+    "operator_callsign": {
+      "type": "string",
+      "description": "Zugehoeriges Operator-Rufzeichen (privates Call des Users oder Club-Call)"
+    },
     "my_reference": {
       "type": "string",
       "description": "Meine Referenz (z.B. HB/AG-001, LLCH-0002)"
