@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9030";
+export const APP_VERSION = "0.9031";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,9 @@ export const APP_BUILD = "202609020700";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9031: BUGFIX Relais-Abdeckung Mobil — `if (started) return;` entfernt, Repeater werden im Live-Modus auch nach Start neu geladen (>5km Bewegung)",
+  "v0.9031: BUGFIX Relais-Abdeckung Mobil — Mindest-Suchradius 50km (portable 15km war zu klein), verhindert 'Kein Repeater in Reichweite'",
+  "v0.9031: BUGFIX Relais-Abdeckung Mobil — Debug-Logs: GPS-Position, Repeater-Anzahl, empfohlener Repeater mit Distanz",
   "v0.9022: Route löschen — useCallback für stabile Handler-Referenz, console.log Debugging, key-Prop für Map-Remount",
   "v0.9022: PDF Export — jsPDF client-side Generierung verifiziert, Button in Import-Gruppe sichtbar",
   "v0.9021: Route löschen Button Fix — löscht zuverlässig alle Wegpunkte, Route und Repeater",

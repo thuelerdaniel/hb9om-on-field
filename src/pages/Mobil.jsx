@@ -3,7 +3,7 @@
 // Start-Status, Coverage-Toggles, GPS + Wake Lock, Repeater-Laden.
 // Vor Start: MobilConfig (Konfiguration). Nach Start: MobilActive (Karte + Repeater).
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Smartphone } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useMobilGps } from "@/hooks/useMobilGps";
@@ -16,6 +16,7 @@ import {
   totalRouteDistance,
   fetchOsmRoute,
 } from "@/lib/routeDistance";
+import { haversine } from "@/lib/geoUtilsFrontend";
 import { repeaterMatchesMode } from "@/lib/repeaterModes";
 import { maxRangeForBands } from "@/lib/equipmentRange";
 
@@ -76,20 +77,34 @@ export default function Mobil() {
     }
   }, []);
 
-  // Load repeaters when route or GPS position changes (config mode only)
-  useEffect(() => {
-    if (started) return;
+  // v0.9031: Load repeaters when route or GPS position changes.
+  // BUGFIX: Previously had `if (started) return;` which prevented repeater
+  // reloading in active (started) live mode — user moved but repeaters
+  // were never refreshed, causing "Kein Repeater in Reichweite".
+  // Now reloads in live mode even when started, with >5km threshold.
+  const lastLoadPosRef = useRef(null);
 
+  useEffect(() => {
     if (mode === "route" && routeCoords.length >= 2) {
       const bounds = routeBounds(routeCoords, effectiveRange);
       if (bounds) loadRepeaters(bounds);
     } else if (mode === "live" && position) {
-      const bounds = pointBounds(position.lat, position.lon, effectiveRange);
-      loadRepeaters(bounds);
+      // v0.9031: Minimum 50km search radius — ensures nearby repeaters are found
+      // even with portable equipment (default 15km range was too small).
+      const searchRange = Math.max(effectiveRange, 50);
+      // Only reload if moved >5km from last load position (avoids excessive API calls)
+      const shouldReload =
+        !lastLoadPosRef.current ||
+        haversine(position.lat, position.lon, lastLoadPosRef.current.lat, lastLoadPosRef.current.lon) > 5;
+      if (shouldReload) {
+        lastLoadPosRef.current = position;
+        const bounds = pointBounds(position.lat, position.lon, searchRange);
+        loadRepeaters(bounds);
+      }
     } else {
       setRepeaters([]);
     }
-  }, [mode, routeCoords, position, effectiveRange, started, loadRepeaters]);
+  }, [mode, routeCoords, position, effectiveRange, loadRepeaters]);
 
   // Filter repeaters by mode + band
   const filteredRepeaters = useMemo(() => {

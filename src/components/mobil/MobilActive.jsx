@@ -60,7 +60,14 @@ export default function MobilActive({
       (routeCoords.length > 0
         ? { lat: routeCoords[0][0], lon: routeCoords[0][1] }
         : null);
-    if (!refPoint) return [];
+    if (!refPoint) {
+      console.log('[v0.9031] MobilActive: no refPoint (GPS + route both empty)');
+      return [];
+    }
+
+    const withCoords = repeaters.filter((r) => r.lat != null && r.lng != null);
+    console.log('[v0.9031] GPS:', refPoint.lat?.toFixed(4), refPoint.lon?.toFixed(4),
+      '| repeaters:', repeaters.length, '| withCoords:', withCoords.length);
 
     return repeaters
       .map((r) => {
@@ -78,6 +85,11 @@ export default function MobilActive({
       ? reachableRepeaters[0]
       : repeatersWithDist[0] || null;
   const isRecommendedReachable = reachableRepeaters.length > 0;
+
+  // v0.9031: Debug log for repeater recommendation
+  console.log('[v0.9031] reachable:', reachableRepeaters.length,
+    '| recommended:', recommendedRepeater?.callsign,
+    '| dist:', recommendedRepeater?._distToPos?.toFixed(1), 'km');
 
   const activeRepeater = useMemo(() => {
     if (selectedRepeaterId) {
