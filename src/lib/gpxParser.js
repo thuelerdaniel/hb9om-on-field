@@ -8,7 +8,7 @@ export function parseGpxFile(file) {
       try {
         const text = e.target.result;
         const parser = new DOMParser();
-        const doc = parser.parseFromString(text, "application/xml");
+        const doc = parser.parseFromString(text, "text/xml");
         const parseError = doc.querySelector("parsererror");
         if (parseError) {
           reject(new Error("Ungültiges GPX-XML"));

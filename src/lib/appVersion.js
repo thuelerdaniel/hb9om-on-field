@@ -13,11 +13,14 @@ export const APP_VERSION = "0.9019";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202608312240";
+export const APP_BUILD = "202609020601";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9019: GPX-Upload Bugfix — File-Input verwendet sr-only statt display:none (klickbar auf Mobile), accept-Attribut erweitert",
+  "v0.9019: Google-Route-Import Bugfix — Frontend-Parser unterstützt !3dLAT!4dLON Format (alle Waypoints), Backend nur als Fallback für Short-Links",
+  "v0.9019: Google-Route-Import — Hinweismeldung bei URLs mit Ortsnamen (keine Koordinaten)",
   "v0.9019: BAKOM-Link korrigiert — Hilfe-Seite verwendet https://www.bakom.admin.ch/de/amateurfunk + USKA Bandplan Link",
   "v0.9019: Report-Button im Relais-Popup reaktiviert — neues RepeaterReport Entity + reportRepeaterError Backend-Function",
   "v0.9019: Türkische Burgen — fetchCastlesOverpass lädt 404+ Burgen aus OpenStreetMap für COTA-Layer (Türkei, Balkan, MENA)",

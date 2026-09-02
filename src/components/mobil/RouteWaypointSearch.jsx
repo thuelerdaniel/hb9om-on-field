@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { Search, Plus, FileUp, Link2, Loader2, MapPin } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { parseGpxFile } from "@/lib/gpxParser";
-import { parseGoogleMapsUrl } from "@/lib/googleMapsUrlParser";
+import { parseGoogleMapsUrl, hasPlaceNamesButNoCoords } from "@/lib/googleMapsUrlParser";
 
 export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoints }) {
   const [query, setQuery] = useState("");
@@ -82,7 +82,13 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
         setGmapsUrl("");
         return;
       }
-      // Fallback: call resolveGoogleMapsLink backend function (for short links)
+      // Check if URL has place names but no coordinates
+      if (hasPlaceNamesButNoCoords(gmapsUrl.trim())) {
+        setGmapsError("Bitte Google-Maps-Link mit Koordinaten verwenden (z.B. /dir/47.39,8.05/47.45,8.65/)");
+        setTimeout(() => setGmapsError(null), 8000);
+        return;
+      }
+      // Fallback: call resolveGoogleMapsLink backend function (nur für Short-Links wie maps.app.goo.gl)
       const res = await base44.functions.invoke("resolveGoogleMapsLink", { url: gmapsUrl.trim() });
       const data = res?.data;
       if (data?.success && data.waypoints?.length > 0) {
@@ -96,8 +102,8 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
         );
         setGmapsUrl("");
       } else {
-        setGmapsError(data?.error || "Keine Koordinaten gefunden");
-        setTimeout(() => setGmapsError(null), 5000);
+        setGmapsError(data?.error || "Keine Koordinaten gefunden — bitte Link mit Koordinaten verwenden");
+        setTimeout(() => setGmapsError(null), 8000);
       }
     } catch (err) {
       setGmapsError("Google Maps Link konnte nicht aufgelöst werden");
@@ -157,9 +163,11 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
         <input
           ref={fileInputRef}
           type="file"
-          accept=".gpx,application/gpx+xml"
+          accept=".gpx,application/gpx+xml,text/xml,application/xml"
           onChange={handleGpxImport}
-          style={{ display: "none" }}
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
         />
 
         <div className="flex items-center gap-1 flex-1 min-w-[160px]">

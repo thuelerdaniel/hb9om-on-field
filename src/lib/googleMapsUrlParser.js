@@ -1,24 +1,24 @@
 // Google Maps URL Parser — extrahiert Koordinaten/Wegpunkte aus verschiedenen Google Maps URL-Formaten.
+// v0.9019: Regex-basiert (kein new URL()), unterstützt !3dLAT!4dLON Format, robust gegen fehlende Protokolle.
+//
 // Unterstützte Formate:
-//   1. https://www.google.com/maps/dir/LAT1,LON1/LAT2,LON2/...
-//   2. https://maps.google.com/?q=LAT,LON
-//   3. https://www.google.com/maps/search/?api=1&query=LAT,LON
-//   4. https://www.google.com/maps/dir/ORT1/ORT2/... (Ortsnamen — gibt leeres Array zurück, braucht Geokodierung)
-//   5. https://www.google.com/maps/place/LAT,LON
+//   1. /dir/LAT1,LON1/LAT2,LON2/...  (Routen mit Koordinaten)
+//   2. !3dLAT!4dLON                   (Google's neues URL-Format mit verschachtelten Koordinaten)
+//   3. ?q=LAT,LON oder ?query=LAT,LON (Suche/Marker)
+//   4. @LAT,LON,ZOOMz                 (Kartenmittelpunkt)
+//   5. /place/LAT,LON                 (Place-Koordinaten)
 
 export function parseGoogleMapsUrl(url) {
-  try {
-    const u = new URL(url);
-    const waypoints = [];
+  const waypoints = [];
 
-    // Format 1: /maps/dir/LAT1,LON1/LAT2,LON2/...
-    // Path: /maps/dir/47.5,8.5/47.6,8.6/...
-    const pathParts = u.pathname.split("/").filter(Boolean);
-    if (pathParts.includes("dir")) {
-      const dirIdx = pathParts.indexOf("dir");
-      for (let i = dirIdx + 1; i < pathParts.length; i++) {
-        const part = decodeURIComponent(pathParts[i]);
-        const match = part.match(/^(-?\d+\.?\d*),(-?\d+\.?\d*)$/);
+  try {
+    // Format 1: /dir/lat,lon/lat,lon/...  (regex-basiert, kein new URL nötig)
+    const dirMatch = url.match(/\/dir\/([^?@]+)/);
+    if (dirMatch) {
+      const segments = dirMatch[1].split("/");
+      for (const seg of segments) {
+        const decoded = decodeURIComponent(seg).trim();
+        const match = decoded.match(/^(-?\d+\.?\d*),(-?\d+\.?\d*)$/);
         if (match) {
           const lat = parseFloat(match[1]);
           const lon = parseFloat(match[2]);
@@ -29,43 +29,36 @@ export function parseGoogleMapsUrl(url) {
       }
     }
 
-    // Format 2 & 3: ?q=LAT,LON oder ?query=LAT,LON
+    // Format 2: !3dLAT!4dLON (Google's neues URL-Format — kann mehrere Waypoints enthalten)
     if (waypoints.length === 0) {
-      const q = u.searchParams.get("q") || u.searchParams.get("query");
-      if (q) {
-        // Kann "LAT,LON" oder "ORT" sein
-        const match = q.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
-        if (match) {
-          const lat = parseFloat(match[1]);
-          const lon = parseFloat(match[2]);
+      const d3 = url.match(/!3d(-?\d+\.?\d*)/g);
+      const d4 = url.match(/!4d(-?\d+\.?\d*)/g);
+      if (d3 && d4) {
+        for (let i = 0; i < Math.min(d3.length, d4.length); i++) {
+          const lat = parseFloat(d3[i].replace("!3d", ""));
+          const lon = parseFloat(d4[i].replace("!4d", ""));
           if (!isNaN(lat) && !isNaN(lon)) {
-            waypoints.push({ lat, lon, name: q, order: 0 });
+            waypoints.push({ lat, lon, name: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, order: waypoints.length });
           }
         }
       }
     }
 
-    // Format 5: /maps/place/LAT,LON
+    // Format 3: ?q=LAT,LON oder ?query=LAT,LON
     if (waypoints.length === 0) {
-      if (pathParts.includes("place")) {
-        const placeIdx = pathParts.indexOf("place");
-        for (let i = placeIdx + 1; i < pathParts.length; i++) {
-          const part = decodeURIComponent(pathParts[i]);
-          const match = part.match(/^(-?\d+\.?\d*),(-?\d+\.?\d*)$/);
-          if (match) {
-            const lat = parseFloat(match[1]);
-            const lon = parseFloat(match[2]);
-            if (!isNaN(lat) && !isNaN(lon)) {
-              waypoints.push({ lat, lon, name: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, order: waypoints.length });
-            }
-          }
+      const qMatch = url.match(/[?&](?:q|query)=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      if (qMatch) {
+        const lat = parseFloat(qMatch[1]);
+        const lon = parseFloat(qMatch[2]);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          waypoints.push({ lat, lon, name: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, order: 0 });
         }
       }
     }
 
-    // Format: @LAT,LON,ZOOMz — Zentrum der Karte
+    // Format 4: @LAT,LON,ZOOMz — Kartenmittelpunkt
     if (waypoints.length === 0) {
-      const atMatch = u.pathname.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*),/);
+      const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*),/);
       if (atMatch) {
         const lat = parseFloat(atMatch[1]);
         const lon = parseFloat(atMatch[2]);
@@ -75,8 +68,34 @@ export function parseGoogleMapsUrl(url) {
       }
     }
 
-    return waypoints;
+    // Format 5: /place/LAT,LON
+    if (waypoints.length === 0) {
+      const placeMatch = url.match(/\/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      if (placeMatch) {
+        const lat = parseFloat(placeMatch[1]);
+        const lon = parseFloat(placeMatch[2]);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          waypoints.push({ lat, lon, name: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, order: 0 });
+        }
+      }
+    }
+
   } catch (err) {
     return [];
   }
+
+  return waypoints;
+}
+
+// Hilfsfunktion: Prüft ob URL /dir/ mit Ortsnamen (nicht Koordinaten) enthält
+export function hasPlaceNamesButNoCoords(url) {
+  const dirMatch = url.match(/\/dir\/([^?@]+)/);
+  if (dirMatch) {
+    const segments = dirMatch[1].split("/");
+    return segments.some(seg => {
+      const decoded = decodeURIComponent(seg).trim();
+      return decoded.length > 0 && !decoded.match(/^(-?\d+\.?\d*),(-?\d+\.?\d*)$/);
+    });
+  }
+  return false;
 }
