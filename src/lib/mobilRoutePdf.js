@@ -1,6 +1,5 @@
 // PDF-Export für Mobil-Route — PURE JavaScript, keine externe Library.
-// v0.9028: OSM-Tiles direkt geladen (tile.openstreetmap.org, CORS-faehig) +
-//          Relais-Nummerierung (R1, R2...) + Abschnitts-Empfehlungen + farbige Route.
+// v0.9029: Routen-Interpolation (25km) + CARTO Voyager Tiles (CORS) + Canvas-Cap 1024x768 + feine Abschnitte.
 
 function haversine(a, b) {
   const R = 6371;
@@ -63,6 +62,29 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   const RELEVANT_DIST = 35;
   const IN_RANGE_DIST = 20;
   const MAX_REPS = 8;
+  const INTERPOLATE_KM = 25;
+
+  // --- FIX 1: AUTO-INTERPOLATION — Zwischenpunkte alle ~25km ---
+  let expandedPoints = [];
+  for (let i = 0; i < routePoints.length; i++) {
+    expandedPoints.push({ ...routePoints[i], isMain: true });
+    if (i < routePoints.length - 1) {
+      const a = routePoints[i];
+      const b = routePoints[i + 1];
+      const segDist = haversine(a, b);
+      const numSteps = Math.max(1, Math.floor(segDist / INTERPOLATE_KM));
+      for (let s = 1; s < numSteps; s++) {
+        const frac = s / numSteps;
+        expandedPoints.push({
+          lat: a.lat + (b.lat - a.lat) * frac,
+          lng: a.lng + (b.lng - a.lng) * frac,
+          name: 'i' + (expandedPoints.length + 1),
+          isMain: false,
+        });
+      }
+    }
+  }
+  const allPoints = expandedPoints;
 
   // Repeater: Distanz + Offset runden + MAX 8 + NUMMERIERT als R1, R2...
   const relevantReps = (repeaters || [])
@@ -89,7 +111,7 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
     .slice(0, MAX_REPS)
     .map((rep, i) => ({ ...rep, num: i + 1 }));
 
-  // --- OSM TILES LADEN ---
+  // --- OSM TILES — Bounding Box berechnen ---
   const repWithCoords = relevantReps.filter(r => r.lat != null && r.lng != null);
   const allCoords = [...routePoints, ...repWithCoords];
   const minLat = Math.min(...allCoords.map(c => c.lat));
@@ -107,20 +129,27 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   else if (range < 2.0) zoom = 10;
   else zoom = 9;
 
-  const minTileX = lon2tile(minLng, zoom);
-  const maxTileX = lon2tile(maxLng, zoom);
-  const minTileY = lat2tile(maxLat, zoom);
-  const maxTileY = lat2tile(minLat, zoom);
-
-  const padX = 1, padY = 1;
-  const tx0 = minTileX - padX;
-  const tx1 = maxTileX + padX;
-  const ty0 = minTileY - padY;
-  const ty1 = maxTileY + padY;
-  const numTilesX = tx1 - tx0 + 1;
-  const numTilesY = ty1 - ty0 + 1;
-
+  // --- FIX 3: CANVAS-SIZE-CAP — max 1024x768 ---
+  const MAX_CANVAS_W = 1024;
+  const MAX_CANVAS_H = 768;
   const TILE = 256;
+
+  let tx0, tx1, ty0, ty1, numTilesX, numTilesY;
+  let padX = 1, padY = 1;
+
+  // Zoom reduzieren bis Canvas in 1024x768 passt (min Zoom 7)
+  for (let attempt = 0; attempt < 10; attempt++) {
+    tx0 = lon2tile(minLng, zoom) - padX;
+    tx1 = lon2tile(maxLng, zoom) + padX;
+    ty0 = lat2tile(maxLat, zoom) - padY;
+    ty1 = lat2tile(minLat, zoom) + padY;
+    numTilesX = tx1 - tx0 + 1;
+    numTilesY = ty1 - ty0 + 1;
+    if (numTilesX * TILE <= MAX_CANVAS_W && numTilesY * TILE <= MAX_CANVAS_H) break;
+    if (zoom <= 7) break;
+    zoom--;
+  }
+
   const canvasW = numTilesX * TILE;
   const canvasH = numTilesY * TILE;
 
@@ -129,11 +158,11 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   canvas.height = canvasH;
   const ctx = canvas.getContext('2d');
 
-  // Tiles laden (tile.openstreetmap.org unterstuetzt CORS)
+  // --- FIX 2: CARTO Voyager Tiles (CORS-faehig) ---
   const tilePromises = [];
   for (let tx = tx0; tx <= tx1; tx++) {
     for (let ty = ty0; ty <= ty1; ty++) {
-      const url = 'https://tile.openstreetmap.org/' + zoom + '/' + tx + '/' + ty + '.png';
+      const url = 'https://a.basemaps.cartocdn.com/rastertiles/voyager/' + zoom + '/' + tx + '/' + ty + '.png';
       const img = new Image();
       img.crossOrigin = 'anonymous';
       const px = (tx - tx0) * TILE;
@@ -163,50 +192,59 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   function toX(lng) { return ((lng - minMapLng) / mapLngRange) * canvasW; }
   function toY(lat) { return canvasH - ((lat - minMapLat) / mapLatRange) * canvasH; }
 
+  // --- FIX 4: Skalierte Linienstärken ---
+  const lineScale = Math.min(canvasW / 1024, canvasH / 768, 1);
+  const ROUTE_LINE_WIDTH = Math.max(3, 5 * lineScale);
+  const WAYPOINT_RADIUS = Math.max(6, 10 * lineScale);
+  const REPEATER_RADIUS = Math.max(5, 9 * lineScale);
+  const SEG_LABEL_RADIUS = Math.max(8, 14 * lineScale);
+
   // Abschnitts-Farben
   const segColors = ['#dc2626', '#16a34a', '#2563eb', '#ea580c', '#9333ea', '#0891b2'];
 
-  // ROUTE FARBIG ZEICHNEN
-  for (let i = 0; i < routePoints.length - 1; i++) {
+  // ROUTE FARBIG ZEICHNEN — ueber interpolierte Abschnitte
+  for (let i = 0; i < allPoints.length - 1; i++) {
     const color = segColors[i % segColors.length];
     ctx.strokeStyle = color;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = ROUTE_LINE_WIDTH;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(toX(routePoints[i].lng), toY(routePoints[i].lat));
-    ctx.lineTo(toX(routePoints[i + 1].lng), toY(routePoints[i + 1].lat));
+    ctx.moveTo(toX(allPoints[i].lng), toY(allPoints[i].lat));
+    ctx.lineTo(toX(allPoints[i + 1].lng), toY(allPoints[i + 1].lat));
     ctx.stroke();
 
-    // Abschnitt-Label A1, A2...
-    const mx = (toX(routePoints[i].lng) + toX(routePoints[i + 1].lng)) / 2;
-    const my = (toY(routePoints[i].lat) + toY(routePoints[i + 1].lat)) / 2;
+    // Abschnitt-Label A1, A2... in der Mitte
+    const mx = (toX(allPoints[i].lng) + toX(allPoints[i + 1].lng)) / 2;
+    const my = (toY(allPoints[i].lat) + toY(allPoints[i + 1].lat)) / 2;
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(mx, my, 14, 0, 2 * Math.PI);
+    ctx.arc(mx, my, SEG_LABEL_RADIUS, 0, 2 * Math.PI);
     ctx.fill();
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 11px Arial';
+    ctx.font = 'bold ' + Math.max(8, 11 * lineScale) + 'px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('A' + (i + 1), mx, my);
   }
 
-  // WAYPOINTS
-  routePoints.forEach((wp, i) => {
+  // HAUPT-WAYPOINTS als nummerierte Kreise (nur isMain=true)
+  let wpNum = 0;
+  routePoints.forEach((wp) => {
+    wpNum++;
     const x = toX(wp.lng);
     const y = toY(wp.lat);
     ctx.fillStyle = 'white';
     ctx.strokeStyle = '#1e40af';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = Math.max(2, 3 * lineScale);
     ctx.beginPath();
-    ctx.arc(x, y, 10, 0, 2 * Math.PI);
+    ctx.arc(x, y, WAYPOINT_RADIUS, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#1e40af';
-    ctx.font = 'bold 12px Arial';
+    ctx.font = 'bold ' + Math.max(9, 12 * lineScale) + 'px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), x, y);
+    ctx.fillText(String(wpNum), x, y);
   });
 
   // RELAIS — NUMMERIERT R1, R2...
@@ -214,18 +252,16 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
     const x = toX(rep.lng);
     const y = toY(rep.lat);
 
-    // Gruen = in Reichweite, Rot = nah
     ctx.fillStyle = rep.inRange ? '#16a34a' : '#dc2626';
     ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(1.5, 2 * lineScale);
     ctx.beginPath();
-    ctx.arc(x, y, 9, 0, 2 * Math.PI);
+    ctx.arc(x, y, REPEATER_RADIUS, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
 
-    // R-Nummer weiss im Kreis
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 10px Arial';
+    ctx.font = 'bold ' + Math.max(7, 10 * lineScale) + 'px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('R' + rep.num, x, y);
@@ -233,16 +269,17 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
     // Callsign Label daneben
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     const text = rep.callsign || '?';
-    ctx.font = '9px Arial';
+    ctx.font = Math.max(7, 9 * lineScale) + 'px Arial';
     const tw = ctx.measureText(text).width;
-    ctx.fillRect(x + 12, y - 6, tw + 4, 12);
+    ctx.fillRect(x + REPEATER_RADIUS + 3, y - 6, tw + 4, 12);
     ctx.fillStyle = 'black';
     ctx.textAlign = 'left';
-    ctx.fillText(text, x + 14, y);
+    ctx.fillText(text, x + REPEATER_RADIUS + 5, y);
   });
 
   // LEGENDE
-  const legX = canvasW - 200, legY = 10, legW = 190, legH = 100;
+  const legW = 190, legH = 100;
+  const legX = canvasW - legW - 10, legY = 10;
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
   ctx.fillRect(legX, legY, legW, legH);
   ctx.strokeStyle = '#888';
@@ -271,11 +308,10 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   ctx.fillStyle = 'black';
   ctx.fillText('R = Nah (20-35km)', legX + 28, legY + 68);
 
-  // Canvas als JPEG
-  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  // --- FIX 5: JPEG-Qualitaet 0.92 ---
+  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
   const jpegBase64 = jpegDataUrl.split(',')[1];
   const jpegBytes = atob(jpegBase64);
-  const jpegLen = jpegBytes.length;
 
   // --- PDF BAUEN ---
   const PW = 595, PH = 842;
@@ -315,14 +351,14 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   t1('HB9OM On Field - Routenplan', 30, 30, 16);
   t1('Route: ' + (routeName || 'Unbenannt'), 30, 50, 10);
   t1('Datum: ' + (date || new Date().toLocaleDateString('de-CH')), 30, 64, 10);
-  t1('Version: v0.9028', 30, 78, 9);
+  t1('Version: v0.9029', 30, 78, 9);
 
   cs1 += 'q\n';
   cs1 += imgW + ' 0 0 ' + imgH + ' ' + imgX + ' ' + (PH - imgY - imgH) + ' cm\n';
   cs1 += '/Im1 Do\n';
   cs1 += 'Q\n';
 
-  // ABSCHNITTS-TABELLE MIT EMPFOHLENEN RELAIS
+  // --- FIX 6: ABSCHNITTS-TABELLE mit interpolierten Abschnitten ---
   let ty = imgY + imgH + 15;
   t1('Abschnitt', 30, ty, 9);
   t1('Strecke', 80, ty, 9);
@@ -331,16 +367,25 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   l1(30, ty + 3, 565, ty + 3, 0.7, 0.7, 0.7, 0.3);
   ty += 13;
 
-  for (let i = 0; i < routePoints.length - 1; i++) {
-    if (ty > 800) break;
-    const d = haversine(routePoints[i], routePoints[i + 1]).toFixed(1);
+  const MAX_SECTIONS = 20;
+  let sectionCount = 0;
 
-    // Empfohlene Relais fuer diesen Abschnitt: in Reichweite zum Abschnitt
+  for (let i = 0; i < allPoints.length - 1; i++) {
+    if (ty > 800) break;
+    if (sectionCount >= MAX_SECTIONS) {
+      t1('... (weitere Abschnitte gekuerzt)', 30, ty, 7);
+      break;
+    }
+    sectionCount++;
+
+    const d = haversine(allPoints[i], allPoints[i + 1]).toFixed(1);
+
+    // Empfohlene Relais fuer diesen Abschnitt
     const segReps = relevantReps.filter(r => {
       if (r.lat == null) return false;
       const minD = Math.min(
-        haversine(routePoints[i], { lat: r.lat, lng: r.lng }),
-        haversine(routePoints[i + 1], { lat: r.lat, lng: r.lng })
+        haversine(allPoints[i], { lat: r.lat, lng: r.lng }),
+        haversine(allPoints[i + 1], { lat: r.lat, lng: r.lng })
       );
       return minD <= IN_RANGE_DIST;
     });
@@ -351,16 +396,20 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
       const nearReps = relevantReps.filter(r => {
         if (r.lat == null) return false;
         const minD = Math.min(
-          haversine(routePoints[i], { lat: r.lat, lng: r.lng }),
-          haversine(routePoints[i + 1], { lat: r.lat, lng: r.lng })
+          haversine(allPoints[i], { lat: r.lat, lng: r.lng }),
+          haversine(allPoints[i + 1], { lat: r.lat, lng: r.lng })
         );
         return minD <= RELEVANT_DIST;
       }).slice(0, 2);
-      repStr = nearReps.length > 0 ? nearReps.map(r => 'R' + r.num + ' (nah)').join(', ') : '-';
+      repStr = nearReps.length > 0 ? nearReps.map(r => 'R' + r.num + '(nah)').join(', ') : '-';
     }
 
-    t1('A' + (i + 1), 30, ty, 8);
-    t1((routePoints[i].name || 'WP' + (i + 1)) + '->' + (routePoints[i + 1].name || 'WP' + (i + 2)), 80, ty, 8);
+    const marker = (allPoints[i].isMain || allPoints[i + 1].isMain) ? '*' : '';
+    t1('A' + (i + 1) + marker, 30, ty, 8);
+    const nameA = allPoints[i].name || ('P' + (i + 1));
+    const nameB = allPoints[i + 1].name || ('P' + (i + 2));
+    const stretch = nameA + '->' + nameB;
+    t1(stretch.length > 28 ? stretch.substring(0, 28) : stretch, 80, ty, 7);
     t1(d + ' km', 230, ty, 8);
     t1(repStr, 300, ty, 8);
     ty += 12;
@@ -409,7 +458,7 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
     });
   }
 
-  t2('HB9OM On Field - v0.9028', 30, 835, 6);
+  t2('HB9OM On Field - v0.9029', 30, 835, 6);
 
   // --- PDF ALS Uint8Array BAUEN ---
   const cs1Bytes = str(cs1);
