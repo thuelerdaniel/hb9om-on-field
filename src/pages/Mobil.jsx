@@ -77,19 +77,21 @@ export default function Mobil() {
     }
   }, []);
 
-  // v0.9031: Load repeaters when route or GPS position changes.
-  // BUGFIX: Previously had `if (started) return;` which prevented repeater
-  // reloading in active (started) live mode — user moved but repeaters
-  // were never refreshed, causing "Kein Repeater in Reichweite".
-  // Now reloads in live mode even when started, with >5km threshold.
+  // v0.9032: Load repeaters when route or GPS position changes.
+  // FIX: Removed aggressive `setRepeaters([])` that cleared ALL repeaters
+  // when no route/GPS was active. Now loads a default area (Bern, 100km)
+  // so repeaters are always visible in the Mobil tab.
+  // The distance filter for "nearby" display is applied SEPARATELY in
+  // MobilActive — it does NOT affect which repeaters are loaded.
   const lastLoadPosRef = useRef(null);
+  const defaultLoadedRef = useRef(false);
 
   useEffect(() => {
     if (mode === "route" && routeCoords.length >= 2) {
       const bounds = routeBounds(routeCoords, effectiveRange);
       if (bounds) loadRepeaters(bounds);
     } else if (mode === "live" && position) {
-      // v0.9031: Minimum 50km search radius — ensures nearby repeaters are found
+      // Minimum 50km search radius — ensures nearby repeaters are found
       // even with portable equipment (default 15km range was too small).
       const searchRange = Math.max(effectiveRange, 50);
       // Only reload if moved >5km from last load position (avoids excessive API calls)
@@ -101,8 +103,12 @@ export default function Mobil() {
         const bounds = pointBounds(position.lat, position.lon, searchRange);
         loadRepeaters(bounds);
       }
-    } else {
-      setRepeaters([]);
+    } else if (!defaultLoadedRef.current) {
+      // v0.9032: Load default area (Bern, 100km) once on first mount
+      // so repeaters are always visible even without GPS/route.
+      defaultLoadedRef.current = true;
+      const bounds = pointBounds(46.979, 7.458, 100);
+      loadRepeaters(bounds);
     }
   }, [mode, routeCoords, position, effectiveRange, loadRepeaters]);
 
