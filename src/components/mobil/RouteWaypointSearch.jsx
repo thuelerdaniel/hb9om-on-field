@@ -94,9 +94,9 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
       if (data?.success && data.waypoints?.length > 0) {
         onAddMultipleWaypoints(
           data.waypoints.map((wp) => ({
-            lat: wp.lat,
-            lon: wp.lng,
-            name: wp.name || `${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}`,
+            lat: Number(wp.lat),
+            lon: Number(wp.lng),
+            name: wp.name || `${Number(wp.lat).toFixed(4)}, ${Number(wp.lng).toFixed(4)}`,
             order: 0,
           }))
         );

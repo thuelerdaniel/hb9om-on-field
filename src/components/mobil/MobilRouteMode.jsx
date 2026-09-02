@@ -70,6 +70,13 @@ export default function MobilRouteMode({ gpsPosition }) {
     setRouteCoords([]);
   }, []);
 
+  // BUGFIX 1 v0.9020: Alle Wegpunkte + Route + Repeater löschen
+  const clearAllWaypoints = useCallback(() => {
+    setWaypoints([]);
+    setRouteCoords([]);
+    setRepeaters([]);
+  }, []);
+
   // Route berechnen (OSRM)
   const calculateRoute = useCallback(async () => {
     if (waypoints.length < 2) return;
@@ -190,6 +197,7 @@ export default function MobilRouteMode({ gpsPosition }) {
         waypoints={waypoints}
         onReorder={reorderWaypoints}
         onDelete={deleteWaypoint}
+        onClearAll={clearAllWaypoints}
         onCalculate={calculateRoute}
         calculating={calculating}
         onSaveRoute={saveRoute}
@@ -226,6 +234,7 @@ export default function MobilRouteMode({ gpsPosition }) {
 
           <RouteRepeaterList
             repeaters={filteredRepeaters}
+            waypoints={waypoints}
             routeName={waypoints[0]?.name || "Route"}
             totalDistance={totalDist}
             modeFilter={selectedModes}

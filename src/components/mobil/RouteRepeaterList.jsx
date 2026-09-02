@@ -5,13 +5,13 @@ import { FileDown, Radio } from "lucide-react";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { generateMobilRoutePdf } from "@/lib/mobilRoutePdf";
 
-export default function RouteRepeaterList({ repeaters, routeName, totalDistance, modeFilter, date }) {
+export default function RouteRepeaterList({ repeaters, waypoints, routeName, totalDistance, modeFilter, date }) {
   const sorted = [...repeaters].sort(
     (a, b) => (a._segmentIdx || 0) - (b._segmentIdx || 0) || (a._distToRoute || 0) - (b._distToRoute || 0)
   );
 
   const handlePdfExport = () => {
-    generateMobilRoutePdf(routeName, date, totalDistance, modeFilter, sorted);
+    generateMobilRoutePdf(routeName, date, totalDistance, modeFilter, sorted, waypoints);
   };
 
   return (

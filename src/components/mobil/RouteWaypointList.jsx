@@ -1,4 +1,5 @@
 // RouteWaypointList — Wegpunkt-Liste mit Drag-to-Reorder, Löschen, Route berechnen/speichern/laden.
+// v0.9020: "Route löschen" Button mit Bestätigungs-Dialog.
 
 import React, { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -8,6 +9,7 @@ export default function RouteWaypointList({
   waypoints,
   onReorder,
   onDelete,
+  onClearAll = () => { console.warn("onClearAll not provided"); },
   onCalculate,
   calculating,
   onSaveRoute,
@@ -17,6 +19,7 @@ export default function RouteWaypointList({
 }) {
   const [showSaved, setShowSaved] = useState(false);
   const [routeName, setRouteName] = useState("");
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
@@ -29,19 +32,42 @@ export default function RouteWaypointList({
     setRouteName("");
   };
 
+  const handleClearAll = () => {
+    if (typeof onClearAll === 'function') {
+      onClearAll();
+    } else {
+      // Fallback: Alle Wegpunkte in umgekehrter Reihenfolge löschen (Indizes verschieben sich nicht)
+      for (let i = waypoints.length - 1; i >= 0; i--) {
+        onDelete(i);
+      }
+    }
+    setShowConfirmClear(false);
+  };
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3 space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-gray-500 dark:text-slate-400">
           Wegpunkte ({waypoints.length})
         </span>
-        <button
-          onClick={() => setShowSaved(!showSaved)}
-          className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          <FolderOpen className="w-3.5 h-3.5" />
-          Meine Routen
-        </button>
+        <div className="flex items-center gap-3">
+          {waypoints.length > 0 && (
+            <button
+              onClick={() => setShowConfirmClear(true)}
+              className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 hover:underline"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Route löschen
+            </button>
+          )}
+          <button
+            onClick={() => setShowSaved(!showSaved)}
+            className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            Meine Routen
+          </button>
+        </div>
       </div>
 
       {/* Gespeicherte Routen Dropdown */}
@@ -147,6 +173,29 @@ export default function RouteWaypointList({
               <Save className="w-3.5 h-3.5" />
               Speichern
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bestätigungs-Dialog: Alle Punkte löschen */}
+      {showConfirmClear && (
+        <div className="fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowConfirmClear(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100">Route löschen?</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 text-center mt-2">
+              Alle {waypoints.length} Wegpunkte, die Route und die Repeater-Liste werden entfernt. Andere Karten-Layer bleiben unverändert.
+            </p>
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setShowConfirmClear(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700">
+                Abbrechen
+              </button>
+              <button onClick={handleClearAll} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600">
+                Alle löschen
+              </button>
+            </div>
           </div>
         </div>
       )}
