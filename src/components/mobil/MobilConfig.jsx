@@ -76,13 +76,13 @@ export default function MobilConfig({
 
   const totalDist = useMemo(() => totalRouteDistance(routeCoords), [routeCoords]);
 
-  // v0.9024: PDF Export — komplett im Frontend (raw PDF string, keine Library)
-  const handlePdfExport = useCallback(() => {
+  // v0.9025: PDF Export — Frontend mit OSM-Karte (Tiles → Canvas → JPEG → PDF)
+  const handlePdfExport = useCallback(async () => {
     if (waypoints.length === 0) return;
     try {
       const routeName = waypoints[0]?.name || "Route";
       const today = new Date().toISOString().split("T")[0];
-      generateMobilRoutePdf(routeName, today, totalDist, selectedModes, repeaters, waypoints);
+      await generateMobilRoutePdf(routeName, today, totalDist, selectedModes, repeaters, waypoints);
     } catch (err) {
       console.error("PDF Export Fehler:", err);
     }
