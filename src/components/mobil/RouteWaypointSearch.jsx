@@ -4,7 +4,6 @@ import React, { useState, useRef, useCallback } from "react";
 import { Search, Plus, FileUp, Link2, Loader2, MapPin, FileDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { parseGpxFile } from "@/lib/gpxParser";
-import { parseGoogleMapsUrl, hasPlaceNamesButNoCoords } from "@/lib/googleMapsUrlParser";
 
 export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoints, onPdfExport, pdfDisabled }) {
   const [query, setQuery] = useState("");
@@ -70,53 +69,32 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
 
   const [gmapsLoading, setGmapsLoading] = useState(false);
 
-  const handleGmapsImport = async () => {
+  // v0.9024: Google-Import — URL direkt im Frontend parsen (kein Backend-Aufruf)
+  const handleGmapsImport = () => {
     setGmapsError(null);
-    if (!gmapsUrl.trim()) return;
-    setGmapsLoading(true);
-    try {
-      // v0.9023: Backend ZUERST aufrufen — liefert zuverlässig ALLE Waypoints.
-      // Frontend-Parser nur als Fallback wenn Backend fehlschlägt.
-      try {
-        const res = await base44.functions.invoke("resolveGoogleMapsLink", { url: gmapsUrl.trim() });
-        const data = res?.data;
-        if (data?.success && Array.isArray(data.waypoints) && data.waypoints.length > 0) {
-          // WICHTIG: GANZES Array mappen — nicht nur [0]!
-          const allPoints = data.waypoints.map((wp, i) => ({
-            lat: Number(wp.lat),
-            lon: Number(wp.lng),
-            name: wp.name || `WP ${i + 1}`,
-            order: i,
-          }));
-          onAddMultipleWaypoints(allPoints);
-          setGmapsUrl("");
-          return;
-        }
-      } catch (backendErr) {
-        // Backend fehlgeschlagen — Frontend-Parser versuchen
-      }
+    const url = gmapsUrl.trim();
+    if (!url) return;
 
-      // Frontend-Parser als Fallback (für direkte URLs mit Koordinaten)
-      const wps = parseGoogleMapsUrl(gmapsUrl.trim());
-      if (wps.length > 0) {
-        onAddMultipleWaypoints(wps);
-        setGmapsUrl("");
-        return;
-      }
+    // Alle Koordinatenpaare aus der URL extrahieren
+    const coordPattern = /(-?\d{1,3}\.\d{3,6}),(-?\d{1,3}\.\d{3,6})/g;
+    const matches = [...url.matchAll(coordPattern)];
 
-      // Weder Backend noch Frontend-Parser konnte Koordinaten finden
-      if (hasPlaceNamesButNoCoords(gmapsUrl.trim())) {
-        setGmapsError("Bitte Google-Maps-Link mit Koordinaten verwenden (z.B. /dir/47.39,8.05/47.45,8.65/)");
-      } else {
-        setGmapsError("Keine Koordinaten gefunden — bitte Link mit Koordinaten verwenden");
-      }
+    if (matches.length === 0) {
+      setGmapsError("Keine Koordinaten in URL gefunden. Bitte Google-Maps-Routen-URL mit Koordinaten verwenden (z.B. /dir/47.39,8.05/47.45,8.65/)");
       setTimeout(() => setGmapsError(null), 8000);
-    } catch (err) {
-      setGmapsError("Google Maps Link konnte nicht aufgelöst werden");
-      setTimeout(() => setGmapsError(null), 5000);
-    } finally {
-      setGmapsLoading(false);
+      return;
     }
+
+    // Alle Koordinaten als Waypoints
+    const points = matches.map((m, i) => ({
+      lat: parseFloat(m[1]),
+      lon: parseFloat(m[2]),
+      name: `WP ${i + 1}`,
+      order: i,
+    }));
+
+    onAddMultipleWaypoints(points);
+    setGmapsUrl("");
   };
 
   return (

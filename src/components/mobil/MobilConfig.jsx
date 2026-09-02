@@ -12,6 +12,7 @@ import RouteWaypointSearch from "./RouteWaypointSearch";
 import RouteWaypointList from "./RouteWaypointList";
 import MobilMapView from "./MobilMapView";
 import { fetchOsmRoute, totalRouteDistance, minDistanceToRoute } from "@/lib/routeDistance";
+import { generateMobilRoutePdf } from "@/lib/mobilRoutePdf";
 
 export default function MobilConfig({
   mode,
@@ -75,44 +76,17 @@ export default function MobilConfig({
 
   const totalDist = useMemo(() => totalRouteDistance(routeCoords), [routeCoords]);
 
-  // v0.9023: PDF Export — Backend generiert PDF (kein jsPDF im Frontend → kein Crash)
-  const handlePdfExport = useCallback(async () => {
+  // v0.9024: PDF Export — komplett im Frontend (raw PDF string, keine Library)
+  const handlePdfExport = useCallback(() => {
     if (waypoints.length === 0) return;
     try {
-      const wpData = waypoints.map(wp => ({ lat: wp.lat, lon: wp.lon, name: wp.name }));
-      const routeCoordsArr = waypoints.map(wp => [wp.lat, wp.lon]);
-      const repeaterData = repeaters.map(r => ({
-        callsign: r.callsign,
-        frequency: r.tx_frequency || r.frequency,
-        mode: r.mode || "FM",
-        offset: r.offset != null ? `${r.offset}` : "",
-        tone: r.tone || r.ctcss || "",
-        lat: r.lat,
-        lng: r.lng,
-        distance: r.lat != null && r.lng != null ? minDistanceToRoute(r.lat, r.lng, routeCoordsArr) : 9999,
-        location: r.location || r.qth || r.name || "",
-      }));
-      const res = await base44.functions.invoke("exportRoutePdf", { waypoints: wpData, repeaters: repeaterData });
-      const data = res?.data;
-      if (data?.success && data?.pdf) {
-        const byteChars = atob(data.pdf);
-        const byteLen = byteChars.length;
-        const byteArray = new Uint8Array(byteLen);
-        for (let i = 0; i < byteLen; i++) byteArray[i] = byteChars.charCodeAt(i);
-        const blob = new Blob([byteArray], { type: "application/pdf" });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = data.filename || "hb9om-route.pdf";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      }
+      const routeName = waypoints[0]?.name || "Route";
+      const today = new Date().toISOString().split("T")[0];
+      generateMobilRoutePdf(routeName, today, totalDist, selectedModes, repeaters, waypoints);
     } catch (err) {
       console.error("PDF Export Fehler:", err);
     }
-  }, [waypoints, repeaters]);
+  }, [waypoints, repeaters, totalDist, selectedModes]);
 
   const calculateRoute = async () => {
     if (waypoints.length < 2) return;

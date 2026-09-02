@@ -1,186 +1,255 @@
-// PDF-Export für Mobil-Route — generiert eine strukturierte PDF zum Abtippen
-// von Repeater-Daten für Funkgerät-Programmierung.
-// v0.9020: Route-Tabelle (Abschnitte) + Repeater pro Abschnitt + Header/Footer aktualisiert.
+// PDF-Export für Mobil-Route — PURE JavaScript, keine externe Library.
+// v0.9024: Raw PDF string → Blob → Download. Kein jsPDF, kein pdfkit, kein CDN.
+// Seite 1: Routen-Karte + Abschnitts-Tabelle. Seite 2: Repeater-Konfiguration.
 
-import { jsPDF } from "jspdf";
-import { getModeLabel } from "./repeaterModes";
-import { haversine } from "./geoUtilsFrontend";
+function haversine(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const x = Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+
+// Escape + ASCII-Normalisierung (Umlaute → ASCII, damit xref-Offsets stimmen)
+function esc(s) {
+  return String(s || '')
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
+    .replace(/ß/g, 'ss')
+    .replace(/é/g, 'e').replace(/è/g, 'e').replace(/ê/g, 'e')
+    .replace(/á/g, 'a').replace(/à/g, 'a').replace(/â/g, 'a')
+    .replace(/í/g, 'i').replace(/ì/g, 'i').replace(/î/g, 'i')
+    .replace(/ó/g, 'o').replace(/ò/g, 'o').replace(/ô/g, 'o')
+    .replace(/ú/g, 'u').replace(/ù/g, 'u').replace(/û/g, 'u')
+    .replace(/ñ/g, 'n').replace(/ç/g, 'c')
+    .replace(/[^\x00-\x7F]/g, '')
+    .replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
 
 export function generateMobilRoutePdf(routeName, date, totalDistance, modeFilter, repeaters, waypoints) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const pageW = 210;
-  const pageH = 297;
-  const margin = 15;
-  let y = margin;
+  const routePoints = (waypoints || []).map(wp => ({
+    lat: wp.lat,
+    lng: wp.lon != null ? wp.lon : wp.lng,
+    name: wp.name || 'WP',
+  }));
 
-  // Header
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("HB9OM On Field", margin, y);
-  y += 7;
-
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Mobil-Route — Repeater-Liste`, margin, y);
-  y += 6;
-
-  doc.setFontSize(9);
-  doc.text(`Route: ${routeName || "Unbenannt"}`, margin, y);
-  y += 4;
-  doc.text(`Datum: ${date}`, margin, y);
-  y += 4;
-  doc.text(`Gesamtdistanz: ${totalDistance} km`, margin, y);
-  y += 4;
-  if (waypoints && waypoints.length > 0) {
-    doc.text(`Anzahl Wegpunkte: ${waypoints.length}`, margin, y);
-    y += 4;
+  if (routePoints.length === 0) {
+    alert('Keine Route geladen. Bitte zuerst eine Route importieren.');
+    return;
   }
-  doc.text(`Anzahl Repeater: ${repeaters.length}`, margin, y);
-  y += 4;
+
+  const MAX_DIST = 25; // km
+
+  // Repeater normalisieren + Distanz zur Route berechnen
+  const allReps = (repeaters || []).map(r => ({
+    callsign: r.callsign || '-',
+    frequency: r.frequency || r.tx_frequency || '-',
+    mode: r.mode || r.primary_mode || 'FM',
+    offset: r.offset != null ? `${r.offset}` : (r.offset_mhz != null ? `${r.offset_mhz}` : '-'),
+    tone: r.tone || r.ctcss || '-',
+    lat: r.lat,
+    lng: r.lng,
+    location: r.location || r.location_name || r.qth || r.name || '-',
+    distance: r._distToRoute != null ? r._distToRoute : (r.distance != null ? r.distance : 9999),
+  }));
+
+  // Relevante Repeater (< 25km zur Route)
+  const relevantReps = allReps
+    .filter(rep => {
+      if (rep.lat == null || rep.lng == null) return false;
+      const minD = Math.min(...routePoints.map(wp =>
+        haversine({ lat: wp.lat, lng: wp.lng }, { lat: rep.lat, lng: rep.lng })
+      ));
+      rep.distance = minD;
+      return minD <= MAX_DIST;
+    })
+    .sort((a, b) => a.distance - b.distance);
+
+  // PDF Parameter (A4: 595x842 pt)
+  const PW = 595, PH = 842;
+
+  // ===== Content Stream 1 (Seite 1: Karte + Tabelle) =====
+  let cs1 = '';
+  function t1(s, x, y, sz) {
+    cs1 += 'BT /F1 ' + sz + ' Tf ' + x + ' ' + (PH - y) + ' Td (' + esc(s) + ') Tj ET\n';
+  }
+  function l1(x1, y1, x2, y2, r, g, b, w) {
+    cs1 += r + ' ' + g + ' ' + b + ' RG ' + w + ' w ' + x1 + ' ' + (PH - y1) + ' m ' + x2 + ' ' + (PH - y2) + ' l S\n';
+  }
+  function c1(cx, cy, rad, r, g, b) {
+    const k = 0.5523, cy2 = PH - cy;
+    cs1 += r + ' ' + g + ' ' + b + ' rg ' + cx + ' ' + (cy2 + rad) + ' m ';
+    cs1 += (cx + rad * k) + ' ' + (cy2 + rad) + ' ' + (cx + rad) + ' ' + (cy2 + rad * k) + ' ' + (cx + rad) + ' ' + cy2 + ' c ';
+    cs1 += (cx + rad) + ' ' + (cy2 - rad * k) + ' ' + (cx + rad * k) + ' ' + (cy2 - rad) + ' ' + cx + ' ' + (cy2 - rad) + ' c ';
+    cs1 += (cx - rad * k) + ' ' + (cy2 - rad) + ' ' + (cx - rad) + ' ' + (cy2 - rad * k) + ' ' + (cx - rad) + ' ' + cy2 + ' c ';
+    cs1 += (cx - rad) + ' ' + (cy2 + rad * k) + ' ' + (cx - rad * k) + ' ' + (cy2 + rad) + ' ' + cx + ' ' + (cy2 + rad) + ' c f\n';
+  }
+
+  t1('HB9OM On Field - Routenplan', 30, 30, 16);
+  t1('Route: ' + (routeName || 'Unbenannt'), 30, 50, 10);
+  t1('Datum: ' + (date || new Date().toLocaleDateString('de-CH')), 30, 64, 10);
+  t1('Gesamtdistanz: ' + (totalDistance || '0') + ' km', 30, 78, 10);
   if (modeFilter && modeFilter.length > 0) {
-    doc.text(`Modus-Filter: ${modeFilter.map(getModeLabel).join(", ")}`, margin, y);
-    y += 4;
+    t1('Modus-Filter: ' + modeFilter.join(', '), 30, 92, 9);
   }
-  y += 4;
+  t1('Version: v0.9024', 30, 106, 9);
 
-  // Linie unter Header
-  doc.setDrawColor(200);
-  doc.line(margin, y, pageW - margin, y);
-  y += 6;
+  // Bounding Box
+  const repWithCoords = relevantReps.filter(r => r.lat != null && r.lng != null);
+  const allCoords = [...routePoints, ...repWithCoords];
+  if (allCoords.length === 0) {
+    t1('Keine Koordinaten verfuegbar.', 30, 130, 10);
+  } else {
+    const minLat = Math.min(...allCoords.map(c => c.lat));
+    const maxLat = Math.max(...allCoords.map(c => c.lat));
+    const minLng = Math.min(...allCoords.map(c => c.lng));
+    const maxLng = Math.max(...allCoords.map(c => c.lng));
+    const latR = Math.max(maxLat - minLat, 0.01);
+    const lngR = Math.max(maxLng - minLng, 0.01);
 
-  // Route-Tabelle (Abschnitte) — v0.9020
-  if (waypoints && waypoints.length >= 2) {
-    if (y > pageH - 30) { doc.addPage(); y = margin; }
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 80, 160);
-    doc.text("Routen-Abschnitte", margin, y);
-    doc.setTextColor(0, 0, 0);
-    y += 6;
+    const mX = 30, mY = 120, mW = 535, mH = 250;
+    const sc = Math.min(mW / lngR, mH / latR);
+    const oX = mX + (mW - lngR * sc) / 2;
+    const oY = mY + (mH - latR * sc) / 2;
+    const toX = (lng) => oX + (lng - minLng) * sc;
+    const toY = (lat) => oY + mH - (lat - minLat) * sc;
 
-    // Tabellen-Header
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setFillColor(240, 240, 240);
-    doc.rect(margin, y - 3, pageW - 2 * margin, 5, "F");
-    doc.text("Abschn.", margin + 1, y);
-    doc.text("Start", margin + 18, y);
-    doc.text("→", margin + 75, y);
-    doc.text("Ziel", margin + 82, y);
-    doc.text("Distanz", margin + 150, y);
-    y += 5;
+    // Karten-Rahmen
+    l1(mX, mY, mX + mW, mY, 0.7, 0.7, 0.7, 0.5);
+    l1(mX, mY + mH, mX + mW, mY + mH, 0.7, 0.7, 0.7, 0.5);
+    l1(mX, mY, mX, mY + mH, 0.7, 0.7, 0.7, 0.5);
+    l1(mX + mW, mY, mX + mW, mY + mH, 0.7, 0.7, 0.7, 0.5);
 
-    // Abschnitte
-    doc.setFont("helvetica", "normal");
-    for (let i = 0; i < waypoints.length - 1; i++) {
-      if (y > pageH - 15) { doc.addPage(); y = margin; }
-      const wpA = waypoints[i];
-      const wpB = waypoints[i + 1];
-      const segDist = haversine(wpA.lat, wpA.lon, wpB.lat, wpB.lon);
-      const nameA = (wpA.name || `${wpA.lat.toFixed(4)}, ${wpA.lon.toFixed(4)}`).substring(0, 50);
-      const nameB = (wpB.name || `${wpB.lat.toFixed(4)}, ${wpB.lon.toFixed(4)}`).substring(0, 50);
-
-      doc.text(`#${i + 1}`, margin + 1, y);
-      doc.text(nameA, margin + 18, y);
-      doc.text("→", margin + 75, y);
-      doc.text(nameB, margin + 82, y);
-      doc.text(`${segDist.toFixed(1)} km`, margin + 150, y);
-      y += 4.5;
+    // Route zeichnen
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      l1(toX(routePoints[i].lng), toY(routePoints[i].lat),
+        toX(routePoints[i + 1].lng), toY(routePoints[i + 1].lat), 0.145, 0.388, 0.922, 1.5);
     }
-    y += 6;
-  }
 
-  // Repeater nach Abschnitt gruppieren — v0.9020
-  const segmentGroups = {};
-  for (const r of repeaters) {
-    const segIdx = r._segmentIdx != null ? r._segmentIdx : -1;
-    if (!segmentGroups[segIdx]) segmentGroups[segIdx] = [];
-    segmentGroups[segIdx].push(r);
-  }
+    // Waypoints als Kreise
+    routePoints.forEach((wp, i) => {
+      c1(toX(wp.lng), toY(wp.lat), 5, 0.145, 0.388, 0.922);
+      t1(String(i + 1), toX(wp.lng) + 7, toY(wp.lat) + 3, 8);
+    });
 
-  // Sortierte Abschnitte
-  const sortedSegments = Object.keys(segmentGroups).map(Number).sort((a, b) => a - b);
+    // Repeater als rote Kreise
+    repWithCoords.forEach(rep => {
+      c1(toX(rep.lng), toY(rep.lat), 3, 0.863, 0.149, 0.149);
+      t1(rep.callsign, toX(rep.lng) + 5, toY(rep.lat), 6);
+    });
 
-  for (const segIdx of sortedSegments) {
-    const groupRepeaters = segmentGroups[segIdx];
-    groupRepeaters.sort((a, b) => (a._distToRoute || 0) - (b._distToRoute || 0));
+    // Legende
+    c1(mX + 5, mY + mH + 15, 4, 0.145, 0.388, 0.922);
+    t1('Waypoint', mX + 15, mY + mH + 18, 8);
+    c1(mX + 95, mY + mH + 15, 3, 0.863, 0.149, 0.149);
+    t1('Repeater (< 25km)', mX + 105, mY + mH + 18, 8);
 
-    // Abschnitt-Überschrift
-    if (y > pageH - 30) { doc.addPage(); y = margin; }
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 80, 160);
+    // Abschnitts-Tabelle
+    let ty = mY + mH + 35;
+    t1('Abschn.', 30, ty, 9);
+    t1('Von', 100, ty, 9);
+    t1('Nach', 200, ty, 9);
+    t1('Distanz', 300, ty, 9);
+    t1('Relais', 380, ty, 9);
+    l1(30, ty + 4, 565, ty + 4, 0.7, 0.7, 0.7, 0.5);
+    ty += 14;
 
-    if (waypoints && waypoints.length >= 2 && segIdx >= 0 && segIdx < waypoints.length - 1) {
-      const wpA = waypoints[segIdx];
-      const wpB = waypoints[segIdx + 1];
-      const nameA = (wpA.name || `${wpA.lat.toFixed(4)}, ${wpA.lon.toFixed(4)}`).substring(0, 30);
-      const nameB = (wpB.name || `${wpB.lat.toFixed(4)}, ${wpB.lon.toFixed(4)}`).substring(0, 30);
-      doc.text(`Abschnitt ${segIdx + 1}: ${nameA} → ${nameB} (${groupRepeaters.length} Repeater)`, margin, y);
-    } else if (segIdx === -1) {
-      doc.text(`Allgemein (${groupRepeaters.length} Repeater)`, margin, y);
-    } else {
-      doc.text(`Abschnitt ${segIdx + 1} (${groupRepeaters.length} Repeater)`, margin, y);
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      if (ty > 800) break;
+      const d = haversine(routePoints[i], routePoints[i + 1]).toFixed(1);
+      const rc = relevantReps.filter(r => {
+        if (r.lat == null) return false;
+        return Math.min(
+          haversine(routePoints[i], { lat: r.lat, lng: r.lng }),
+          haversine(routePoints[i + 1], { lat: r.lat, lng: r.lng })
+        ) <= MAX_DIST;
+      }).length;
+      t1('A' + (i + 1), 30, ty, 8);
+      t1((routePoints[i].name || 'WP' + (i + 1)).substring(0, 20), 100, ty, 8);
+      t1((routePoints[i + 1].name || 'WP' + (i + 2)).substring(0, 20), 200, ty, 8);
+      t1(d + ' km', 300, ty, 8);
+      t1(rc + ' Stk', 380, ty, 8);
+      ty += 12;
     }
-    doc.setTextColor(0, 0, 0);
-    y += 6;
-
-    // Tabellen-Header
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setFillColor(240, 240, 240);
-    doc.rect(margin, y - 3, pageW - 2 * margin, 5, "F");
-    doc.text("Rufzeichen", margin + 1, y);
-    doc.text("TX-Freq", margin + 35, y);
-    doc.text("RX-Freq", margin + 52, y);
-    doc.text("Offset", margin + 69, y);
-    doc.text("Tone", margin + 85, y);
-    doc.text("Band", margin + 100, y);
-    doc.text("Mode", margin + 112, y);
-    doc.text("Standort", margin + 130, y);
-    doc.text("Entf.", margin + 175, y);
-    y += 5;
-
-    // Repeater-Zeilen
-    doc.setFont("helvetica", "normal");
-    for (const r of groupRepeaters) {
-      if (y > pageH - 15) { doc.addPage(); y = margin; }
-
-      const callsign = r.callsign || "---";
-      const txFreq = r.frequency != null ? r.frequency.toFixed(4) : "---";
-      const rxFreq = r.frequency != null && r.offset_mhz != null ? (r.frequency + r.offset_mhz).toFixed(4) : "---";
-      const offset = r.offset_mhz != null ? (r.offset_mhz > 0 ? "+" : "") + r.offset_mhz.toFixed(3) : "---";
-      const tone = r.tone || "---";
-      const band = r.band || "---";
-      const mode = getModeLabel(r.primary_mode || (Array.isArray(r.modes) && r.modes[0]) || "Other");
-      const location = (r.location_name || "---").substring(0, 40);
-      const dist = r._distToRoute != null ? `${r._distToRoute.toFixed(1)} km` : "---";
-
-      doc.text(callsign, margin + 1, y);
-      doc.text(txFreq, margin + 35, y);
-      doc.text(rxFreq, margin + 52, y);
-      doc.text(offset, margin + 69, y);
-      doc.text(tone, margin + 85, y);
-      doc.text(band, margin + 100, y);
-      doc.text(mode, margin + 112, y);
-      doc.text(location, margin + 130, y);
-      doc.text(dist, margin + 175, y);
-      y += 4.5;
-    }
-    y += 4;
   }
 
-  // Footer auf jeder Seite
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(128);
-    doc.text(`HB9OM On Field v0.9022 — ${routeName || "Unbenannt"} — Seite ${i}/${pageCount}`, pageW / 2, pageH - 5, { align: "center" });
-    doc.setTextColor(0);
+  // ===== Content Stream 2 (Seite 2: Repeater-Konfiguration) =====
+  let cs2 = '';
+  function t2(s, x, y, sz) {
+    cs2 += 'BT /F1 ' + sz + ' Tf ' + x + ' ' + (PH - y) + ' Td (' + esc(s) + ') Tj ET\n';
+  }
+  function l2(x1, y1, x2, y2, r, g, b, w) {
+    cs2 += r + ' ' + g + ' ' + b + ' RG ' + w + ' w ' + x1 + ' ' + (PH - y1) + ' m ' + x2 + ' ' + (PH - y2) + ' l S\n';
   }
 
-  const filename = `Route_${(routeName || "Unbenannt").replace(/[^a-zA-Z0-9_-]/g, "_")}_${date}.pdf`;
-  doc.save(filename);
+  t2('Repeater-Konfiguration (< 25km zur Route)', 30, 30, 12);
+  l2(30, 36, 565, 36, 0.4, 0.4, 0.4, 0.5);
+
+  if (relevantReps.length === 0) {
+    t2('Keine Repeater innerhalb 25km der Route gefunden.', 30, 55, 10);
+  } else {
+    let ry = 50;
+    t2('Callsign', 30, ry, 8);
+    t2('Frequenz', 120, ry, 8);
+    t2('Mode', 190, ry, 8);
+    t2('Offset', 240, ry, 8);
+    t2('Tone', 290, ry, 8);
+    t2('Standort', 330, ry, 8);
+    t2('Entfern.', 480, ry, 8);
+    l2(30, ry + 4, 565, ry + 4, 0.7, 0.7, 0.7, 0.3);
+    ry += 14;
+    relevantReps.forEach(rep => {
+      if (ry > 820) return;
+      t2(rep.callsign, 30, ry, 7);
+      t2(rep.frequency + ' MHz', 120, ry, 7);
+      t2(rep.mode, 190, ry, 7);
+      t2(rep.offset, 240, ry, 7);
+      t2(rep.tone, 290, ry, 7);
+      t2(rep.location.substring(0, 28), 330, ry, 7);
+      t2(rep.distance.toFixed(1) + ' km', 480, ry, 7);
+      ry += 11;
+    });
+  }
+  t2('HB9OM On Field App - v0.9024', 30, 835, 6);
+
+  // ===== PDF zusammenbauen =====
+  let pdf = '%PDF-1.4\n';
+  const o1 = pdf.length;
+  pdf += '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
+  const o2 = pdf.length;
+  pdf += '2 0 obj\n<< /Type /Pages /Kids [6 0 R 7 0 R] /Count 2 >>\nendobj\n';
+  const o3 = pdf.length;
+  pdf += '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n';
+  const o4 = pdf.length;
+  pdf += '4 0 obj\n<< /Length ' + cs1.length + ' >>\nstream\n' + cs1 + 'endstream\nendobj\n';
+  const o5 = pdf.length;
+  pdf += '5 0 obj\n<< /Length ' + cs2.length + ' >>\nstream\n' + cs2 + 'endstream\nendobj\n';
+  const o6 = pdf.length;
+  pdf += '6 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Contents 4 0 R /Resources << /Font << /F1 3 0 R >> >> >>\nendobj\n';
+  const o7 = pdf.length;
+  pdf += '7 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Contents 5 0 R /Resources << /Font << /F1 3 0 R >> >> >>\nendobj\n';
+  const xr = pdf.length;
+  pdf += 'xref\n0 8\n';
+  pdf += '0000000000 65535 f \n';
+  pdf += String(o1).padStart(10, '0') + ' 00000 n \n';
+  pdf += String(o2).padStart(10, '0') + ' 00000 n \n';
+  pdf += String(o3).padStart(10, '0') + ' 00000 n \n';
+  pdf += String(o4).padStart(10, '0') + ' 00000 n \n';
+  pdf += String(o5).padStart(10, '0') + ' 00000 n \n';
+  pdf += String(o6).padStart(10, '0') + ' 00000 n \n';
+  pdf += String(o7).padStart(10, '0') + ' 00000 n \n';
+  pdf += 'trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n' + xr + '\n%%EOF';
+
+  // Blob erstellen und Download ausloesen
+  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Route_' + (routeName || 'Unbenannt').replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + (date || '') + '.pdf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
