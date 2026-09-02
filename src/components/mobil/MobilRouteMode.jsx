@@ -82,12 +82,13 @@ export default function MobilRouteMode({ gpsPosition }) {
     setRouteCoords([]);
   }, []);
 
-  // v0.9021: Alle Wegpunkte + Route + Repeater löschen — inline definiert für zuverlässige Prop-Übergabe
-  const clearAllWaypoints = () => {
+  // v0.9022: Alle Wegpunkte + Route + Repeater löschen — useCallback für stabile Referenz
+  const clearAllWaypoints = useCallback(() => {
+    console.log('[v9022] clearAllWaypoints aufgerufen — lösche waypoints, routeCoords, repeaters');
     setWaypoints([]);
     setRouteCoords([]);
     setRepeaters([]);
-  };
+  }, []);
 
   // Route berechnen (OSRM)
   const calculateRoute = useCallback(async () => {
@@ -253,6 +254,7 @@ export default function MobilRouteMode({ gpsPosition }) {
           </div>
 
           <RouteMapView
+            key={`route-${routeCoords.length}-${waypoints.length}`}
             routeCoords={routeCoords}
             repeaters={filteredRepeaters}
             rangeKm={rangeKm}

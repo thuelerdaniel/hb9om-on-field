@@ -39,12 +39,17 @@ export default function RouteWaypointList({
     setRouteName("");
   };
 
-  // v0.9021: Route löschen — onClearAll prop löscht waypoints, routeCoords, repeaters direkt
-  const handleClearAll = () => {
+  // v0.9022: Route löschen — onClearAll prop löscht waypoints, routeCoords, repeaters direkt
+  const handleClearAll = (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    console.log('[v9022] handleClearAll aufgerufen', {
+      onClearAllType: typeof onClearAll,
+      wpCount: waypoints.length,
+    });
     if (typeof onClearAll === "function") {
       onClearAll();
     } else {
-      // Fallback: setTimeout onDelete(0) — jeder Tick löscht ersten Waypoint
+      console.warn('[v9022] onClearAll ist keine Funktion — verwende Fallback');
       const currentLen = waypointsRef.current.length;
       for (let i = 0; i < currentLen; i++) {
         setTimeout(() => onDelete(0), i * 50);
@@ -75,7 +80,12 @@ export default function RouteWaypointList({
         <div className="flex items-center gap-3">
           {waypoints.length > 0 && (
             <button
-              onClick={() => setShowConfirmClear(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[v9022] Route löschen Button geklickt — öffne Bestätigungs-Dialog');
+                setShowConfirmClear(true);
+              }}
               className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 hover:underline"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -226,7 +236,11 @@ export default function RouteWaypointList({
               <button onClick={() => setShowConfirmClear(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700">
                 Abbrechen
               </button>
-              <button onClick={handleClearAll} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600">
+              <button
+                onClick={handleClearAll}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600"
+                style={{ zIndex: 10010 }}
+              >
                 Alle löschen
               </button>
             </div>

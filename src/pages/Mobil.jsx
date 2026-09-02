@@ -39,15 +39,18 @@ export default function Mobil() {
   const [loadingRepeaters, setLoadingRepeaters] = useState(false);
   const [savedRoutes, setSavedRoutes] = useState([]);
 
+  // v0.9022: Load saved routes — extracted as callback for reuse after delete
+  const loadSavedRoutes = useCallback(async () => {
+    try {
+      const routes = await base44.entities.Route.list("-saved_date", 50);
+      setSavedRoutes(routes || []);
+    } catch {}
+  }, []);
+
   // Load saved routes on mount
   useEffect(() => {
-    (async () => {
-      try {
-        const routes = await base44.entities.Route.list("-saved_date", 50);
-        setSavedRoutes(routes || []);
-      } catch {}
-    })();
-  }, []);
+    loadSavedRoutes();
+  }, [loadSavedRoutes]);
 
   // Effective range based on equipment type + selected bands
   const effectiveRange = useMemo(
@@ -123,7 +126,7 @@ export default function Mobil() {
         setSavedRoutes(routes || []);
       } catch {}
     },
-    [waypoints, routeCoords, selectedModes, selectedBands]
+    [waypoints, routeCoords, selectedModes, selectedBands, loadSavedRoutes]
   );
 
   // Route load
@@ -218,6 +221,7 @@ export default function Mobil() {
           onSaveRoute={saveRoute}
           onLoadRoute={loadRoute}
           savedRoutes={savedRoutes}
+          onRoutesChanged={loadSavedRoutes}
         />
       </div>
 

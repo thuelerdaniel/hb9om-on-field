@@ -2,7 +2,7 @@
 // Zeigt Mode-Toggle, Equipment-Auswahl, Modulations-Filter, Wegpunkt-Eingabe (Route)
 // oder GPS-Status (Live), Karten-Vorschau und Start-Button.
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Play, Satellite, AlertCircle, Route as RouteIcon } from "lucide-react";
 import MobilModeToggle from "./MobilModeToggle";
 import MobilEquipmentSelect from "./MobilEquipmentSelect";
@@ -11,6 +11,7 @@ import RouteWaypointSearch from "./RouteWaypointSearch";
 import RouteWaypointList from "./RouteWaypointList";
 import MobilMapView from "./MobilMapView";
 import { fetchOsmRoute, totalRouteDistance } from "@/lib/routeDistance";
+import { generateMobilRoutePdf } from "@/lib/mobilRoutePdf";
 
 export default function MobilConfig({
   mode,
@@ -34,6 +35,7 @@ export default function MobilConfig({
   onSaveRoute,
   onLoadRoute,
   savedRoutes,
+  onRoutesChanged,
 }) {
   const [calculating, setCalculating] = useState(false);
 
@@ -59,11 +61,26 @@ export default function MobilConfig({
   };
 
   const deleteWaypoint = (index) => {
-    onWaypointsChange(
-      waypoints.filter((_, i) => i !== index).map((wp, i) => ({ ...wp, order: i }))
+    onWaypointsChange((prev) =>
+      prev.filter((_, i) => i !== index).map((wp, i) => ({ ...wp, order: i }))
     );
     onRouteCoordsChange([]);
   };
+
+  // v0.9022: Route löschen — alle Wegpunkte + Route + Repeater zurücksetzen
+  const clearAllWaypoints = useCallback(() => {
+    console.log('[v9022] clearAllWaypoints aufgerufen — lösche alle Wegpunkte');
+    onWaypointsChange([]);
+    onRouteCoordsChange([]);
+  }, [onWaypointsChange, onRouteCoordsChange]);
+
+  // v0.9022: PDF Export — client-side jsPDF Generierung
+  const handlePdfExport = useCallback(() => {
+    console.log('[v9022] handlePdfExport aufgerufen');
+    const routeName = waypoints[0]?.name || "Route";
+    const today = new Date().toISOString().split("T")[0];
+    generateMobilRoutePdf(routeName, today, totalDist, selectedModes, repeaters, waypoints);
+  }, [waypoints, repeaters, totalDist, selectedModes]);
 
   const calculateRoute = async () => {
     if (waypoints.length < 2) return;
@@ -105,17 +122,21 @@ export default function MobilConfig({
           <RouteWaypointSearch
             onAddWaypoint={addWaypoint}
             onAddMultipleWaypoints={addMultipleWaypoints}
+            onPdfExport={handlePdfExport}
+            pdfDisabled={waypoints.length === 0}
           />
           <RouteWaypointList
             waypoints={waypoints}
             onReorder={reorderWaypoints}
             onDelete={deleteWaypoint}
+            onClearAll={clearAllWaypoints}
             onCalculate={calculateRoute}
             calculating={calculating}
             onSaveRoute={onSaveRoute}
             onLoadRoute={onLoadRoute}
             savedRoutes={savedRoutes}
             loadingRoutes={false}
+            onRoutesChanged={onRoutesChanged}
           />
 
           {routeCoords.length > 0 && (

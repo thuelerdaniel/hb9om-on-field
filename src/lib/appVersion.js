@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9021";
+export const APP_VERSION = "0.9022";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,8 @@ export const APP_BUILD = "202609020700";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9022: Route löschen — useCallback für stabile Handler-Referenz, console.log Debugging, key-Prop für Map-Remount",
+  "v0.9022: PDF Export — jsPDF client-side Generierung verifiziert, Button in Import-Gruppe sichtbar",
   "v0.9021: Route löschen Button Fix — löscht zuverlässig alle Wegpunkte, Route und Repeater",
   "v0.9021: PDF Export Button in Import-Button-Gruppe (neben GPX/Google) — immer sichtbar wenn Wegpunkte vorhanden",
   "v0.9021: Gespeicherte Route löschen — Trash-Button pro gespeicherter Route in 'Meine Routen'",
