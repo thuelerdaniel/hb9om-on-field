@@ -1,6 +1,6 @@
 // exportRoutePdf — Generiert ein 2-Seiten PDF (Karte + Repeater-Liste) im Backend.
-// Empfängt waypoints + repeaters, gibt Base64-codiertes PDF als JSON zurück.
-// v0.9023: jsPDF im Backend (nicht Frontend) — verhindert App-Crash.
+// v0.9023a: Korrekte jsPDF API — doc.line(x1,y1,x2,y2), doc.circle(x,y,r,'F'), doc.triangle(...,'F')
+// Farben als RGB Zahlen, NICHT hex strings.
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { jsPDF } from 'npm:jspdf@4.2.1';
@@ -61,15 +61,16 @@ export default async function(req) {
     }
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageW = 210, pageH = 297, margin = 15;
 
     // ===== SEITE 1: Karte + Abschnittstabelle =====
     doc.setFontSize(16);
+    doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
-    doc.text('HB9OM On Field — Routenplan', margin, 18);
+    doc.text('HB9OM On Field — Routenplan', 14, 20);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Datum: ${new Date().toLocaleDateString('de-CH')}`, margin, 25);
+    doc.text(`Datum: ${new Date().toLocaleDateString('de-CH')}`, 14, 27);
+    doc.text('Version: v0.9023a', 14, 33);
 
     // Route-Koordinaten für Distanzberechnung
     const routeCoords = waypoints.map(wp => [wp.lat, wp.lon]);
@@ -98,7 +99,7 @@ export default async function(req) {
     const lngRange = Math.max(maxLng - minLng, 0.01);
 
     // Kartenbereich
-    const mapX = margin, mapY = 32, mapW = pageW - 2 * margin, mapH = 130;
+    const mapX = 14, mapY = 40, mapW = 182, mapH = 120;
     const scale = Math.min(mapW / lngRange, mapH / latRange);
     const offsetX = mapX + (mapW - lngRange * scale) / 2;
     const offsetY = mapY + (mapH - latRange * scale) / 2;
@@ -111,28 +112,32 @@ export default async function(req) {
     doc.setLineWidth(0.3);
     doc.rect(mapX, mapY, mapW, mapH);
 
-    // Route zeichnen (Abschnitte in verschiedenen Farben)
+    // Route zeichnen — jsPDF: doc.line(x1, y1, x2, y2)
     const colors = [[37, 99, 235], [22, 163, 74], [220, 38, 38], [147, 51, 234], [234, 88, 12], [6, 182, 212]];
-    doc.setLineWidth(1.2);
+    doc.setLineWidth(1.5);
     for (let i = 0; i < waypoints.length - 1; i++) {
       const c = colors[i % colors.length];
       doc.setDrawColor(c[0], c[1], c[2]);
-      doc.line(toX(waypoints[i].lon), toY(waypoints[i].lat), toX(waypoints[i + 1].lon), toY(waypoints[i + 1].lat));
+      const x1 = toX(waypoints[i].lon);
+      const y1 = toY(waypoints[i].lat);
+      const x2 = toX(waypoints[i + 1].lon);
+      const y2 = toY(waypoints[i + 1].lat);
+      doc.line(x1, y1, x2, y2);
     }
 
-    // Waypoints als nummerierte Kreise
+    // Waypoints als nummerierte Kreise — jsPDF: doc.circle(x, y, r, 'F')
     waypoints.forEach((wp, i) => {
       const x = toX(wp.lon), y = toY(wp.lat);
       doc.setFillColor(37, 99, 235);
-      doc.circle(x, y, 3.5, 'F');
-      doc.setTextColor(255, 255, 255);
+      doc.circle(x, y, 3, 'F');
       doc.setFontSize(7);
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.text(`${i + 1}`, x - 1.2, y + 1);
     });
     doc.setFont('helvetica', 'normal');
 
-    // Repeater als rote Dreiecke
+    // Repeater als rote Dreiecke — jsPDF: doc.triangle(x1,y1,x2,y2,x3,y3,'F')
     repWithCoords.forEach(rep => {
       const x = toX(rep.lng), y = toY(rep.lat);
       doc.setFillColor(220, 38, 38);
@@ -162,9 +167,9 @@ export default async function(req) {
     doc.setFont('helvetica', 'bold');
     doc.text('Abschn.', mapX, tableY);
     doc.text('Start', mapX + 22, tableY);
-    doc.text('Ende', mapX + 75, tableY);
-    doc.text('Distanz', mapX + 128, tableY);
-    doc.text('Repeater', mapX + 162, tableY);
+    doc.text('Ende', mapX + 70, tableY);
+    doc.text('Distanz', mapX + 118, tableY);
+    doc.text('Repeater', mapX + 152, tableY);
     doc.setDrawColor(160, 160, 160);
     doc.setLineWidth(0.3);
     doc.line(mapX, tableY + 2.5, mapX + 180, tableY + 2.5);
@@ -172,7 +177,7 @@ export default async function(req) {
     doc.setFont('helvetica', 'normal');
 
     for (let i = 0; i < waypoints.length - 1; i++) {
-      if (tableY > pageH - 25) break;
+      if (tableY > 280) break;
       const dist = haversineKm(
         { lat: waypoints[i].lat, lng: waypoints[i].lon },
         { lat: waypoints[i + 1].lat, lng: waypoints[i + 1].lon }
@@ -180,9 +185,9 @@ export default async function(req) {
       const repsInRange = repeatersWithDist.filter(r => r.distance <= 50).length;
       doc.text(`A${i + 1}`, mapX, tableY);
       doc.text((waypoints[i].name || `WP${i + 1}`).substring(0, 22), mapX + 22, tableY);
-      doc.text((waypoints[i + 1].name || `WP${i + 2}`).substring(0, 22), mapX + 75, tableY);
-      doc.text(`${dist} km`, mapX + 128, tableY);
-      doc.text(`${repsInRange}`, mapX + 162, tableY);
+      doc.text((waypoints[i + 1].name || `WP${i + 2}`).substring(0, 22), mapX + 70, tableY);
+      doc.text(`${dist} km`, mapX + 118, tableY);
+      doc.text(`${repsInRange}`, mapX + 152, tableY);
       tableY += 5;
     }
 
@@ -190,45 +195,45 @@ export default async function(req) {
     doc.addPage();
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Repeater-Konfiguration', margin, 18);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Repeater-Konfiguration', 14, 20);
     doc.setDrawColor(120, 120, 120);
     doc.setLineWidth(0.4);
-    doc.line(margin, 22, pageW - margin, 22);
+    doc.line(14, 23, 196, 23);
 
     let repY = 30;
     doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Callsign', margin, repY);
-    doc.text('Frequenz', margin + 28, repY);
-    doc.text('Mode', margin + 56, repY);
-    doc.text('Offset', margin + 76, repY);
-    doc.text('Tone', margin + 100, repY);
-    doc.text('Standort', margin + 122, repY);
-    doc.text('Entfern.', margin + 172, repY);
-    doc.line(margin, repY + 2.5, pageW - margin, repY + 2.5);
+    doc.text('Callsign', 14, repY);
+    doc.text('Frequenz', 42, repY);
+    doc.text('Mode', 68, repY);
+    doc.text('Offset', 88, repY);
+    doc.text('Tone', 112, repY);
+    doc.text('Standort', 134, repY);
+    doc.text('Entfern.', 176, repY);
+    doc.line(14, repY + 2.5, 196, repY + 2.5);
     repY += 7;
     doc.setFont('helvetica', 'normal');
 
     const sortedReps = [...repeatersWithDist].sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
     sortedReps.forEach(rep => {
-      if (repY > pageH - 15) return;
+      if (repY > 285) return;
       doc.setFontSize(7);
-      doc.text((rep.callsign || '-').substring(0, 12), margin, repY);
+      doc.text((rep.callsign || '-').substring(0, 12), 14, repY);
       const freq = rep.frequency || rep.tx_frequency || '-';
-      doc.text(`${freq}`, margin + 28, repY);
-      doc.text((rep.mode || 'FM').substring(0, 8), margin + 56, repY);
+      doc.text(`${freq}`, 42, repY);
+      doc.text((rep.mode || 'FM').substring(0, 8), 68, repY);
       const off = rep.offset != null ? `${rep.offset}` : '-';
-      doc.text(off.substring(0, 10), margin + 76, repY);
-      doc.text((rep.tone || rep.ctcss || '-').substring(0, 10), margin + 100, repY);
-      doc.text((rep.location || rep.qth || rep.name || '-').substring(0, 28), margin + 122, repY);
-      doc.text(`${(rep.distance || 0).toFixed(1)} km`, margin + 172, repY);
+      doc.text(off.substring(0, 10), 88, repY);
+      doc.text((rep.tone || rep.ctcss || '-').substring(0, 10), 112, repY);
+      doc.text((rep.location || rep.qth || rep.name || '-').substring(0, 28), 134, repY);
+      doc.text(`${(rep.distance || 0).toFixed(1)} km`, 176, repY);
       repY += 5.5;
     });
 
     // Footer
     doc.setFontSize(6);
     doc.setTextColor(130, 130, 130);
-    doc.text('HB9OM On Field App — v0.9023', margin, pageH - 8);
+    doc.text('HB9OM On Field App — v0.9023a', 14, 290);
 
     const pdfBytes = doc.output('arraybuffer');
     const pdfBase64 = arrayBufferToBase64(pdfBytes);
