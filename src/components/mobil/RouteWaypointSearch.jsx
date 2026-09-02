@@ -1,12 +1,12 @@
 // RouteWaypointSearch — Nominatim Ortssuche + Suchergebnisse + GPX/Google Maps Import.
 
 import React, { useState, useRef, useCallback } from "react";
-import { Search, Plus, FileUp, Link2, Loader2, MapPin } from "lucide-react";
+import { Search, Plus, FileUp, Link2, Loader2, MapPin, FileDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { parseGpxFile } from "@/lib/gpxParser";
 import { parseGoogleMapsUrl, hasPlaceNamesButNoCoords } from "@/lib/googleMapsUrlParser";
 
-export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoints }) {
+export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoints, onPdfExport, pdfDisabled }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -170,7 +170,7 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
           aria-hidden="true"
         />
 
-        <div className="flex items-center gap-1 flex-1 min-w-[160px]">
+        <div className="flex items-center gap-1 flex-1 min-w-[140px]">
           <input
             type="text"
             value={gmapsUrl}
@@ -187,6 +187,17 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
             <Link2 className="w-3.5 h-3.5" />
           </button>
         </div>
+
+        {/* v0.9021: PDF Export Button — in gleicher Button-Gruppe wie GPX/Google */}
+        <button
+          onClick={onPdfExport}
+          disabled={pdfDisabled}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          title={pdfDisabled ? "Zuerst Route berechnen für PDF-Export" : "Routenplan als PDF exportieren"}
+        >
+          <FileDown className="w-3.5 h-3.5" />
+          PDF
+        </button>
       </div>
 
       {gpxError && <p className="text-xs text-red-500">{gpxError}</p>}

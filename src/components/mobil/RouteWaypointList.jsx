@@ -1,25 +1,32 @@
 // RouteWaypointList — Wegpunkt-Liste mit Drag-to-Reorder, Löschen, Route berechnen/speichern/laden.
-// v0.9020: "Route löschen" Button mit Bestätigungs-Dialog.
+// v0.9021: "Route löschen" Button + gespeicherte Route löschen.
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { GripVertical, Trash2, Calculator, Save, FolderOpen, Loader2, X } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 
 export default function RouteWaypointList({
   waypoints,
   onReorder,
   onDelete,
-  onClearAll = () => { console.warn("onClearAll not provided"); },
+  onClearAll,
   onCalculate,
   calculating,
   onSaveRoute,
   onLoadRoute,
   savedRoutes,
   loadingRoutes,
+  onRoutesChanged,
 }) {
   const [showSaved, setShowSaved] = useState(false);
   const [routeName, setRouteName] = useState("");
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [deletingRouteId, setDeletingRouteId] = useState(null);
+
+  // v0.9021: Ref hält immer die aktuelle waypoints-Länge — verhindert stale-closure Bug
+  const waypointsRef = useRef(waypoints);
+  useEffect(() => { waypointsRef.current = waypoints; }, [waypoints]);
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
@@ -32,16 +39,31 @@ export default function RouteWaypointList({
     setRouteName("");
   };
 
+  // v0.9021: Route löschen — Multi-Strategy: onClearAll prop + setTimeout onDelete(0) Fallback
   const handleClearAll = () => {
-    if (typeof onClearAll === 'function') {
+    // Strategy 1: onClearAll prop (setzt waypoints, routeCoords, repeaters direkt)
+    if (typeof onClearAll === "function") {
       onClearAll();
-    } else {
-      // Fallback: Alle Wegpunkte in umgekehrter Reihenfolge löschen (Indizes verschieben sich nicht)
-      for (let i = waypoints.length - 1; i >= 0; i--) {
-        onDelete(i);
-      }
+    }
+    // Strategy 2: setTimeout onDelete(0) Fallback — jeder Tick löscht ersten Waypoint
+    const currentLen = waypointsRef.current.length;
+    for (let i = 0; i < currentLen; i++) {
+      setTimeout(() => onDelete(0), i * 50);
     }
     setShowConfirmClear(false);
+  };
+
+  // v0.9021: Gespeicherte Route aus Entity löschen
+  const handleDeleteSavedRoute = async (routeId) => {
+    setDeletingRouteId(routeId);
+    try {
+      await base44.entities.Route.delete(routeId);
+      if (onRoutesChanged) onRoutesChanged();
+    } catch {
+      // silent
+    } finally {
+      setDeletingRouteId(null);
+    }
   };
 
   return (
@@ -90,6 +112,18 @@ export default function RouteWaypointList({
                   className="flex-1 text-left text-xs font-medium text-gray-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 truncate"
                 >
                   {route.name} ({route.waypoints?.length || 0} WP, {route.total_distance_km || 0} km)
+                </button>
+                <button
+                  onClick={() => handleDeleteSavedRoute(route.id)}
+                  disabled={deletingRouteId === route.id}
+                  className="p-1 text-gray-400 hover:text-red-500 disabled:opacity-50"
+                  title="Route löschen"
+                >
+                  {deletingRouteId === route.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
                 </button>
               </div>
             ))

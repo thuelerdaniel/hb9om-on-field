@@ -177,7 +177,7 @@ export function generateMobilRoutePdf(routeName, date, totalDistance, modeFilter
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(128);
-    doc.text(`HB9OM On Field v0.9020 — ${routeName || "Unbenannt"} — Seite ${i}/${pageCount}`, pageW / 2, pageH - 5, { align: "center" });
+    doc.text(`HB9OM On Field v0.9021 — ${routeName || "Unbenannt"} — Seite ${i}/${pageCount}`, pageW / 2, pageH - 5, { align: "center" });
     doc.setTextColor(0);
   }
 

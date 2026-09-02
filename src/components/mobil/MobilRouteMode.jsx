@@ -10,6 +10,7 @@ import RouteWaypointList from "./RouteWaypointList";
 import MobilRepeaterFilter from "./MobilRepeaterFilter";
 import RouteMapView from "./RouteMapView";
 import RouteRepeaterList from "./RouteRepeaterList";
+import { generateMobilRoutePdf } from "@/lib/mobilRoutePdf";
 import { fetchOsmRoute, routeBounds, minDistanceToRoute, nearestSegmentIndex, totalRouteDistance } from "@/lib/routeDistance";
 import { repeaterMatchesMode } from "@/lib/repeaterModes";
 
@@ -39,6 +40,17 @@ export default function MobilRouteMode({ gpsPosition }) {
   useEffect(() => {
     loadSavedRoutes();
   }, [loadSavedRoutes]);
+
+  // v0.9021: Custom-Event Listener für Route löschen — umgeht HMR-Caching Probleme
+  useEffect(() => {
+    const handler = () => {
+      setWaypoints([]);
+      setRouteCoords([]);
+      setRepeaters([]);
+    };
+    window.addEventListener("mobil-clear-route", handler);
+    return () => window.removeEventListener("mobil-clear-route", handler);
+  }, []);
 
   // Wegpunkt hinzufügen
   const addWaypoint = useCallback((wp) => {
@@ -70,12 +82,12 @@ export default function MobilRouteMode({ gpsPosition }) {
     setRouteCoords([]);
   }, []);
 
-  // BUGFIX 1 v0.9020: Alle Wegpunkte + Route + Repeater löschen
-  const clearAllWaypoints = useCallback(() => {
+  // v0.9021: Alle Wegpunkte + Route + Repeater löschen — inline definiert für zuverlässige Prop-Übergabe
+  const clearAllWaypoints = () => {
     setWaypoints([]);
     setRouteCoords([]);
     setRepeaters([]);
-  }, []);
+  };
 
   // Route berechnen (OSRM)
   const calculateRoute = useCallback(async () => {
@@ -189,9 +201,25 @@ export default function MobilRouteMode({ gpsPosition }) {
   const totalDist = useMemo(() => totalRouteDistance(routeCoords), [routeCoords]);
   const today = new Date().toISOString().split("T")[0];
 
+  // v0.9021: PDF Export Handler — sammelt Waypoints + Repeater und generiert PDF
+  const handlePdfExport = useCallback(() => {
+    const routeName = waypoints[0]?.name || "Route";
+    const sortedRepeaters = [...filteredRepeaters].sort(
+      (a, b) => (a._segmentIdx || 0) - (b._segmentIdx || 0) || (a._distToRoute || 0) - (b._distToRoute || 0)
+    );
+    generateMobilRoutePdf(routeName, today, totalDist, selectedModes, sortedRepeaters, waypoints);
+  }, [waypoints, filteredRepeaters, totalDist, selectedModes, today]);
+
+  const pdfDisabled = waypoints.length === 0;
+
   return (
     <div className="space-y-3">
-      <RouteWaypointSearch onAddWaypoint={addWaypoint} onAddMultipleWaypoints={addMultipleWaypoints} />
+      <RouteWaypointSearch
+        onAddWaypoint={addWaypoint}
+        onAddMultipleWaypoints={addMultipleWaypoints}
+        onPdfExport={handlePdfExport}
+        pdfDisabled={pdfDisabled}
+      />
 
       <RouteWaypointList
         waypoints={waypoints}
@@ -204,6 +232,7 @@ export default function MobilRouteMode({ gpsPosition }) {
         onLoadRoute={loadRoute}
         savedRoutes={savedRoutes}
         loadingRoutes={loadingRoutes}
+        onRoutesChanged={loadSavedRoutes}
       />
 
       <MobilRepeaterFilter
