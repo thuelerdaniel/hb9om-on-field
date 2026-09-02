@@ -10,7 +10,6 @@ import RouteWaypointList from "./RouteWaypointList";
 import MobilRepeaterFilter from "./MobilRepeaterFilter";
 import RouteMapView from "./RouteMapView";
 import RouteRepeaterList from "./RouteRepeaterList";
-import { generateMobilRoutePdf } from "@/lib/mobilRoutePdf";
 import { fetchOsmRoute, routeBounds, minDistanceToRoute, nearestSegmentIndex, totalRouteDistance } from "@/lib/routeDistance";
 import { repeaterMatchesMode } from "@/lib/repeaterModes";
 
@@ -202,14 +201,47 @@ export default function MobilRouteMode({ gpsPosition }) {
   const totalDist = useMemo(() => totalRouteDistance(routeCoords), [routeCoords]);
   const today = new Date().toISOString().split("T")[0];
 
-  // v0.9021: PDF Export Handler — sammelt Waypoints + Repeater und generiert PDF
-  const handlePdfExport = useCallback(() => {
-    const routeName = waypoints[0]?.name || "Route";
-    const sortedRepeaters = [...filteredRepeaters].sort(
-      (a, b) => (a._segmentIdx || 0) - (b._segmentIdx || 0) || (a._distToRoute || 0) - (b._distToRoute || 0)
-    );
-    generateMobilRoutePdf(routeName, today, totalDist, selectedModes, sortedRepeaters, waypoints);
-  }, [waypoints, filteredRepeaters, totalDist, selectedModes, today]);
+  // v0.9023: PDF Export — Backend generiert PDF (kein jsPDF im Frontend → kein Crash)
+  const handlePdfExport = useCallback(async () => {
+    if (waypoints.length === 0) return;
+    try {
+      const wpData = waypoints.map(wp => ({ lat: wp.lat, lon: wp.lon, name: wp.name }));
+      const sortedRepeaters = [...filteredRepeaters].sort(
+        (a, b) => (a._segmentIdx || 0) - (b._segmentIdx || 0) || (a._distToRoute || 0) - (b._distToRoute || 0)
+      );
+      const repeaterData = sortedRepeaters.map(r => ({
+        callsign: r.callsign,
+        frequency: r.tx_frequency || r.frequency,
+        mode: r.mode || "FM",
+        offset: r.offset != null ? `${r.offset}` : "",
+        tone: r.tone || r.ctcss || "",
+        lat: r.lat,
+        lng: r.lng,
+        distance: r._distToRoute || 0,
+        location: r.location || r.qth || r.name || "",
+      }));
+      const res = await base44.functions.invoke("exportRoutePdf", { waypoints: wpData, repeaters: repeaterData });
+      const data = res?.data;
+      if (data?.success && data?.pdf) {
+        // Base64 → Blob → Download
+        const byteChars = atob(data.pdf);
+        const byteLen = byteChars.length;
+        const byteArray = new Uint8Array(byteLen);
+        for (let i = 0; i < byteLen; i++) byteArray[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.filename || "hb9om-route.pdf";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error("PDF Export Fehler:", err);
+    }
+  }, [waypoints, filteredRepeaters]);
 
   const pdfDisabled = waypoints.length === 0;
 

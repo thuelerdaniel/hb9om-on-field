@@ -75,36 +75,42 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
     if (!gmapsUrl.trim()) return;
     setGmapsLoading(true);
     try {
-      // Try frontend parser first (for direct URLs with coordinates)
+      // v0.9023: Backend ZUERST aufrufen — liefert zuverlässig ALLE Waypoints.
+      // Frontend-Parser nur als Fallback wenn Backend fehlschlägt.
+      try {
+        const res = await base44.functions.invoke("resolveGoogleMapsLink", { url: gmapsUrl.trim() });
+        const data = res?.data;
+        if (data?.success && Array.isArray(data.waypoints) && data.waypoints.length > 0) {
+          // WICHTIG: GANZES Array mappen — nicht nur [0]!
+          const allPoints = data.waypoints.map((wp, i) => ({
+            lat: Number(wp.lat),
+            lon: Number(wp.lng),
+            name: wp.name || `WP ${i + 1}`,
+            order: i,
+          }));
+          onAddMultipleWaypoints(allPoints);
+          setGmapsUrl("");
+          return;
+        }
+      } catch (backendErr) {
+        // Backend fehlgeschlagen — Frontend-Parser versuchen
+      }
+
+      // Frontend-Parser als Fallback (für direkte URLs mit Koordinaten)
       const wps = parseGoogleMapsUrl(gmapsUrl.trim());
       if (wps.length > 0) {
         onAddMultipleWaypoints(wps);
         setGmapsUrl("");
         return;
       }
-      // Check if URL has place names but no coordinates
+
+      // Weder Backend noch Frontend-Parser konnte Koordinaten finden
       if (hasPlaceNamesButNoCoords(gmapsUrl.trim())) {
         setGmapsError("Bitte Google-Maps-Link mit Koordinaten verwenden (z.B. /dir/47.39,8.05/47.45,8.65/)");
-        setTimeout(() => setGmapsError(null), 8000);
-        return;
-      }
-      // Fallback: call resolveGoogleMapsLink backend function (nur für Short-Links wie maps.app.goo.gl)
-      const res = await base44.functions.invoke("resolveGoogleMapsLink", { url: gmapsUrl.trim() });
-      const data = res?.data;
-      if (data?.success && data.waypoints?.length > 0) {
-        onAddMultipleWaypoints(
-          data.waypoints.map((wp) => ({
-            lat: Number(wp.lat),
-            lon: Number(wp.lng),
-            name: wp.name || `${Number(wp.lat).toFixed(4)}, ${Number(wp.lng).toFixed(4)}`,
-            order: 0,
-          }))
-        );
-        setGmapsUrl("");
       } else {
-        setGmapsError(data?.error || "Keine Koordinaten gefunden — bitte Link mit Koordinaten verwenden");
-        setTimeout(() => setGmapsError(null), 8000);
+        setGmapsError("Keine Koordinaten gefunden — bitte Link mit Koordinaten verwenden");
       }
+      setTimeout(() => setGmapsError(null), 8000);
     } catch (err) {
       setGmapsError("Google Maps Link konnte nicht aufgelöst werden");
       setTimeout(() => setGmapsError(null), 5000);
