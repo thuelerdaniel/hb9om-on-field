@@ -69,14 +69,14 @@ export default function MobilConfig({
 
   // v0.9022: Route löschen — alle Wegpunkte + Route + Repeater zurücksetzen
   const clearAllWaypoints = useCallback(() => {
-    console.log('[v9022] clearAllWaypoints aufgerufen — lösche alle Wegpunkte');
     onWaypointsChange([]);
     onRouteCoordsChange([]);
   }, [onWaypointsChange, onRouteCoordsChange]);
 
+  const totalDist = useMemo(() => totalRouteDistance(routeCoords), [routeCoords]);
+
   // v0.9022: PDF Export — client-side jsPDF Generierung
   const handlePdfExport = useCallback(() => {
-    console.log('[v9022] handlePdfExport aufgerufen');
     const routeName = waypoints[0]?.name || "Route";
     const today = new Date().toISOString().split("T")[0];
     generateMobilRoutePdf(routeName, today, totalDist, selectedModes, repeaters, waypoints);
@@ -94,8 +94,6 @@ export default function MobilConfig({
       setCalculating(false);
     }
   };
-
-  const totalDist = useMemo(() => totalRouteDistance(routeCoords), [routeCoords]);
 
   const canStart =
     mode === "route" ? routeCoords.length >= 2 : gpsActive;
