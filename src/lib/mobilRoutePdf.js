@@ -1,5 +1,5 @@
 // PDF-Export für Mobil-Route — PURE JavaScript, keine externe Library.
-// v0.9026: Vektor-PDF mit farbigen Abschnitten + Offset-Rundung. Keine OSM-Tiles.
+// v0.9027: OSM Static Map API (echte Landeskarte) + max 8 Repeater + Offset-Rundung.
 
 function haversine(a, b) {
   const R = 6371;
@@ -32,15 +32,9 @@ function round3(v) {
   return Math.round(Number(v) * 1000) / 1000;
 }
 
-// Farben für Abschnitte (RGB 0-1)
-const SEGMENT_COLORS = [
-  [0.863, 0.149, 0.149], // rot
-  [0.086, 0.639, 0.290], // grün
-  [0.145, 0.388, 0.922], // blau
-  [0.918, 0.349, 0.047], // orange
-  [0.576, 0.200, 0.918], // lila
-  [0.031, 0.565, 0.698], // türkis
-];
+function totalLen(parts) {
+  return parts.reduce((sum, p) => sum + p.length, 0);
+}
 
 export async function generateMobilRoutePdf(routeName, date, totalDistance, modeFilter, repeaters, waypoints) {
   const routePoints = (waypoints || []).map(wp => ({
@@ -56,8 +50,9 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
 
   const RELEVANT_DIST = 35;
   const IN_RANGE_DIST = 20;
+  const MAX_REPS = 8;
 
-  // Repeater normalisieren + Distanz zur Route + Offset/Frequenz runden
+  // Repeater normalisieren + Distanz + Offset runden + MAX 8
   const relevantReps = (repeaters || [])
     .map(r => {
       if (r.lat == null || r.lng == null) return null;
@@ -77,111 +72,150 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
       };
     })
     .filter(rep => rep !== null && rep.distance <= RELEVANT_DIST)
-    .sort((a, b) => a.distance - b.distance);
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, MAX_REPS);
 
-  // --- VEKTOR-KARTE ---
-  const PW = 595, PH = 842;
-  const MAP_X = 30, MAP_Y = 80, MAP_W = 535, MAP_H = 400;
-
+  // --- OSM STATIC MAP BILD LADEN ---
   const repWithCoords = relevantReps.filter(r => r.lat != null && r.lng != null);
   const allCoords = [...routePoints, ...repWithCoords];
-
   const minLat = Math.min(...allCoords.map(c => c.lat));
   const maxLat = Math.max(...allCoords.map(c => c.lat));
   const minLng = Math.min(...allCoords.map(c => c.lng));
   const maxLng = Math.max(...allCoords.map(c => c.lng));
-  const latRange = Math.max(maxLat - minLat, 0.001);
-  const lngRange = Math.max(maxLng - minLng, 0.001);
-  const padLat = latRange * 0.1;
-  const padLng = lngRange * 0.1;
-  const minLatP = minLat - padLat;
-  const maxLatP = maxLat + padLat;
-  const minLngP = minLng - padLng;
-  const maxLngP = maxLng + padLng;
+  const centerLat = (minLat + maxLat) / 2;
+  const centerLng = (minLng + maxLng) / 2;
 
-  function toPdfX(lng) { return MAP_X + ((lng - minLngP) / (maxLngP - minLngP)) * MAP_W; }
-  function toPdfY(lat) { return PH - MAP_Y - ((maxLatP - lat) / (maxLatP - minLatP)) * MAP_H; }
+  const range = Math.max(maxLat - minLat, maxLng - minLng);
+  let zoom = 10;
+  if (range < 0.05) zoom = 15;
+  else if (range < 0.1) zoom = 14;
+  else if (range < 0.2) zoom = 13;
+  else if (range < 0.5) zoom = 12;
+  else if (range < 1.0) zoom = 11;
+  else if (range < 2.0) zoom = 10;
+  else zoom = 9;
 
-  // Content stream Seite 1
+  // Static Map URL mit Markern
+  let markersParam = routePoints.map(wp =>
+    wp.lat + ',' + wp.lng + ',blue-pushpin'
+  ).join('|');
+  if (repWithCoords.length > 0) {
+    markersParam += '|' + repWithCoords.map(rep =>
+      rep.lat + ',' + rep.lng + ',red-pushpin'
+    ).join('|');
+  }
+
+  const staticMapUrl = 'https://staticmap.openstreetmap.de/staticmap.php?center=' +
+    centerLat + ',' + centerLng +
+    '&zoom=' + zoom +
+    '&size=800x500&maptype=mapnik&markers=' + markersParam;
+
+  // Bild laden
+  const mapImg = new Image();
+  mapImg.crossOrigin = 'anonymous';
+
+  const mapLoaded = new Promise((resolve, reject) => {
+    mapImg.onload = () => resolve();
+    mapImg.onerror = () => reject(new Error('Kartenbild konnte nicht geladen werden'));
+    mapImg.src = staticMapUrl;
+    setTimeout(() => reject(new Error('Timeout')), 10000);
+  });
+
+  let hasMapImage = false;
+  try {
+    await mapLoaded;
+  } catch (err) {
+    console.error('Static map error:', err.message);
+  }
+
+  // Bild auf Canvas zeichnen → JPEG
+  let mapImageBase64 = null;
+  try {
+    if (mapImg.complete && mapImg.naturalWidth > 0) {
+      const mapCanvas = document.createElement('canvas');
+      mapCanvas.width = 800;
+      mapCanvas.height = 500;
+      const mapCtx = mapCanvas.getContext('2d');
+      mapCtx.drawImage(mapImg, 0, 0, 800, 500);
+      const dataUrl = mapCanvas.toDataURL('image/jpeg', 0.85);
+      mapImageBase64 = dataUrl.split(',')[1];
+      hasMapImage = true;
+    }
+  } catch (err) {
+    console.error('Canvas/toDataURL error:', err);
+    hasMapImage = false;
+  }
+
+  // --- PDF BAUEN ---
+  const PW = 595, PH = 842;
+
+  let enc;
+  if (typeof TextEncoder !== 'undefined') {
+    enc = new TextEncoder();
+  } else {
+    enc = { encode: function(s) {
+      const arr = new Uint8Array(s.length);
+      for (let i = 0; i < s.length; i++) arr[i] = s.charCodeAt(i) & 0xff;
+      return arr;
+    }};
+  }
+  function str(s) { return enc.encode(s); }
+  function bin(s) {
+    const arr = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) arr[i] = s.charCodeAt(i) & 0xff;
+    return arr;
+  }
+
+  // Content Stream Seite 1
   let cs1 = '';
-
-  // Text-Funktion (top-down Koordinaten, immer schwarz)
   function t1(s, x, y, sz) {
     cs1 += '0 0 0 rg BT /F1 ' + sz + ' Tf ' + x + ' ' + (PH - y) + ' Td (' + esc(s) + ') Tj ET\n';
   }
-  // Linie (top-down Koordinaten)
   function l1(x1, y1, x2, y2, r, g, b, w) {
     cs1 += r + ' ' + g + ' ' + b + ' RG ' + w + ' w ' + x1 + ' ' + (PH - y1) + ' m ' + x2 + ' ' + (PH - y2) + ' l S\n';
   }
 
-  // Titel
   t1('HB9OM On Field - Routenplan', 30, 30, 16);
   t1('Route: ' + (routeName || 'Unbenannt'), 30, 50, 10);
   t1('Datum: ' + (date || new Date().toLocaleDateString('de-CH')), 30, 64, 10);
-  t1('Version: v0.9026', 30, 78, 9);
+  t1('Version: v0.9027', 30, 78, 9);
 
-  // Karten-Rahmen
-  cs1 += '0.7 0.7 0.7 RG 0.5 w ' + MAP_X + ' ' + (PH - MAP_Y - MAP_H) + ' ' + MAP_W + ' ' + MAP_H + ' re S\n';
+  const imgW = 535;
+  const imgH = Math.round(imgW * (500 / 800));
+  const imgX = 30, imgY = 90;
 
-  // === FARBIGE ROUTEN-ABSCHNITTE ===
-  for (let i = 0; i < routePoints.length - 1; i++) {
-    const [r, g, b] = SEGMENT_COLORS[i % SEGMENT_COLORS.length];
-    const x1 = toPdfX(routePoints[i].lng);
-    const y1 = toPdfY(routePoints[i].lat);
-    const x2 = toPdfX(routePoints[i + 1].lng);
-    const y2 = toPdfY(routePoints[i + 1].lat);
-    cs1 += r + ' ' + g + ' ' + b + ' RG 2.5 w ' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' m ' + x2.toFixed(1) + ' ' + y2.toFixed(1) + ' l S\n';
-
-    // Abschnitt-Label in der Mitte (farbiges Quadrat + weisse Nummer)
-    const mx = (x1 + x2) / 2;
-    const my = (y1 + y2) / 2;
-    cs1 += r + ' ' + g + ' ' + b + ' rg ' + (mx - 9).toFixed(1) + ' ' + (my - 9).toFixed(1) + ' 18 18 re f\n';
-    cs1 += '1 1 1 rg BT /F1 8 Tf ' + (mx - 3).toFixed(1) + ' ' + (my - 3).toFixed(1) + ' Td (A' + (i + 1) + ') Tj ET\n';
+  if (hasMapImage && mapImageBase64) {
+    cs1 += 'q\n';
+    cs1 += imgW + ' 0 0 ' + imgH + ' ' + imgX + ' ' + (PH - imgY - imgH) + ' cm\n';
+    cs1 += '/Im1 Do\n';
+    cs1 += 'Q\n';
+  } else {
+    t1('(Kartenbild nicht verfuegbar)', 200, 300, 12);
   }
 
-  // === WAYPOINTS (weisse Quadrate mit Nummer) ===
-  routePoints.forEach((wp, i) => {
-    const x = toPdfX(wp.lng);
-    const y = toPdfY(wp.lat);
-    cs1 += '1 1 1 rg ' + (x - 5).toFixed(1) + ' ' + (y - 5).toFixed(1) + ' 10 10 re f\n';
-    cs1 += '0 0 0 RG 0.5 w ' + (x - 5).toFixed(1) + ' ' + (y - 5).toFixed(1) + ' 10 10 re S\n';
-    cs1 += '0 0 0 rg BT /F1 7 Tf ' + (x - 2).toFixed(1) + ' ' + (y - 3).toFixed(1) + ' Td (' + (i + 1) + ') Tj ET\n';
-  });
+  // Abschnitts-Tabelle
+  let ty = imgY + imgH + 15;
+  t1('Uebersicht', 30, ty, 10);
+  ty += 16;
 
-  // === RELAIS (grün/orange Quadrate) ===
-  relevantReps.forEach(rep => {
-    if (!rep.lat || !rep.lng) return;
-    const x = toPdfX(rep.lng);
-    const y = toPdfY(rep.lat);
-    const [r, g, b] = rep.inRange ? [0.086, 0.639, 0.290] : [0.976, 0.451, 0.094];
-    cs1 += r + ' ' + g + ' ' + b + ' rg ' + (x - 3).toFixed(1) + ' ' + (y - 3).toFixed(1) + ' 6 6 re f\n';
-  });
-
-  // === LEGENDE ===
-  let legY = MAP_Y + MAP_H + 10;
-  // Grün
-  cs1 += '0.086 0.639 0.290 rg 30 ' + (PH - legY - 3).toFixed(1) + ' 6 6 re f\n';
-  t1('Relais < 20km', 42, legY, 8);
-  // Orange
-  cs1 += '0.976 0.451 0.094 rg 140 ' + (PH - legY - 3).toFixed(1) + ' 6 6 re f\n';
-  t1('Relais 20-35km', 152, legY, 8);
-  // Farbige Segmente
-  t1('Abschnitte in verschiedenen Farben', 250, legY, 8);
-
-  // === ABSCHNITTS-TABELLE ===
-  let ty = legY + 20;
-  t1('Abschn.', 30, ty, 9);
-  t1('Von', 100, ty, 9);
-  t1('Nach', 200, ty, 9);
-  t1('Distanz', 300, ty, 9);
-  t1('Relais', 380, ty, 9);
-  l1(30, ty + 4, 565, ty + 4, 0.7, 0.7, 0.7, 0.5);
-  ty += 14;
+  t1('Abschn.', 30, ty, 8);
+  t1('Strecke', 100, ty, 8);
+  t1('Distanz', 250, ty, 8);
+  t1('Relais (in/nah)', 350, ty, 8);
+  l1(30, ty + 3, 565, ty + 3, 0.7, 0.7, 0.7, 0.3);
+  ty += 12;
 
   for (let i = 0; i < routePoints.length - 1; i++) {
-    if (ty > 800) break;
+    if (ty > 790) break;
     const d = haversine(routePoints[i], routePoints[i + 1]).toFixed(1);
-    const rc = relevantReps.filter(r => {
+    const inRange = relevantReps.filter(r => {
+      if (r.lat == null) return false;
+      return Math.min(
+        haversine(routePoints[i], { lat: r.lat, lng: r.lng }),
+        haversine(routePoints[i + 1], { lat: r.lat, lng: r.lng })
+      ) <= IN_RANGE_DIST;
+    }).length;
+    const near = relevantReps.filter(r => {
       if (r.lat == null) return false;
       return Math.min(
         haversine(routePoints[i], { lat: r.lat, lng: r.lng }),
@@ -189,14 +223,13 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
       ) <= RELEVANT_DIST;
     }).length;
     t1('A' + (i + 1), 30, ty, 8);
-    t1((routePoints[i].name || 'WP' + (i + 1)).substring(0, 20), 100, ty, 8);
-    t1((routePoints[i + 1].name || 'WP' + (i + 2)).substring(0, 20), 200, ty, 8);
-    t1(d + ' km', 300, ty, 8);
-    t1(rc + ' Relais', 380, ty, 8);
-    ty += 12;
+    t1((routePoints[i].name || 'WP' + (i + 1)) + ' -> ' + (routePoints[i + 1].name || 'WP' + (i + 2)), 100, ty, 8);
+    t1(d + ' km', 250, ty, 8);
+    t1(inRange + ' / ' + near, 350, ty, 8);
+    ty += 11;
   }
 
-  // === SEITE 2: REPEATER-LISTE ===
+  // Content Stream Seite 2: Repeater-Liste
   let cs2 = '';
   function t2(s, x, y, sz) {
     cs2 += '0 0 0 rg BT /F1 ' + sz + ' Tf ' + x + ' ' + (PH - y) + ' Td (' + esc(s) + ') Tj ET\n';
@@ -205,8 +238,8 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
     cs2 += r + ' ' + g + ' ' + b + ' RG ' + w + ' w ' + x1 + ' ' + (PH - y1) + ' m ' + x2 + ' ' + (PH - y2) + ' l S\n';
   }
 
-  t2('Repeater-Konfiguration', 30, 30, 12);
-  t2('Gruen = in Reichweite (< 20km)  |  Orange = fast (20-35km)', 30, 46, 8);
+  t2('Repeater-Konfiguration (max. ' + MAX_REPS + ' relevant)', 30, 30, 12);
+  t2('Blau = Waypoint  |  Rot = Relais', 30, 46, 8);
   l2(30, 52, 565, 52, 0.4, 0.4, 0.4, 0.5);
 
   if (relevantReps.length === 0) {
@@ -214,78 +247,105 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   } else {
     let ry = 64;
     t2('Callsign', 30, ry, 8);
-    t2('Frequenz', 120, ry, 8);
-    t2('Offset', 190, ry, 8);
-    t2('Tone', 240, ry, 8);
-    t2('Standort', 290, ry, 8);
-    t2('Status', 390, ry, 8);
-    t2('Abschn.', 440, ry, 8);
-    t2('Entfern.', 500, ry, 8);
+    t2('Freq', 120, ry, 8);
+    t2('Offset', 165, ry, 8);
+    t2('Tone', 215, ry, 8);
+    t2('Standort', 260, ry, 8);
+    t2('Status', 420, ry, 8);
+    t2('Distanz', 500, ry, 8);
     l2(30, ry + 4, 565, ry + 4, 0.7, 0.7, 0.7, 0.3);
     ry += 14;
 
     relevantReps.forEach(rep => {
       if (ry > 820) return;
-
-      // Nächsten Abschnitt finden
-      let nearestSeg = 0;
-      let minDist = Infinity;
-      for (let i = 0; i < routePoints.length - 1; i++) {
-        const midLat = (routePoints[i].lat + routePoints[i + 1].lat) / 2;
-        const midLng = (routePoints[i].lng + routePoints[i + 1].lng) / 2;
-        const d = haversine({ lat: midLat, lng: midLng }, { lat: rep.lat, lng: rep.lng });
-        if (d < minDist) { minDist = d; nearestSeg = i; }
-      }
-
       t2(rep.callsign, 30, ry, 7);
       t2(rep.frequency != null ? rep.frequency + ' MHz' : '-', 120, ry, 7);
-      t2(rep.offset != null ? String(rep.offset) : '-', 190, ry, 7);
-      t2(rep.tone, 240, ry, 7);
-      t2(rep.location.substring(0, 28), 290, ry, 7);
-      t2(rep.inRange ? 'Reichweite' : 'Fast', 390, ry, 7);
-      t2('A' + (nearestSeg + 1), 440, ry, 7);
+      t2(rep.offset != null ? String(rep.offset) : '-', 165, ry, 7);
+      t2(rep.tone, 215, ry, 7);
+      const loc = rep.location || '-';
+      t2(loc.length > 25 ? loc.substring(0, 25) : loc, 260, ry, 7);
+      t2(rep.inRange ? 'Reichweite' : 'Nah', 420, ry, 7);
       t2(rep.distance.toFixed(1) + ' km', 500, ry, 7);
       ry += 11;
     });
   }
 
-  t2('HB9OM On Field App - v0.9026', 30, 835, 6);
+  t2('HB9OM On Field App - v0.9027', 30, 835, 6);
 
-  // --- PDF ALS STRING BAUEN ---
-  let pdf = '%PDF-1.4\n';
-  const offsets = [];
+  // --- PDF ALS Uint8Array BAUEN ---
+  const cs1Bytes = str(cs1);
+  const cs2Bytes = str(cs2);
 
-  offsets[0] = pdf.length;
-  pdf += '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
+  let parts = [];
+  parts.push(str('%PDF-1.4\n'));
 
-  offsets[1] = pdf.length;
-  pdf += '2 0 obj\n<< /Type /Pages /Kids [6 0 R 7 0 R] /Count 2 >>\nendobj\n';
+  const off1 = totalLen(parts);
+  parts.push(str('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'));
 
-  offsets[2] = pdf.length;
-  pdf += '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n';
+  const off2 = totalLen(parts);
+  parts.push(str('2 0 obj\n<< /Type /Pages /Kids [7 0 R 8 0 R] /Count 2 >>\nendobj\n'));
 
-  offsets[3] = pdf.length;
-  pdf += '4 0 obj\n<< /Length ' + cs1.length + ' >>\nstream\n' + cs1 + '\nendstream\nendobj\n';
+  const off3 = totalLen(parts);
+  parts.push(str('3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n'));
 
-  offsets[4] = pdf.length;
-  pdf += '5 0 obj\n<< /Length ' + cs2.length + ' >>\nstream\n' + cs2 + '\nendstream\nendobj\n';
+  const off4 = totalLen(parts);
+  parts.push(str('4 0 obj\n<< /Length ' + cs1Bytes.length + ' >>\nstream\n'));
+  parts.push(cs1Bytes);
+  parts.push(str('\nendstream\nendobj\n'));
 
-  offsets[5] = pdf.length;
-  pdf += '6 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Contents 4 0 R /Resources << /Font << /F1 3 0 R >> >> >>\nendobj\n';
+  const off5 = totalLen(parts);
+  parts.push(str('5 0 obj\n<< /Length ' + cs2Bytes.length + ' >>\nstream\n'));
+  parts.push(cs2Bytes);
+  parts.push(str('\nendstream\nendobj\n'));
 
-  offsets[6] = pdf.length;
-  pdf += '7 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Contents 5 0 R /Resources << /Font << /F1 3 0 R >> >> >>\nendobj\n';
-
-  const xrefPos = pdf.length;
-  pdf += 'xref\n0 8\n';
-  pdf += '0000000000 65535 f \n';
-  for (let i = 0; i < 7; i++) {
-    pdf += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  // Obj 6: Image XObject (JPEG oder 1x1 weisser Pixel als Fallback)
+  const off6 = totalLen(parts);
+  if (hasMapImage && mapImageBase64) {
+    const imgBin = bin(atob(mapImageBase64));
+    parts.push(str('6 0 obj\n<< /Type /XObject /Subtype /Image /Width 800 /Height 500 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + imgBin.length + ' >>\nstream\n'));
+    parts.push(imgBin);
+    parts.push(str('\nendstream\nendobj\n'));
+  } else {
+    parts.push(str('6 0 obj\n<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length 3 >>\nstream\n'));
+    parts.push(bin('AAA'));
+    parts.push(str('\nendstream\nendobj\n'));
   }
-  pdf += 'trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF';
+
+  // Obj 7: Page 1 (mit Bild)
+  const off7 = totalLen(parts);
+  parts.push(str('7 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Contents 4 0 R /Resources << /Font << /F1 3 0 R >> /XObject << /Im1 6 0 R >> >> >>\nendobj\n'));
+
+  // Obj 8: Page 2
+  const off8 = totalLen(parts);
+  parts.push(str('8 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Contents 5 0 R /Resources << /Font << /F1 3 0 R >> >> >>\nendobj\n'));
+
+  // xref — immer 9 Eintraege (0-8), gleiche Struktur mit/ohne Bild
+  const xrefPos = totalLen(parts);
+  let xref = 'xref\n0 9\n';
+  xref += '0000000000 65535 f \n';
+  xref += String(off1).padStart(10, '0') + ' 00000 n \n';
+  xref += String(off2).padStart(10, '0') + ' 00000 n \n';
+  xref += String(off3).padStart(10, '0') + ' 00000 n \n';
+  xref += String(off4).padStart(10, '0') + ' 00000 n \n';
+  xref += String(off5).padStart(10, '0') + ' 00000 n \n';
+  xref += String(off6).padStart(10, '0') + ' 00000 n \n';
+  xref += String(off7).padStart(10, '0') + ' 00000 n \n';
+  xref += String(off8).padStart(10, '0') + ' 00000 n \n';
+  parts.push(str(xref));
+
+  parts.push(str('trailer\n<< /Size 9 /Root 1 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF'));
+
+  // Zusammenfügen
+  const totalSize = totalLen(parts);
+  const pdfBytes = new Uint8Array(totalSize);
+  let offset = 0;
+  for (const part of parts) {
+    pdfBytes.set(part, offset);
+    offset += part.length;
+  }
 
   // Download
-  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

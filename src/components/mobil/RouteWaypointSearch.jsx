@@ -1,7 +1,8 @@
-// RouteWaypointSearch — Nominatim Ortssuche + Suchergebnisse + GPX/Google Maps Import.
+// RouteWaypointSearch — Nominatim Ortssuche + Suchergebnisse + GPX-Import.
+// v0.9027: Google-Maps-Import entfernt.
 
 import React, { useState, useRef, useCallback } from "react";
-import { Search, Plus, FileUp, Link2, Loader2, MapPin, FileDown } from "lucide-react";
+import { Search, Plus, FileUp, Loader2, MapPin, FileDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { parseGpxFile } from "@/lib/gpxParser";
 
@@ -11,8 +12,6 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [gpxError, setGpxError] = useState(null);
-  const [gmapsUrl, setGmapsUrl] = useState("");
-  const [gmapsError, setGmapsError] = useState(null);
   const debounceRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -65,64 +64,6 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
       setTimeout(() => setGpxError(null), 5000);
     }
     e.target.value = "";
-  };
-
-  const [gmapsLoading, setGmapsLoading] = useState(false);
-
-  // v0.9025: Google-Import — Dual-Methode: Regex zuerst, Backend als Fallback
-  const handleGmapsImport = async () => {
-    setGmapsError(null);
-    const url = gmapsUrl.trim();
-    if (!url) return;
-
-    setGmapsLoading(true);
-    try {
-      let points = [];
-
-      // METHODE 1: Koordinaten direkt aus URL parsen (Regex)
-      const coordPattern = /(-?\d{1,3}\.\d{3,6}),(-?\d{1,3}\.\d{3,6})/g;
-      const matches = [...url.matchAll(coordPattern)];
-
-      if (matches.length >= 2) {
-        points = matches.map((m, i) => ({
-          lat: parseFloat(m[1]),
-          lon: parseFloat(m[2]),
-          name: `WP ${i + 1}`,
-          order: i,
-        }));
-      }
-
-      // METHODE 2: Falls keine Koordinaten in URL → Backend aufrufen
-      if (points.length === 0) {
-        console.log('Keine Koordinaten in URL, versuche Backend...');
-        try {
-          const res = await base44.functions.invoke("resolveGoogleMapsLink", { url });
-          const data = res?.data;
-          if (data?.success && Array.isArray(data.waypoints) && data.waypoints.length > 0) {
-            points = data.waypoints.map((wp, i) => ({
-              lat: Number(wp.lat),
-              lon: Number(wp.lng),
-              name: wp.name || `WP ${i + 1}`,
-              order: i,
-            }));
-          }
-        } catch (backendErr) {
-          console.error('Backend error:', backendErr);
-        }
-      }
-
-      if (points.length === 0) {
-        setGmapsError("Keine Wegpunkte gefunden. Bitte Google-Maps-Routen-URL mit Koordinaten verwenden (z.B. /dir/47.39,8.05/47.45,8.65/)");
-        setTimeout(() => setGmapsError(null), 8000);
-        return;
-      }
-
-      console.log('Import: ' + points.length + ' Wegpunkte gefunden');
-      onAddMultipleWaypoints(points);
-      setGmapsUrl("");
-    } finally {
-      setGmapsLoading(false);
-    }
   };
 
   return (
@@ -182,25 +123,7 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
           aria-hidden="true"
         />
 
-        <div className="flex items-center gap-1 flex-1 min-w-[140px]">
-          <input
-            type="text"
-            value={gmapsUrl}
-            onChange={(e) => setGmapsUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleGmapsImport()}
-            placeholder="Google Maps Link"
-            className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-slate-100 placeholder-gray-400 outline-none focus:ring-2 focus:ring-blue-300"
-          />
-          <button
-            onClick={handleGmapsImport}
-            className="p-1.5 text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600"
-            title="Google Maps Link importieren"
-          >
-            <Link2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* v0.9021: PDF Export Button — in gleicher Button-Gruppe wie GPX/Google */}
+        {/* PDF Export Button */}
         <button
           onClick={onPdfExport}
           disabled={pdfDisabled}
@@ -213,7 +136,6 @@ export default function RouteWaypointSearch({ onAddWaypoint, onAddMultipleWaypoi
       </div>
 
       {gpxError && <p className="text-xs text-red-500">{gpxError}</p>}
-      {gmapsError && <p className="text-xs text-red-500">{gmapsError}</p>}
     </div>
   );
 }
