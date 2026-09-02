@@ -39,16 +39,16 @@ export default function RouteWaypointList({
     setRouteName("");
   };
 
-  // v0.9021: Route löschen — Multi-Strategy: onClearAll prop + setTimeout onDelete(0) Fallback
+  // v0.9021: Route löschen — onClearAll prop löscht waypoints, routeCoords, repeaters direkt
   const handleClearAll = () => {
-    // Strategy 1: onClearAll prop (setzt waypoints, routeCoords, repeaters direkt)
     if (typeof onClearAll === "function") {
       onClearAll();
-    }
-    // Strategy 2: setTimeout onDelete(0) Fallback — jeder Tick löscht ersten Waypoint
-    const currentLen = waypointsRef.current.length;
-    for (let i = 0; i < currentLen; i++) {
-      setTimeout(() => onDelete(0), i * 50);
+    } else {
+      // Fallback: setTimeout onDelete(0) — jeder Tick löscht ersten Waypoint
+      const currentLen = waypointsRef.current.length;
+      for (let i = 0; i < currentLen; i++) {
+        setTimeout(() => onDelete(0), i * 50);
+      }
     }
     setShowConfirmClear(false);
   };
