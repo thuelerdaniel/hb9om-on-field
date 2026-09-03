@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9032";
+export const APP_VERSION = "0.9033";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,10 @@ export const APP_BUILD = "202609020700";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9033: Mobil Live UI — Tone direkt neben Frequenz (gleiche Grösse, kein Label), Ort neben Rufzeichen (gleiche Grösse/Farbe)",
+  "v0.9033: Mobil Live UI — Alle Modulationsarten als Badges (FM/DMR/C4FM/etc.), ausgewählte hervorgehoben, min 16px Schrift",
+  "v0.9033: Mobil Live UI — +/- Buttons zum Blättern durch Relais-Liste (min 56x56px), 'Relais X/Y' Anzeige, Deaktivierung an Listen-Enden",
+  "v0.9033: Mobil Live UI — Grosse Schrift für Auto-Bedienung (Frequenz 28px, Rufzeichen/Ort 22px, Tone 28px, Badges 16px, Buttons 56px)",
   "v0.9032: HOTFIX Relais verschwunden — Debug-Logs aus MobilActive entfernt (liefen bei JEDEM Render, verursachten excessive Re-Renders + 429 Rate-Limit)",
   "v0.9032: HOTFIX Relais verschwunden — `setRepeaters([])` im else-Zweig entfernt, lädt jetzt Standardbereich (Bern 100km) damit Relais immer sichtbar",
   "v0.9032: HOTFIX Relais verschwunden — Globale Repeater-Anzeige (Hauptkarte) ist SEPARAT vom Mobil-Filter, wird nicht beeinflusst",

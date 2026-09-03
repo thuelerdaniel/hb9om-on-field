@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import MobilStartHeader from "./MobilStartHeader";
 import MobilMapView from "./MobilMapView";
 import MobilActiveRepeaterPanel from "./MobilActiveRepeaterPanel";
+import MobilRepeaterNav from "./MobilRepeaterNav";
 import MobilRepeaterList from "./MobilRepeaterList";
 import { calculateRange, isRepeaterReachable } from "@/lib/equipmentRange";
 import { haversine, bearing } from "@/lib/geoUtilsFrontend";
@@ -99,6 +100,19 @@ export default function MobilActive({
     );
     return [...nearest, ...highBeyond];
   }, [repeatersWithDist]);
+
+  // v0.9033: +/- Navigation — index of active repeater in the list
+  const activeIndex = listRepeaters.findIndex((r) => r.id === activeRepeater?.id);
+  const canPrev = activeIndex > 0;
+  const canNext = activeIndex >= 0 && activeIndex < listRepeaters.length - 1;
+
+  const handlePrevRepeater = useCallback(() => {
+    if (canPrev) setSelectedRepeaterId(listRepeaters[activeIndex - 1].id);
+  }, [canPrev, activeIndex, listRepeaters]);
+
+  const handleNextRepeater = useCallback(() => {
+    if (canNext) setSelectedRepeaterId(listRepeaters[activeIndex + 1].id);
+  }, [canNext, activeIndex, listRepeaters]);
 
   // ITM: Fetch propagation for active repeater.
   // Only shows loading spinner on first load or repeater change — keeps old values
@@ -299,6 +313,15 @@ export default function MobilActive({
           gpsActive={gpsActive}
           itmResult={itmResult}
           itmLoading={itmLoading}
+          selectedModes={selectedModes}
+        />
+        <MobilRepeaterNav
+          currentIndex={activeIndex >= 0 ? activeIndex + 1 : 0}
+          total={listRepeaters.length}
+          onPrev={handlePrevRepeater}
+          onNext={handleNextRepeater}
+          canPrev={canPrev}
+          canNext={canNext}
         />
       </div>
 
