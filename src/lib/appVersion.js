@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9034";
+export const APP_VERSION = "0.9035";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,10 @@ export const APP_BUILD = "202609020700";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9035: SOTA Cluster Login-Sequenz — sendet 'HB9OM\\n' nach login-Prompt (vorher fehlte die Anmeldung, Server schickte keine Spots)",
+  "v0.9035: SOTA Cluster Frequenz-Parsing — kHz→MHz Umrechnung korrigiert (144200.0 kHz → 144.200 MHz, vorher wurden Rohwerte übergeben)",
+  "v0.9035: SOTA Cluster — node:net TCP-Verbindung statt WebSocket (Server ist raw TCP, kein WS-Upgrade)",
+  "v0.9035: SOTA Cluster — 12s Timeout für Login + Spot-Push, stiller Fallback bei 0 Spots (SOTAwatch-API weiter aktiv)",
   "v0.9034: Admin-Regression-Fix — Datenquellenstatus-Duplikat entfernt (war 2x vorhanden, jetzt nur noch 1x in Daten-Cache & Aktualisierung)",
   "v0.9034: Admin-Regression-Fix — PDF-Liste mit 28 Datenquellen-Referenzen wiederhergestellt (in Daten-Cache & Aktualisierung, mit PDF-Export)",
   "v0.9034: SOTA Cluster Integration — fetchSotaClusterSpots Backend-Funktion (cluster.sota.org.uk:7300, raw TCP via WebSocket-Versuch)",
