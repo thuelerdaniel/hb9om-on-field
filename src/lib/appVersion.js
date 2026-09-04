@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9037";
+export const APP_VERSION = "0.9038";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,10 @@ export const APP_BUILD = "202609040845";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9038: Zoom-Button FIX — Hunting-Karte hatte zoomControl={false} ohne eigene Zoom-Controls → KEINE Zoom-Buttons sichtbar",
+  "v0.9038: Zoom-Button FIX — zoomControl={true} wiederhergestellt auf Hunting-Karte (Standard Leaflet-Zoom jetzt aktiv)",
+  "v0.9038: Zoom-Button FIX — Hauptkarte: Zoom (MapControls topright) + Layer-Button (darunter) beide sichtbar (unverändert)",
+  "v0.9038: Zoom-Button FIX — Mobil-Karten (Live/Route/MobilMap) haben Standard-Leaflet-Zoom (topleft, unverändert)",
   "v0.9037: Layer-Button FIX — Button positioniert UNTER den Zoom-Controls (gleiche vertikale Kontrollleiste am rechten Rand)",
   "v0.9037: Layer-Button FIX — Bei SwissTopo mit Scale-Controls wird der Button unter Zoom+Scale platziert ( dynamische Position)",
   "v0.9037: Layer-Button FIX — Min. 40x40px Touch-Target für mobile Bedienung, immer sichtbar bei allen Auflösungen",

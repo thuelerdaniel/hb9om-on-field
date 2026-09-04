@@ -120,7 +120,7 @@ export default function HuntingMap({ gpsPos, stationInfo, onSpotClick }) {
             center={[stationPos.lat, stationPos.lon]}
             zoom={8}
             className="w-full h-full"
-            zoomControl={false}
+            zoomControl={true}
             scrollWheelZoom={true}
             touchZoom={true}
             doubleClickZoom={true}
