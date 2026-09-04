@@ -419,6 +419,9 @@ export default function AdminPanel({
 
         {/* Fix 5: Datenquellen-Status statt DX-Spot-Referenz-Daten */}
         <DataSourceStatusSection />
+
+        {/* v0.9034: PDF-Liste mit Datenquellen-Referenzen — 28 Sync-Quellen mit PDF-Export */}
+        <ExternalSourcesList />
       </AdminCollapsibleSection>
 
       {/* ====== GROUP 3: Relais & Verlinkungen ====== */}
@@ -723,9 +726,6 @@ export default function AdminPanel({
 
         {/* External Data Check */}
         <ExternalDataCheck />
-
-        {/* External Sources List with PDF Export */}
-        <ExternalSourcesList />
       </AdminCollapsibleSection>
 
       {/* ====== GROUP 6: API-Keys ====== */}
@@ -759,14 +759,6 @@ export default function AdminPanel({
         <AdminDownloadManager />
       </AdminCollapsibleSection>
 
-      {/* ====== GROUP 9: Datenquellen-Status ====== */}
-      <AdminCollapsibleSection
-        title="Datenquellen-Status"
-        description="Live-Status aller Hunting-Datenquellen (APIs, DX-Cluster, Spothole)"
-        icon={Database}
-      >
-        <DataSourceStatusSection />
-      </AdminCollapsibleSection>
     </>
   );
 }

@@ -36,6 +36,24 @@ function ageText(age) {
   return `${Math.floor(age / 3600)}h`;
 }
 
+// v0.9034: Dedupe — gleicher Activator-Call → nur der jüngste Spot (nach Zeit)
+function dedupeSpots(spots) {
+  const byCall = new Map();
+  for (const spot of spots) {
+    const call = spot.call || spot.activatorCallsign;
+    if (!call) continue;
+    const existing = byCall.get(call);
+    if (!existing) {
+      byCall.set(call, spot);
+    } else {
+      const spotTime = new Date(spot.spot_time || 0).getTime();
+      const existingTime = new Date(existing.spot_time || 0).getTime();
+      if (spotTime > existingTime) byCall.set(call, spot);
+    }
+  }
+  return Array.from(byCall.values());
+}
+
 // v0.95: Use formatFreqDisplay from spotUtils — handles both Hz and kHz input
 function formatFreq(freq) {
   return formatFreqDisplay(freq);
@@ -52,6 +70,9 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const [alertFilterType, setAlertFilterType] = useState('all');
   const [alertFilterCall, setAlertFilterCall] = useState('');
   const [alertFilterCountry, setAlertFilterCountry] = useState('');
+
+  // v0.9034: SOTA Cluster Spots — zusätzlicher Real-Time-Feed (stiller Fallback falls leer)
+  const [clusterSpots, setClusterSpots] = useState([]);
 
   // v0.9028 Rollback: loadData reads from DB (fast) — called on mount + auto-refresh.
   // refreshData calls refreshHuntingData orchestrator (single call) — manual refresh only.
@@ -88,11 +109,51 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
     }
   }, [loadData]);
 
+  // v0.9034: SOTA Cluster Spots laden — stiller Fallback (leer → SOTAwatch-API wird weiter verwendet)
+  const loadClusterSpots = useCallback(async () => {
+    try {
+      const res = await base44.functions.invoke("fetchSotaClusterSpots", {});
+      const clusterData = res?.data || res;
+      if (clusterData?.success && Array.isArray(clusterData.spots) && clusterData.spots.length > 0) {
+        const normalized = clusterData.spots.map((s) => {
+          const spotTime = new Date(s.time);
+          const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
+          const freqKhz = Math.round(s.frequency * 1000);
+          return {
+            id: `cluster_${s.activatorCallsign}_${s.time}`,
+            call: s.activatorCallsign,
+            activity_type: 'SOTA',
+            frequency: freqKhz,
+            band: freqHzToBand(freqKhz),
+            mode: s.mode || '',
+            spot_time: s.time,
+            age_seconds: ageSeconds,
+            spotter: s.spotter,
+            comments: s.comment,
+            source: 'SOTA Cluster',
+            is_active: true,
+          };
+        });
+        setClusterSpots(normalized);
+      } else {
+        // Stiller Fallback — leeres Cluster → nur SOTAwatch-API-Spots anzeigen
+        setClusterSpots([]);
+      }
+    } catch {
+      // Stiller Fallback — Fehler ignorieren, SOTAwatch-API-Spots weiter verwenden
+      setClusterSpots([]);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
-    const interval = setInterval(() => loadData(), REFRESH_MS);
+    loadClusterSpots();
+    const interval = setInterval(() => {
+      loadData();
+      loadClusterSpots();
+    }, REFRESH_MS);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, loadClusterSpots]);
 
   const stationPos = useMemo(() => {
     if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
@@ -137,6 +198,12 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
       );
     }
     let spots = data.liveSpots.filter(s => s.activity_type === tab && !isQRT(s));
+    // v0.9034: SOTA Cluster-Spots mergen (stiller Fallback — clusterSpots leer = nur API-Spots)
+    if (tab === 'SOTA' && clusterSpots.length > 0) {
+      spots = [...spots, ...clusterSpots];
+    }
+    // v0.9034: Dedupe — gleicher Activator-Call → nur der jüngste Spot
+    spots = dedupeSpots(spots);
     if (sortBy === 'score') {
       spots = spots.map(s => ({
         ...s,
@@ -148,7 +215,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
       );
     }
     return spots;
-  }, [data, tab, sortBy, stationPos, propagation, alertFilterType, alertFilterCall, alertFilterCountry]);
+  }, [data, tab, sortBy, stationPos, propagation, alertFilterType, alertFilterCall, alertFilterCountry, clusterSpots]);
 
   const currentTab = TABS.find(t => t.id === tab) || TABS[0];
   const accentColor = currentTab.color;

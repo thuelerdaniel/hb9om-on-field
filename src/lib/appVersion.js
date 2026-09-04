@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9033";
+export const APP_VERSION = "0.9034";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,12 @@ export const APP_BUILD = "202609020700";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9034: Admin-Regression-Fix — Datenquellenstatus-Duplikat entfernt (war 2x vorhanden, jetzt nur noch 1x in Daten-Cache & Aktualisierung)",
+  "v0.9034: Admin-Regression-Fix — PDF-Liste mit 28 Datenquellen-Referenzen wiederhergestellt (in Daten-Cache & Aktualisierung, mit PDF-Export)",
+  "v0.9034: SOTA Cluster Integration — fetchSotaClusterSpots Backend-Funktion (cluster.sota.org.uk:7300, raw TCP via WebSocket-Versuch)",
+  "v0.9034: SOTA Cluster Integration — Stiller Fallback: falls Cluster nicht erreichbar, SOTAwatch-API-Spots weiter verwenden (Anzeige nie leer)",
+  "v0.9034: Spot-Deduplikation — gleicher Activator-Call → nur der jüngste Spot (nach Zeit), Sortierung neueste zuerst",
+  "v0.9034: Spot-Deduplikation — angewendet auf SOTA Live-Spots (und alle anderen Spot-Listen im Hunting-Bereich)",
   "v0.9033: Mobil Live UI — Tone direkt neben Frequenz (gleiche Grösse, kein Label), Ort neben Rufzeichen (gleiche Grösse/Farbe)",
   "v0.9033: Mobil Live UI — Alle Modulationsarten als Badges (FM/DMR/C4FM/etc.), ausgewählte hervorgehoben, min 16px Schrift",
   "v0.9033: Mobil Live UI — +/- Buttons zum Blättern durch Relais-Liste (min 56x56px), 'Relais X/Y' Anzeige, Deaktivierung an Listen-Enden",
