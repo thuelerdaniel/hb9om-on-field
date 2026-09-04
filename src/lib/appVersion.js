@@ -8,16 +8,21 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9035";
+export const APP_VERSION = "0.9036";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609020700";
+export const APP_BUILD = "202609040554";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9036: SOTA Cluster ENTFERNT — Backend-Runtime unterstützt keine raw TCP-Verbindungen, Cluster-Funktion konnte nie Spots liefern",
+  "v0.9036: SOTA Cluster ENTFERNT — SOTAwatch-API (HTTPS) ist jetzt die EINZIGE Quelle für SOTA-Spots (identische Daten, Cluster war nur ein Spiegel)",
+  "v0.9036: SOTA Cluster ENTFERNT — 12s Timeout-Delay beim Spot-Abruf komplett weg (vorher wartete jeder Abruf auf den toten Cluster)",
+  "v0.9036: Cache-Zeitstempel — 'Aktualisiert: hh:mm' im Hunting-Footer zeigt letzte erfolgreige API-Aktualisierung",
+  "v0.9036: Cache-Verhalten — bei API-Ausfall bleibt die letzte Spot-Liste sichtbar (kein weisser Screen, kein Leer-Anzeige)",
   "v0.9035: SOTA Cluster Login-Sequenz — sendet 'HB9OM\\n' nach login-Prompt (vorher fehlte die Anmeldung, Server schickte keine Spots)",
   "v0.9035: SOTA Cluster Frequenz-Parsing — kHz→MHz Umrechnung korrigiert (144200.0 kHz → 144.200 MHz, vorher wurden Rohwerte übergeben)",
   "v0.9035: SOTA Cluster — node:net TCP-Verbindung statt WebSocket (Server ist raw TCP, kein WS-Upgrade)",

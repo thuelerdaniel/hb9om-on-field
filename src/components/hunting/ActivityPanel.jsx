@@ -71,8 +71,8 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const [alertFilterCall, setAlertFilterCall] = useState('');
   const [alertFilterCountry, setAlertFilterCountry] = useState('');
 
-  // v0.9034: SOTA Cluster Spots — zusätzlicher Real-Time-Feed (stiller Fallback falls leer)
-  const [clusterSpots, setClusterSpots] = useState([]);
+  // v0.9036: Cache-Zeitstempel — letzte erfolgreiche Aktualisierung (für API-Ausfall-Anzeige)
+  const [lastUpdate, setLastUpdate] = useState(null);
 
   // v0.9028 Rollback: loadData reads from DB (fast) — called on mount + auto-refresh.
   // refreshData calls refreshHuntingData orchestrator (single call) — manual refresh only.
@@ -91,6 +91,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
           liveTotal: d.liveTotal || 0,
           alertsTotal: d.alertsTotal || 0,
         });
+        setLastUpdate(new Date());
       }
       if (propRes && propRes.length > 0) setPropagation(propRes[0]);
     } catch {} finally {
@@ -109,51 +110,13 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
     }
   }, [loadData]);
 
-  // v0.9034: SOTA Cluster Spots laden — stiller Fallback (leer → SOTAwatch-API wird weiter verwendet)
-  const loadClusterSpots = useCallback(async () => {
-    try {
-      const res = await base44.functions.invoke("fetchSotaClusterSpots", {});
-      const clusterData = res?.data || res;
-      if (clusterData?.success && Array.isArray(clusterData.spots) && clusterData.spots.length > 0) {
-        const normalized = clusterData.spots.map((s) => {
-          const spotTime = new Date(s.time);
-          const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
-          const freqKhz = Math.round(s.frequency * 1000);
-          return {
-            id: `cluster_${s.activatorCallsign}_${s.time}`,
-            call: s.activatorCallsign,
-            activity_type: 'SOTA',
-            frequency: freqKhz,
-            band: freqHzToBand(freqKhz),
-            mode: s.mode || '',
-            spot_time: s.time,
-            age_seconds: ageSeconds,
-            spotter: s.spotter,
-            comments: s.comment,
-            source: 'SOTA Cluster',
-            is_active: true,
-          };
-        });
-        setClusterSpots(normalized);
-      } else {
-        // Stiller Fallback — leeres Cluster → nur SOTAwatch-API-Spots anzeigen
-        setClusterSpots([]);
-      }
-    } catch {
-      // Stiller Fallback — Fehler ignorieren, SOTAwatch-API-Spots weiter verwenden
-      setClusterSpots([]);
-    }
-  }, []);
-
   useEffect(() => {
     loadData();
-    loadClusterSpots();
     const interval = setInterval(() => {
       loadData();
-      loadClusterSpots();
     }, REFRESH_MS);
     return () => clearInterval(interval);
-  }, [loadData, loadClusterSpots]);
+  }, [loadData]);
 
   const stationPos = useMemo(() => {
     if (gpsPos) return { lat: gpsPos.lat, lon: gpsPos.lng };
@@ -198,10 +161,6 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
       );
     }
     let spots = data.liveSpots.filter(s => s.activity_type === tab && !isQRT(s));
-    // v0.9034: SOTA Cluster-Spots mergen (stiller Fallback — clusterSpots leer = nur API-Spots)
-    if (tab === 'SOTA' && clusterSpots.length > 0) {
-      spots = [...spots, ...clusterSpots];
-    }
     // v0.9034: Dedupe — gleicher Activator-Call → nur der jüngste Spot
     spots = dedupeSpots(spots);
     if (sortBy === 'score') {
@@ -215,7 +174,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
       );
     }
     return spots;
-  }, [data, tab, sortBy, stationPos, propagation, alertFilterType, alertFilterCall, alertFilterCountry, clusterSpots]);
+  }, [data, tab, sortBy, stationPos, propagation, alertFilterType, alertFilterCall, alertFilterCountry]);
 
   const currentTab = TABS.find(t => t.id === tab) || TABS[0];
   const accentColor = currentTab.color;
@@ -348,7 +307,10 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
 
       {/* Footer */}
       <div className="px-3 py-1.5 border-t border-border text-[8px] text-muted-foreground flex justify-between">
-        <span>Auto-Refresh 60s{!isAlertsTab ? ` · Sort: ${sortBy === 'time' ? 'Zeit' : 'Score'}` : ' · Alerts 5min'}</span>
+        <span>
+          Auto-Refresh 60s{!isAlertsTab ? ` · Sort: ${sortBy === 'time' ? 'Zeit' : 'Score'}` : ' · Alerts 5min'}
+          {lastUpdate && ` · Aktualisiert: ${lastUpdate.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}`}
+        </span>
         <span className="flex items-center gap-1">
           {gpsPos ? <MapPin className="w-2 h-2 text-[#16a34a]" /> : null}
           {tab}: {displaySpots.length}
