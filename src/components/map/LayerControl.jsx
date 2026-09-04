@@ -162,11 +162,18 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
     ? activeContinents.flatMap(cid => getCountriesByContinent(cid))
     : COUNTRIES;
 
+  // v0.9037: Layer-Button positioniert UNTER den Zoom-Controls (gleiche vertikale Kontrollleiste am rechten Rand).
+  // Zoom-Controls (MapControls) sind bei top-28 (112px), ~100px hoch → enden bei ~212px.
+  // Bei SwissTopo mit Scale-Controls: +8px gap +~100px = enden bei ~320px.
+  // Layer-Button wird direkt darunter platziert — immer sichtbar, nie vom Header verdeckt.
+  const showScale = baseLayer === "swisstopo";
+  const buttonTopPx = showScale ? 328 : 220;
+
   return (
-    <div ref={containerRef} className="absolute top-16 right-3 z-[10003]" style={{ WebkitTouchCallout: "none", userSelect: "none" }}>
+    <div ref={containerRef} className="absolute right-3 z-[10003]" style={{ top: `${buttonTopPx}px`, WebkitTouchCallout: "none", userSelect: "none" }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-white shadow-lg rounded-lg p-2.5 hover:bg-gray-50 transition-colors border border-gray-200"
+        className="bg-white shadow-lg rounded-lg p-2.5 hover:bg-gray-50 transition-colors border border-gray-200 min-w-[40px] min-h-[40px] flex items-center justify-center"
         title="Ebenen"
         style={{ touchAction: "none" }}
       >

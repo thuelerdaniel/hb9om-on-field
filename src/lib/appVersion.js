@@ -8,16 +8,20 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9036";
+export const APP_VERSION = "0.9037";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609040554";
+export const APP_BUILD = "202609040845";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9037: Layer-Button FIX — Button positioniert UNTER den Zoom-Controls (gleiche vertikale Kontrollleiste am rechten Rand)",
+  "v0.9037: Layer-Button FIX — Bei SwissTopo mit Scale-Controls wird der Button unter Zoom+Scale platziert ( dynamische Position)",
+  "v0.9037: Layer-Button FIX — Min. 40x40px Touch-Target für mobile Bedienung, immer sichtbar bei allen Auflösungen",
+  "v0.9037: Layer-Button FIX — Button wird nicht mehr vom Header verdeckt (vorher: top-16 = 64px, jetzt: unter Zoom-Controls)",
   "v0.9036: SOTA Cluster ENTFERNT — Backend-Runtime unterstützt keine raw TCP-Verbindungen, Cluster-Funktion konnte nie Spots liefern",
   "v0.9036: SOTA Cluster ENTFERNT — SOTAwatch-API (HTTPS) ist jetzt die EINZIGE Quelle für SOTA-Spots (identische Daten, Cluster war nur ein Spiegel)",
   "v0.9036: SOTA Cluster ENTFERNT — 12s Timeout-Delay beim Spot-Abruf komplett weg (vorher wartete jeder Abruf auf den toten Cluster)",
