@@ -1,0 +1,46 @@
+{
+  "name": "LLOTA Spots Hourly Sync",
+  "description": "Fix 7: Fetches LLOTA live spots every hour from llota.app/api/spots. Deletes expired spots and saves new ones to ActivitySpot entity.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 1,
+      "interval_unit": "hours",
+      "interval_anchor": "2026-08-31T05:32:08.142000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "llota_spots_hourly_sync",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "fetchLlotaSpots",
+            "args": {
+              "scheduled": true
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "fetchLlotaSpots"
+  }
+}

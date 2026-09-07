@@ -1,0 +1,47 @@
+{
+  "name": "LLOTA Polygon Batch Sync",
+  "description": "Batch-fetches lake polygons for LLOTA references without cached contours. Processes 15 lakes per run (Swiss first, then worldwide via OSM/Overpass). Gradually fills in all 8357 LLOTA lake contours.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 30,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-08-30T09:30:20.708000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "llota_polygon_batch_sync",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "fetchLlotaPolygonsBatch",
+            "args": {
+              "limit": 15,
+              "internal_secret": "Hb9Om-0nF1eLd-1nt3rn4l-5ync-5ecr3t-2026-v1a9z7k3m2"
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "fetchLlotaPolygonsBatch"
+  }
+}

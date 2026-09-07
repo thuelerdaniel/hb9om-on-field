@@ -1,0 +1,46 @@
+{
+  "name": "Repeater Coverage Calculator",
+  "description": "Berechnet Relais-Abdeckung mit SRTM 30m Terrain-LOS, Fresnel-Zone & Link-Budget. Erstellt asymmetrische Polygone (36 Radiale). CH-Relais: volle Terrain-Berechnung. Weltweit: Band-Sch\u00e4tzung. L\u00e4uft w\u00f6chentlich Montag nach Sync.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 3 * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "repeater_coverage_calculator",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "calculateRepeaterCoverage",
+            "args": {
+              "expand": true
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "calculateRepeaterCoverage"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "Weekly Sync Batch Runner",
+  "description": "Wochen-Scheduler: L\u00e4uft alle 5 Minuten am Montag (01:00-05:00 UTC, Full-Sync aller Quellen) und Donnerstag (03:00-04:00 UTC, CH/EU-Relais Teilsync). SOTA wird chunked verarbeitet (CSV-Import, ~125k Summits in 3-4 Chunks). Nach Montag-Batch: Wochen-Report an Admins.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 1-5 * * 1,4",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "weekly_sync_batch_runner",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "runDailySyncBatch",
+            "args": {
+              "scheduled": true,
+              "internal_secret": "Hb9Om-0nF1eLd-1nt3rn4l-5ync-5ecr3t-2026-v1a9z7k3m2"
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "runDailySyncBatch"
+  }
+}
