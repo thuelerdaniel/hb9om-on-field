@@ -9,7 +9,7 @@ export default function MobilRepeaterNav({ currentIndex, total, onPrev, onNext, 
   if (total === 0) return null;
 
   return (
-    <div className="flex items-center justify-center gap-4 mt-2">
+    <div className="flex items-center justify-center gap-4 mt-1">
       {/* - Button (previous) */}
       <button
         onClick={onPrev}
