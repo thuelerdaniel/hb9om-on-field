@@ -8,16 +8,28 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9039";
+export const APP_VERSION = "0.9040";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609040845";
+export const APP_BUILD = "202609081310";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9040: DCS-Code-Anzeige — DCS (Digit-Coded Squelch) wird NEBEN dem Tone angezeigt (z.B. 'Tone: 88.5 | DCS: D023')",
+  "v0.9040: DCS-Code-Anzeige — Relais kann Ton ODER DCS ODER beides ODER keins haben — alle Fälle korrekt dargestellt",
+  "v0.9040: DCS-Code-Anzeige — Neues Feld 'dcs' in der Relais-DB (z.B. D023, D023N, D023I)",
+  "v0.9040: Felder entfernt — Path Loss / ITM Loss / Clutter aus der Live-Anzeige entfernt (Berechnung im Backend bleibt)",
+  "v0.9040: Felder entfernt — Titel 'Aktuell empfohlener Repeater' entfernt (keine Überschrift mehr über der Anzeige)",
+  "v0.9040: Felder entfernt — Fresnel und Distanz am unteren Rand entfernt (Distanz steht bereits weiter oben)",
+  "v0.9040: Abdeckungszeile — Repeater- und Eigene-Abdeckung auf gleicher Höhe mit Stop-Button (eine Zeile)",
+  "v0.9040: Abdeckungszeile — 'Live'-Angabe in der ersten Zeile entfernt (wird nicht benötigt)",
+  "v0.9040: Ein-Bildschirm-Layout — Relais-Angaben (oben) + Karte (unten) passen zusammen auf einen Handy-Bildschirm",
+  "v0.9040: Ein-Bildschirm-Layout — Nur die Relais-Liste (darunter) erfordert Scrollen",
+  "v0.9040: Ein-Bildschirm-Layout — Karte bekommt flex-1 (min 35vh), unnötige Abstände/Paddings reduziert",
+  "v0.9040: ITM-Qualität inline — Badge + dBm in derselben Zeile wie Distanz/Azimuth (kompakt)",
   "v0.9039: CTCSS-Ton FIX — Ton wird wieder NEBEN DEM Offset angezeigt (vorher: neben Frequenz, oft übersehen)",
   "v0.9039: CTCSS-Ton FIX — Ton-Feld immer sichtbar (Platzhalter '—' bei Relais ohne Ton, vorher: Feld verschwand komplett)",
   "v0.9039: CTCSS-Ton FIX — Layout: Offset und Tone in derselben Zeile, gut lesbar für Auto-Bedienung",

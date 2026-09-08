@@ -293,7 +293,7 @@ export default function MobilActive({
   }, [equipmentType, fetchOwnCoverage, showOwnCoverage, gpsPosition]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="flex flex-col h-[100dvh] bg-gray-50 dark:bg-slate-900 overflow-hidden">
       <MobilStartHeader
         mode={mode}
         equipmentType={equipmentType}
@@ -304,7 +304,8 @@ export default function MobilActive({
         onStop={onStop}
       />
 
-      <div className="px-3 py-2">
+      {/* v0.9040: Relais-Angaben kompakt oben — flex-shrink-0 damit Karte den Rest bekommt */}
+      <div className="px-3 py-1.5 flex-shrink-0">
         <MobilActiveRepeaterPanel
           repeater={activeRepeater}
           distance={activeRepeater?._distToPos}
@@ -326,7 +327,7 @@ export default function MobilActive({
       </div>
 
       {showOwnCoverage && (
-        <div className="px-3 py-0.5 text-[10px] text-blue-600 dark:text-blue-400 text-center">
+        <div className="px-3 py-0.5 text-[10px] text-blue-600 dark:text-blue-400 text-center flex-shrink-0">
           {coverageLoading
             ? "Aktualisiere Eigene Reichweite..."
             : `Nächste Aktualisierung in ${coverageCountdown} Sekunden`}
@@ -334,28 +335,32 @@ export default function MobilActive({
       )}
 
       {showRepeaterCoverage && itmCoverageLoading && (
-        <div className="px-3 py-0.5 text-[10px] text-green-600 dark:text-green-400 text-center">
+        <div className="px-3 py-0.5 text-[10px] text-green-600 dark:text-green-400 text-center flex-shrink-0">
           Berechne ITM-Abdeckung (Terrain + Clutter)...
         </div>
       )}
 
-      <MobilMapView
-        routeCoords={routeCoords}
-        gpsPosition={gpsPosition}
-        accuracy={accuracy}
-        repeaters={listRepeaters}
-        recommendedRepeater={activeRepeater}
-        selectedRepeater={activeRepeater}
-        showRepeaterCoverage={showRepeaterCoverage}
-        showOwnCoverage={showOwnCoverage}
-        ownCoveragePolygon={ownCoveragePolygon}
-        itmCoveragePolygon={itmCoveragePolygon}
-        isRecommendedReachable={isActiveReachable}
-        equipmentType={equipmentType}
-        height="45vh"
-      />
+      {/* v0.9040: Karte bekommt flex-1 — füllt den Rest des Bildschirms (min 35vh) */}
+      <div className="px-3 flex-1 min-h-[35vh]">
+        <MobilMapView
+          routeCoords={routeCoords}
+          gpsPosition={gpsPosition}
+          accuracy={accuracy}
+          repeaters={listRepeaters}
+          recommendedRepeater={activeRepeater}
+          selectedRepeater={activeRepeater}
+          showRepeaterCoverage={showRepeaterCoverage}
+          showOwnCoverage={showOwnCoverage}
+          ownCoveragePolygon={ownCoveragePolygon}
+          itmCoveragePolygon={itmCoveragePolygon}
+          isRecommendedReachable={isActiveReachable}
+          equipmentType={equipmentType}
+          height="100%"
+        />
+      </div>
 
-      <div className="px-3 pb-20 flex-1 overflow-hidden">
+      {/* v0.9040: Relais-Liste scrollbar — max-h begrenzt, nur hier wird gescrollt */}
+      <div className="px-3 pb-20 pt-1.5 max-h-[22vh] overflow-y-auto flex-shrink-0">
         <MobilRepeaterList
           repeaters={listRepeaters}
           onSelect={(r) => setSelectedRepeaterId(r.id)}
