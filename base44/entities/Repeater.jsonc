@@ -16,7 +16,11 @@
     },
     "tone": {
       "type": "string",
-      "description": "Subton / Zugang (CTCSS, DCS, CC, etc.)"
+      "description": "CTCSS-Subton (z.B. 88.5, 123.5)"
+    },
+    "dcs": {
+      "type": "string",
+      "description": "DCS-Code (Digit-Coded Squelch, z.B. D023, D023N, D023I)"
     },
     "modes": {
       "type": "array",

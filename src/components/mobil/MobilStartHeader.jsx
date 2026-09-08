@@ -3,7 +3,7 @@
 // Touch-Ziele nach Apple/Google Richtlinie (min 44x44px).
 
 import React from "react";
-import { Square, Car, Radio, Route, MapPin, Circle, Users } from "lucide-react";
+import { Square, Car, Radio, Circle, Users } from "lucide-react";
 
 export default function MobilStartHeader({
   mode,
@@ -39,16 +39,6 @@ export default function MobilStartHeader({
         <span className="font-medium">
           {equipmentType === "mobil" ? "Mobil 50W" : "Portable 5W"}
         </span>
-      </div>
-
-      {/* Mode display */}
-      <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-slate-300">
-        {mode === "route" ? (
-          <Route className="w-3.5 h-3.5" />
-        ) : (
-          <MapPin className="w-3.5 h-3.5" />
-        )}
-        <span className="font-medium">{mode === "route" ? "Route" : "Live"}</span>
       </div>
 
       <div className="flex-1" />
