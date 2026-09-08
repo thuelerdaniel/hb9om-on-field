@@ -69,13 +69,6 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
           <span className="text-base font-normal text-gray-400 ml-1">MHz</span>
         </span>
 
-        {/* ÄNDERUNG 1: Tone neben Frequenz, gleiche Grösse, kein Label */}
-        {repeater.tone && (
-          <span className="text-[28px] font-bold text-blue-600 dark:text-blue-400 leading-none font-mono">
-            T{repeater.tone}
-          </span>
-        )}
-
         {/* ÄNDERUNG 2: Rufzeichen — min 22px */}
         <span className="text-[22px] font-bold text-gray-900 dark:text-slate-100 leading-none">
           {repeater.callsign}
@@ -97,14 +90,23 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
         </p>
       )}
 
-      {/* Offset (keep existing, small) */}
-      <div className="flex items-center gap-3 mt-2 text-sm">
+      {/* v0.9039: Offset + CTCSS-Ton in derselben Zeile — Ton immer sichtbar (Platzhalter bei fehlendem Ton) */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm">
         <span className="font-medium text-gray-700 dark:text-slate-200">
           Offset:{" "}
-          <span className={normOffset > 0 ? "text-green-600" : "text-red-500"}>
+          <span className={`font-bold ${normOffset > 0 ? "text-green-600" : "text-red-500"}`}>
             {normOffset > 0 ? "+" : ""}
             {normOffset.toFixed(1)}
           </span>
+          <span className="text-gray-400 ml-0.5">MHz</span>
+        </span>
+        <span className="font-medium text-gray-700 dark:text-slate-200">
+          Tone:{" "}
+          {repeater.tone && repeater.tone.trim() && repeater.tone.toLowerCase() !== "none" ? (
+            <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">{repeater.tone}</span>
+          ) : (
+            <span className="text-gray-400">—</span>
+          )}
         </span>
       </div>
 

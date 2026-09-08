@@ -50,11 +50,14 @@ export default function LiveRepeaterPanel({ repeater, distance, azimuth, gpsActi
                 </span>
               </span>
             )}
-            {repeater.tone && (
-              <span className="font-medium text-gray-700 dark:text-slate-200">
-                Tone: <span className="text-gray-900 dark:text-slate-100">{repeater.tone}</span>
-              </span>
-            )}
+            <span className="font-medium text-gray-700 dark:text-slate-200">
+              Tone:{" "}
+              {repeater.tone && repeater.tone.trim() && repeater.tone.toLowerCase() !== "none" ? (
+                <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">{repeater.tone}</span>
+              ) : (
+                <span className="text-gray-400">—</span>
+              )}
+            </span>
           </div>
 
           {/* Mode + Band */}

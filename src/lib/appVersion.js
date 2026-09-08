@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9038";
+export const APP_VERSION = "0.9039";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,9 @@ export const APP_BUILD = "202609040845";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9039: CTCSS-Ton FIX — Ton wird wieder NEBEN DEM Offset angezeigt (vorher: neben Frequenz, oft übersehen)",
+  "v0.9039: CTCSS-Ton FIX — Ton-Feld immer sichtbar (Platzhalter '—' bei Relais ohne Ton, vorher: Feld verschwand komplett)",
+  "v0.9039: CTCSS-Ton FIX — Layout: Offset und Tone in derselben Zeile, gut lesbar für Auto-Bedienung",
   "v0.9038: Zoom-Button FIX — Hunting-Karte hatte zoomControl={false} ohne eigene Zoom-Controls → KEINE Zoom-Buttons sichtbar",
   "v0.9038: Zoom-Button FIX — zoomControl={true} wiederhergestellt auf Hunting-Karte (Standard Leaflet-Zoom jetzt aktiv)",
   "v0.9038: Zoom-Button FIX — Hauptkarte: Zoom (MapControls topright) + Layer-Button (darunter) beide sichtbar (unverändert)",
