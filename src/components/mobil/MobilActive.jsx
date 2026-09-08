@@ -293,7 +293,7 @@ export default function MobilActive({
   }, [equipmentType, fetchOwnCoverage, showOwnCoverage, gpsPosition]);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-gray-50 dark:bg-slate-900">
+    <div className="flex flex-col h-[100dvh] overflow-hidden bg-gray-50 dark:bg-slate-900">
       <MobilStartHeader
         mode={mode}
         equipmentType={equipmentType}

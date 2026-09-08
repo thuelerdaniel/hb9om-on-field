@@ -33,9 +33,20 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
     ? repeater.modes
     : (repeater.primary_mode ? [repeater.primary_mode] : []);
 
-  // v0.9040: DCS-Code prüfen (Feld dcs in der Relais-DB)
-  const hasDcs = repeater.dcs && repeater.dcs.trim() && repeater.dcs.toLowerCase() !== "none";
-  const hasTone = repeater.tone && repeater.tone.trim() && repeater.tone.toLowerCase() !== "none";
+  // v0.9041: DCS-Code prüfen — eigenes Feld ODER im tone-Feld (Backward-Compat mit alten Imports)
+  let dcsValue = repeater.dcs && repeater.dcs.trim() && repeater.dcs.toLowerCase() !== "none"
+    ? repeater.dcs.trim()
+    : "";
+  let toneValue = repeater.tone && repeater.tone.trim() && repeater.tone.toLowerCase() !== "none"
+    ? repeater.tone.trim()
+    : "";
+  // Backward-Compat: DCS-Code im tone-Feld erkennen (z.B. "D023", "D023N", "D023I")
+  if (!dcsValue && toneValue && /^(D\d{3}|D\d{3}[NI])$/i.test(toneValue)) {
+    dcsValue = toneValue.toUpperCase();
+    toneValue = "";
+  }
+  const hasDcs = !!dcsValue;
+  const hasTone = !!toneValue;
 
   return (
     <div
@@ -91,16 +102,16 @@ export default function MobilActiveRepeaterPanel({ repeater, distance, azimuth, 
         <span className="font-medium text-gray-700 dark:text-slate-200">
           Tone:{" "}
           {hasTone ? (
-            <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">{repeater.tone}</span>
+            <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">{toneValue}</span>
           ) : (
             <span className="text-gray-400">—</span>
           )}
         </span>
-        {/* v0.9040: DCS-Code neben Tone — nur anzeigen wenn vorhanden */}
+        {/* v0.9041: DCS-Code neben Tone — nur anzeigen wenn vorhanden */}
         {hasDcs && (
           <span className="font-medium text-gray-700 dark:text-slate-200">
             DCS:{" "}
-            <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">{repeater.dcs}</span>
+            <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">{dcsValue}</span>
           </span>
         )}
       </div>

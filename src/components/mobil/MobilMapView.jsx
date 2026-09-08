@@ -40,6 +40,11 @@ function MapRefSetter({ onReady }) {
   const map = useMap();
   useEffect(() => {
     onReady(map);
+    // invalidateSize after layout settles — fixes black map when container
+    // was 0px during initial render (flex layout needs a tick to compute height)
+    const t1 = setTimeout(() => map.invalidateSize(), 100);
+    const t2 = setTimeout(() => map.invalidateSize(), 500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [map, onReady]);
   return null;
 }

@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9040";
+export const APP_VERSION = "0.9041";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,13 @@ export const APP_BUILD = "202609081310";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9041: KARTE SCHWARZ FIX — h-[100dvh] overflow-hidden statt min-h gibt dem Flex-Container eine definite Höhe → Karte rendert wieder",
+  "v0.9041: KARTE SCHWARZ FIX — map.invalidateSize() nach 100ms + 500ms ruft Leaflet auf, die Kacheln neu zu layouten",
+  "v0.9041: DCS FIX — DCS-Feld wird jetzt beim Import gemappt (RepeaterBook JSON, HTML-Scraper, US-API, Hearham, UK-Parser)",
+  "v0.9041: DCS FIX — buildRecord in fetchRepeaters übergibt dcs an die DB (vorher wurde das Feld ignoriert)",
+  "v0.9041: DCS FIX — Backward-Compat: DCS-Code im tone-Feld wird erkannt und als DCS angezeigt (z.B. 'D023' im Tone-Feld)",
+  "v0.9041: DCS FIX — Hearham encode-Feld wird aufgeteilt: CTCSS → tone, D023 → dcs",
+  "v0.9041: DCS FIX — UK-Parser extrahiert DCS aus dem Popup-Text (DCS: D023)",
   "v0.9040: DCS-Code-Anzeige — DCS (Digit-Coded Squelch) wird NEBEN dem Tone angezeigt (z.B. 'Tone: 88.5 | DCS: D023')",
   "v0.9040: DCS-Code-Anzeige — Relais kann Ton ODER DCS ODER beides ODER keins haben — alle Fälle korrekt dargestellt",
   "v0.9040: DCS-Code-Anzeige — Neues Feld 'dcs' in der Relais-DB (z.B. D023, D023N, D023I)",

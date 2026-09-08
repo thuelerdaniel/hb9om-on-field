@@ -100,6 +100,14 @@ export default async function (req: Request): Promise<Response> {
 
       const callsign = (r.callsign || '').toUpperCase().trim();
       const locationName = r.city || r.description || '';
+
+      // Hearham "encode" field can be CTCSS (e.g. "88.5") or DCS (e.g. "D023")
+      let tone = String(r.encode || '').trim();
+      let dcs = '';
+      if (tone && /^(D\d{3}|D\d{3}[NI])$/i.test(tone)) {
+        dcs = tone.toUpperCase();
+        tone = '';
+      }
       // Detect country per-repeater instead of blindly assigning region's country.
       // This correctly tags US repeaters (K/N/W callsigns, US states) as 'US'
       // even though they fall within the broad "canada" bounding box.
@@ -109,7 +117,8 @@ export default async function (req: Request): Promise<Response> {
         callsign,
         frequency: freqMHz,
         offset_mhz: offsetMHz,
-        tone: r.encode || '',
+        tone,
+        dcs,
         modes,
         primary_mode: primary,
         location_name: locationName,

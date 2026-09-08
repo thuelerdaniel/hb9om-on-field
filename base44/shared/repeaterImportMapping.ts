@@ -78,6 +78,16 @@ export function mapJsonRecord(r: any): any {
   let tone = String(r.tone || "").trim();
   if (tone.toUpperCase() === "CSQ") tone = "";
 
+  // DCS code (Digit-Coded Squelch) — RepeaterBook JSON export has a "dcs" field
+  let dcs = String(r.dcs || "").trim();
+  if (dcs.toUpperCase() === "CSQ" || dcs.toUpperCase() === "NONE") dcs = "";
+
+  // Some sources put DCS in the tone field with "D" prefix — move it to dcs
+  if (tone && /^(D\d{3}|D\d{3}[NI])$/i.test(tone)) {
+    dcs = tone.toUpperCase();
+    tone = "";
+  }
+
   // Coordinates — both must be present or both absent
   let lat: number | null = null;
   let lng: number | null = null;
@@ -127,6 +137,7 @@ export function mapJsonRecord(r: any): any {
     frequency,
     offset_mhz,
     tone,
+    dcs: dcs || undefined,
     modes,
     primary_mode,
     location_name,

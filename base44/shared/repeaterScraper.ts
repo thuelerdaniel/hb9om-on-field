@@ -367,9 +367,16 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
 
     // US/Canada format has an extra "County" column — callsign is at index 5 instead of 4
     const callsignIdx = hasCountyColumn ? 5 : 4;
-    const tone = cells[2] || '';
+    let tone = cells[2] || '';
     const locationName = cells[3] || '';
     const callsign = cells[callsignIdx] || '';
+
+    // DCS code: RepeaterBook tone column may contain "D023" instead of CTCSS
+    let dcs: string | null = null;
+    if (tone && /^(D\d{3}|D\d{3}[NI])$/i.test(tone)) {
+      dcs = tone.toUpperCase();
+      tone = '';
+    }
 
     if (!callsign || !frequency) continue;
 
@@ -421,6 +428,7 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
       offsetSign,
       offset_mhz: offsetSign === '+' ? offsetMag : -offsetMag,
       tone,
+      dcs,
       modes: finalModes,
       primary_mode: primaryMode,
       location_name: locationName,
@@ -598,9 +606,11 @@ export function parseUkRepeaterList(html: string): any[] {
     if (typeStr.includes('FUSION') || typeStr.includes('YSF') || typeStr.includes('C4FM')) modes.push('Fusion');
     if (typeStr.includes('ANALOG') || typeStr.includes('VOICE') || typeStr.includes('FM') || modes.length === 0) modes.push('FM');
 
-    // Extract CTCSS tone
+    // Extract CTCSS tone or DCS code
     const ctcssMatch = popup.match(/CTCSS:\s*([\d.]+)/i);
-    const tone = ctcssMatch ? ctcssMatch[1] : '';
+    const dcsMatch = popup.match(/DCS:\s*(D\d{3}[NI]?)/i);
+    let tone = ctcssMatch ? ctcssMatch[1] : '';
+    const dcs = dcsMatch ? dcsMatch[1].toUpperCase() : '';
 
     // Extract location name + Maidenhead locator from "LOCATION [IO81]"
     const locMatch = popup.match(/([A-Z][A-Z\s]+?)\s*\[([A-R]{2}[0-9]{2}[A-X]{2}?)\]/i);
@@ -620,6 +630,7 @@ export function parseUkRepeaterList(html: string): any[] {
       offsetSign: offset_mhz >= 0 ? '+' : '-',
       offset_mhz,
       tone,
+      dcs,
       modes,
       primary_mode: getPrimaryMode(modes),
       location_name: locationName || locator,
