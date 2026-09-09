@@ -76,6 +76,11 @@ export default async function(req: Request): Promise<Response> {
         uid: occ.uid || `${occ.contest_id}-${startUtc}`,
         start_date: occ.start_date || startUtc.substring(0, 10),
         year,
+        verified: occ.verified === true,
+        can_enter: occ.can_enter !== false,
+        duration_bucket: occ.duration_bucket || '',
+        mode_families: Array.isArray(occ.mode_families) ? occ.mode_families : [],
+        band_families: Array.isArray(occ.band_families) ? occ.band_families : [],
         last_synced: new Date().toISOString(),
       });
     }

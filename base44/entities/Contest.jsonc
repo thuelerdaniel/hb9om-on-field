@@ -67,6 +67,40 @@
       "type": "number",
       "description": "Jahr des Contests"
     },
+    "verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Contest-Daten verifiziert (von contestclock.com)"
+    },
+    "can_enter": {
+      "type": "boolean",
+      "default": true,
+      "description": "Contest kann teilgenommen werden"
+    },
+    "duration_bucket": {
+      "type": "string",
+      "enum": [
+        "lt2",
+        "2-12",
+        "12-24",
+        "24+"
+      ],
+      "description": "Dauer-Kategorie (lt2 = unter 2h, 2-12, 12-24, 24+ = \u00fcber 24h)"
+    },
+    "mode_families": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Modus-Familien (CW, SSB, RTTY, Digital, FM) \u2014 f\u00fcr Modus-Filter"
+    },
+    "band_families": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Band-Familien (160m, 80m, ..., VHF+) \u2014 f\u00fcr Band-Filter"
+    },
     "last_synced": {
       "type": "string",
       "format": "date-time",

@@ -9,6 +9,7 @@ import SpotDetailsModal from "@/components/hunting/SpotDetailsModal";
 import QsoLogModal from "@/components/hunting/QsoLogModal";
 import QrzLookupModal from "@/components/hunting/QrzLookupModal";
 import ActivityPanel from "@/components/hunting/ActivityPanel";
+import ContestTable from "@/components/hunting/ContestTable";
 import LiveSpotActivity from "@/components/hunting/LiveSpotActivity";
 import BottomNavigation from "@/components/BottomNavigation";
 
@@ -156,7 +157,7 @@ export default function Hunting() {
           stationInfo={stationInfo}
         />
 
-        {/* v0.9019: Unified ActivityPanel with 6 tabs (SOTA/POTA/WWFF/WWBOTA/Live Spot Activity/Alerts) */}
+        {/* v0.9019: Unified ActivityPanel with 5 tabs (SOTA/POTA/WWFF/LLOTA/Alerts) */}
         <ActivityPanel
           onLogQso={setQsoSpot}
           onSpotDetails={setSpotDetails}
@@ -164,6 +165,9 @@ export default function Hunting() {
           gpsPos={gpsPos}
           stationInfo={stationInfo}
         />
+
+        {/* v0.9043: Eigenständige Contest-Tabelle (kein Tab mehr, separater Bereich) */}
+        <ContestTable />
       </main>
 
       {/* Spot Details Modal */}

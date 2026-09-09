@@ -8,16 +8,28 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9042";
+export const APP_VERSION = "0.9043";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609090400";
+export const APP_BUILD = "202609090500";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9043: CONTEST-EIGENE TABELLE — Contest-Bereich ist kein Tab in der Hunting-Tabelle mehr, sondern eine eigenständige Tabelle/Ansicht",
+  "v0.9043: CONTEST-EIGENE TABELLE — Sortierbare Spalten: Name, Sponsor, Modus, Bänder, Datum/Zeit (UTC+lokal), Dauer, Status/Countdown",
+  "v0.9043: CONTEST-EIGENE TABELLE — Standard-Sortierung Datum aufsteigend; sortierbar nach Name, Modus, Dauer",
+  "v0.9043: CONTEST-EIGENE TABELLE — Zeilen-Klick öffnet Detail-Ansicht (alle Felder + Regeln-Link)",
+  "v0.9043: CONTEST-EIGENE TABELLE — Countdown-Zusammenfassung (On the Air + Nächste 7 Tage) oben im Fenster erhalten",
+  "v0.9043: ERWEITERTE SUCHE — Textsuche nach Contest-Name UND Sponsor (Live-Filter während Eingabe)",
+  "v0.9043: ERWEITERTE SUCHE — Modus-Filter (CW/SSB/FM/RTTY/Digital/FT8-FT4/Mixed) Mehrfachauswahl",
+  "v0.9043: ERWEITERTE SUCHE — Band-Filter (160m-6m/VHF+) Mehrfachauswahl, Dauer-Filter (<2h/2-12h/12-24h/>24h)",
+  "v0.9043: ERWEITERTE SUCHE — Zeit-Filter (Alle/Jetzt aktiv/7 Tage/30 Tage/90 Tage), Sponsor-Dropdown",
+  "v0.9043: ERWEITERTE SUCHE — Alle Filter UND-verknüpft, Zurücksetzen-Button, Treffer-Anzeige",
+  "v0.9043: API-MAPPING — Neue Felder: verified, can_enter, duration_bucket, mode_families, band_families",
+  "v0.9043: API-MAPPING — duration_bucket für Dauer-Filter, mode_families/band_families für Modus/Band-Filter",
   "v0.9042: DCS-DATENLÜCKE FIX — dcs-Feld fehlte im Update-Pfad von importRepeaterJson (wurde nur bei neuen Datensätzen gesetzt, nicht bei Updates)",
   "v0.9042: DCS-DATENLÜCKE FIX — repeaterImportMapping prüft jetzt mehrere Feldnamen (dcs, DCS, Dcs, squelch, encode) für DCS-Codes",
   "v0.9042: DCS-DATENLÜCKE FIX — Re-Sync der Repeater-Quellen befüllt dcs-Felder automatisch (DCS aus tone-Feld wird separiert)",
