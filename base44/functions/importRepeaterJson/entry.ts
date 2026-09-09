@@ -140,6 +140,7 @@ export default async function(req: Request): Promise<Response> {
               frequency: rec.frequency,
               offset_mhz: rec.offset_mhz,
               tone: rec.tone,
+              dcs: rec.dcs,
               location_name: rec.location_name,
               band: rec.band,
               modes: rec.modes,

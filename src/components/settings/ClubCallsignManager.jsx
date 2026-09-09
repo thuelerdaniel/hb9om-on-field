@@ -141,45 +141,7 @@ export default function ClubCallsignManager() {
         />
       </div>
 
-      <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
-        <h3 className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2">QRZ.com Club-Zugang</h3>
-        <div className="space-y-2">
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase">QRZ-Benutzername (Club)</label>
-            <input
-              type="text"
-              value={config.qrz_username}
-              onChange={e => setConfig({ ...config, qrz_username: e.target.value })}
-              placeholder="QRZ.com-Benutzername des Clubs"
-              autoComplete="off"
-              className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-            />
-          </div>
-          <PasswordInput
-            label="QRZ-Passwort (Club)"
-            value={config.qrz_password}
-            onChange={(v) => setConfig({ ...config, qrz_password: v })}
-            placeholder={maskedFields.qrz_password ? "*** (überschreiben zum Ändern)" : "QRZ.com-Passwort des Clubs"}
-            autoComplete="off"
-            onTest={config.qrz_username && config.qrz_password ? () => testClub("club_qrz") : null}
-            testLabel="Club QRZ-Login testen"
-            testDisabled={!config.qrz_username || !config.qrz_password}
-          />
-          <PasswordInput
-            label="QRZ API-Key (Club-Rufzeichen)"
-            value={config.qrz_api_key}
-            onChange={(v) => setConfig({ ...config, qrz_api_key: v })}
-            placeholder={maskedFields.qrz_api_key ? "*** (überschreiben zum Ändern)" : "API-Key für Club-Rufzeichen"}
-            autoComplete="off"
-            onTest={config.qrz_api_key && config.qrz_api_key !== "***" ? () => testClub("club_qrz_apikey") : (maskedFields.qrz_api_key ? () => testClub("club_qrz_apikey") : null)}
-            testLabel="Club QRZ API-Key testen"
-            testDisabled={!config.qrz_api_key && !maskedFields.qrz_api_key}
-          />
-          <p className="text-[10px] text-gray-400 mt-1">
-            Dieser API-Key wird für QRZ-Abfragen des Club-Rufzeichens verwendet (z.B. beim Clubstation-Modus im QSO-Logbuch).
-          </p>
-        </div>
-      </div>
+      {/* v0.9042: QRZ.com Club-Zugang ENTFERNT — nur noch persönliches QRZ-Login */}
 
       <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
         <h3 className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2">Weitere Club API-Keys</h3>

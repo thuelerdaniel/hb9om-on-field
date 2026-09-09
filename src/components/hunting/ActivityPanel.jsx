@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { RefreshCw, FileText, MapPin, CalendarClock, X, Info } from "lucide-react";
+import { RefreshCw, FileText, MapPin, CalendarClock, X, Info, Trophy } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PotaParkInfoPopup from "@/components/hunting/PotaParkInfoPopup";
+import ContestPanel from "@/components/hunting/ContestPanel";
 import { calcHearScore, scoreColor } from "@/lib/hearScore";
 import { isQRT, getFlagImg, getReferenceUrl, freqHzToBand, formatFreqDisplay } from "@/lib/spotUtils";
 
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'WWFF', label: 'WWFF', color: '#0d9488' },
   { id: 'LLOTA', label: 'LLOTA', color: '#0ea5e9' },
   { id: 'alerts', label: 'Alerts', color: '#7c3aed' },
+  { id: 'contests', label: 'Contests', color: '#f59e0b' },
 ];
 
 function ageColor(age) {
@@ -179,6 +181,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
   const currentTab = TABS.find(t => t.id === tab) || TABS[0];
   const accentColor = currentTab.color;
   const isAlertsTab = tab === 'alerts';
+  const isContestsTab = tab === 'contests';
 
   const renderSpotList = () => (
     <>
@@ -330,12 +333,14 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
         <h2 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
           {isAlertsTab
             ? <><CalendarClock className="w-3.5 h-3.5" style={{ color: accentColor }} /> GEPLANTE AKTIVIERUNGEN</>
+            : isContestsTab
+            ? <><Trophy className="w-3.5 h-3.5" style={{ color: accentColor }} /> CONTESTS</>
             : <><span className="w-2 h-2 rounded-full" style={{ background: accentColor }} /> {tab} LIVE-SPOTS</>
           }
           <span className="text-[10px] text-muted-foreground font-normal">({tabCounts[tab]})</span>
         </h2>
         <div className="flex items-center gap-1.5">
-          {!isAlertsTab && (
+          {!isAlertsTab && !isContestsTab && (
             <button
               onClick={() => setSortBy(sortBy === 'time' ? 'score' : 'time')}
               className="flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-md border transition-colors bg-background text-muted-foreground border-border hover:bg-muted"
@@ -421,7 +426,7 @@ export default function ActivityPanel({ onLogQso, onSpotDetails, onCallClick, gp
       )}
 
       {/* Content: spot list for all tabs */}
-      {renderSpotList()}
+      {isContestsTab ? <ContestPanel /> : renderSpotList()}
     </div>
   );
 }

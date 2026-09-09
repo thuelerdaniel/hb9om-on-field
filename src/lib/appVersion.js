@@ -8,16 +8,27 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9041";
+export const APP_VERSION = "0.9042";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609081310";
+export const APP_BUILD = "202609090400";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9042: DCS-DATENLÜCKE FIX — dcs-Feld fehlte im Update-Pfad von importRepeaterJson (wurde nur bei neuen Datensätzen gesetzt, nicht bei Updates)",
+  "v0.9042: DCS-DATENLÜCKE FIX — repeaterImportMapping prüft jetzt mehrere Feldnamen (dcs, DCS, Dcs, squelch, encode) für DCS-Codes",
+  "v0.9042: DCS-DATENLÜCKE FIX — Re-Sync der Repeater-Quellen befüllt dcs-Felder automatisch (DCS aus tone-Feld wird separiert)",
+  "v0.9042: CONTESTCLOCK-INTEGRATION — Neue Contest-Entity + fetchContests Backend-Funktion (contestclock.com API, CC BY 4.0, 941 Contests 2026)",
+  "v0.9042: CONTESTCLOCK-INTEGRATION — Neues ContestPanel im Hunting-Modul: 'On the Air' (aktiv mit Countdown) + 'Nächste 7 Tage' (kommend)",
+  "v0.9042: CONTESTCLOCK-INTEGRATION — Modus-Filter (CW, SSB, RTTY, Digital, FM) im ContestPanel, Auto-Refresh 60s, Offline-Cache aus DB",
+  "v0.9042: CONTESTCLOCK-INTEGRATION — 'Contests' Tab in der Activity-Bar (SOTA/POTA/WWFF/LLOTA/Alerts/Contests)",
+  "v0.9042: QRZ-CLUB-ENTFERNUNG — Club-QRZ-API-Key-Eingabe und Club-QRZ-Login entfernt (nur noch persönliches QRZ-Login)",
+  "v0.9042: QRZ-CLUB-ENTFERNUNG — 'QRZ Club' Download-Button entfernt (Club-QRZ-Login entfernt)",
+  "v0.9042: QRZ-CLUB-ENTFERNUNG — 'QRZ Club Upload' Button deaktiviert (grau, Tooltip 'Club-Upload derzeit deaktiviert')",
+  "v0.9042: QRZ-CLUB-ENTFERNUNG — Club-Logging-Datenstruktur (is_clubstation, club_callsign) UNVERÄNDERT erhalten",
   "v0.9041: KARTE SCHWARZ FIX — h-[100dvh] overflow-hidden statt min-h gibt dem Flex-Container eine definite Höhe → Karte rendert wieder",
   "v0.9041: KARTE SCHWARZ FIX — map.invalidateSize() nach 100ms + 500ms ruft Leaflet auf, die Kacheln neu zu layouten",
   "v0.9041: DCS FIX — DCS-Feld wird jetzt beim Import gemappt (RepeaterBook JSON, HTML-Scraper, US-API, Hearham, UK-Parser)",

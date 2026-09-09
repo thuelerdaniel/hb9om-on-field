@@ -1,0 +1,99 @@
+{
+  "name": "Contest",
+  "type": "object",
+  "properties": {
+    "contest_id": {
+      "type": "string",
+      "description": "Eindeutige Contest-ID (z.B. arrl-straight-key-night)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name des Contests"
+    },
+    "sponsor": {
+      "type": "string",
+      "description": "Veranstalter/Sponsor (z.B. ARRL, AGCW-DL)"
+    },
+    "start_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Startzeit UTC (ISO 8601)"
+    },
+    "end_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Endzeit UTC (ISO 8601)"
+    },
+    "duration_hours": {
+      "type": "number",
+      "description": "Dauer in Stunden"
+    },
+    "modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Modi (CW, SSB, RTTY, FM, Digital, etc.)"
+    },
+    "bands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "B\u00e4nder (160m, 80m, 40m, 20m, 2m, 70cm, etc.)"
+    },
+    "rules_url": {
+      "type": "string",
+      "description": "URL zu den Contest-Regeln"
+    },
+    "country": {
+      "type": "string",
+      "description": "L\u00e4ndercode des Sponsors (z.B. US, DE)"
+    },
+    "eligibility_scope": {
+      "type": "string",
+      "description": "Teilnahmebereich (worldwide, regional)"
+    },
+    "uid": {
+      "type": "string",
+      "description": "Eindeutige UID pro Occurrence (z.B. arrl-straight-key-night-20260101T0000@contestcal)"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Startdatum (YYYY-MM-DD)"
+    },
+    "year": {
+      "type": "number",
+      "description": "Jahr des Contests"
+    },
+    "last_synced": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Letzte Synchronisation"
+    }
+  },
+  "required": [
+    "contest_id",
+    "name",
+    "start_utc"
+  ],
+  "rls": {
+    "read": true,
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

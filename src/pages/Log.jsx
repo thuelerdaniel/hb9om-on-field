@@ -762,16 +762,7 @@ export default function Log() {
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            {/* 1. QRZ Club — fetchQrzClubLog (Download from QRZ Club Logbook) */}
-            <button
-              onClick={handleClubLogSync}
-              disabled={clubSyncLoading}
-              className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-              title={syncPaused ? "Sync ist gestoppt" : "QSOs vom QRZ Club-Logbuch herunterladen und importieren"}
-            >
-              {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              QRZ Club
-            </button>
+            {/* v0.9042: QRZ Club Download ENTFERNT — Club-QRZ-Login entfernt, nur noch persönliches QRZ-Login */}
             {/* 2. Club Sync — syncClubLog (Upload to clublog.org) */}
             <button
               onClick={handleClubLogUpload}
@@ -784,18 +775,15 @@ export default function Log() {
             </button>
             {/* 3-5. Wavelog: Club Log Wavelog + Wavelog Import + Wavelog Voll Import */}
             <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
-            {/* v0.9018 point 3: QRZ Club Upload moved to action button group */}
-            {!isDemo && (
-              <button
-                onClick={() => handleQrzUpload('club')}
-                disabled={qrzUploading}
-                className="px-3 py-2 text-sm font-medium text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 disabled:opacity-40 flex items-center gap-1.5"
-                title="Gefilterte QSOs zu QRZ.com Club-Logbuch hochladen"
-              >
-                {qrzUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                QRZ Club Upload
-              </button>
-            )}
+            {/* v0.9042: QRZ Club Upload DEAKTIVIERT — Club-QRZ-Login entfernt, Button grau/disable */}
+            <button
+              disabled={true}
+              className="px-3 py-2 text-sm font-medium text-gray-400 border border-gray-200 rounded-lg opacity-40 cursor-not-allowed flex items-center gap-1.5"
+              title="Club-Upload derzeit deaktiviert"
+            >
+              <Upload className="w-4 h-4" />
+              QRZ Club Upload
+            </button>
             {/* 6. Löschen — always active, even when sync is paused */}
             <button
               onClick={() => setShowConfirmDelete(true)}
