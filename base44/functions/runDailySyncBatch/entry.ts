@@ -550,8 +550,9 @@ export default async function (req: Request): Promise<Response> {
       await new Promise(r => setTimeout(r, HEAVY_PAUSE_MS));
     }
 
-    // ─── Check if all done → send weekly report (Monday only) ───
+    // ─── Check if all done → send weekly report + info email ───
     let reportTriggered = false;
+    let infoEmailSent = false;
     try {
       const allAfter = await base44.asServiceRole.entities.DailyRefreshSchedule.list('display_order', 100);
       const stillIncomplete = (allAfter || []).filter((s: any) => {
@@ -559,10 +560,69 @@ export default async function (req: Request): Promise<Response> {
         if (s.function_name === 'fetchAprsFi' || s.function_name === 'fetchAprsStations') return false;
         return !isDone(s);
       });
-      if (stillIncomplete.length === 0 && effectiveDay === 'Monday' && !(await isReportSentToday(base44))) {
-        await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly', internal_secret: getInternalSecret() });
-        await markReportSent(base44);
-        reportTriggered = true;
+      if (stillIncomplete.length === 0) {
+        // v0.9045: Send weekly admin report (Monday only)
+        if (effectiveDay === 'Monday' && !(await isReportSentToday(base44))) {
+          await base44.functions.invoke('sendDailyAdminReport', { scheduled: true, mode: 'weekly', internal_secret: getInternalSecret() });
+          await markReportSent(base44);
+          reportTriggered = true;
+        }
+
+        // v0.9045: AUFGABE E — Aggregated info email for ALL scheduled runs (Monday + Thursday)
+        // One email per scheduled run with all source results
+        const emailKey = `sync_info_email_sent_${effectiveDay}_${new Date().toISOString().slice(0, 10)}`;
+        try {
+          const emailSentCheck = await base44.asServiceRole.entities.AppSetting.filter({ key: emailKey });
+          if (emailSentCheck.length === 0) {
+            // Collect results from all sources that ran today
+            const todaySources = (allAfter || []).filter((s: any) =>
+              s.weekly_enabled && Array.isArray(s.weekly_days) && s.weekly_days.includes(effectiveDay) &&
+              s.function_name !== 'fetchAprsFi' && s.function_name !== 'fetchAprsStations'
+            );
+            const successCount = todaySources.filter((s: any) => s.last_status === 'success').length;
+            const failCount = todaySources.filter((s: any) => s.last_status === 'failed' || s.last_status === 'timeout').length;
+            const totalCount = todaySources.length;
+
+            // Build email body
+            let bodyLines = [
+              `HB9OM Sync-Report: ${new Date().toISOString().slice(0, 10)} — ${totalCount} Quellen, ${successCount} success / ${failCount} fail`,
+              '',
+              `Tag: ${effectiveDay}`,
+              `Zeit: ${new Date().toISOString()}`,
+              '',
+              '─'.repeat(60),
+              'Quellen-Übersicht:',
+              '─'.repeat(60),
+            ];
+            for (const s of todaySources) {
+              const status = s.last_status || 'pending';
+              const count = s.last_count || 0;
+              const duration = s.last_duration_ms ? Math.round(s.last_duration_ms / 1000) + 's' : '-';
+              const error = s.last_error ? ` FEHLER: ${s.last_error}` : '';
+              const errorDetail = s.last_error_detail ? `\n  Detail: ${s.last_error_detail.substring(0, 200)}` : '';
+              bodyLines.push(`• ${s.label || s.source}: ${status} (${count} Records, ${duration})${error}${errorDetail}`);
+            }
+            bodyLines.push('─'.repeat(60));
+            bodyLines.push('');
+            bodyLines.push(`Zusammenfassung: ${successCount}/${totalCount} erfolgreich, ${failCount} fehlgeschlagen`);
+
+            const emailBody = bodyLines.join('\n');
+            const emailSubject = `HB9OM Sync-Report: ${new Date().toISOString().slice(0, 10)} — ${totalCount} Quellen, ${successCount} success / ${failCount} fail`;
+
+            try {
+              await base44.integrations.Core.SendEmail({
+                to: 'thueler.daniel@gmail.com',
+                subject: emailSubject,
+                body: emailBody,
+              });
+              infoEmailSent = true;
+              // Mark as sent to prevent duplicates
+              await base44.asServiceRole.entities.AppSetting.create({ key: emailKey, value: '1' });
+            } catch (emailErr) {
+              // Email sending failed — non-fatal
+            }
+          }
+        } catch {}
       }
     } catch {}
 
@@ -577,6 +637,7 @@ export default async function (req: Request): Promise<Response> {
       duration_ms: duration,
       retried,
       report_triggered: reportTriggered,
+      info_email_sent: infoEmailSent,
     });
   } catch (error: any) {
     return Response.json({

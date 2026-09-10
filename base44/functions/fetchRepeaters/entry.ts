@@ -11,7 +11,7 @@ import { loadProtectionSet, filterProtected } from '../../shared/syncProtection.
 const FETCH_TIMEOUT_MS = 5000;
 const BATCH_SIZE = 10;        // Countries per batch — keeps memory low
 const DETAIL_BATCH = 6;       // Priority 1 countries get detail pages
-const DETAIL_PER_COUNTRY = 50; // Limited detail fetches for coordinates
+const DETAIL_PER_COUNTRY = 500; // v0.9045: Increased from 50 to 500 — Priority-1 countries need coords for most repeaters
 
 // Fix 8: US RepeaterBook JSON API — state-by-state fetching.
 // The HTML scraping times out for USA (~20K+ repeaters). The JSON API is faster.
@@ -130,18 +130,25 @@ function buildRecord(r: any, existingCoordsMap?: Map<string, { lat: number; lng:
   }
   // v0.9044: Preserve existing DCS if new data doesn't have it
   let dcs = r.dcs || '';
-  if (!dcs && existingCoordsMap) {
+  let tone = r.tone || '';
+  let locator = r.locator || '';
+  if (existingCoordsMap) {
     const key = r.sourceId || `${r.callsign}_${r.frequency}`;
     const existing = existingCoordsMap.get(key);
-    if (existing && existing.dcs) {
-      dcs = existing.dcs;
+    if (existing) {
+      // v0.9045: Preserve DCS from existing record
+      if (!dcs && existing.dcs) dcs = existing.dcs;
+      // v0.9045: Preserve tone from existing record (was missing in v0.9044!)
+      if (!tone && existing.tone) tone = existing.tone;
+      // v0.9045: Preserve locator from existing record
+      if (!locator && existing.locator) locator = existing.locator;
     }
   }
   return {
     callsign: r.callsign,
     frequency: r.frequency,
     offset_mhz: r.offset_mhz || 0,
-    tone: r.tone || '',
+    tone,
     dcs,
     modes: r.modes || ['FM'],
     primary_mode: r.primary_mode || 'FM',
@@ -159,7 +166,7 @@ function buildRecord(r: any, existingCoordsMap?: Map<string, { lat: number; lng:
     power_source: r.power_source || 'unknown',
     source_id: r.sourceId || '',
     linked_callsigns: r.linked_callsigns || [],
-    locator: r.locator || '',
+    locator,
     coords_from_locator: r.coords_from_locator || false,
   };
 }
@@ -205,7 +212,7 @@ export default async function(req) {
     let naStatesProcessed = 0;
 
     // --- Step 0: v0.9044 — Save existing lat/lng/dcs BEFORE delete (preserve coordinates) ---
-    const existingCoordsMap = new Map<string, { lat: number; lng: number; dcs: string; tone: string }>();
+    const existingCoordsMap = new Map<string, { lat: number; lng: number; dcs: string; tone: string; locator: string }>();
     try {
       const filter = region === 'all' ? {} : { country_code: { $in: regionCountryCodes } };
       for (let attempt = 0; attempt < 50; attempt++) {
@@ -214,9 +221,8 @@ export default async function(req) {
         for (const r of existing) {
           if (r.source_id === 'json-import') continue;
           const key = r.source_id || `${r.callsign}_${r.frequency}`;
-          if (r.lat != null && r.lng != null) {
-            existingCoordsMap.set(key, { lat: r.lat, lng: r.lng, dcs: r.dcs || '', tone: r.tone || '' });
-          }
+          // v0.9045: Store ALL existing records (not just those with coords) — tone/dcs/locator need preserving too
+          existingCoordsMap.set(key, { lat: r.lat, lng: r.lng, dcs: r.dcs || '', tone: r.tone || '', locator: r.locator || '' });
         }
         if (existing.length < 5000) break;
       }
@@ -443,6 +449,8 @@ export default async function(req) {
               if (detail.echolink_node) rep.echolink_node = detail.echolink_node;
               if (detail.network_links) rep.network_links = detail.network_links;
               if (detail.locator) rep.locator = detail.locator;
+              if (detail.tone) rep.tone = detail.tone;
+              if (detail.dcs) rep.dcs = detail.dcs;
               if (detail.has_emergency_power) {
                 rep.has_emergency_power = detail.has_emergency_power;
                 rep.power_source = detail.power_source;

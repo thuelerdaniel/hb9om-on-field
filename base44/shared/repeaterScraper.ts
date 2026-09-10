@@ -450,7 +450,7 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
 
 // ─── Detail page parser ───
 
-export function parseRepeaterDetail(html: string): { lat: number | null; lng: number | null; web_url: string | null; echolink_node: string | null; network_links: string; has_emergency_power: boolean; power_source: string; locator: string | null } {
+export function parseRepeaterDetail(html: string): { lat: number | null; lng: number | null; web_url: string | null; echolink_node: string | null; network_links: string; has_emergency_power: boolean; power_source: string; locator: string | null; tone: string | null; dcs: string | null } {
   let lat: number | null = null;
   let lng: number | null = null;
   let web_url: string | null = null;
@@ -459,7 +459,10 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
   let has_emergency_power = false;
   let power_source = 'unknown';
   let locator: string | null = null;
+  let tone: string | null = null;
+  let dcs: string | null = null;
 
+  // v0.9045: Multiple coordinate extraction patterns — RepeaterBook detail pages use different formats
   const gmMatch = html.match(/google\.com\/maps\/search\/[^"]*query=([\d.-]+)(?:%2C|,)([\d.-]+)/);
   if (gmMatch) {
     lat = parseFloat(gmMatch[1]);
@@ -471,6 +474,61 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
       lat = parseFloat(nrMatch[1]);
       lng = parseFloat(nrMatch[2]);
     }
+  }
+  // v0.9045: Leaflet map marker — L.marker([lat, lng], ...)
+  if (lat === null) {
+    const markerMatch = html.match(/L\.marker\(\[([\d.-]+),\s*([\d.-]+)\]/);
+    if (markerMatch) {
+      lat = parseFloat(markerMatch[1]);
+      lng = parseFloat(markerMatch[2]);
+    }
+  }
+  // v0.9045: setView([lat, lng], zoom)
+  if (lat === null) {
+    const setViewMatch = html.match(/setView\(\[([\d.-]+),\s*([\d.-]+)\]/);
+    if (setViewMatch) {
+      lat = parseFloat(setViewMatch[1]);
+      lng = parseFloat(setViewMatch[2]);
+    }
+  }
+  // v0.9045: data-lat / data-lng attributes
+  if (lat === null) {
+    const dataLatMatch = html.match(/data-lat=["']([\d.-]+)["']/i);
+    const dataLngMatch = html.match(/data-lng=["']([\d.-]+)["']/i) || html.match(/data-lon=["']([\d.-]+)["']/i);
+    if (dataLatMatch && dataLngMatch) {
+      lat = parseFloat(dataLatMatch[1]);
+      lng = parseFloat(dataLngMatch[1]);
+    }
+  }
+
+  // v0.9045: Extract CTCSS tone from detail page — multiple patterns
+  // Pattern 1: <th>Tone</th><td>88.5</td>
+  const toneThMatch = html.match(/<th[^>]*>\s*Tone\s*<\/th>\s*<td[^>]*>\s*([\d.]+)\s*<\/td>/i);
+  if (toneThMatch) tone = toneThMatch[1];
+  // Pattern 2: CTCSS: 88.5
+  if (!tone) {
+    const ctcssMatch = html.match(/CTCSS[:\s]+([\d.]+)/i);
+    if (ctcssMatch) tone = ctcssMatch[1];
+  }
+  // Pattern 3: PL: 88.5
+  if (!tone) {
+    const plMatch = html.match(/\bPL[:\s]+([\d.]+)/i);
+    if (plMatch) tone = plMatch[1];
+  }
+  // Pattern 4: Access: 88.5 (in the FM tab pane)
+  if (!tone) {
+    const accessMatch = html.match(/Access(?:\s*Code)?[:\s]+([\d.]+)\s*(?:<\/td>|$)/im);
+    if (accessMatch) tone = accessMatch[1];
+  }
+
+  // v0.9045: Extract DCS code from detail page
+  // Pattern 1: DCS: D023 or DCS: D023N
+  const dcsMatch = html.match(/DCS[:\s]+(D\d{3}[NI]?)/i);
+  if (dcsMatch) dcs = dcsMatch[1].toUpperCase();
+  // Pattern 2: <th>DCS</th><td>D023</td>
+  if (!dcs) {
+    const dcsThMatch = html.match(/<th[^>]*>\s*DCS\s*<\/th>\s*<td[^>]*>\s*(D\d{3}[NI]?)\s*<\/td>/i);
+    if (dcsThMatch) dcs = dcsThMatch[1].toUpperCase();
   }
 
   const webMatch = html.match(/Web links<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/);
@@ -527,7 +585,7 @@ export function parseRepeaterDetail(html: string): { lat: number | null; lng: nu
     if (power_source === 'unknown') power_source = 'netz';
   }
 
-  return { lat, lng, web_url, echolink_node, network_links, has_emergency_power, power_source, locator };
+  return { lat, lng, web_url, echolink_node, network_links, has_emergency_power, power_source, locator, tone, dcs };
 }
 
 // Parse the free-text network_links field into a list of linked repeater identifiers.
@@ -861,6 +919,8 @@ export async function fetchRepeaterData(): Promise<any[]> {
         if (detail.echolink_node) rep.echolink_node = detail.echolink_node;
         if (detail.network_links) rep.network_links = detail.network_links;
         if (detail.locator) rep.locator = detail.locator;
+        if (detail.tone) rep.tone = detail.tone;
+        if (detail.dcs) rep.dcs = detail.dcs;
         if (detail.has_emergency_power) {
           rep.has_emergency_power = detail.has_emergency_power;
           rep.power_source = detail.power_source;

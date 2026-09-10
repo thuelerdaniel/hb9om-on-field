@@ -79,27 +79,35 @@ export async function upsertPoints(
   }
 
   // 3. Update ReferenceData metadata record (references: [], just metadata)
-  try {
-    const now = new Date().toISOString();
-    const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
-    if (existing && existing.length > 0) {
-      await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
-        references: [],
-        total_count: created,
-        source,
-        last_updated: now
-      });
-    } else {
-      await base44.asServiceRole.entities.ReferenceData.create({
-        type: refType,
-        references: [],
-        total_count: created,
-        source,
-        last_updated: now
-      });
+  // v0.9045: Don't set total_count=0 if created=0 (preserves old value when batches fail)
+  // v0.9045: Delete duplicate ReferenceData records — keep only one per type
+  if (created > 0) {
+    try {
+      const now = new Date().toISOString();
+      const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
+      if (existing && existing.length > 0) {
+        // v0.9045: Delete duplicate records — keep only the first one
+        for (let i = 1; i < existing.length; i++) {
+          try { await base44.asServiceRole.entities.ReferenceData.delete(existing[i].id); } catch {}
+        }
+        await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
+          references: [],
+          total_count: created,
+          source,
+          last_updated: now
+        });
+      } else {
+        await base44.asServiceRole.entities.ReferenceData.create({
+          type: refType,
+          references: [],
+          total_count: created,
+          source,
+          last_updated: now
+        });
+      }
+    } catch (e) {
+      // Metadata update failure is non-fatal — points are already saved
     }
-  } catch (e) {
-    // Metadata update failure is non-fatal — points are already saved
   }
 
   return { created, total: points.length, error: created < points.length ? lastError : undefined };
@@ -195,11 +203,15 @@ export async function upsertPointsByCode(
   }
 
   // 5. Update ReferenceData metadata record
+  // v0.9045: Delete duplicate ReferenceData records — keep only one per type
   try {
     const now = new Date().toISOString();
     const totalCount = existingMap.size + created;
     const existingMeta = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
     if (existingMeta && existingMeta.length > 0) {
+      for (let i = 1; i < existingMeta.length; i++) {
+        try { await base44.asServiceRole.entities.ReferenceData.delete(existingMeta[i].id); } catch {}
+      }
       await base44.asServiceRole.entities.ReferenceData.update(existingMeta[0].id, {
         references: [],
         total_count: totalCount,

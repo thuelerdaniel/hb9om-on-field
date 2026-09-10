@@ -8,7 +8,7 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9044";
+export const APP_VERSION = "0.9045";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
@@ -18,6 +18,18 @@ export const APP_BUILD = "202609101436";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9045: REPEATER-FIX — buildRecord erhält jetzt auch tone und locator aus existingCoordsMap (vorher nur DCS, tone wurde mit leer überschrieben)",
+  "v0.9045: REPEATER-FIX — DETAIL_PER_COUNTRY von 50 auf 500 erhöht (vorher nur 50 Detailseiten pro Land = nur 50 hatten Koordinaten)",
+  "v0.9045: REPEATER-FIX — parseRepeaterDetail extrahiert jetzt tone und DCS von Detailseiten (vorher fehlten diese Felder komplett)",
+  "v0.9045: REPEATER-FIX — existingCoordsMap speichert jetzt ALLE Records (nicht nur die mit Koordinaten) — tone/dcs/locator werden immer erhalten",
+  "v0.9045: REPEATER-FIX — Koordinaten-Extraktion erweitert: L.marker, setView, data-lat/data-lng Patterns hinzugefügt",
+  "v0.9045: REFERENCE-DATA-FIX — upsertPoints setzt total_count nicht mehr auf 0 wenn alle Batches fehlschlagen (vorher: ReferenceData zeigte 0 obwohl 90k Points in DB)",
+  "v0.9045: REFERENCE-DATA-FIX — upsertPoints und upsertPointsByCode löschen jetzt Duplikat-ReferenceData-Records (vorher: alte + neue Records nebeneinander)",
+  "v0.9045: NAVIGATION-FIX — Menü-Leiste unten: min 48x48px Touch-Target (vorher 44px), z-index 1100 (vorher 1000), touch-manipulation aktiviert",
+  "v0.9045: NAVIGATION-FIX — Icons von 4px auf 5px vergrößert, justify-center + py-2 für volle Klickfläche",
+  "v0.9045: INFO-MAIL — Bei jedem geplanten Sync-Lauf (Montag + Donnerstag) geht eine aggregierte Mail an thueler.daniel@gmail.com",
+  "v0.9045: INFO-MAIL — Inhalt: alle Quellen mit Status/Anzahl/Dauer/Fehlern, eine Mail pro Lauf (nicht pro Quelle)",
+  "v0.9045: INFO-MAIL — Kein Versand bei manuellen Syncs (nur scheduled), Duplikat-Schutz durch AppSetting-Marker",
   "v0.9044: SCHEDULER-REPARATUR — dailyRefreshOrchestrator setzt weekly_days jetzt ['Monday','Thursday'] für EU-Relais-Quellen (vorher nur ['Monday'] → Donnerstag-Sync lief nie)",
   "v0.9044: SCHEDULER-REPARATUR — repeater_eu_priority1, eu_priority2, uk, fm_funknetz, ch_repeater_links laufen jetzt auch am Donnerstag (03:00-04:00 UTC Teilsync)",
   "v0.9044: REPEATER-KOORDINATEN-FIX — fetchRepeaters speichert existingCoordsMap VOR dem Löschen und stellt lat/lng aus bestehenden Records wieder her (niemals null überschreiben)",
