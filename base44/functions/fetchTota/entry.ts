@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 
 // LV95 (Swiss Grid 1995) → WGS84 conversion
 // Formula from swisstopo (Federal Office of Topography)
@@ -326,12 +325,26 @@ export default async function (req) {
           for (const w of worldwide) {
             w.last_synced = syncDate;
           }
-          // Use upsertPointsByCode: updates existing records by code, creates only new ones.
-          // No duplicates can accumulate even on timeout — no delete phase needed.
-          const result = await upsertPointsByCode(base44, 'TotaPoint', 'tota', worldwide, 'wwtota.com');
-          worldwideImported = result.created + result.updated;
-          if (result.error) {
-            errors.push('Worldwide save: ' + result.error);
+          // v0.9044: Batched save — delete old worldwide records, then create in batches of 100.
+          // Avoids MongoDB timeout from loading ALL existing records (upsertPointsByCode).
+          // Per-batch error handling: a slow DB moment kills one batch, not the whole save.
+          try {
+            await base44.asServiceRole.entities.TotaPoint.deleteMany({ source: 'wwtota.com' });
+          } catch {}
+          const TOTA_BATCH = 100;
+          let lastBatchError: string | undefined;
+          for (let i = 0; i < worldwide.length; i += TOTA_BATCH) {
+            try {
+              const batch = worldwide.slice(i, i + TOTA_BATCH);
+              await base44.asServiceRole.entities.TotaPoint.bulkCreate(batch);
+              worldwideImported += batch.length;
+            } catch (e: any) {
+              lastBatchError = e.message || String(e);
+              // Continue with next batch — partial data is better than none
+            }
+          }
+          if (lastBatchError && worldwideImported < worldwide.length) {
+            errors.push(`Worldwide save: ${worldwideImported}/${worldwide.length} saved — last batch error: ${lastBatchError}`);
           }
         }
       } catch (e) {

@@ -250,8 +250,9 @@ export default async function(req: Request): Promise<Response> {
       const safeUpdate = async (...args: Parameters<typeof updateStatus>) => {
         try { await updateStatus(...args); } catch (e: any) { if (String(e?.message || e) !== 'Rate limit exceeded') console.error(`[DataSourceStatus] ${args[0]}:`, e?.message || e); }
       };
-      await safeUpdate('LLOTA Spots (llota.app)', 'API', 'https://llota.app/api/spots', llotaSpots.length > 0, llotaSpots.length, llotaWarning);
-      await safeUpdate('LLOTA Spots (Spothole)', 'API', 'https://spothole.app/api/v2/spots?sig=LLOTA', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
+      // v0.9044: Empty spot arrays are OK (HTTP 200 = source reachable), not FAIL
+      await safeUpdate('LLOTA Spots (llota.app)', 'API', 'https://llota.app/api/spots', !llotaWarning, llotaSpots.length, llotaWarning);
+      await safeUpdate('LLOTA Spots (Spothole)', 'API', 'https://spothole.app/api/v2/spots?sig=LLOTA', !spotholeWarning, spotholeSpots.length, spotholeWarning);
     } catch {}
 
     // BUG 2: Update DailyRefreshSchedule with success status + error logging

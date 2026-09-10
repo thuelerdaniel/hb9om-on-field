@@ -149,12 +149,18 @@ export default async function(req: Request): Promise<Response> {
       // so runDailySyncBatch includes lighthouses and LLOTA refs.
       // APRS and LLOTA spots run via separate daily/hourly automations.
       const isDailySource = src.source === 'aprs' || src.source === 'llota_spots';
+      // v0.9044: Thursday partial sync for EU repeaters + CH links + FM-Funknetz
+      const THURSDAY_SOURCES = new Set([
+        'repeater_eu_priority1', 'repeater_eu_priority2', 'repeater_uk',
+        'fm_funknetz', 'ch_repeater_links'
+      ]);
+      const isThursdaySource = THURSDAY_SOURCES.has(src.source);
       const recordData = {
         source: src.source,
         label: src.label,
         enabled: true,
         weekly_enabled: isDailySource ? false : true,
-        weekly_days: isDailySource ? [] : ['Monday'],
+        weekly_days: isDailySource ? [] : (isThursdaySource ? ['Monday', 'Thursday'] : ['Monday']),
         function_name: src.function_name,
         function_payload: src.function_payload,
         scheduled_time_utc: scheduledTime,

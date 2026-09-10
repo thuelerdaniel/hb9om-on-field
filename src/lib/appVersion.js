@@ -8,16 +8,25 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9043";
+export const APP_VERSION = "0.9044";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609090500";
+export const APP_BUILD = "202609101436";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9044: SCHEDULER-REPARATUR — dailyRefreshOrchestrator setzt weekly_days jetzt ['Monday','Thursday'] für EU-Relais-Quellen (vorher nur ['Monday'] → Donnerstag-Sync lief nie)",
+  "v0.9044: SCHEDULER-REPARATUR — repeater_eu_priority1, eu_priority2, uk, fm_funknetz, ch_repeater_links laufen jetzt auch am Donnerstag (03:00-04:00 UTC Teilsync)",
+  "v0.9044: REPEATER-KOORDINATEN-FIX — fetchRepeaters speichert existingCoordsMap VOR dem Löschen und stellt lat/lng aus bestehenden Records wieder her (niemals null überschreiben)",
+  "v0.9044: REPEATER-KOORDINATEN-FIX — DCS-Werte aus bestehenden Records werden erhalten wenn RepeaterBook keine neuen liefert",
+  "v0.9044: REPEATER-KOORDINATEN-FIX — Locator→Koordinaten Ableitung bleibt aktiv, existingCoordsMap als zweite Fallback-Stufe",
+  "v0.9044: TOTA-BATCH-SAVE — fetchTota worldwide speichert in 100er-Batches mit per-Batch Fehlerbehandlung (vorher upsertPointsByCode mit MongoDB-Timeout)",
+  "v0.9044: TOTA-BATCH-SAVE — Delete-then-create Pattern ersetzt upsertPointsByCode (kein Laden aller existing Records nötig = keine MongoDB-Timeouts)",
+  "v0.9044: LLOTA-STATUS-FIX — Leere Spot-Arrays (HTTP 200, 0 Spots) werden als OK gewertet, nicht als FAIL",
+  "v0.9044: HB9-DX-CLUSTER — ham-radio.ch:7300, hb9bza.net:7300, spider.ham-radio.ch:7300 deaktiviert (raw TCP nicht unterstützt)",
   "v0.9043: CONTEST-EIGENE TABELLE — Contest-Bereich ist kein Tab in der Hunting-Tabelle mehr, sondern eine eigenständige Tabelle/Ansicht",
   "v0.9043: CONTEST-EIGENE TABELLE — Sortierbare Spalten: Name, Sponsor, Modus, Bänder, Datum/Zeit (UTC+lokal), Dauer, Status/Countdown",
   "v0.9043: CONTEST-EIGENE TABELLE — Standard-Sortierung Datum aufsteigend; sortierbar nach Name, Modus, Dauer",

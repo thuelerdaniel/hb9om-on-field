@@ -101,7 +101,7 @@ async function fetchWithTimeout(url: string, opts?: any): Promise<Response | nul
   }
 }
 
-function buildRecord(r: any) {
+function buildRecord(r: any, existingCoordsMap?: Map<string, { lat: number; lng: number; dcs: string; tone: string }>) {
   // Apply Maidenhead locator → coords for repeaters without coordinates
   if ((r.lat === null || r.lng === null) && r.locator) {
     const coords = maidenheadToLatLng(r.locator);
@@ -109,6 +109,15 @@ function buildRecord(r: any) {
       r.lat = coords[0];
       r.lng = coords[1];
       r.coords_from_locator = true;
+    }
+  }
+  // v0.9044: Preserve existing lat/lng if new data still doesn't have them (never overwrite with null!)
+  if ((r.lat === null || r.lng === null) && existingCoordsMap) {
+    const key = r.sourceId || `${r.callsign}_${r.frequency}`;
+    const existing = existingCoordsMap.get(key);
+    if (existing && existing.lat != null && existing.lng != null) {
+      r.lat = existing.lat;
+      r.lng = existing.lng;
     }
   }
   // Validate coordinates — null out invalid ones (0,0 = Null Island, NaN, out of range)
@@ -119,12 +128,21 @@ function buildRecord(r: any) {
       r.lng = null;
     }
   }
+  // v0.9044: Preserve existing DCS if new data doesn't have it
+  let dcs = r.dcs || '';
+  if (!dcs && existingCoordsMap) {
+    const key = r.sourceId || `${r.callsign}_${r.frequency}`;
+    const existing = existingCoordsMap.get(key);
+    if (existing && existing.dcs) {
+      dcs = existing.dcs;
+    }
+  }
   return {
     callsign: r.callsign,
     frequency: r.frequency,
     offset_mhz: r.offset_mhz || 0,
     tone: r.tone || '',
-    dcs: r.dcs || '',
+    dcs,
     modes: r.modes || ['FM'],
     primary_mode: r.primary_mode || 'FM',
     location_name: r.location_name || '',
@@ -185,6 +203,24 @@ export default async function(req) {
     let isNARegion = region === 'na_us' || region === 'na_ca';
     let naHasMore = false;
     let naStatesProcessed = 0;
+
+    // --- Step 0: v0.9044 — Save existing lat/lng/dcs BEFORE delete (preserve coordinates) ---
+    const existingCoordsMap = new Map<string, { lat: number; lng: number; dcs: string; tone: string }>();
+    try {
+      const filter = region === 'all' ? {} : { country_code: { $in: regionCountryCodes } };
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const existing = await base44.asServiceRole.entities.Repeater.filter(filter, "-created_date", 5000, attempt * 5000);
+        if (!existing || existing.length === 0) break;
+        for (const r of existing) {
+          if (r.source_id === 'json-import') continue;
+          const key = r.source_id || `${r.callsign}_${r.frequency}`;
+          if (r.lat != null && r.lng != null) {
+            existingCoordsMap.set(key, { lat: r.lat, lng: r.lng, dcs: r.dcs || '', tone: r.tone || '' });
+          }
+        }
+        if (existing.length < 5000) break;
+      }
+    } catch {}
 
     // --- Step 1: Delete existing repeaters for this region ---
     currentStep = 'delete_existing';
@@ -265,7 +301,7 @@ export default async function(req) {
           return true;
         });
         // Save UK repeaters
-        const ukRecords = ukRepeaters.map(buildRecord);
+        const ukRecords = ukRepeaters.map(r => buildRecord(r, existingCoordsMap));
         const { toCreate: ukToCreate, protectedCount: ukProt } = filterProtected(ukRecords, protectionSet);
         jsonProtected += ukProt;
         for (let i = 0; i < ukToCreate.length; i += 500) {
@@ -416,7 +452,7 @@ export default async function(req) {
         }
 
         // Build records and save
-        const records = batchRepeaters.map(buildRecord);
+        const records = batchRepeaters.map(r => buildRecord(r, existingCoordsMap));
         const { toCreate: rbToCreate, protectedCount: rbProt } = filterProtected(records, protectionSet);
         jsonProtected += rbProt;
         for (let j = 0; j < rbToCreate.length; j += 500) {

@@ -472,6 +472,19 @@ export default async function(req: Request): Promise<Response> {
       await safeUpdate('DX-Cluster (jo30.de)', 'DXCLUSTER', 'https://dxc.jo30.de/dxcache/spots', joSpots.length > 0, joSpots.length, apiWarning);
       await safeUpdate('Spothole (SIG-Filter)', 'API', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
       await safeUpdate('DX-Cluster (IZ3MEZ)', 'DXCLUSTER', 'https://web.cluster.iz3mez.it/spots.json', izSpots.length > 0, izSpots.length, izWarning);
+
+      // v0.9044: Deactivate HB9 DX cluster sources (raw TCP not supported by platform)
+      try {
+        const allSources = await base44.asServiceRole.entities.DataSourceStatus.list('source_name', 200);
+        for (const s of (allSources || [])) {
+          const nameOrUrl = (s.source_name || '') + ' ' + (s.url || '');
+          if (nameOrUrl.includes('ham-radio.ch') || nameOrUrl.includes('hb9bza') || nameOrUrl.includes('spider.ham-radio')) {
+            if (s.is_active !== false) {
+              await base44.asServiceRole.entities.DataSourceStatus.update(s.id, { is_active: false, status: 'DISCONNECTED', error_message: 'Deaktiviert: raw TCP wird von der Plattform nicht unterstützt' });
+            }
+          }
+        }
+      } catch {}
     } catch {}
 
     return Response.json({
