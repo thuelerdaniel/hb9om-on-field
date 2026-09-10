@@ -101,7 +101,7 @@ async function fetchWithTimeout(url: string, opts?: any): Promise<Response | nul
   }
 }
 
-function buildRecord(r: any, existingCoordsMap?: Map<string, { lat: number; lng: number; dcs: string; tone: string }>) {
+function buildRecord(r: any, existingBySourceId?: Map<string, any>, existingByCallsign?: Map<string, any>) {
   // Apply Maidenhead locator → coords for repeaters without coordinates
   if ((r.lat === null || r.lng === null) && r.locator) {
     const coords = maidenheadToLatLng(r.locator);
@@ -111,10 +111,18 @@ function buildRecord(r: any, existingCoordsMap?: Map<string, { lat: number; lng:
       r.coords_from_locator = true;
     }
   }
-  // v0.9044: Preserve existing lat/lng if new data still doesn't have them (never overwrite with null!)
-  if ((r.lat === null || r.lng === null) && existingCoordsMap) {
+  // v0.9046: Preserve existing lat/lng — try source_id key first
+  if ((r.lat === null || r.lng === null) && existingBySourceId) {
     const key = r.sourceId || `${r.callsign}_${r.frequency}`;
-    const existing = existingCoordsMap.get(key);
+    const existing = existingBySourceId.get(key);
+    if (existing && existing.lat != null && existing.lng != null) {
+      r.lat = existing.lat;
+      r.lng = existing.lng;
+    }
+  }
+  // v0.9046: Callsign-based fallback — same callsign on different band = same site
+  if ((r.lat === null || r.lng === null) && existingByCallsign) {
+    const existing = existingByCallsign.get(r.callsign);
     if (existing && existing.lat != null && existing.lng != null) {
       r.lat = existing.lat;
       r.lng = existing.lng;
@@ -128,19 +136,24 @@ function buildRecord(r: any, existingCoordsMap?: Map<string, { lat: number; lng:
       r.lng = null;
     }
   }
-  // v0.9044: Preserve existing DCS if new data doesn't have it
+  // v0.9046: Preserve DCS/tone/locator from existing records — source_id first, then callsign
   let dcs = r.dcs || '';
   let tone = r.tone || '';
   let locator = r.locator || '';
-  if (existingCoordsMap) {
+  if (existingBySourceId) {
     const key = r.sourceId || `${r.callsign}_${r.frequency}`;
-    const existing = existingCoordsMap.get(key);
+    const existing = existingBySourceId.get(key);
     if (existing) {
-      // v0.9045: Preserve DCS from existing record
       if (!dcs && existing.dcs) dcs = existing.dcs;
-      // v0.9045: Preserve tone from existing record (was missing in v0.9044!)
       if (!tone && existing.tone) tone = existing.tone;
-      // v0.9045: Preserve locator from existing record
+      if (!locator && existing.locator) locator = existing.locator;
+    }
+  }
+  if (existingByCallsign && (!tone || !dcs || !locator)) {
+    const existing = existingByCallsign.get(r.callsign);
+    if (existing) {
+      if (!tone && existing.tone) tone = existing.tone;
+      if (!dcs && existing.dcs) dcs = existing.dcs;
       if (!locator && existing.locator) locator = existing.locator;
     }
   }
@@ -211,18 +224,23 @@ export default async function(req) {
     let naHasMore = false;
     let naStatesProcessed = 0;
 
-    // --- Step 0: v0.9044 — Save existing lat/lng/dcs BEFORE delete (preserve coordinates) ---
-    const existingCoordsMap = new Map<string, { lat: number; lng: number; dcs: string; tone: string; locator: string }>();
+    // --- Step 0: v0.9046 — Save existing coords/tone/dcs BEFORE delete ---
+    // Two maps: by source_id (exact match) and by callsign (cross-band fallback)
+    const existingBySourceId = new Map<string, any>();
+    const existingByCallsign = new Map<string, any>();
     try {
       const filter = region === 'all' ? {} : { country_code: { $in: regionCountryCodes } };
       for (let attempt = 0; attempt < 50; attempt++) {
         const existing = await base44.asServiceRole.entities.Repeater.filter(filter, "-created_date", 5000, attempt * 5000);
         if (!existing || existing.length === 0) break;
         for (const r of existing) {
-          if (r.source_id === 'json-import') continue;
-          const key = r.source_id || `${r.callsign}_${r.frequency}`;
-          // v0.9045: Store ALL existing records (not just those with coords) — tone/dcs/locator need preserving too
-          existingCoordsMap.set(key, { lat: r.lat, lng: r.lng, dcs: r.dcs || '', tone: r.tone || '', locator: r.locator || '' });
+          // v0.9046: DON'T skip json-import — their coords are valuable fallback for same callsign
+          const sourceKey = r.source_id || `${r.callsign}_${r.frequency}`;
+          existingBySourceId.set(sourceKey, { lat: r.lat, lng: r.lng, dcs: r.dcs || '', tone: r.tone || '', locator: r.locator || '' });
+          // v0.9046: Callsign-based map — first record with coords wins (same site, different band)
+          if (r.lat != null && r.lng != null && !existingByCallsign.has(r.callsign)) {
+            existingByCallsign.set(r.callsign, { lat: r.lat, lng: r.lng, dcs: r.dcs || '', tone: r.tone || '', locator: r.locator || '' });
+          }
         }
         if (existing.length < 5000) break;
       }
@@ -307,7 +325,7 @@ export default async function(req) {
           return true;
         });
         // Save UK repeaters
-        const ukRecords = ukRepeaters.map(r => buildRecord(r, existingCoordsMap));
+        const ukRecords = ukRepeaters.map(r => buildRecord(r, existingBySourceId, existingByCallsign));
         const { toCreate: ukToCreate, protectedCount: ukProt } = filterProtected(ukRecords, protectionSet);
         jsonProtected += ukProt;
         for (let i = 0; i < ukToCreate.length; i += 500) {
@@ -464,7 +482,7 @@ export default async function(req) {
         }
 
         // Build records and save
-        const records = batchRepeaters.map(r => buildRecord(r, existingCoordsMap));
+        const records = batchRepeaters.map(r => buildRecord(r, existingBySourceId, existingByCallsign));
         const { toCreate: rbToCreate, protectedCount: rbProt } = filterProtected(records, protectionSet);
         jsonProtected += rbProt;
         for (let j = 0; j < rbToCreate.length; j += 500) {

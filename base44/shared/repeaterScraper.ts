@@ -367,16 +367,21 @@ export function parseRepeaterList(html: string, countryCode: string, countryName
 
     // US/Canada format has an extra "County" column — callsign is at index 5 instead of 4
     const callsignIdx = hasCountyColumn ? 5 : 4;
-    let tone = cells[2] || '';
     const locationName = cells[3] || '';
     const callsign = cells[callsignIdx] || '';
 
-    // DCS code: RepeaterBook tone column may contain "D023" instead of CTCSS
+    // v0.9046: Clean tone parsing — extract CTCSS and DCS from raw tone cell.
+    // RepeaterBook tone column may contain: "88.5", "CC 1 67.0", "D023", "CC 3", ""
+    const rawTone = cells[2] || '';
+    let tone = '';
     let dcs: string | null = null;
-    if (tone && /^(D\d{3}|D\d{3}[NI])$/i.test(tone)) {
-      dcs = tone.toUpperCase();
-      tone = '';
-    }
+    // DCS code (D### or D###N or D###I) anywhere in the tone field
+    const dcsMatch = rawTone.match(/(D\d{3}[NI]?)/i);
+    if (dcsMatch) dcs = dcsMatch[1].toUpperCase();
+    // CTCSS frequency (number with decimal, like 88.5, 67.0, 123.5)
+    const ctcssMatch = rawTone.match(/(\d{2,3}\.\d)/);
+    if (ctcssMatch) tone = ctcssMatch[1];
+    // "CC X" (DMR color code only) → tone stays empty (no analog CTCSS)
 
     if (!callsign || !frequency) continue;
 

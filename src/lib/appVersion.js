@@ -8,16 +8,23 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9045";
+export const APP_VERSION = "0.9046";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609101436";
+export const APP_BUILD = "202609101744";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9046: REPEATER-MAPPING-FIX (3. Versuch) — Tone-Parsing extrahiert jetzt CTCSS aus 'CC 1 67.0' (vorher: 'CC 1 67.0' als Tone gespeichert)",
+  "v0.9046: REPEATER-MAPPING-FIX — DCS-Code wird aus beliebigen Tone-Feldern extrahiert (D### Pattern), nicht nur wenn das ganze Feld DCS ist",
+  "v0.9046: REPEATER-MAPPING-FIX — json-import-Records werden NICHT mehr übersprungen — ihre Koordinaten sind wertvoller Fallback",
+  "v0.9046: REPEATER-MAPPING-FIX — Callsign-basierte Koordinaten-Fallback: DB0REU 70cm bekommt Koords von DB0REU 23cm (gleicher Standort)",
+  "v0.9046: REPEATER-MAPPING-FIX — Two-Map-Strategie: existingBySourceId (exakt) + existingByCallsign (Cross-Band-Fallback)",
+  "v0.9046: REFERENCE-DATA-FIX — total_count ist jetzt die ECHTE Entity-Record-Anzahl (gecountet), nicht der Batch-Zähler",
+  "v0.9046: REFERENCE-DATA-FIX — upsertPoints und upsertPointsByCode zählen Entity-Records nach dem Upsert (8s Zeitbudget)",
   "v0.9045: REPEATER-FIX — buildRecord erhält jetzt auch tone und locator aus existingCoordsMap (vorher nur DCS, tone wurde mit leer überschrieben)",
   "v0.9045: REPEATER-FIX — DETAIL_PER_COUNTRY von 50 auf 500 erhöht (vorher nur 50 Detailseiten pro Land = nur 50 hatten Koordinaten)",
   "v0.9045: REPEATER-FIX — parseRepeaterDetail extrahiert jetzt tone und DCS von Detailseiten (vorher fehlten diese Felder komplett)",

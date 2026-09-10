@@ -79,20 +79,33 @@ export async function upsertPoints(
   }
 
   // 3. Update ReferenceData metadata record (references: [], just metadata)
-  // v0.9045: Don't set total_count=0 if created=0 (preserves old value when batches fail)
+  // v0.9046: Count ACTUAL entity records (not batch count) for accurate total_count
   // v0.9045: Delete duplicate ReferenceData records — keep only one per type
   if (created > 0) {
     try {
       const now = new Date().toISOString();
+      // v0.9046: Count actual entity records with a 8s time budget
+      let actualCount = 0;
+      const countStart = Date.now();
+      try {
+        for (let page = 0; page < 200; page++) {
+          if (Date.now() - countStart > 8000) break;
+          const batch = await entity.filter({}, '-created_date', 5000, page * 5000);
+          if (!batch || batch.length === 0) break;
+          actualCount += batch.length;
+          if (batch.length < 5000) break;
+        }
+      } catch {}
+      const finalTotalCount = actualCount > 0 ? actualCount : created;
+
       const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
       if (existing && existing.length > 0) {
-        // v0.9045: Delete duplicate records — keep only the first one
         for (let i = 1; i < existing.length; i++) {
           try { await base44.asServiceRole.entities.ReferenceData.delete(existing[i].id); } catch {}
         }
         await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
           references: [],
-          total_count: created,
+          total_count: finalTotalCount,
           source,
           last_updated: now
         });
@@ -100,7 +113,7 @@ export async function upsertPoints(
         await base44.asServiceRole.entities.ReferenceData.create({
           type: refType,
           references: [],
-          total_count: created,
+          total_count: finalTotalCount,
           source,
           last_updated: now
         });
@@ -203,10 +216,23 @@ export async function upsertPointsByCode(
   }
 
   // 5. Update ReferenceData metadata record
+  // v0.9046: Count ACTUAL entity records (not existingMap.size + created) for accurate total_count
   // v0.9045: Delete duplicate ReferenceData records — keep only one per type
   try {
     const now = new Date().toISOString();
-    const totalCount = existingMap.size + created;
+    // v0.9046: Count actual entity records with a 8s time budget
+    let actualCount = 0;
+    const countStart = Date.now();
+    try {
+      for (let page = 0; page < 200; page++) {
+        if (Date.now() - countStart > 8000) break;
+        const batch = await entity.filter({}, '-created_date', 5000, page * 5000);
+        if (!batch || batch.length === 0) break;
+        actualCount += batch.length;
+        if (batch.length < 5000) break;
+      }
+    } catch {}
+    const totalCount = actualCount > 0 ? actualCount : (existingMap.size + created);
     const existingMeta = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
     if (existingMeta && existingMeta.length > 0) {
       for (let i = 1; i < existingMeta.length; i++) {
