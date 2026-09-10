@@ -101,6 +101,14 @@ async function fetchWithTimeout(url: string, opts?: any): Promise<Response | nul
   }
 }
 
+// v0.9046: Validate tone — only preserve valid CTCSS/DCS from existing records
+function isValidTone(tone: string): boolean {
+  if (!tone) return false;
+  if (/^\d{2,3}\.\d$/.test(tone)) return true;  // CTCSS: 88.5, 67.0, 123.5
+  if (/^D\d{3}[NI]?$/i.test(tone)) return true;  // DCS: D023, D023N
+  return false;
+}
+
 function buildRecord(r: any, existingBySourceId?: Map<string, any>, existingByCallsign?: Map<string, any>) {
   // Apply Maidenhead locator → coords for repeaters without coordinates
   if ((r.lat === null || r.lng === null) && r.locator) {
@@ -145,14 +153,15 @@ function buildRecord(r: any, existingBySourceId?: Map<string, any>, existingByCa
     const existing = existingBySourceId.get(key);
     if (existing) {
       if (!dcs && existing.dcs) dcs = existing.dcs;
-      if (!tone && existing.tone) tone = existing.tone;
+      // v0.9046: Only preserve valid CTCSS/DCS tones (not "CC 1 NAC 923 RAN 1" garbage)
+      if (!tone && existing.tone && isValidTone(existing.tone)) tone = existing.tone;
       if (!locator && existing.locator) locator = existing.locator;
     }
   }
   if (existingByCallsign && (!tone || !dcs || !locator)) {
     const existing = existingByCallsign.get(r.callsign);
     if (existing) {
-      if (!tone && existing.tone) tone = existing.tone;
+      if (!tone && existing.tone && isValidTone(existing.tone)) tone = existing.tone;
       if (!dcs && existing.dcs) dcs = existing.dcs;
       if (!locator && existing.locator) locator = existing.locator;
     }
@@ -433,6 +442,26 @@ export default async function(req) {
         let batchRepeaters: any[] = [];
         for (const reps of results) batchRepeaters.push(...reps);
         if (batchRepeaters.length === 0) continue;
+
+        // v0.9046: Deduplicate by callsign+frequency — RepeaterBook has duplicate entries
+        // Keep the one with coords, or valid CTCSS tone, or on-air status
+        const byDedupKey = new Map<string, any>();
+        for (const rep of batchRepeaters) {
+          const dkey = `${rep.callsign}_${rep.frequency}`;
+          if (!byDedupKey.has(dkey)) {
+            byDedupKey.set(dkey, rep);
+          } else {
+            const prev = byDedupKey.get(dkey);
+            const repHasCoords = rep.lat != null && rep.lng != null;
+            const prevHasCoords = prev.lat != null && prev.lng != null;
+            const repHasTone = !!(rep.tone && /^\d{2,3}\.\d$/.test(rep.tone));
+            const prevHasTone = !!(prev.tone && /^\d{2,3}\.\d$/.test(prev.tone));
+            if ((repHasCoords && !prevHasCoords) || (repHasTone && !prevHasTone && !prevHasCoords)) {
+              byDedupKey.set(dkey, rep);
+            }
+          }
+        }
+        batchRepeaters = Array.from(byDedupKey.values());
 
         // For Priority 1 countries, fetch a few detail pages for coordinates
         const toDetail = batchRepeaters.filter(r => priority1Codes.has(r._entryCode || r.country_code));
