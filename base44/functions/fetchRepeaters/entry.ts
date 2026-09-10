@@ -11,7 +11,7 @@ import { loadProtectionSet, filterProtected } from '../../shared/syncProtection.
 const FETCH_TIMEOUT_MS = 5000;
 const BATCH_SIZE = 10;        // Countries per batch — keeps memory low
 const DETAIL_BATCH = 6;       // Priority 1 countries get detail pages
-const DETAIL_PER_COUNTRY = 500; // v0.9045: Increased from 50 to 500 — Priority-1 countries need coords for most repeaters
+const DETAIL_PER_COUNTRY = 50; // v0.9045: 50 per country — batched concurrency (20 at a time) prevents rate-limiting, so 50 now succeeds (before: 50 fired all at once = most rate-limited)
 
 // Fix 8: US RepeaterBook JSON API — state-by-state fetching.
 // The HTML scraping times out for USA (~20K+ repeaters). The JSON API is faster.
@@ -434,8 +434,11 @@ export default async function(req) {
             });
             toFetch.push(...reps.slice(0, DETAIL_PER_COUNTRY));
           }
-          // Fetch detail pages (concurrent)
-          await Promise.all(toFetch.map(async (rep: any) => {
+          // v0.9045: Fetch detail pages in BATCHED concurrency (10 at a time) — prevents RepeaterBook rate-limiting (429)
+          const DETAIL_CONCURRENCY = 20;
+          for (let d = 0; d < toFetch.length; d += DETAIL_CONCURRENCY) {
+            const detailChunk = toFetch.slice(d, d + DETAIL_CONCURRENCY);
+            await Promise.all(detailChunk.map(async (rep: any) => {
             try {
               const resp = await fetchWithTimeout(rep.detailUrl, {
                 headers: { 'User-Agent': 'HB9OM-OnField/1.0 (amateur radio mapping app)', Accept: 'text/html' },
@@ -456,7 +459,8 @@ export default async function(req) {
                 rep.power_source = detail.power_source;
               }
             } catch {}
-          }));
+            }));
+          }
         }
 
         // Build records and save
