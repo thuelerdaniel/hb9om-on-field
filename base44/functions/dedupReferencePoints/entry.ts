@@ -89,13 +89,8 @@ export default async function(req: any) {
         }
       }
 
-      // Early stopping: 3 consecutive batches with no new unique codes
-      if (newCodesInBatch === 0) {
-        noNewCodesStreak++;
-        if (noNewCodesStreak >= 3 && totalScanned > bestMap.size * 2) break;
-      } else {
-        noNewCodesStreak = 0;
-      }
+      // v0.95: No early stopping for dedup — must scan ALL records to find all duplicates
+      // The 280s time budget is the real limit
 
       if (batch.length < LOAD_BATCH) break;
     }
