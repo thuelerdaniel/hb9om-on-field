@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { fetchPotaParks, POTA_ENTITIES } from '../../shared/potaFetcher.ts';
-import { upsertPoints } from '../../shared/pointUpsert.ts';
+import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 import { isInternalCall } from '../../shared/internalAuth.ts';
 
 Deno.serve(async (req) => {
@@ -59,10 +59,12 @@ Deno.serve(async (req) => {
         parkType: p.parkType || '',
         active: p.active !== false,
       }));
-      const upsertResult = await upsertPoints(base44, 'PotaPoint', 'pota', points, 'api.pota.app');
+      // v0.95: upsertPointsByCode — update in place by code, no duplicates on timeout
+      const upsertResult = await upsertPointsByCode(base44, 'PotaPoint', 'pota', points, 'api.pota.app');
       return Response.json({
         saved: true,
-        count: upsertResult.created,
+        created: upsertResult.created,
+        updated: upsertResult.updated,
         total: upsertResult.total,
         entity_count: entityCodes.length,
         error: upsertResult.error

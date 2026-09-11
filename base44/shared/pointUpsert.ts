@@ -279,7 +279,7 @@ export async function loadAllPoints(
   // Skip-based pagination: list(sort, limit, skip) — the SDK's 3rd arg is skip.
   // Cursor-based pagination on created_date/id doesn't work ($lt not supported by SDK filter).
   const LIMIT = 5000;
-  const MAX_PAGES = 60; // 60 * 5000 = 300k records max
+  const MAX_PAGES = 200; // v0.95: 200 * 5000 = 1M records max — handles post-dedup large datasets
   const allPoints: any[] = [];
 
   try {

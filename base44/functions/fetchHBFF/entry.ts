@@ -1,35 +1,40 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { fetchWwffData } from '../../shared/referenceFetchers.ts';
-import { upsertPoints } from '../../shared/pointUpsert.ts';
+import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
+import { isInternalCall } from '../../shared/internalAuth.ts';
 
 // WWFF (World Wide Flora & Fauna) — worldwide data source.
-// Replaces the former Swiss-only HBFF (hbff.ch) with the global WWFF directory CSV.
-// The WWFF CSV contains 40,000+ nature reserves worldwide with coordinates.
+// v0.95: Uses upsertPointsByCode (update in place by code) — no more duplicates on timeout.
 // CSV source: https://wwff.co/wwff-data/wwff_directory.csv
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const isAuthed = await base44.auth.isAuthenticated();
-    if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    let body: any = {};
+    try { body = await req.json(); } catch {}
+
+    if (!isInternalCall(body)) {
+      const isAuthed = await base44.auth.isAuthenticated();
+      if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // Fetch worldwide WWFF references
     const references = await fetchWwffData();
 
-    // Save as individual WwffPoint records — avoids MongoDB's 16MB document limit
     if (references.length > 0) {
-      const points = references.map(r => ({
+      const points = references.map((r: any) => ({
         code: r.code,
         name: r.name || r.code,
         lat: r.lat,
         lng: r.lng,
         link: r.link || 'https://wwff.co/directory/',
       }));
-      // v0.9018: upsertPoints with 240s time budget + fast deleteMany — fixes incomplete WWFF data
-      const upsertResult = await upsertPoints(base44, 'WwffPoint', 'hbff', points, 'wwff.co CSV (worldwide)');
+      // v0.95: upsertPointsByCode — update in place by code, no duplicates
+      const upsertResult = await upsertPointsByCode(base44, 'WwffPoint', 'hbff', points, 'wwff.co CSV (worldwide)');
       return Response.json({
         saved: true,
-        count: upsertResult.created,
+        created: upsertResult.created,
+        updated: upsertResult.updated,
         total: upsertResult.total,
         source: 'WWFF directory (worldwide)',
         error: upsertResult.error
@@ -37,7 +42,7 @@ Deno.serve(async (req) => {
     }
 
     return Response.json({ saved: true, count: 0, source: 'WWFF directory (worldwide)' });
-  } catch (error) {
+  } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
