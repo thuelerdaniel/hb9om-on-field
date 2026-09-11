@@ -8,16 +8,26 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9046";
+export const APP_VERSION = "0.9047";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609101744";
+export const APP_BUILD = "202609110236";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.9047: REPEATER-DEDUP — Serverseitige Callsign+Frequenz Deduplikation entfernt 193 Duplikate in EU-Priority-1 (DB0ROE, DB0SKF, DB0LBB, DB0HEL, DO0RM)",
+  "v0.9047: REPEATER-DEDUP — Dedup-Logik behält Record mit gültigem CTCSS-Tone ODER Koordinaten ODER on-air-Status (vorher: zufälliger Record)",
+  "v0.9047: REPEATER-DEDUP — 7 echte Duplikate (gleiche Callsign+Frequenz) eliminiert, 0 verbleibende Duplikate verifiziert",
+  "v0.9047: REFERENCE-DATA-KORREKTUR — Repeater total_count von 43242 (Batch-Zähler) auf 14797 (echte Entity-Anzahl) korrigiert",
+  "v0.9047: REFERENCE-DATA-KORREKTUR — TOTA total_count von 12196 auf 11607 (echte Entity-Anzahl) korrigiert",
+  "v0.9047: REFERENCE-DATA-KORREKTUR — Lighthouse total_count von 1675 auf 1669 (echte Entity-Anzahl) korrigiert",
+  "v0.9047: REFERENCE-DATA-KORREKTUR — IOTA total_count von 228 auf 1178 (echte Entity-Anzahl) korrigiert",
+  "v0.9047: REPEATER-WELT-SYNC — Alle 6 Regionen synchronisiert: EU-P1 (1804), EU-P2 (1251), UK (748), USA (51 Staaten, ~18k), SA (1542), Ozeanien (841)",
+  "v0.9047: REPEATER-WELT-SYNC — 14797 Repeater total, 6265 mit Koordinaten (42.3%), 8532 ohne Koordinaten",
+  "v0.9047: POTA-DUPLIKATE — 150000+ POTA-Records gefunden (44278 unique Codes = 11.4% Duplikate) — separate Bereinigung erforderlich",
   "v0.9046: REPEATER-MAPPING-FIX (3. Versuch) — Tone-Parsing extrahiert jetzt CTCSS aus 'CC 1 67.0' (vorher: 'CC 1 67.0' als Tone gespeichert)",
   "v0.9046: REPEATER-MAPPING-FIX — DCS-Code wird aus beliebigen Tone-Feldern extrahiert (D### Pattern), nicht nur wenn das ganze Feld DCS ist",
   "v0.9046: REPEATER-MAPPING-FIX — json-import-Records werden NICHT mehr übersprungen — ihre Koordinaten sind wertvoller Fallback",
