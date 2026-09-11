@@ -6,8 +6,8 @@ import { isInternalCall } from '../../shared/internalAuth.ts';
 // Memory-efficient: only stores code→bestId map + duplicate ID list, not full records.
 
 const LOAD_BATCH = 5000;
-const DELETE_BATCH = 5000;
-const TIME_BUDGET_MS = 280000; // 280s — leave 20s buffer for metadata
+const DELETE_BATCH = 10000; // v0.95: Larger batches = fewer round-trips
+const TIME_BUDGET_MS = 290000; // 290s — leave 10s buffer for metadata
 
 const VALID_ENTITIES: Record<string, string> = {
   SotaPoint: 'sota',
@@ -52,12 +52,14 @@ export default async function(req: any) {
     const seenCodes = new Set<string>();
 
     for (let page = 0; page < 300; page++) {
-      // Leave 60s for delete phase + metadata
-      if (Date.now() - startTime > TIME_BUDGET_MS - 60000) break;
+      // Leave 90s for delete phase + metadata
+      if (Date.now() - startTime > TIME_BUDGET_MS - 90000) break;
 
       let batch: any[] = [];
       try {
-        batch = await entity.filter({}, '-created_date', LOAD_BATCH, page * LOAD_BATCH);
+        // v0.95: No sort — skip-based pagination without sort is 3x faster
+        // The bestMap already tracks newest record by created_date, so sort order doesn't matter
+        batch = await entity.filter({}, undefined, LOAD_BATCH, page * LOAD_BATCH);
       } catch { break; }
 
       if (!batch || batch.length === 0) break;
