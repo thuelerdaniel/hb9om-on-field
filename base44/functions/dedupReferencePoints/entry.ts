@@ -43,38 +43,33 @@ export default async function(req: any) {
     const refType = body.refType || VALID_ENTITIES[entityName];
     const entity = base44.asServiceRole.entities[entityName];
 
-    // 1. Load all records in pages — build code → bestId map + collect duplicate IDs
+    // 1. Load all records using CURSOR-based pagination on id (reliable, unlike skip)
     //    "Best" = has lat/lng, or newest by created_date
     const bestMap = new Map<string, { id: string; hasCoords: boolean; created: string }>();
     const duplicateIds: string[] = [];
     let totalScanned = 0;
-    let noNewCodesStreak = 0;
-    const seenCodes = new Set<string>();
+    let lastId = '';
 
-    for (let page = 0; page < 300; page++) {
+    for (let page = 0; page < 500; page++) {
       // Leave 90s for delete phase + metadata
       if (Date.now() - startTime > TIME_BUDGET_MS - 90000) break;
 
       let batch: any[] = [];
       try {
-        // v0.95: No sort — skip-based pagination without sort is 3x faster
-        // The bestMap already tracks newest record by created_date, so sort order doesn't matter
-        batch = await entity.filter({}, undefined, LOAD_BATCH, page * LOAD_BATCH);
+        // v0.95: Cursor-based pagination — filter by id > lastId, sort by id ascending
+        // This is reliable (id is always indexed) unlike skip-based pagination
+        const query = lastId ? { id: { $gt: lastId } } : {};
+        batch = await entity.filter(query, 'id', LOAD_BATCH);
       } catch { break; }
 
       if (!batch || batch.length === 0) break;
       totalScanned += batch.length;
-      let newCodesInBatch = 0;
+      lastId = batch[batch.length - 1].id;
 
       for (const r of batch) {
         if (!r.code) continue;
         const hasCoords = r.lat != null && r.lng != null;
         const created = r.created_date || '';
-
-        if (!seenCodes.has(r.code)) {
-          seenCodes.add(r.code);
-          newCodesInBatch++;
-        }
 
         if (!bestMap.has(r.code)) {
           bestMap.set(r.code, { id: r.id, hasCoords, created });
@@ -90,9 +85,6 @@ export default async function(req: any) {
           }
         }
       }
-
-      // v0.95: No early stopping for dedup — must scan ALL records to find all duplicates
-      // The 280s time budget is the real limit
 
       if (batch.length < LOAD_BATCH) break;
     }
