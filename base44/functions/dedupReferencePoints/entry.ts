@@ -6,7 +6,7 @@ import { isInternalCall } from '../../shared/internalAuth.ts';
 // Memory-efficient: only stores code→bestId map + duplicate ID list, not full records.
 
 const LOAD_BATCH = 5000;
-const DELETE_BATCH = 10000; // v0.95: Larger batches = fewer round-trips
+const DELETE_BATCH = 2000; // v0.95 Build-2: Smaller batches — 10k $in silently failed on some IDs
 const TIME_BUDGET_MS = 290000; // 290s — leave 10s buffer for metadata
 
 const VALID_ENTITIES: Record<string, string> = {
@@ -43,28 +43,28 @@ export default async function(req: any) {
     const refType = body.refType || VALID_ENTITIES[entityName];
     const entity = base44.asServiceRole.entities[entityName];
 
-    // 1. Load all records using CURSOR-based pagination on created_date (reliable, unlike skip)
+    // 1. Load all records using skip-based pagination with sort on 'id' (reliable).
+    //    v0.95 Build-2: Previous cursor-based approach on created_date FAILED because all
+    //    SOTA records share the same created_date (bulk-created), so $gt returned 0 after page 1.
+    //    Skip-based without sort was unreliable (natural order shifts, missed 45k+ records).
+    //    Sort on 'id' maps to MongoDB _id (always indexed) — stable, reliable pagination.
     //    "Best" = has lat/lng, or newest by created_date
     const bestMap = new Map<string, { id: string; hasCoords: boolean; created: string }>();
     const duplicateIds: string[] = [];
     let totalScanned = 0;
-    let lastDate = '';
 
-    for (let page = 0; page < 500; page++) {
+    for (let page = 0; page < 200; page++) {
       // Leave 90s for delete phase + metadata
       if (Date.now() - startTime > TIME_BUDGET_MS - 90000) break;
 
       let batch: any[] = [];
       try {
-        // v0.95: Cursor-based pagination — sort by created_date ASC, filter by created_date > lastDate
-        // This is reliable (created_date is always indexed) unlike skip-based pagination
-        const query = lastDate ? { created_date: { $gt: lastDate } } : {};
-        batch = await entity.filter(query, 'created_date', LOAD_BATCH);
+        // Sort by 'id' (maps to _id, always indexed) — reliable skip-based pagination
+        batch = await entity.filter({}, 'id', LOAD_BATCH, page * LOAD_BATCH);
       } catch { break; }
 
       if (!batch || batch.length === 0) break;
       totalScanned += batch.length;
-      lastDate = batch[batch.length - 1].created_date || '';
 
       for (const r of batch) {
         if (!r.code) continue;
