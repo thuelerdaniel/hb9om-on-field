@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useEffect } from "react";
 import { MapContainer, TileLayer, CircleMarker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
+import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
 // 2D Weltkarte mit Leaflet — zeigt alle QSO-Positionen als Punkte mit Linien zur eigenen Position.
 
@@ -77,7 +78,7 @@ export default function QsoWorldMap({ entries }) {
       style={{ height: '100%', width: '100%', background: '#0a1929' }}
     >
       <MapResize />
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
+      <MapLibreTileLayer styleUrl="https://tiles.openfreemap.org/styles/liberty" attribution="OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors" />
       {qsoData.lines.map((line, i) => (
         <Polyline key={`line-${i}`} positions={[[line.from.lat, line.from.lon], [line.to.lat, line.to.lon]]} pathOptions={{ color: '#00e5ff', weight: 1, opacity: 0.3 }} />
       ))}

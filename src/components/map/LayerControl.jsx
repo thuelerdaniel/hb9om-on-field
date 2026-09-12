@@ -112,7 +112,9 @@ const LAYER_GROUPS = [
 const ACTIVITY_LAYER_IDS = ["sota", "pota", "hbff", "wwbota", "castle", "tota", "lighthouse", "llota", "iota", "swiss_protected"];
 
 const BASE_LAYERS = [
-  { id: "osm", label: "OpenStreetMap" },
+  { id: "openfreemap_liberty", label: "OpenFreeMap Liberty" },
+  { id: "openfreemap_bright", label: "OpenFreeMap Bright" },
+  { id: "openfreemap_dark", label: "OpenFreeMap Dark" },
   { id: "swisstopo", label: "SwissTopo" },
   { id: "satellite", label: "Satellit (ESRI)" }
 ];

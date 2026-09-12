@@ -8,16 +8,22 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.95";
+export const APP_VERSION = "0.951";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609120607";
+export const APP_BUILD = "202609121546";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951: OPENFREEMAP — Karten-Tiles von OSM auf OpenFreeMap (Liberty Style) umgestellt — umgeht OSM Tile-Usage-Restriktionen",
+  "v0.951: OPENFREEMAP — 3 Styles im Auswahl-Popup: Liberty (Default), Bright, Dark",
+  "v0.951: OPENFREEMAP — Attribution 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors' in UI und PDF-Export",
+  "v0.951: SCHEDULER-FIX — Daily Sync Checker Workflow erstellt (alle 5 Min 03:00-07:00 UTC) — schliesst Lücke an Di/Mi/Fr/Sa/So",
+  "v0.951: SCHEDULER-FIX — dailyRefreshChecker schreibt jetzt SyncLog-Einträge (trigger='scheduled') für Nachverfolgung",
+  "v0.951: SOTA-DEDUP — 689k Duplikate entfernt, 180.079 unique SOTA-Summits verbleiben (0 Duplikate bestätigt)",
   "v0.95: REGISTRATION-FIX — User-Entity 'role' Default-Wert auf 'user' gesetzt — verhindert Registrierungsfehler bei neu verifizierten Benutzern",
   "v0.95: REGISTRATION-FIX — Register.jsx prüft jetzt access_token vor User-Record-Erstellung — verhindert 'No access token' Fehler",
   "v0.95: REGISTRATION-FIX — Demo-Passwort von 'demo123' auf 'demo1234' korrigiert",

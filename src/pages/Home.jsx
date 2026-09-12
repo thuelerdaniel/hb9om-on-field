@@ -10,6 +10,7 @@ import { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed } from "@/comp
 
 // Map components
 import MapTileLayer from "@/components/map/MapTileLayer";
+import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl from "@/components/map/LayerControl";
 import MapControls from "@/components/map/MapControls";
@@ -80,11 +81,29 @@ import { useAppFeatures, syncFeaturesFromUser } from "@/lib/appFeatures";
 
 // Tile layer configs
 const TILE_CONFIGS = {
-  osm: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; OpenStreetMap',
+  openfreemap_liberty: {
+    type: "vector",
+    styleUrl: "https://tiles.openfreemap.org/styles/liberty",
+    url: "https://tiles.openfreemap.org/styles/liberty",
+    attribution: 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors',
     maxZoom: 19,
-    tileKeyPrefix: "osm",
+    tileKeyPrefix: "openfreemap_liberty",
+  },
+  openfreemap_bright: {
+    type: "vector",
+    styleUrl: "https://tiles.openfreemap.org/styles/bright",
+    url: "https://tiles.openfreemap.org/styles/bright",
+    attribution: 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors',
+    maxZoom: 19,
+    tileKeyPrefix: "openfreemap_bright",
+  },
+  openfreemap_dark: {
+    type: "vector",
+    styleUrl: "https://tiles.openfreemap.org/styles/dark",
+    url: "https://tiles.openfreemap.org/styles/dark",
+    attribution: 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors',
+    maxZoom: 19,
+    tileKeyPrefix: "openfreemap_dark",
   },
   swisstopo: {
     url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg",
@@ -255,7 +274,11 @@ export default function Home() {
 
   // Data loading — gated by activeLayers (only loads data for enabled layers)
   const { data, repeaters, privateNodes, adminLinks, loading, loadingMessage, cancelLoading, onViewportData, updateRepeater } = useMapData(activeLayers);
-  const [baseLayer, setBaseLayer] = useState(() => safeGetItem("hb9om_base_layer") || "osm");
+  const [baseLayer, setBaseLayer] = useState(() => {
+    const saved = safeGetItem("hb9om_base_layer");
+    if (saved === "osm") return "openfreemap_liberty"; // Migrate OSM → OpenFreeMap
+    return saved || "openfreemap_liberty";
+  });
   const [lockedScale, setLockedScale] = useState(() => {
     const saved = safeGetItem("hb9om_locked_scale");
     return saved ? parseInt(saved) : null;
@@ -1499,7 +1522,7 @@ export default function Home() {
   const currentPosition = fixedPosition || userPosition;
 
   // Tile config
-  const tileConfig = TILE_CONFIGS[baseLayer] || TILE_CONFIGS.osm;
+  const tileConfig = TILE_CONFIGS[baseLayer] || TILE_CONFIGS.openfreemap_liberty;
   const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || forceOffline);
 
   // Calculate filter button positions — max 6 per row, second row if more.
@@ -1573,15 +1596,24 @@ export default function Home() {
         bounceAtZoomLimits={true}
         style={{ background: "#e8e8e8" }}
       >
-        <MapTileLayer
-          key={baseLayer}
-          url={tileConfig.url}
-          attribution={tileConfig.attribution}
-          maxZoom={tileConfig.maxZoom}
-          opacity={mapOpacity}
-          isOffline={isOffline}
-          tileKeyPrefix={tileConfig.tileKeyPrefix}
-        />
+        {tileConfig.type === "vector" && !isOffline ? (
+          <MapLibreTileLayer
+            key={baseLayer}
+            styleUrl={tileConfig.styleUrl}
+            attribution={tileConfig.attribution}
+            opacity={mapOpacity}
+          />
+        ) : (
+          <MapTileLayer
+            key={baseLayer}
+            url={tileConfig.type === "vector" ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" : tileConfig.url}
+            attribution={tileConfig.type === "vector" ? '&copy; OpenStreetMap' : tileConfig.attribution}
+            maxZoom={tileConfig.maxZoom || 19}
+            opacity={mapOpacity}
+            isOffline={isOffline}
+            tileKeyPrefix={tileConfig.type === "vector" ? "osm" : tileConfig.tileKeyPrefix}
+          />
+        )}
         <MapController
           onMapReady={handleMapReady}
           onZoomIn={handleZoomIn}

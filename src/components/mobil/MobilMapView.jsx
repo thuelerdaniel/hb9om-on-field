@@ -25,6 +25,7 @@ import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { calculateRange } from "@/lib/equipmentRange";
 import { haversine } from "@/lib/geoUtilsFrontend";
 import { useDraggableButton } from "@/hooks/useDraggableButton";
+import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
 function FitBounds({ bounds }) {
   const map = useMap();
@@ -252,9 +253,9 @@ export default function MobilMapView({
           userInteractingRef={userInteractingRef}
           interactionTimeoutRef={interactionTimeoutRef}
         />
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution="&copy; OpenStreetMap"
+        <MapLibreTileLayer
+          styleUrl="https://tiles.openfreemap.org/styles/liberty"
+          attribution="OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors"
         />
 
         {bounds && !autoZoom && <FitBounds bounds={bounds} />}

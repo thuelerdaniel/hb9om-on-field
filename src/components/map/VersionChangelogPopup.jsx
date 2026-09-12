@@ -7,6 +7,18 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
   {
+    version: "0.951",
+    title: "OpenFreeMap + Scheduler-Fix + SOTA-Dedup",
+    changes: [
+      "OpenFreeMap — Karten-Tiles von OSM auf OpenFreeMap (Liberty Style) umgestellt — umgeht OSM Tile-Usage-Restriktionen",
+      "OpenFreeMap — 3 Styles im Auswahl-Popup: Liberty (Default), Bright, Dark",
+      "OpenFreeMap — Attribution 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors' in UI und PDF-Export",
+      "Scheduler-Fix — Daily Sync Checker Workflow erstellt (alle 5 Min 03:00-07:00 UTC) — schliesst Lücke an Di/Mi/Fr/Sa/So",
+      "Scheduler-Fix — dailyRefreshChecker schreibt jetzt SyncLog-Einträge (trigger='scheduled') für Nachverfolgung",
+      "SOTA-Dedup — 689k Duplikate entfernt, 180.079 unique SOTA-Summits verbleiben (0 Duplikate bestätigt)",
+    ],
+  },
+  {
     version: "0.9019",
     title: "3 Fehlerkorrekturen: BAKOM-Link, Report-Button, Türkische Burgen",
     changes: [

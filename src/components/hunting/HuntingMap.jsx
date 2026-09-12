@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from "re
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
+import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
 // Hunting Map — zeigt alle aktiven Spots mit gültigen Koordinaten auf einer Karte.
 // SOTA = orange, POTA = grün, DX = blau, Station QTH = rot.
@@ -133,7 +134,7 @@ export default function HuntingMap({ gpsPos, stationInfo, onSpotClick }) {
             bounceAtZoomLimits={true}
             style={{ background: "#0d1720" }}
           >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
+            <MapLibreTileLayer styleUrl="https://tiles.openfreemap.org/styles/liberty" attribution="OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors" />
 
             {/* Station QTH — roter Marker */}
             <Marker position={[stationPos.lat, stationPos.lon]} icon={stationIcon}>

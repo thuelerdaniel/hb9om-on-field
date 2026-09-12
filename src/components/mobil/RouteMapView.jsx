@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { getModeColor, getModeLabel, repeaterMatchesMode } from "@/lib/repeaterModes";
+import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
 // Auto-Zentrierung auf Route
 function FitBounds({ routeCoords }) {
@@ -78,9 +79,9 @@ export default function RouteMapView({ routeCoords, repeaters, rangeKm, gpsPosit
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom
       >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; OpenStreetMap'
+        <MapLibreTileLayer
+          styleUrl="https://tiles.openfreemap.org/styles/liberty"
+          attribution="OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors"
         />
 
         <FitBounds routeCoords={routeCoords} />

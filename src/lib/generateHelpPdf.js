@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import { MARKER_SHAPES } from "@/lib/markerShapes";
 import { SECTIONS, MARKER_SYMBOLS, UI_ICONS, LINKS, SCREENSHOTS, SETUP_CHECKLIST } from "@/lib/helpPdfContent";
 import { getIconSvg } from "@/lib/helpPdfIcons";
+import { APP_VERSION } from "@/lib/appVersion";
 
 // Farben
 const NAVY = [11, 30, 51];
@@ -444,6 +445,8 @@ export async function generateHelpPdf(config = {}) {
     const pageNum = doc.internal.getNumberOfPages();
     doc.text("hb9om.ch  -  " + pdfTitle, W / 2, pageHeight - 5, { align: "center" });
     doc.text("Seite " + pageNum, W - MARGIN, pageHeight - 5, { align: "right" });
+    doc.setTextColor(160, 160, 160);
+    doc.text("v" + APP_VERSION, MARGIN, pageHeight - 5);
   };
 
   // ─── COVER SEITE ───
@@ -477,6 +480,9 @@ export async function generateHelpPdf(config = {}) {
   doc.setFontSize(9);
   doc.text(pdfSubtitle, MARGIN, 55);
   doc.text("SOTA - POTA - WWFF - WWBOTA - Burgen - Leuchttürme - IOTA", MARGIN, 61);
+  doc.setFontSize(7);
+  doc.setTextColor(160, 160, 160);
+  doc.text("Kartendaten: OpenFreeMap \u00a9 OpenMapTiles | Data from OpenStreetMap contributors", MARGIN, 67);
 
   doc.setFillColor(...GOLD);
   doc.roundedRect(W - 65, 10, 47, 10, 1.5, 1.5, "F");

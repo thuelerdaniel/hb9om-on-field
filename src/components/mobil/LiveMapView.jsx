@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { getModeColor, getModeLabel, repeaterMatchesMode } from "@/lib/repeaterModes";
+import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
 // Auto-Zentrierung auf GPS-Position
 function AutoCenter({ position }) {
@@ -76,9 +77,9 @@ export default function LiveMapView({ gpsPosition, accuracy, repeaters, recommen
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom
       >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; OpenStreetMap'
+        <MapLibreTileLayer
+          styleUrl="https://tiles.openfreemap.org/styles/liberty"
+          attribution="OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors"
         />
 
         <AutoCenter position={gpsPosition} />
