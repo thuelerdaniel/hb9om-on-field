@@ -4,14 +4,13 @@ import { isInternalCall } from '../../shared/internalAuth.ts';
 // Dedup reference point entities by code — keeps the best record per code
 // (one with lat/lng, or newest), deletes all duplicates.
 //
-// v0.95 Build-3: Hybrid approach — cursor-based scan on 'code' to build unique code set,
-// then targeted $in queries per code group to get ALL records per code and delete duplicates.
-// Previous skip-based pagination on 'id' was unreliable — consistently missed records
-// (F/PE-129 still had 48 records after 3 passes).
+// v0.95 Build-4: Single-pass approach — scan ALL records in batches, group by code
+// in memory, collect duplicate IDs, delete in batches. This is simpler and more
+// reliable than the two-phase approach (Phase 1 skip-scan + Phase 2 $in queries)
+// which missed codes like F/PE-129 (42 records remained after "0 duplicates found").
 
 const LOAD_BATCH = 5000;
-const DELETE_BATCH = 5000; // Larger batch for faster deletes
-const CODE_CHUNK = 5000; // codes per $in query — larger = fewer queries = faster full pass
+const DELETE_BATCH = 5000;
 const TIME_BUDGET_MS = 270000; // 270s — leave buffer for test tool timeout
 
 const VALID_ENTITIES: Record<string, string> = {
@@ -48,16 +47,14 @@ export default async function(req: any) {
     const refType = body.refType || VALID_ENTITIES[entityName];
     const entity = base44.asServiceRole.entities[entityName];
 
-    // === Phase 1: Build unique code set using skip-based pagination (no sort) ===
-    // No-sort + skip scans 365k-440k records (sort on 'id' only scanned 25k-90k).
-    // Phase 2's $in queries get ALL records per code, so dedup is correct even if
-    // Phase 1 misses some codes — they'll be caught in subsequent runs.
-    const uniqueCodes: string[] = [];
-    const seenCodes = new Set<string>();
-    let phase1Scanned = 0;
+    // === Single-pass scan: group ALL records by code in memory ===
+    // Map<code, Array<{id, lat, lng, created_date}>>
+    const byCode = new Map<string, Array<{id: string, lat: any, lng: any, created_date: string}>>();
+    let totalScanned = 0;
+    let recordsWithoutCode = 0;
 
     for (let page = 0; page < 200; page++) {
-      if (Date.now() - startTime > 60000) break; // 1 min budget for Phase 1 (more time for Phase 2)
+      if (Date.now() - startTime > 180000) break; // 3 min budget for scanning
 
       let batch: any[] = [];
       try {
@@ -65,95 +62,67 @@ export default async function(req: any) {
       } catch { break; }
 
       if (!batch || batch.length === 0) break;
-      phase1Scanned += batch.length;
+      totalScanned += batch.length;
 
       for (const r of batch) {
-        if (r.code && !seenCodes.has(r.code)) {
-          seenCodes.add(r.code);
-          uniqueCodes.push(r.code);
-        }
+        if (!r.code) { recordsWithoutCode++; continue; }
+        if (!byCode.has(r.code)) byCode.set(r.code, []);
+        byCode.get(r.code)!.push({
+          id: r.id,
+          lat: r.lat,
+          lng: r.lng,
+          created_date: r.created_date || '',
+        });
       }
 
       if (batch.length < LOAD_BATCH) break;
     }
 
-    // === Phase 2: Targeted dedup per code group using $in queries ===
-    // For each chunk of codes, query ALL records with those codes, group by code,
-    // keep the best per code, delete the rest.
-    // Supports resumable processing via startIdx parameter.
-    const startIdx = body.startIdx || 0;
-    let totalDeleted = 0;
-    let totalDuplicatesFound = 0;
-    let codesProcessed = 0;
-    let deleteErrors = 0;
-    let lastProcessedCode: string | null = null;
-    let lastProcessedIdx = startIdx;
+    // === Collect duplicate IDs ===
+    // For each code with >1 records, keep the best (coords preferred, then newest),
+    // mark the rest for deletion.
+    const deleteIds: string[] = [];
+    let codesWithDuplicates = 0;
+    let totalDuplicates = 0;
 
-    for (let i = startIdx; i < uniqueCodes.length; i += CODE_CHUNK) {
-      if (Date.now() - startTime > TIME_BUDGET_MS - 30000) break; // Leave 30s for metadata
+    for (const [code, recs] of byCode) {
+      if (recs.length <= 1) continue;
+      codesWithDuplicates++;
+      totalDuplicates += recs.length - 1;
 
-      const chunk = uniqueCodes.slice(i, i + CODE_CHUNK);
-      let records: any[] = [];
-      try {
-        // Get ALL records for these codes — sort by id, high limit to catch all duplicates
-        records = await entity.filter({ code: { $in: chunk } }, 'id', 50000);
-      } catch { codesProcessed += chunk.length; continue; }
+      // Sort: prefer records with coords, then newest by created_date
+      recs.sort((a, b) => {
+        const aCoords = a.lat != null && a.lng != null ? 1 : 0;
+        const bCoords = b.lat != null && b.lng != null ? 1 : 0;
+        if (aCoords !== bCoords) return bCoords - aCoords;
+        return b.created_date.localeCompare(a.created_date);
+      });
 
-      if (!records || records.length === 0) {
-        codesProcessed += chunk.length;
-        continue;
+      for (let j = 1; j < recs.length; j++) {
+        deleteIds.push(recs[j].id);
       }
-
-      // Group by code
-      const byCode = new Map<string, any[]>();
-      for (const r of records) {
-        if (!r.code) continue;
-        if (!byCode.has(r.code)) byCode.set(r.code, []);
-        byCode.get(r.code)!.push(r);
-      }
-
-      // For each code, keep the best, collect duplicate IDs
-      const deleteIds: string[] = [];
-      for (const [code, recs] of byCode) {
-        if (recs.length <= 1) continue;
-        totalDuplicatesFound += recs.length - 1;
-
-        // Sort: prefer records with coords, then newest by created_date
-        recs.sort((a, b) => {
-          const aCoords = a.lat != null && a.lng != null ? 1 : 0;
-          const bCoords = b.lat != null && b.lng != null ? 1 : 0;
-          if (aCoords !== bCoords) return bCoords - aCoords;
-          return (b.created_date || '').localeCompare(a.created_date || '');
-        });
-
-        for (let j = 1; j < recs.length; j++) {
-          deleteIds.push(recs[j].id);
-        }
-      }
-
-      // Delete duplicates in sub-batches
-      for (let j = 0; j < deleteIds.length; j += DELETE_BATCH) {
-        if (Date.now() - startTime > TIME_BUDGET_MS) break;
-        const subChunk = deleteIds.slice(j, j + DELETE_BATCH);
-        try {
-          await entity.deleteMany({ id: { $in: subChunk } });
-          totalDeleted += subChunk.length;
-        } catch {
-          deleteErrors++;
-        }
-      }
-
-      codesProcessed += chunk.length;
-      lastProcessedCode = chunk[chunk.length - 1];
-      lastProcessedIdx = i + CODE_CHUNK;
     }
 
-    // === Phase 3: Update ReferenceData with unique count ===
-    // Only update if we processed ALL codes (not a partial/resumable run)
-    const allCodesProcessed = codesProcessed === uniqueCodes.length && phase1Scanned > 0;
+    // === Delete duplicates in batches ===
+    let totalDeleted = 0;
+    let deleteErrors = 0;
+
+    for (let j = 0; j < deleteIds.length; j += DELETE_BATCH) {
+      if (Date.now() - startTime > TIME_BUDGET_MS - 30000) break; // Leave 30s for metadata
+      const subChunk = deleteIds.slice(j, j + DELETE_BATCH);
+      try {
+        await entity.deleteMany({ id: { $in: subChunk } });
+        totalDeleted += subChunk.length;
+      } catch {
+        deleteErrors++;
+      }
+    }
+
+    // === Update ReferenceData with unique count ===
+    const uniqueCount = byCode.size;
     let refDataUpdated = false;
 
-    if (allCodesProcessed) {
+    if (Date.now() - startTime < TIME_BUDGET_MS - 10000) {
       try {
         const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
         if (existing && existing.length > 0) {
@@ -161,7 +130,7 @@ export default async function(req: any) {
             try { await base44.asServiceRole.entities.ReferenceData.delete(existing[i].id); } catch {}
           }
           await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
-            total_count: uniqueCodes.length,
+            total_count: uniqueCount,
             references: [],
             last_updated: new Date().toISOString(),
           });
@@ -174,19 +143,15 @@ export default async function(req: any) {
       status: 'success',
       entityName,
       refType,
-      phase1_scanned: phase1Scanned,
-      unique_codes_found: uniqueCodes.length,
-      codes_processed: codesProcessed,
-      codes_remaining: uniqueCodes.length - codesProcessed,
-      duplicates_found: totalDuplicatesFound,
+      total_scanned: totalScanned,
+      unique_codes: uniqueCount,
+      records_without_code: recordsWithoutCode,
+      codes_with_duplicates: codesWithDuplicates,
+      duplicates_found: totalDuplicates,
       duplicates_deleted: totalDeleted,
+      duplicates_remaining: deleteIds.length - totalDeleted,
       delete_errors: deleteErrors,
-      last_processed_code: lastProcessedCode,
-      all_codes_processed: allCodesProcessed,
       ref_data_updated: refDataUpdated,
-      resumable_from: lastProcessedIdx < uniqueCodes.length ? lastProcessedIdx : null,
-      resumable_start_idx: lastProcessedIdx < uniqueCodes.length ? lastProcessedIdx : null,
-      total_unique_codes: uniqueCodes.length,
       duration_ms: Date.now() - startTime,
     });
   } catch (error: any) {
