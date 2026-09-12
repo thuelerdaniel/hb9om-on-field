@@ -48,6 +48,13 @@ export default function Register() {
       const result = await base44.auth.verifyOtp({ email, otpCode });
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
+      } else {
+        // v0.95 Build-3: verifyOtp succeeded but no token — don't redirect blindly
+        // This happens when the User entity record couldn't be created (e.g. missing required field).
+        // Show a clear error instead of silent redirect to login.
+        setError("Verifizierung erfolgreich, aber Login-Token fehlt. Bitte melde dich manuell an.");
+        setLoading(false);
+        return;
       }
       // Admins über neue Registrierung benachrichtigen (vor Redirect abwarten)
       try {
@@ -154,7 +161,7 @@ export default function Register() {
       <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
         <p className="text-sm font-semibold text-blue-900">🔑 Demo-Zugang</p>
         <p className="text-blue-700 text-xs mt-1">
-          Zum Testen: <strong>demo@hb9om.ch</strong> / <strong>demo123</strong>
+          Zum Testen: <strong>demo@hb9om.ch</strong> / <strong>demo1234</strong>
         </p>
         <p className="text-blue-600 text-[10px] mt-0.5">Demo-Daten werden täglich gelöscht</p>
       </div>

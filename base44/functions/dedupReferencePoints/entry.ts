@@ -7,7 +7,7 @@ import { isInternalCall } from '../../shared/internalAuth.ts';
 
 const LOAD_BATCH = 5000;
 const DELETE_BATCH = 2000; // v0.95 Build-2: Smaller batches — 10k $in silently failed on some IDs
-const TIME_BUDGET_MS = 290000; // 290s — leave 10s buffer for metadata
+const TIME_BUDGET_MS = 270000; // 270s — leave buffer for metadata + test tool timeout
 
 const VALID_ENTITIES: Record<string, string> = {
   SotaPoint: 'sota',
