@@ -85,6 +85,7 @@ const TILE_CONFIGS = {
     type: "vector",
     styleUrl: "https://tiles.openfreemap.org/styles/liberty",
     url: "https://tiles.openfreemap.org/styles/liberty",
+    vectorTileUrl: "https://tiles.openfreemap.org/tiles/{z}/{x}/{y}.mvt",
     attribution: 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors',
     maxZoom: 19,
     tileKeyPrefix: "openfreemap_liberty",
@@ -93,6 +94,7 @@ const TILE_CONFIGS = {
     type: "vector",
     styleUrl: "https://tiles.openfreemap.org/styles/bright",
     url: "https://tiles.openfreemap.org/styles/bright",
+    vectorTileUrl: "https://tiles.openfreemap.org/tiles/{z}/{x}/{y}.mvt",
     attribution: 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors',
     maxZoom: 19,
     tileKeyPrefix: "openfreemap_bright",
@@ -101,6 +103,7 @@ const TILE_CONFIGS = {
     type: "vector",
     styleUrl: "https://tiles.openfreemap.org/styles/dark",
     url: "https://tiles.openfreemap.org/styles/dark",
+    vectorTileUrl: "https://tiles.openfreemap.org/tiles/{z}/{x}/{y}.mvt",
     attribution: 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors',
     maxZoom: 19,
     tileKeyPrefix: "openfreemap_dark",
@@ -1596,22 +1599,24 @@ export default function Home() {
         bounceAtZoomLimits={true}
         style={{ background: "#e8e8e8" }}
       >
-        {tileConfig.type === "vector" && !isOffline ? (
+        {tileConfig.type === "vector" ? (
           <MapLibreTileLayer
             key={baseLayer}
             styleUrl={tileConfig.styleUrl}
             attribution={tileConfig.attribution}
             opacity={mapOpacity}
+            isOffline={isOffline}
+            tileKeyPrefix={tileConfig.tileKeyPrefix}
           />
         ) : (
           <MapTileLayer
             key={baseLayer}
-            url={tileConfig.type === "vector" ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" : tileConfig.url}
-            attribution={tileConfig.type === "vector" ? '&copy; OpenStreetMap' : tileConfig.attribution}
+            url={tileConfig.url}
+            attribution={tileConfig.attribution}
             maxZoom={tileConfig.maxZoom || 19}
             opacity={mapOpacity}
             isOffline={isOffline}
-            tileKeyPrefix={tileConfig.type === "vector" ? "osm" : tileConfig.tileKeyPrefix}
+            tileKeyPrefix={tileConfig.tileKeyPrefix}
           />
         )}
         <MapController
@@ -2205,7 +2210,7 @@ export default function Home() {
         <OfflineAreaDialog
           mapRef={mapRef}
           baseLayer={baseLayer}
-          baseTileUrl={tileConfig.url}
+          baseTileUrl={tileConfig.vectorTileUrl || tileConfig.url}
           tileKeyPrefix={tileConfig.tileKeyPrefix}
           referenceData={data}
           onClose={() => setShowOfflineDialog(false)}

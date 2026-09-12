@@ -8,14 +8,22 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 export const VERSION_CHANGELOG = [
   {
     version: "0.951",
-    title: "OpenFreeMap + Scheduler-Fix + SOTA-Dedup",
+    title: "Phase 2: 3D-Ansicht + Gelände + Offline-Vektorkacheln + SOTA-Upsert-Fix",
     changes: [
-      "OpenFreeMap — Karten-Tiles von OSM auf OpenFreeMap (Liberty Style) umgestellt — umgeht OSM Tile-Usage-Restriktionen",
+      "Phase 2 — 3D-Ansicht: MapLibre GL JS mit Globus-Projektion, Pitch/Rotate-Gesten, Himmel/Atmosphäre, 3D-Gebäude",
+      "Phase 2 — 3D-Gelände: AWS Terrain Tiles (Terrarium, EU-Bucket) — Alpen in echtem 3D-Relief mit Hillshading",
+      "Phase 2 — SOTA/POTA/WWFF-Marker in 3D als GeoJSON-Layer mit Clustering bei niedrigem Zoom",
+      "Phase 2 — 3D als eigener Menüpunkt ('3D' in Bottom-Navigation) + '3D-Ansicht öffnen' im Layer-Popup",
+      "Phase 2 — Offline-Packs auf OpenFreeMap-Vektorkacheln (PBF) umgestellt — CH-Packs schrumpfen drastisch",
+      "Phase 2 — Bestehende Raster-Packs invalidiert (Pack v2) — 'Pack erneut herunterladen' Meldung",
+      "Phase 2 — MapLibreTileLayer unterstützt Offline-Modus via transformRequest + IndexedDB Blob-Cache",
+      "SOTA-Upsert-Fix — Cursor-basierte Paginierung ($lt auf created_date) — keine Duplikate mehr bei Sync",
+      "SOTA-Upsert-Fix — Zähler korrigiert: ReferenceData zeigt echten Bestand (182.279 statt 40.000)",
+      "SOTA-Upsert-Fix — fetchTota, fetchIOTA, fetchLlotaRefs auf upsertPointsByCode umgestellt",
+      "OpenFreeMap — Karten-Tiles von OSM auf OpenFreeMap (Liberty Style) umgestellt",
       "OpenFreeMap — 3 Styles im Auswahl-Popup: Liberty (Default), Bright, Dark",
-      "OpenFreeMap — Attribution 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors' in UI und PDF-Export",
-      "Scheduler-Fix — Daily Sync Checker Workflow erstellt (alle 5 Min 03:00-07:00 UTC) — schliesst Lücke an Di/Mi/Fr/Sa/So",
-      "Scheduler-Fix — dailyRefreshChecker schreibt jetzt SyncLog-Einträge (trigger='scheduled') für Nachverfolgung",
-      "SOTA-Dedup — 689k Duplikate entfernt, 180.079 unique SOTA-Summits verbleiben (0 Duplikate bestätigt)",
+      "Scheduler-Fix — Daily Sync Checker Workflow (alle 5 Min 03:00-07:00 UTC) — schliesst Lücke an Di/Mi/Fr/Sa/So",
+      "SOTA-Dedup — 689k Duplikate entfernt, 182.279 unique SOTA-Summits (0 Duplikate bestätigt)",
     ],
   },
   {

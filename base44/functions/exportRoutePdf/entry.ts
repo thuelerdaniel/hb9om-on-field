@@ -70,7 +70,7 @@ export default async function(req) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Datum: ${new Date().toLocaleDateString('de-CH')}`, 14, 27);
-    doc.text('Version: v0.9023a', 14, 33);
+    doc.text('Version: v0.951', 14, 33);
 
     // Route-Koordinaten für Distanzberechnung
     const routeCoords = waypoints.map(wp => [wp.lat, wp.lon]);

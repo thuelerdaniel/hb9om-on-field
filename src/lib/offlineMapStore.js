@@ -5,6 +5,10 @@ const DB_VERSION = 1;
 const TILE_STORE = "tiles";
 const AREA_STORE = "areas";
 
+// v0.951: Pack version — v1 = raster tiles (OSM), v2 = vector tiles (OpenFreeMap PBF)
+// Existing v1 packs are invalidated and must be re-downloaded.
+export const PACK_VERSION = 2;
+
 let dbPromise = null;
 
 function getDB() {
@@ -64,9 +68,32 @@ export async function saveArea(area) {
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(AREA_STORE, "readwrite");
-    tx.objectStore(AREA_STORE).put(area);
+    tx.objectStore(AREA_STORE).put({ ...area, pack_version: PACK_VERSION });
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+  });
+}
+
+// v0.951: Load all tile blobs for offline rendering (MapLibre GL transformRequest)
+// Returns a Map<tileKey, Blob> for all tiles matching the prefix.
+export async function loadAllTileBlobs(tileKeyPrefix) {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TILE_STORE, "readonly");
+    const store = tx.objectStore(TILE_STORE);
+    const range = IDBKeyRange.bound(`${tileKeyPrefix}_`, `${tileKeyPrefix}_\uffff`);
+    const cache = new Map();
+    const req = store.openCursor(range);
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        cache.set(cursor.key, cursor.value);
+        cursor.continue();
+      } else {
+        resolve(cache);
+      }
+    };
+    req.onerror = () => reject(req.error);
   });
 }
 
@@ -79,7 +106,16 @@ export async function getAreas() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(AREA_STORE, "readonly");
     const req = tx.objectStore(AREA_STORE).getAll();
-    req.onsuccess = () => resolve(req.result || []);
+    req.onsuccess = () => {
+      const areas = req.result || [];
+      // v0.951: Mark v1 packs (raster tiles) as needing re-download
+      for (const area of areas) {
+        if (!area.pack_version || area.pack_version < PACK_VERSION) {
+          area.needs_redownload = true;
+        }
+      }
+      resolve(areas);
+    };
     req.onerror = () => reject(req.error);
   });
 }

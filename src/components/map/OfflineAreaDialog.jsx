@@ -4,6 +4,7 @@ import {
   calculateTiles,
   downloadTiles,
   saveArea,
+  getAreas,
 } from "@/lib/offlineMapStore";
 
 const ZOOM_OPTIONS = [
@@ -15,9 +16,11 @@ const ZOOM_OPTIONS = [
 ];
 
 const BASE_LAYER_LABELS = {
-  osm: "OpenStreetMap",
-  satellite: "Satellit",
+  openfreemap_liberty: "OpenFreeMap Liberty",
+  openfreemap_bright: "OpenFreeMap Bright",
+  openfreemap_dark: "OpenFreeMap Dark",
   swisstopo: "SwissTopo",
+  satellite: "Satellit",
 };
 
 export default function OfflineAreaDialog({
@@ -35,10 +38,18 @@ export default function OfflineAreaDialog({
   const [progress, setProgress] = useState(null);
   const [done, setDone] = useState(false);
   const [failedTiles, setFailedTiles] = useState([]);
+  const [existingAreas, setExistingAreas] = useState([]);
   const mountedRef = useRef(true);
   const wakeLockRef = useRef(null);
 
   useEffect(() => () => { mountedRef.current = false; releaseWakeLock(); }, []);
+
+  // v0.951: Load existing areas to check for invalidated v1 packs (raster → vector migration)
+  useEffect(() => {
+    getAreas().then(areas => {
+      if (mountedRef.current) setExistingAreas(areas || []);
+    }).catch(() => {});
+  }, []);
 
   // Prevent the screen from sleeping while tiles are downloading
   const acquireWakeLock = async () => {
@@ -81,7 +92,10 @@ export default function OfflineAreaDialog({
 
   const tiles = bounds ? calculateTiles(bounds, selectedZooms) : [];
   const tileCount = tiles.length;
-  const estSizeMB = (tileCount * 0.02).toFixed(1); // ~20KB avg per tile
+  const isVector = baseLayer?.startsWith("openfreemap") || false;
+  const avgTileSizeKB = isVector ? 0.01 : 0.02; // PBF ~10KB, PNG ~20KB
+  const estSizeMB = (tileCount * avgTileSizeKB).toFixed(1);
+  const hasOldPacks = existingAreas.some(a => a.needs_redownload);
 
   const toggleZoom = (z) => {
     setSelectedZooms((prev) =>
@@ -198,6 +212,18 @@ export default function OfflineAreaDialog({
         </div>
 
         <div className="p-4 space-y-4">
+          {/* v0.951: Pack invalidation warning — raster → vector migration */}
+          {hasOldPacks && !downloading && !done && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-700">Pack erneut herunterladen</p>
+                <p className="text-[10px] text-amber-600 mt-0.5">
+                  Offline-Packs wurden auf Vektorkacheln umgestellt. Alte Packs sind nicht mehr kompatibel — bitte erneut herunterladen.
+                </p>
+              </div>
+            </div>
+          )}
           {done ? (
             <div className="text-center py-8">
               <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
@@ -316,6 +342,11 @@ export default function OfflineAreaDialog({
                 </div>
               )}
 
+              {isVector && tileCount > 0 && (
+                <p className="text-[10px] text-blue-500">
+                  ✓ Vektorkacheln (OpenFreeMap) — deutlich kleinere Downloads als Rasterkacheln
+                </p>
+              )}
               {tileCount > 3000 && (
                 <p className="text-xs text-amber-600">
                   ⚠ Sehr viele Kacheln – der Download kann mehrere Minuten dauern.

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower, Droplets } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
@@ -132,6 +133,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   const { containerRef } = useDraggablePosition("drag-layer-control");
   const { features } = useAppFeatures();
   const panelRef = useRef(null);
+  const navigate = useNavigate();
 
   // v0.9029: All layers always visible in panel — feature flags only control map activation, not panel visibility
   const visibleLayerGroups = LAYER_GROUPS;
@@ -184,6 +186,20 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
 
       {isOpen && (
         <div ref={panelRef} className="absolute top-12 right-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto overscroll-contain">
+          {/* 3D-Ansicht — Link zur separaten 3D-Karte */}
+          <div className="p-4 border-b border-gray-100">
+            <button
+              onClick={() => navigate("/3d")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 dark:from-slate-700 dark:to-slate-600 dark:hover:from-slate-600 dark:hover:to-slate-500 rounded-lg text-sm font-medium text-blue-700 dark:text-blue-300 transition-all"
+            >
+              <Globe2 className="w-5 h-5 flex-shrink-0" />
+              <div className="text-left">
+                <span>3D-Ansicht öffnen</span>
+                <p className="text-[10px] text-blue-400 dark:text-blue-500">Globus · Gelände · Gebäude</p>
+              </div>
+            </button>
+          </div>
+
           {/* Hintergrundkarte */}
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide">Hintergrundkarte</h3>

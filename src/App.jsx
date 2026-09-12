@@ -17,6 +17,7 @@ import Log from '@/pages/Log';
 import Help from '@/pages/Help';
 const HuntingPage = lazy(() => import('@/pages/Hunting'));
 const Mobil = lazy(() => import('@/pages/Mobil'));
+const View3D = lazy(() => import('@/pages/View3D'));
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import ChangeRequests from '@/pages/ChangeRequests';
 import AdminChangeRequests from '@/pages/AdminChangeRequests';
@@ -61,6 +62,13 @@ function AuthenticatedApp() {
           <ErrorBoundary name="Mobil">
             <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div></div>}>
               <Mobil />
+            </Suspense>
+          </ErrorBoundary>
+        } />
+        <Route path="/3d" element={
+          <ErrorBoundary name="3D-Ansicht">
+            <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div></div>}>
+              <View3D />
             </Suspense>
           </ErrorBoundary>
         } />

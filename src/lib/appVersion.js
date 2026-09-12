@@ -13,7 +13,7 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609121546";
+export const APP_BUILD = "202609121649";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
@@ -24,6 +24,17 @@ export const APP_CHANGELOG = [
   "v0.951: SCHEDULER-FIX — Daily Sync Checker Workflow erstellt (alle 5 Min 03:00-07:00 UTC) — schliesst Lücke an Di/Mi/Fr/Sa/So",
   "v0.951: SCHEDULER-FIX — dailyRefreshChecker schreibt jetzt SyncLog-Einträge (trigger='scheduled') für Nachverfolgung",
   "v0.951: SOTA-DEDUP — 689k Duplikate entfernt, 180.079 unique SOTA-Summits verbleiben (0 Duplikate bestätigt)",
+  "v0.951: PHASE2-3D — Neue 3D-Ansicht (MapLibre GL JS) mit Globus-Projektion, Pitch/Rotate-Gesten, Himmel/Atmosphäre",
+  "v0.951: PHASE2-3D — 3D-Gebäude via fill-extrusion (Liberty Style), SOTA/POTA/WWFF-Marker als GeoJSON mit Clustering",
+  "v0.951: PHASE2-3D — Eigener Menüpunkt '3D' in Bottom-Navigation + '3D-Ansicht öffnen' im Layer-Popup",
+  "v0.951: PHASE2-GELÄNDE — 3D-Gelände (AWS Terrain Tiles, Terrarium-Encoding, EU-Bucket, Exaggeration 1.2) — Alpen in Relief",
+  "v0.951: PHASE2-OFFLINE — Offline-Packs auf OpenFreeMap-Vektorkacheln (PBF) umgestellt — CH-Packs schrumpfen drastisch",
+  "v0.951: PHASE2-OFFLINE — Bestehende Raster-Packs invalidiert (Pack v2) — 'Pack erneut herunterladen' Meldung",
+  "v0.951: PHASE2-OFFLINE — MapLibreTileLayer unterstützt Offline-Modus via transformRequest + IndexedDB Blob-Cache",
+  "v0.951: SOTA-UPSERT-FIX — upsertPointsByCode nutzt Cursor-basierte Paginierung ($lt auf created_date) — keine Duplikate mehr",
+  "v0.951: SOTA-UPSERT-FIX — Zähler-Korrektur: ReferenceData zeigt echten Bestand (182.279 statt 40.000) — 8s-Budget entfernt",
+  "v0.951: SOTA-UPSERT-FIX — fetchTota, fetchIOTA, fetchLlotaRefs auf upsertPointsByCode umgestellt — keine Duplikate bei Timeout",
+  "v0.951: LEGACY-DELETE — 5 veraltete ReferenceData-Records gelöscht (server-seitig, Service-Rolle) — 11 aktuelle Records",
   "v0.95: REGISTRATION-FIX — User-Entity 'role' Default-Wert auf 'user' gesetzt — verhindert Registrierungsfehler bei neu verifizierten Benutzern",
   "v0.95: REGISTRATION-FIX — Register.jsx prüft jetzt access_token vor User-Record-Erstellung — verhindert 'No access token' Fehler",
   "v0.95: REGISTRATION-FIX — Demo-Passwort von 'demo123' auf 'demo1234' korrigiert",
