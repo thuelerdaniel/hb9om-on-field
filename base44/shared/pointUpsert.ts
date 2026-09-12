@@ -141,7 +141,7 @@ export async function upsertPoints(
  */
 export async function upsertPointsByCode(
   base44: any,
-  entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint',
+  entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'LlotaRef',
   refType: string,
   points: any[],
   source: string
@@ -216,23 +216,12 @@ export async function upsertPointsByCode(
   }
 
   // 5. Update ReferenceData metadata record
-  // v0.9046: Count ACTUAL entity records (not existingMap.size + created) for accurate total_count
-  // v0.9045: Delete duplicate ReferenceData records — keep only one per type
+  // v0.951: Use existing.length + created — accurate and fast (no separate count query).
+  // The old 8s-bounded actualCount counter stopped at ~40k records for 146k collections,
+  // reporting wrong totals (e.g. 40000 instead of 146135).
   try {
     const now = new Date().toISOString();
-    // v0.9046: Count actual entity records with a 8s time budget
-    let actualCount = 0;
-    const countStart = Date.now();
-    try {
-      for (let page = 0; page < 200; page++) {
-        if (Date.now() - countStart > 8000) break;
-        const batch = await entity.filter({}, '-created_date', 5000, page * 5000);
-        if (!batch || batch.length === 0) break;
-        actualCount += batch.length;
-        if (batch.length < 5000) break;
-      }
-    } catch {}
-    const totalCount = actualCount > 0 ? actualCount : (existingMap.size + created);
+    const totalCount = existing.length + created;
     const existingMeta = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
     if (existingMeta && existingMeta.length > 0) {
       for (let i = 1; i < existingMeta.length; i++) {
@@ -269,27 +258,34 @@ export async function upsertPointsByCode(
  */
 export async function loadAllPoints(
   base44: any,
-  entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'PrivateNode'
+  entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'LlotaRef' | 'PrivateNode'
 ): Promise<any[]> {
   const entity = base44.asServiceRole?.entities?.[entityName];
   if (!entity) {
     console.error(`[loadAllPoints] entity not found: ${entityName}, asServiceRole=${!!base44.asServiceRole}`);
     return [];
   }
-  // Skip-based pagination: list(sort, limit, skip) — the SDK's 3rd arg is skip.
-  // Cursor-based pagination on created_date/id doesn't work ($lt not supported by SDK filter).
+  // v0.951: Cursor-based pagination using $lt on created_date.
+  // Old skip-based pagination was O(skip) — skip=140000 scanned 140k records per page,
+  // causing timeouts and incomplete loads → duplicates in upsertPointsByCode.
+  // Cursor approach: each query is O(LIMIT) regardless of collection size.
   const LIMIT = 5000;
-  const MAX_PAGES = 200; // v0.95: 200 * 5000 = 1M records max — handles post-dedup large datasets
+  const MAX_PAGES = 300; // 300 * 5000 = 1.5M records max
   const allPoints: any[] = [];
+  let cursor: string | undefined = undefined;
 
   try {
     for (let page = 0; page < MAX_PAGES; page++) {
-      // v0.9018: Use filter({}, sort, limit, skip) instead of list(sort, limit, skip)
-      // list() does NOT support skip — it returns the same first page every time,
-      // causing OOM when loading 60 pages × 5000 = 300k duplicate records.
-      const result: any[] = await entity.filter({}, '-created_date', LIMIT, page * LIMIT);
+      let result: any[];
+      if (cursor) {
+        result = await entity.filter({ created_date: { $lt: cursor } }, '-created_date', LIMIT, 0);
+      } else {
+        result = await entity.filter({}, '-created_date', LIMIT, 0);
+      }
       if (!Array.isArray(result) || result.length === 0) break;
       allPoints.push(...result);
+      // Set cursor to oldest record's created_date for next page
+      cursor = result[result.length - 1]?.created_date;
       if (result.length < LIMIT) break;
     }
   } catch (e: any) {

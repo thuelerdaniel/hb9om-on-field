@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { fetchIotaData } from '../../shared/referenceFetchers.ts';
+import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 
 // IOTA (Islands on the Air) — worldwide island groups from iota-world.org.
 // Fetches the full IOTA list (~1200 island groups) with coordinates.
@@ -37,34 +38,21 @@ Deno.serve(async (req) => {
     let created = 0;
 
     if (isRealData) {
-      // 1. Delete all existing records (full refresh)
-      try {
-        await entity.deleteMany({});
-      } catch (e) {
-        // Non-fatal — bulkCreate will still work
-      }
-
-      // 2. Bulk create in batches of 500
-      const BATCH_SIZE = 500;
-      for (let i = 0; i < withCoords.length; i += BATCH_SIZE) {
-        const batch = withCoords.slice(i, i + BATCH_SIZE);
-        try {
-          await entity.bulkCreate(batch.map(g => ({
-            code: g.code,
-            name: g.name,
-            lat: g.lat,
-            lng: g.lng,
-            dxcc_num: g.dxcc_num || '',
-            status: g.status || 'Active',
-            island_count: g.island_count || 0,
-            pc_credited: g.pc_credited || '',
-            grp_region: g.grp_region || '',
-          })));
-          created += batch.length;
-        } catch (e) {
-          // Continue with next batch — partial data is better than no data
-        }
-      }
+      // v0.951: upsertPointsByCode — update in place by code, no duplicates on timeout.
+      // Old delete-then-create caused data loss + duplicates when the function timed out.
+      const points = withCoords.map(g => ({
+        code: g.code,
+        name: g.name,
+        lat: g.lat,
+        lng: g.lng,
+        dxcc_num: g.dxcc_num || '',
+        status: g.status || 'Active',
+        island_count: g.island_count || 0,
+        pc_credited: g.pc_credited || '',
+        grp_region: g.grp_region || '',
+      }));
+      const upsertResult = await upsertPointsByCode(base44, 'IotaPoint', 'iota', points, 'iota-world.org');
+      created = upsertResult.created + upsertResult.updated;
     }
 
     // IotaPoint is now the single source of truth — no ReferenceData metadata needed.

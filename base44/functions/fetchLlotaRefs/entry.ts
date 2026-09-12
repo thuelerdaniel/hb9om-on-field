@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { upsertPoints } from '../../shared/pointUpsert.ts';
+import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 import { isInternalCall } from '../../shared/internalAuth.ts';
 
 // Fetch LLOTA references (8.357 worldwide) + country stats from llota.app API.
@@ -95,8 +95,9 @@ export default async function(req: Request): Promise<Response> {
       last_synced: new Date().toISOString(),
     })).filter((p: any) => p.code && !isNaN(p.lat) && !isNaN(p.lng));
 
-    // 5. Upsert references using shared upsertPoints (safe full-refresh)
-    const upsertResult = await upsertPoints(base44, 'LlotaRef', 'llota', points, 'llota.app');
+    // v0.951: upsertPointsByCode — update in place by code, no duplicates on timeout.
+    // Old upsertPoints (create-all-then-delete-old) caused duplicates when delete phase timed out.
+    const upsertResult = await upsertPointsByCode(base44, 'LlotaRef', 'llota', points, 'llota.app');
 
     return Response.json({
       success: true,
