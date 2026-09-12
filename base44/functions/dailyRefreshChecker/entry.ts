@@ -96,6 +96,25 @@ export default async function(req: Request): Promise<Response> {
       });
 
       results.push({ source: src.source, status, count, duration_ms: duration, error: errorMsg || warningMsg });
+
+      // Write SyncLog entry for scheduled/manual runs
+      try {
+        await base44.asServiceRole.entities.SyncLog.create({
+          timestamp: new Date().toISOString(),
+          overall_status: status,
+          total_duration_ms: duration,
+          results: [{
+            source: src.source,
+            label: src.label,
+            status,
+            count,
+            duration_ms: duration,
+            error: errorMsg || warningMsg,
+            retried: false,
+          }],
+          trigger: isInternalCall(body) ? 'scheduled' : 'manual',
+        });
+      } catch {}
     } catch (e: any) {
       const duration = Date.now() - taskStart;
       const errorMsg = e?.message || String(e);
@@ -124,6 +143,25 @@ export default async function(req: Request): Promise<Response> {
       } catch {}
 
       results.push({ source: src.source, status: 'failed', count: 0, duration_ms: duration, error: errorMsg });
+
+      // Write SyncLog entry for scheduled/manual runs
+      try {
+        await base44.asServiceRole.entities.SyncLog.create({
+          timestamp: new Date().toISOString(),
+          overall_status: 'failed',
+          total_duration_ms: duration,
+          results: [{
+            source: src.source,
+            label: src.label,
+            status: 'failed',
+            count: 0,
+            duration_ms: duration,
+            error: errorMsg,
+            retried: false,
+          }],
+          trigger: isInternalCall(body) ? 'scheduled' : 'manual',
+        });
+      } catch {}
     }
 
     // After processing a source, check if ALL enabled sources have completed today.

@@ -1,0 +1,43 @@
+{
+  "name": "Daily Sync Checker",
+  "description": "Pr\u00fcft alle 5 Min (03:00-07:00 UTC) auf f\u00e4llige Datenquellen und f\u00fchrt EINE pro Aufruf aus. Erg\u00e4nzt den Weekly Sync Batch Runner (Mo/Do) f\u00fcr die \u00fcbrigen Tage \u2014 schliesst die L\u00fccke dass an Di/Mi/Fr/Sa/So keine automatisierten Syncs liefen.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 3-7 * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "daily_sync_checker",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "dailyRefreshChecker",
+            "args": {
+              "internal_secret": "Hb9Om-0nF1eLd-1nt3rn4l-5ync-5ecr3t-2026-v1a9z7k3m2"
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}
