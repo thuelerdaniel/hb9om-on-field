@@ -8,16 +8,22 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.9047";
+export const APP_VERSION = "0.95";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609110236";
+export const APP_BUILD = "202609120607";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.95: REGISTRATION-FIX — User-Entity 'role' Default-Wert auf 'user' gesetzt — verhindert Registrierungsfehler bei neu verifizierten Benutzern",
+  "v0.95: REGISTRATION-FIX — Register.jsx prüft jetzt access_token vor User-Record-Erstellung — verhindert 'No access token' Fehler",
+  "v0.95: REGISTRATION-FIX — Demo-Passwort von 'demo123' auf 'demo1234' korrigiert",
+  "v0.95: SOTA-DEDUP — Paginierte Bereinigung gestartet: 274k Duplikate gelöscht, 159835 unique Codes identifiziert (2 Passes)",
+  "v0.95: LEGACY-CLEANUP — Alle ReferenceData-Records vom 28.07 entfernt — aktuelle 11 Records sauber",
+  "v0.95: SCHEDULER-STATUS — 25 Quellen terminiert (21 aktiv), nächster Batch-Lauf Montag 14.09. 01:00 UTC",
   "v0.9047: REPEATER-DEDUP — Serverseitige Callsign+Frequenz Deduplikation entfernt 193 Duplikate in EU-Priority-1 (DB0ROE, DB0SKF, DB0LBB, DB0HEL, DO0RM)",
   "v0.9047: REPEATER-DEDUP — Dedup-Logik behält Record mit gültigem CTCSS-Tone ODER Koordinaten ODER on-air-Status (vorher: zufälliger Record)",
   "v0.9047: REPEATER-DEDUP — 7 echte Duplikate (gleiche Callsign+Frequenz) eliminiert, 0 verbleibende Duplikate verifiziert",
