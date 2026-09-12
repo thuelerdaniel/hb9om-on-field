@@ -11,7 +11,7 @@ import { isInternalCall } from '../../shared/internalAuth.ts';
 
 const LOAD_BATCH = 5000;
 const DELETE_BATCH = 5000; // Larger batch for faster deletes
-const CODE_CHUNK = 1000; // codes per $in query — balance between speed and API limits
+const CODE_CHUNK = 5000; // codes per $in query — larger = fewer queries = faster full pass
 const TIME_BUDGET_MS = 270000; // 270s — leave buffer for test tool timeout
 
 const VALID_ENTITIES: Record<string, string> = {
@@ -48,19 +48,20 @@ export default async function(req: any) {
     const refType = body.refType || VALID_ENTITIES[entityName];
     const entity = base44.asServiceRole.entities[entityName];
 
-    // === Phase 1: Build unique code set using skip-based pagination on 'id' ===
-    // Sort on 'id' maps to _id (indexed) — reliable. Even if some records are missed,
-    // Phase 2's $in queries get ALL records per code, so dedup is still correct.
+    // === Phase 1: Build unique code set using skip-based pagination (no sort) ===
+    // No-sort + skip scans 365k-440k records (sort on 'id' only scanned 25k-90k).
+    // Phase 2's $in queries get ALL records per code, so dedup is correct even if
+    // Phase 1 misses some codes — they'll be caught in subsequent runs.
     const uniqueCodes: string[] = [];
     const seenCodes = new Set<string>();
     let phase1Scanned = 0;
 
     for (let page = 0; page < 200; page++) {
-      if (Date.now() - startTime > 120000) break; // 2 min budget for Phase 1
+      if (Date.now() - startTime > 60000) break; // 1 min budget for Phase 1 (more time for Phase 2)
 
       let batch: any[] = [];
       try {
-        batch = await entity.filter({}, 'id', LOAD_BATCH, page * LOAD_BATCH);
+        batch = await entity.filter({}, undefined, LOAD_BATCH, page * LOAD_BATCH);
       } catch { break; }
 
       if (!batch || batch.length === 0) break;
