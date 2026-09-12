@@ -4,14 +4,14 @@ import { isInternalCall } from '../../shared/internalAuth.ts';
 // Dedup reference point entities by code — keeps the best record per code
 // (one with lat/lng, or newest), deletes all duplicates.
 //
-// v0.95 Build-4: Single-pass approach — scan ALL records in batches, group by code
-// in memory, collect duplicate IDs, delete in batches. This is simpler and more
-// reliable than the two-phase approach (Phase 1 skip-scan + Phase 2 $in queries)
-// which missed codes like F/PE-129 (42 records remained after "0 duplicates found").
+// v0.95 Build-5: Cursor-based pagination on 'id' field — no skip, no overlap.
+// Previous no-sort skip-scan returned overlapping pages, causing the function to
+// re-scan the same records and inflate duplicate counts. Cursor-based pagination
+// uses { id: { $gt: lastId } } to get stable, non-overlapping batches.
 
 const LOAD_BATCH = 5000;
 const DELETE_BATCH = 5000;
-const TIME_BUDGET_MS = 270000; // 270s — leave buffer for test tool timeout
+const TIME_BUDGET_MS = 270000;
 
 const VALID_ENTITIES: Record<string, string> = {
   SotaPoint: 'sota',
@@ -29,7 +29,6 @@ export default async function(req: any) {
     let body: any = {};
     try { body = await req.json(); } catch {}
 
-    // Auth check — admin only (or internal call)
     if (!isInternalCall(body)) {
       let user: any = null;
       try { user = await base44.auth.me(); } catch {}
@@ -47,22 +46,23 @@ export default async function(req: any) {
     const refType = body.refType || VALID_ENTITIES[entityName];
     const entity = base44.asServiceRole.entities[entityName];
 
-    // === Single-pass scan: group ALL records by code in memory ===
-    // Map<code, Array<{id, lat, lng, created_date}>>
+    // === Cursor-based scan: group ALL records by code in memory ===
     const byCode = new Map<string, Array<{id: string, lat: any, lng: any, created_date: string}>>();
     let totalScanned = 0;
     let recordsWithoutCode = 0;
+    let lastId: string | null = null;
+    let pages = 0;
 
-    for (let page = 0; page < 200; page++) {
-      if (Date.now() - startTime > 180000) break; // 3 min budget for scanning
-
+    while (Date.now() - startTime < 180000) { // 3 min budget for scanning
       let batch: any[] = [];
       try {
-        batch = await entity.filter({}, undefined, LOAD_BATCH, page * LOAD_BATCH);
+        const query = lastId ? { id: { $gt: lastId } } : {};
+        batch = await entity.filter(query, 'id', LOAD_BATCH);
       } catch { break; }
 
       if (!batch || batch.length === 0) break;
       totalScanned += batch.length;
+      pages++;
 
       for (const r of batch) {
         if (!r.code) { recordsWithoutCode++; continue; }
@@ -75,12 +75,13 @@ export default async function(req: any) {
         });
       }
 
-      if (batch.length < LOAD_BATCH) break;
+      // Advance cursor to last record's id
+      lastId = batch[batch.length - 1].id;
+
+      if (batch.length < LOAD_BATCH) break; // Last page
     }
 
     // === Collect duplicate IDs ===
-    // For each code with >1 records, keep the best (coords preferred, then newest),
-    // mark the rest for deletion.
     const deleteIds: string[] = [];
     let codesWithDuplicates = 0;
     let totalDuplicates = 0;
@@ -90,7 +91,6 @@ export default async function(req: any) {
       codesWithDuplicates++;
       totalDuplicates += recs.length - 1;
 
-      // Sort: prefer records with coords, then newest by created_date
       recs.sort((a, b) => {
         const aCoords = a.lat != null && a.lng != null ? 1 : 0;
         const bCoords = b.lat != null && b.lng != null ? 1 : 0;
@@ -108,7 +108,7 @@ export default async function(req: any) {
     let deleteErrors = 0;
 
     for (let j = 0; j < deleteIds.length; j += DELETE_BATCH) {
-      if (Date.now() - startTime > TIME_BUDGET_MS - 30000) break; // Leave 30s for metadata
+      if (Date.now() - startTime > TIME_BUDGET_MS - 30000) break;
       const subChunk = deleteIds.slice(j, j + DELETE_BATCH);
       try {
         await entity.deleteMany({ id: { $in: subChunk } });
@@ -144,6 +144,7 @@ export default async function(req: any) {
       entityName,
       refType,
       total_scanned: totalScanned,
+      pages_scanned: pages,
       unique_codes: uniqueCount,
       records_without_code: recordsWithoutCode,
       codes_with_duplicates: codesWithDuplicates,
