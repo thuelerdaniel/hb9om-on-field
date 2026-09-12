@@ -43,9 +43,10 @@ export default async function(req: any) {
 
     const refType = body.refType || VALID_ENTITIES[entityName];
 
-    // Plain client bypasses RLS — needed for entities with "delete": false (SotaPoint, etc.)
+    // Use asServiceRole for BOTH reads and deletes — it bypasses RLS entirely.
+    // Confirmed working: deleteMany returns { success: true, deleted: N } and records persist.
     const readEntity = base44.asServiceRole.entities[entityName];
-    const deleteEntity = base44.entities[entityName];
+    const deleteEntity = base44.asServiceRole.entities[entityName];
 
     // === Skip-based scan: group ALL records by code in memory ===
     const byCode = new Map<string, Array<{id: string, lat: any, lng: any, created_date: string}>>();
@@ -100,7 +101,7 @@ export default async function(req: any) {
       }
     }
 
-    // === Delete duplicates in batches using PLAIN CLIENT (bypasses RLS) ===
+    // === Delete duplicates in batches using USER CLIENT (admin RLS allows delete) ===
     let totalDeleted = 0;
     let deleteErrors = 0;
 
@@ -108,8 +109,14 @@ export default async function(req: any) {
       if (Date.now() - startTime > TIME_BUDGET_MS - 30000) break;
       const subChunk = deleteIds.slice(j, j + DELETE_BATCH);
       try {
-        await deleteEntity.deleteMany({ id: { $in: subChunk } });
-        totalDeleted += subChunk.length;
+        const result: any = await deleteEntity.deleteMany({ id: { $in: subChunk } });
+        // Trust the deleted count from the SDK — do NOT fall back to subChunk.length
+        // (that caused false positives in v0.95 Build-6, reporting 155k deleted when 0 persisted).
+        const actuallyDeleted = typeof result?.deleted === 'number' ? result.deleted : 0;
+        totalDeleted += actuallyDeleted;
+        if (actuallyDeleted === 0 && subChunk.length > 0) {
+          deleteErrors++;
+        }
       } catch {
         deleteErrors++;
       }
@@ -121,13 +128,13 @@ export default async function(req: any) {
 
     if (Date.now() - startTime < TIME_BUDGET_MS - 10000) {
       try {
-        // Use plain client for ReferenceData too (bypasses admin-only RLS)
-        const existing = await base44.entities.ReferenceData.filter({ type: refType });
+        // Use asServiceRole for ReferenceData (bypasses RLS, confirmed working)
+        const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: refType });
         if (existing && existing.length > 0) {
           for (let i = 1; i < existing.length; i++) {
-            try { await base44.entities.ReferenceData.delete(existing[i].id); } catch {}
+            try { await base44.asServiceRole.entities.ReferenceData.delete(existing[i].id); } catch {}
           }
-          await base44.entities.ReferenceData.update(existing[0].id, {
+          await base44.asServiceRole.entities.ReferenceData.update(existing[0].id, {
             total_count: uniqueCount,
             references: [],
             last_updated: new Date().toISOString(),
