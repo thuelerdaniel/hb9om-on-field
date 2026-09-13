@@ -6,6 +6,13 @@ import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts'
 // It checks the DailyRefreshSchedule entity for sources whose next_run_utc
 // has passed and haven't been executed yet today. It triggers ONE due source
 // per run (to avoid blocking other sources) and records the result.
+//
+// v0.951-FIX: Only fires on Monday (full batch) and Thursday (partial repeater sync).
+// The cron was changed from */5 3-7 * * * (every day) to */5 3-7 * * 1,4 (Mo+Do only).
+// This belt-and-suspenders check prevents firing on non-scheduled days even if
+// next_run_utc was set incorrectly by the orchestrator.
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -19,6 +26,13 @@ export default async function(req: Request): Promise<Response> {
     if (!isInternalCall(body)) {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       if (user.role !== 'admin') return Response.json({ error: 'Forbidden – Admin only' }, { status: 403 });
+    }
+
+    // v0.951-FIX: Only run on Monday (full batch) or Thursday (partial repeater sync).
+    // This prevents the 5-minute checker from firing sources on non-scheduled days.
+    const dayName = DAY_NAMES[new Date().getUTCDay()];
+    if (dayName !== 'Monday' && dayName !== 'Thursday') {
+      return Response.json({ status: 'idle', message: `Kein Sync-Tag (${dayName}) — nur Mo/Do` });
     }
 
     const now = Date.now();

@@ -1,13 +1,13 @@
 {
   "name": "Daily Sync Checker",
-  "description": "Pr\u00fcft alle 5 Min (03:00-07:00 UTC) auf f\u00e4llige Datenquellen und f\u00fchrt EINE pro Aufruf aus. Erg\u00e4nzt den Weekly Sync Batch Runner (Mo/Do) f\u00fcr die \u00fcbrigen Tage \u2014 schliesst die L\u00fccke dass an Di/Mi/Fr/Sa/So keine automatisierten Syncs liefen.",
+  "description": "v0.951-FIX: Pr\u00fcft alle 5 Min (03:00-07:00 UTC) auf f\u00e4llige Datenquellen \u2014 NUR am Montag (Full-Batch) und Donnerstag (Relais-Update). Cron ge\u00e4ndert von */5 3-7 * * * auf */5 3-7 * * 1,4.",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "*/5 3-7 * * *",
+      "cron_expression": "*/5 3-7 * * 1,4",
       "one_time_date": null,
       "timezone": "UTC",
       "interval_value": null,
