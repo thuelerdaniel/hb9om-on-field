@@ -62,6 +62,19 @@ export default function MapLibreTileLayer({ styleUrl, attribution, opacity, isOf
 
       if (cancelled) return;
 
+      // Wait for map container to have valid dimensions (prevents NaN LatLng error)
+      const size = map.getSize();
+      if (size.x === 0 || size.y === 0) {
+        map.invalidateSize();
+        await new Promise(r => setTimeout(r, 200));
+        if (cancelled) return;
+        const size2 = map.getSize();
+        if (size2.x === 0 || size2.y === 0) {
+          console.warn("MapLibreTileLayer: map container has zero dimensions, skipping");
+          return;
+        }
+      }
+
       try {
         const gl = L.maplibreGL({
           style: styleUrl,
@@ -73,6 +86,17 @@ export default function MapLibreTileLayer({ styleUrl, attribution, opacity, isOf
         gl.bringToBack();
       } catch (e) {
         console.warn("MapLibreTileLayer init failed:", e.message);
+        // Retry once after invalidateSize (container may have just become visible)
+        setTimeout(() => {
+          if (cancelled || !layerRef.current) return;
+          map.invalidateSize();
+          try {
+            layerRef.current.addTo(map);
+            layerRef.current.bringToBack();
+          } catch (retryErr) {
+            console.warn("MapLibreTileLayer retry failed:", retryErr.message);
+          }
+        }, 300);
       }
     };
 
