@@ -8,6 +8,94 @@
 //   @LAT,LON                                     → Kartenmitte (Fallback)
 //   ?q=LAT,LON                                   → Suchergebnis (Fallback)
 
+// Parse coordinates directly from a Google Maps URL (no redirect needed).
+// v0.951-hotfix: Avoids Google anti-bot "sorry" redirects by extracting coords from the URL itself.
+function parseCoordsFromUrl(url: string): any[] {
+  const waypoints: any[] = [];
+
+  // Format 1: /dir/LAT,LON/LAT,LON/...
+  const dirMatch = url.match(/\/dir\/([^?@]+)/);
+  if (dirMatch) {
+    const segments = dirMatch[1].split('/');
+    for (const seg of segments) {
+      const decoded = decodeURIComponent(seg).trim();
+      const match = decoded.match(/^(-?\d+\.?\d*),(-?\d+\.?\d*)$/);
+      if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          waypoints.push({ lat, lng, name: 'WP ' + (waypoints.length + 1) });
+        }
+      }
+    }
+    if (waypoints.length > 0) return waypoints;
+  }
+
+  // Format 2: !3dLAT!4dLON (Google's nested coordinate format)
+  const d3 = url.match(/!3d(-?\d+\.?\d*)/g);
+  const d4 = url.match(/!4d(-?\d+\.?\d*)/g);
+  if (d3 && d4) {
+    for (let i = 0; i < Math.min(d3.length, d4.length); i++) {
+      const lat = parseFloat(d3[i].replace('!3d', ''));
+      const lng = parseFloat(d4[i].replace('!4d', ''));
+      if (!isNaN(lat) && !isNaN(lng)) {
+        waypoints.push({ lat, lng, name: 'WP ' + (waypoints.length + 1) });
+      }
+    }
+  }
+  if (waypoints.length > 0) return waypoints;
+
+  // Format 3: !2dLON!2dLAT
+  const dataCoords = url.match(/!2d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/g);
+  if (dataCoords) {
+    for (const dc of dataCoords) {
+      const m = dc.match(/!2d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/);
+      if (m) {
+        const lat = parseFloat(m[2]);
+        const lng = parseFloat(m[1]);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          waypoints.push({ lat, lng, name: 'Ziel' });
+        }
+      }
+    }
+  }
+  if (waypoints.length > 0) return waypoints;
+
+  // Format 4: @LAT,LON (map center)
+  const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*),/);
+  if (atMatch) {
+    const lat = parseFloat(atMatch[1]);
+    const lng = parseFloat(atMatch[2]);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      waypoints.push({ lat, lng, name: 'Position' });
+    }
+  }
+  if (waypoints.length > 0) return waypoints;
+
+  // Format 5: ?q=LAT,LON or ?destination=LAT,LON
+  const qMatch = url.match(/[?&](?:q|destination|query)=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (qMatch) {
+    const lat = parseFloat(qMatch[1]);
+    const lng = parseFloat(qMatch[2]);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      waypoints.push({ lat, lng, name: 'Ziel' });
+    }
+  }
+  if (waypoints.length > 0) return waypoints;
+
+  // Format 6: /place/LAT,LON
+  const placeMatch = url.match(/\/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (placeMatch) {
+    const lat = parseFloat(placeMatch[1]);
+    const lng = parseFloat(placeMatch[2]);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      waypoints.push({ lat, lng, name: 'Ziel' });
+    }
+  }
+
+  return waypoints;
+}
+
 export default async function(req: Request): Promise<Response> {
   try {
     let url = '';
@@ -30,6 +118,16 @@ export default async function(req: Request): Promise<Response> {
       parsedUrl = new URL(url);
     } catch {
       return Response.json({ success: false, error: 'Ungültige URL' });
+    }
+
+    // v0.951-hotfix: Parse coordinates from the URL directly first (avoids Google anti-bot redirects).
+    // Only follow redirects for short links (maps.app.goo.gl, goo.gl) that don't contain coordinates.
+    const isShortLink = /maps\.app\.goo\.gl|goo\.gl/i.test(url);
+    if (!isShortLink) {
+      const directWaypoints = parseCoordsFromUrl(url);
+      if (directWaypoints.length > 0) {
+        return Response.json({ success: true, waypoints: directWaypoints, resolved_url: url });
+      }
     }
 
     const controller = new AbortController();

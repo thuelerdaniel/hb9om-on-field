@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { useMap } from "react-leaflet";
+import { useEffect, useRef, useState } from "react";
+import { useMap, TileLayer } from "react-leaflet";
 import L from "leaflet";
 import "maplibre-gl/dist/maplibre-gl.css";
 import maplibregl from "maplibre-gl";
@@ -16,9 +16,12 @@ export default function MapLibreTileLayer({ styleUrl, attribution, opacity, isOf
   const map = useMap();
   const layerRef = useRef(null);
   const blobUrlsRef = useRef(new Set());
+  // v0.951-hotfix: L.maplibreGL may be undefined in production builds (tree-shaking removes side-effect).
+  // Fall back to raster TileLayer if MapLibre GL plugin is not available.
+  const [maplibreAvailable] = useState(() => typeof L.maplibreGL === "function");
 
   useEffect(() => {
-    if (!styleUrl || !L.maplibreGL) {
+    if (!maplibreAvailable || !styleUrl || !L.maplibreGL) {
       console.warn("MapLibreTileLayer: maplibreGL not available or no styleUrl");
       return;
     }
@@ -98,6 +101,18 @@ export default function MapLibreTileLayer({ styleUrl, attribution, opacity, isOf
       } catch {}
     }
   }, [opacity]);
+
+  // Fallback: raster TileLayer when MapLibre GL plugin is not available (production tree-shaking fix)
+  if (!maplibreAvailable) {
+    console.warn("[MapLibreTileLayer] L.maplibreGL not available — using raster tile fallback");
+    return (
+      <TileLayer
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; OpenStreetMap contributors'
+        opacity={opacity}
+      />
+    );
+  }
 
   return null;
 }

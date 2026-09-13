@@ -13,11 +13,14 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609121649";
+export const APP_BUILD = "202609131006";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-HOTFIX: MOBIL-CRASH-FIX — L.maplibreGL undefined in Production-Builds (Tree-Shaking) — Raster-TileLayer Fallback hinzugefügt",
+  "v0.951-HOTFIX: MOBIL-CRASH-FIX — resolveGoogleMapsLink parst Koordinaten direkt aus URL (keine Google Anti-Bot Redirects mehr)",
+  "v0.951-HOTFIX: LEGACY-DELETE — 5 veraltete ReferenceData-Records bestätigt gelöscht (11 aktuelle Records verbleiben)",
   "v0.951: OPENFREEMAP — Karten-Tiles von OSM auf OpenFreeMap (Liberty Style) umgestellt — umgeht OSM Tile-Usage-Restriktionen",
   "v0.951: OPENFREEMAP — 3 Styles im Auswahl-Popup: Liberty (Default), Bright, Dark",
   "v0.951: OPENFREEMAP — Attribution 'OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors' in UI und PDF-Export",
