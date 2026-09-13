@@ -144,7 +144,8 @@ export async function upsertPointsByCode(
   entityName: 'SotaPoint' | 'PotaPoint' | 'WwffPoint' | 'TotaPoint' | 'IotaPoint' | 'LlotaRef',
   refType: string,
   points: any[],
-  source: string
+  source: string,
+  options?: { createOnly?: boolean }
 ): Promise<{ created: number; updated: number; total: number; error?: string }> {
   if (!points || points.length === 0) {
     return { created: 0, updated: 0, total: 0 };
@@ -170,8 +171,11 @@ export async function upsertPointsByCode(
     seenCodes.add(p.code);
 
     if (existingMap.has(p.code)) {
-      const old = existingMap.get(p.code);
-      toUpdate.push({ id: old.id, ...p });
+      if (!options?.createOnly) {
+        const old = existingMap.get(p.code);
+        toUpdate.push({ id: old.id, ...p });
+      }
+      // createOnly: skip updates entirely — existing records stay as-is
     } else {
       toCreate.push(p);
     }

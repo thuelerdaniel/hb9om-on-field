@@ -10,6 +10,11 @@ export const VERSION_CHANGELOG = [
     version: "0.951",
     title: "Phase 2: 3D-Ansicht + Gelände + Offline-Vektorkacheln + SOTA-Upsert-Fix",
     changes: [
+      "v0.951-DATA1 — Scheduler: Daily Sync Checker Cron auf Mo/Do geändert — feuerte vorher jeden Tag 03:00-07:00 UTC",
+      "v0.951-DATA2 — SOTA: refreshDataSource auf upsertPointsByCode umgestellt + createOnly-Option — 182'279 unique, 0 Duplikate",
+      "v0.951-DATA3 — WWFF: 33'106 Duplikate gelöscht, 65'904 unique (vorher 97'796 mit Duplikaten)",
+      "v0.951-DATA4 — Castles-Overpass: Retry-Logik optimiert + batch_limit für kleinere Länder-Batches — 524-Timeouts behoben",
+      "v0.951-DATA5 — Dedup: dedupReferencePoints wendet KEINE Normalisierung an — exaktes Code-Matching",
       "v0.951-FIX1 — SW-Cache: Aggressive Cache-Bereinigung (löscht ALLE Caches) — keine intermittierenden White-Screens mehr",
       "v0.951-FIX1 — SW-Cache: Dynamic-Import-Fehler abgefangen — einmaliger Auto-Reload statt White-Screen bei stale Chunks",
       "v0.951-FIX2 — 3D-Layer: Layer-/Filter-Popup im 3D-Modus mit Style-Auswahl (Liberty/Bright/Dark) + 8 Layer-Typen",

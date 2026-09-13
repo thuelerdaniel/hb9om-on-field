@@ -13,11 +13,22 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609132004";
+export const APP_BUILD = "202609132019";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-DATA1: SCHEDULER-FIX — Daily Sync Checker Cron geändert auf */5 3-7 * * 1,4 (nur Mo/Do) — feuerte vorher jeden Tag 03:00-07:00 UTC",
+  "v0.951-DATA1: SCHEDULER-FIX — dailyRefreshChecker prüft Wochentag (Mo/Do) bevor Quellen feuern — Belt-and-Suspenders Schutz",
+  "v0.951-DATA1: SCHEDULER-FIX — DailyRefreshSchedule zurückgesetzt: Sonntag-Läufe gelöscht, next_run_utc auf Mo 14.09. gesetzt",
+  "v0.951-DATA2: SOTA-UPSERT-FIX — refreshDataSource auf upsertPointsByCode umgestellt (vorher upsertPoints = Delete+Reimport → Duplikate bei Timeout)",
+  "v0.951-DATA2: SOTA-UPSERT-FIX — createOnly-Option in upsertPointsByCode: überspringt Update-Phase, verhindert Worker-Crash bei 174k+ Records",
+  "v0.951-DATA2: SOTA-UPSERT-FIX — fetchSOTA + fetchHBFF nutzen createOnly — nur fehlende Records werden erstellt, keine Updates",
+  "v0.951-DATA2: SOTA-RESTORED — 182'279 unique SotaPoint, 0 Duplikate (vorher 157'353 unique, 15'000 durch alten Code-Pfad gelöscht)",
+  "v0.951-DATA3: WWFF-DEDUP — 31'889 + 1'217 Duplikate gelöscht, 65'904 unique WwffPoint (vorher 97'796 mit Duplikaten)",
+  "v0.951-DATA4: CASTLES-OVERPASS — Retry-Logik optimiert: 429/521 sofort nächstes Endpoint, 504/524 1x Retry mit 5s Delay",
+  "v0.951-DATA4: CASTLES-OVERPASS — batch_limit/batch_offset Parameter für kleinere Länder-Batches (verhindert 524-Timeouts)",
+  "v0.951-DATA5: DEDUP-SAFE — dedupReferencePoints wendet KEINE Normalisierung an — Matching exakt auf code-Feld wie vom Sync geschrieben",
   "v0.951-FIX1: SW-CACHE-FIX — Aggressive Cache-Bereinigung (löscht ALLE Caches, nicht nur workbox/base44) — keine intermittierenden White-Screens mehr",
   "v0.951-FIX1: SW-CACHE-FIX — Dynamic-Import-Fehler abgefangen (Failed to fetch dynamically imported module) — einmaliger Auto-Reload statt White-Screen",
   "v0.951-FIX1: SW-CACHE-FIX — Reload-Loop-Schutz durch sessionStorage Flag (nur 1 Reload pro Session)",

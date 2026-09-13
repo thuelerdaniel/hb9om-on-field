@@ -36,8 +36,10 @@ export default async function(req: any) {
       points: s.points || 0,
     }));
 
-    // Upsert by code — no duplicates, no delete phase
-    const upsertResult = await upsertPointsByCode(base44, 'SotaPoint', 'sota', points, 'sotadata.org.uk CSV');
+    // v0.951-FIX: createOnly=true — only create missing records, skip updates.
+    // Fixes worker crash on 174k+ record load + update phase timeout.
+    // Existing records are already correct from previous syncs.
+    const upsertResult = await upsertPointsByCode(base44, 'SotaPoint', 'sota', points, 'sotadata.org.uk CSV', { createOnly: true });
 
     // Clear old chunked-sync AppSettings (no longer needed)
     try {

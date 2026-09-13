@@ -51,13 +51,15 @@ async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
   );
   out center 2000;`;
 
-  // v0.951-FIX: 3 retry attempts per endpoint with 10s delay on 524/timeout
+  // v0.951-FIX: Try each endpoint once — on 429/521 skip to next endpoint immediately.
+  // Only retry on 524/network errors (1 retry with 5s delay). This prevents wasting
+  // 30s+ per country on rate-limited endpoints.
   for (const endpoint of OVERPASS_ENDPOINTS) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        console.log(`[fetchCastlesOverpass] ${country.name} attempt ${attempt}/3 — ${endpoint}`);
+        console.log(`[fetchCastlesOverpass] ${country.name} attempt ${attempt}/2 — ${endpoint}`);
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 120000); // 120s fetch timeout
+        const timer = setTimeout(() => controller.abort(), 90000); // 90s fetch timeout
         const resp = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -67,8 +69,11 @@ async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
         clearTimeout(timer);
         if (!resp.ok) {
           console.log(`[fetchCastlesOverpass] ${endpoint} returned ${resp.status}`);
-          if (resp.status === 429 || resp.status === 504 || resp.status === 524) {
-            await new Promise(r => setTimeout(r, 10000)); // 10s delay on rate-limit/timeout
+          // 429/521 = rate limited/down — try next endpoint immediately (no retry)
+          if (resp.status === 429 || resp.status === 502 || resp.status === 521) break;
+          // 504/524 = timeout — retry once with 5s delay, then try next endpoint
+          if (resp.status === 504 || resp.status === 524) {
+            if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
             continue;
           }
           break; // Other errors — try next endpoint
@@ -81,7 +86,7 @@ async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
         }
       } catch (e) {
         console.log(`[fetchCastlesOverpass] ${country.name} attempt ${attempt} error: ${e.message}`);
-        if (attempt < 3) await new Promise(r => setTimeout(r, 10000));
+        if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
       }
     }
   }

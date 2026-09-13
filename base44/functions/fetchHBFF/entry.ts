@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
         lng: r.lng,
         link: r.link || 'https://wwff.co/directory/',
       }));
-      // v0.95: upsertPointsByCode — update in place by code, no duplicates
-      const upsertResult = await upsertPointsByCode(base44, 'WwffPoint', 'hbff', points, 'wwff.co CSV (worldwide)');
+      // v0.951-FIX: createOnly=true — only create missing records, skip updates (prevents crash + rate limit)
+      const upsertResult = await upsertPointsByCode(base44, 'WwffPoint', 'hbff', points, 'wwff.co CSV (worldwide)', { createOnly: true });
       return Response.json({
         saved: true,
         created: upsertResult.created,
