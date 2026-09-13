@@ -147,18 +147,24 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // --- BLN: Protected landscape boundary (polygon) ---
+    // HOTFIX#3: Search ALL Swiss protected area layers (BLN, BIOTOP, MOOR, AUEN)
+    // not just BLN — many POTA parks are in other federal inventories.
     // v0.951-FIX4: Use progressive tolerance (200m → 1000m → 2000m) and
     // point-in-polygon test to ensure the correct polygon is returned.
-    // Previously, the first polygon found was returned, which could be
-    // a neighboring BLN area when the point was near a boundary.
     if (type === 'bln') {
       const tolerances = [200, 1000, 2000];
       let fallback: { poly: [number, number][]; feature: any } | null = null;
+      const protectedLayers = [
+        SWISSTOPO_LAYERS.BLN,
+        SWISSTOPO_LAYERS.BIOTOP,
+        SWISSTOPO_LAYERS.MOOR,
+        SWISSTOPO_LAYERS.AUEN,
+      ];
 
       for (const tolerance of tolerances) {
         const features = await identifyAtPoint(
           lat, lng,
-          [SWISSTOPO_LAYERS.BLN],
+          protectedLayers,
           tolerance,
         );
         for (const feature of features) {
@@ -207,7 +213,7 @@ export default async function (req: Request): Promise<Response> {
 
       return Response.json({
         success: false,
-        error: 'No BLN/biotope/moor boundary found at coordinates',
+        error: 'No protected area boundary found at coordinates (searched BLN, BIOTOP, MOOR, AUEN)',
         type: 'bln',
         lat,
         lng,

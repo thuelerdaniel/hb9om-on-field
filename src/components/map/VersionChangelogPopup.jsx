@@ -10,6 +10,11 @@ export const VERSION_CHANGELOG = [
     version: "0.951",
     title: "Phase 2: 3D-Ansicht + Gelände + Offline-Vektorkacheln + SOTA-Upsert-Fix",
     changes: [
+      "v0.951-HOTFIX3 — Mobil-SW: Early SW-Cleanup direkt in index.html (vor Module-Loading) — keine stale Chunks mehr",
+      "v0.951-HOTFIX3 — 3D-Layer: setLayoutProperty('visibility') für zuverlässiges Toggle-On/Off",
+      "v0.951-HOTFIX3 — 3D-Popup: Alle Properties (points, altitude, country, frequency, band, mode) — Popups nicht mehr leer",
+      "v0.951-HOTFIX3 — POTA-Grenzen: BLN-Polygone durchgezogen (solid), Kreis-Fallback gestrichelt (dashed) — visuell unterscheidbar",
+      "v0.951-HOTFIX3 — POTA-Grenzen: SwissTopo-Suche erweitert (BLN + BIOTOP + MOOR + AUEN) — mehr Parks haben echte Polygone",
       "v0.951-DATA1 — Scheduler: Daily Sync Checker Cron auf Mo/Do geändert — feuerte vorher jeden Tag 03:00-07:00 UTC",
       "v0.951-DATA2 — SOTA: refreshDataSource auf upsertPointsByCode umgestellt + createOnly-Option — 182'279 unique, 0 Duplikate",
       "v0.951-DATA3 — WWFF: 33'106 Duplikate gelöscht, 65'904 unique (vorher 97'796 mit Duplikaten)",

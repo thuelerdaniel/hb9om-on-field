@@ -4,14 +4,22 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { base44 } from "@/api/base44Client";
 
 const LAYER_CONFIG = {
-  sota: { color: "#e74c3c", label: "SOTA", entity: "SotaPoint", codeField: "code", nameField: "name" },
-  pota: { color: "#27ae60", label: "POTA", entity: "PotaPoint", codeField: "code", nameField: "name" },
-  hbff: { color: "#8e44ad", label: "WWFF", entity: "WwffPoint", codeField: "code", nameField: "name" },
-  lighthouse: { color: "#dc2626", label: "Leuchtturm", entity: "Lighthouse", codeField: "code", nameField: "name" },
-  iota: { color: "#3498db", label: "IOTA", entity: "IotaPoint", codeField: "code", nameField: "name" },
-  llota: { color: "#0ea5e9", label: "LLOTA", entity: "LlotaRef", codeField: "code", nameField: "name" },
-  tota: { color: "#f97316", label: "TOTA", entity: "TotaPoint", codeField: "code", nameField: "name" },
-  repeater: { color: "#3b82f6", label: "Relais", entity: "Repeater", codeField: "callsign", nameField: "location_name" },
+  sota: { color: "#e74c3c", label: "SOTA", entity: "SotaPoint", codeField: "code", nameField: "name",
+    extraProps: p => ({ points: p.points, altitude_m: p.altitude_m }) },
+  pota: { color: "#27ae60", label: "POTA", entity: "PotaPoint", codeField: "code", nameField: "name",
+    extraProps: p => ({ country: p.country, parkType: p.parkType }) },
+  hbff: { color: "#8e44ad", label: "WWFF", entity: "WwffPoint", codeField: "code", nameField: "name",
+    extraProps: p => ({ country_code: p.country_code, parkType: p.parkType }) },
+  lighthouse: { color: "#dc2626", label: "Leuchtturm", entity: "Lighthouse", codeField: "code", nameField: "name",
+    extraProps: p => ({ country: p.country }) },
+  iota: { color: "#3498db", label: "IOTA", entity: "IotaPoint", codeField: "code", nameField: "name",
+    extraProps: p => ({ country: p.country }) },
+  llota: { color: "#0ea5e9", label: "LLOTA", entity: "LlotaRef", codeField: "code", nameField: "name",
+    extraProps: p => ({ region: p.region, activation_count: p.activation_count }) },
+  tota: { color: "#f97316", label: "TOTA", entity: "TotaPoint", codeField: "code", nameField: "name",
+    extraProps: p => ({ country: p.country, height_m: p.height_m }) },
+  repeater: { color: "#3b82f6", label: "Relais", entity: "Repeater", codeField: "callsign", nameField: "location_name",
+    extraProps: p => ({ frequency: p.frequency, band: p.band, mode: p.primary_mode, offset_mhz: p.offset_mhz, tone: p.tone, dcs: p.dcs }) },
 };
 
 /**
@@ -42,11 +50,9 @@ export default function Map3D({ terrainEnabled, activeLayers, styleUrl }) {
     };
 
     for (const [type, config] of Object.entries(LAYER_CONFIG)) {
-      if (!activeLayersRef.current.includes(type)) {
-        const source = map.getSource(`${type}-points`);
-        if (source) source.setData({ type: "FeatureCollection", features: [] });
-        continue;
-      }
+      // HOTFIX#3: Don't clear data for inactive layers — visibility is controlled
+      // by setLayoutProperty in the activeLayers effect (FEHLER 3 fix)
+      if (!activeLayersRef.current.includes(type)) continue;
       try {
         const points = await base44.entities[config.entity].filter(query, undefined, 5000, 0);
         const geojson = {
@@ -57,6 +63,8 @@ export default function Map3D({ terrainEnabled, activeLayers, styleUrl }) {
             properties: {
               code: p[config.codeField] || "",
               name: p[config.nameField] || "",
+              layerType: type,
+              ...(config.extraProps ? config.extraProps(p) : {}),
             },
           })),
         };
@@ -175,11 +183,26 @@ export default function Map3D({ terrainEnabled, activeLayers, styleUrl }) {
           if (e.features.length === 0) return;
           const f = e.features[0];
           const coordinates = f.geometry.coordinates.slice();
-          const { code, name } = f.properties;
-          new maplibregl.Popup()
-            .setLngLat(coordinates)
-            .setHTML(`<div style="font-family: sans-serif; padding: 4px;"><strong style="color: ${config.color};">${config.label}</strong><br/><strong>${code}</strong><br/>${name || ""}</div>`)
-            .addTo(map);
+          const p = f.properties;
+          let html = `<div style="font-family: sans-serif; padding: 6px; min-width: 200px;">`;
+          html += `<div style="color: ${config.color}; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">${config.label}</div>`;
+          html += `<div style="font-size: 14px; font-weight: 700; margin-bottom: 2px;">${p.code || ""}</div>`;
+          if (p.name) html += `<div style="font-size: 12px; color: #374151; margin-bottom: 6px;">${p.name}</div>`;
+          if (p.points != null) html += `<div style="font-size: 11px; color: #6b7280;">⭐ ${p.points} SOTA-Punkte</div>`;
+          if (p.altitude_m != null) html += `<div style="font-size: 11px; color: #6b7280;">Höhe: ${p.altitude_m} m ü.M.</div>`;
+          if (p.height_m != null) html += `<div style="font-size: 11px; color: #6b7280;">Turmhöhe: ${p.height_m} m</div>`;
+          if (p.country || p.country_code) html += `<div style="font-size: 11px; color: #6b7280;">Land: ${p.country || p.country_code}</div>`;
+          if (p.region) html += `<div style="font-size: 11px; color: #6b7280;">Region: ${p.region}</div>`;
+          if (p.parkType) html += `<div style="font-size: 11px; color: #6b7280;">Typ: ${p.parkType}</div>`;
+          if (p.activation_count != null) html += `<div style="font-size: 11px; color: #6b7280;">Aktivierungen: ${p.activation_count}</div>`;
+          if (p.frequency != null) html += `<div style="font-size: 11px; color: #6b7280;">Freq: ${Number(p.frequency).toFixed(4)} MHz</div>`;
+          if (p.band) html += `<div style="font-size: 11px; color: #6b7280;">Band: ${p.band}</div>`;
+          if (p.mode) html += `<div style="font-size: 11px; color: #6b7280;">Mode: ${p.mode}</div>`;
+          if (p.offset_mhz != null && p.offset_mhz !== 0) html += `<div style="font-size: 11px; color: #6b7280;">Offset: ${p.offset_mhz > 0 ? "+" : ""}${p.offset_mhz} MHz</div>`;
+          if (p.tone) html += `<div style="font-size: 11px; color: #6b7280;">Tone: ${p.tone}</div>`;
+          if (p.dcs) html += `<div style="font-size: 11px; color: #6b7280;">DCS: ${p.dcs}</div>`;
+          html += `</div>`;
+          new maplibregl.Popup().setLngLat(coordinates).setHTML(html).addTo(map);
         });
 
         map.on("mouseenter", `${type}-markers`, () => {
@@ -241,6 +264,22 @@ export default function Map3D({ terrainEnabled, activeLayers, styleUrl }) {
       loadMarkers();
     }
   }, [activeLayers, loadMarkers]);
+
+  // HOTFIX#3: Toggle layer visibility via setLayoutProperty (FEHLER 3 fix)
+  // Uses stable layer IDs — does NOT regenerate IDs on each toggle.
+  // setLayoutProperty('visibility','none'/'visible') reliably hides/shows layers.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    for (const type of Object.keys(LAYER_CONFIG)) {
+      const visible = activeLayers.includes(type) ? "visible" : "none";
+      for (const layerId of [`${type}-clusters`, `${type}-cluster-count`, `${type}-markers`]) {
+        if (map.getLayer(layerId)) {
+          try { map.setLayoutProperty(layerId, "visibility", visible); } catch {}
+        }
+      }
+    }
+  }, [activeLayers, mapLoaded]);
 
   return (
     <>

@@ -13,11 +13,16 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609132019";
+export const APP_BUILD = "202609132040";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-HOTFIX3: MOBIL-SW — Early SW-Cleanup direkt in index.html (vor Module-Loading) — SW kann keine stale Chunks mehr servieren",
+  "v0.951-HOTFIX3: 3D-LAYER — setLayoutProperty('visibility') für zuverlässiges Toggle-On/Off (vorher: Source-Data gelöscht → unzuverlässig)",
+  "v0.951-HOTFIX3: 3D-POPUP — GeoJSON-Features haben jetzt alle Properties (points, altitude, country, frequency, band, mode etc.) — Popups nicht mehr leer",
+  "v0.951-HOTFIX3: POTA-GRENZEN — BLN-Polygone durchgezogen (solid), Kreis-Fallback gestrichelt (dashed) — visuell unterscheidbar",
+  "v0.951-HOTFIX3: POTA-GRENZEN — SwissTopo-Suche erweitert: BLN + BIOTOP + MOOR + AUEN (vorher nur BLN) — mehr Parks haben echte Polygone",
   "v0.951-DATA1: SCHEDULER-FIX — Daily Sync Checker Cron geändert auf */5 3-7 * * 1,4 (nur Mo/Do) — feuerte vorher jeden Tag 03:00-07:00 UTC",
   "v0.951-DATA1: SCHEDULER-FIX — dailyRefreshChecker prüft Wochentag (Mo/Do) bevor Quellen feuern — Belt-and-Suspenders Schutz",
   "v0.951-DATA1: SCHEDULER-FIX — DailyRefreshSchedule zurückgesetzt: Sonntag-Läufe gelöscht, next_run_utc auf Mo 14.09. gesetzt",

@@ -94,7 +94,9 @@ function BoundaryLayerInner({ boundaryPoints }) {
               </React.Fragment>
             );
           }
-          // POTA (BLN) and other polygon boundaries: render without buffer
+          // HOTFIX#3: POTA (BLN) polygon boundaries — SOLID (real boundary).
+          // Other layers (WWFF etc.) — DASHED (approximative).
+          const isRealBoundary = layerType === "pota";
           return (
             <Polygon
               key={key}
@@ -104,7 +106,7 @@ function BoundaryLayerInner({ boundaryPoints }) {
                 weight: 2,
                 fillColor: color,
                 fillOpacity: 0.2,
-                dashArray: "6 4",
+                ...(isRealBoundary ? {} : { dashArray: "6 4" }),
                 interactive: false,
               }}
             />
