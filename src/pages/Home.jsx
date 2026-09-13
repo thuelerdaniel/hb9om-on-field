@@ -477,6 +477,41 @@ export default function Home() {
         return [...prev, { data, layerType, polygonLoading: true }];
       }
 
+      // For POTA OUTSIDE Switzerland, fetch park boundary from OpenStreetMap (Overpass API).
+      // The Overpass API searches for national_park, nature_reserve, protected_area boundaries
+      // near the park's coordinates. Point-in-polygon test ensures correct association.
+      // While loading, the default 500m circle is shown as fallback.
+      if (layerType === "pota" && data.lat != null && data.lng != null) {
+        base44.functions.invoke("fetchPotaBoundary", {
+          lat: data.lat,
+          lng: data.lng,
+          name: data.name,
+          reference: data.code || data.reference,
+        }).then(res => {
+          if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
+                : bp
+            ));
+          } else {
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygonLoading: false }
+                : bp
+            ));
+          }
+        }).catch(() => {
+          setBoundaryPoints(prev => prev.map(bp =>
+            `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+              ? { ...bp, polygonLoading: false }
+              : bp
+          ));
+        });
+
+        return [...prev, { data, layerType, polygonLoading: true }];
+      }
+
       return [...prev, { data, layerType }];
     });
   }, []);

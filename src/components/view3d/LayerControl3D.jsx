@@ -16,6 +16,7 @@ const LAYER_OPTIONS = [
   { type: "llota", label: "LLOTA", icon: Waves, color: "#0ea5e9" },
   { type: "tota", label: "TOTA", icon: TowerControl, color: "#f97316" },
   { type: "repeater", label: "Relais", icon: Radio, color: "#3b82f6" },
+  { type: "castle", label: "COTA", icon: MapPin, color: "#e67e22" },
 ];
 
 /**

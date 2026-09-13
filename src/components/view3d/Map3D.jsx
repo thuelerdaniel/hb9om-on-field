@@ -20,6 +20,8 @@ const LAYER_CONFIG = {
     extraProps: p => ({ country: p.country, height_m: p.height_m }) },
   repeater: { color: "#3b82f6", label: "Relais", entity: "Repeater", codeField: "callsign", nameField: "location_name",
     extraProps: p => ({ frequency: p.frequency, band: p.band, mode: p.primary_mode, offset_mhz: p.offset_mhz, tone: p.tone, dcs: p.dcs }) },
+  castle: { color: "#e67e22", label: "COTA", entity: null, useFunction: "getReferencesInBounds", codeField: "code", nameField: "name",
+    extraProps: p => ({ country: p.countryPrefix, source: p.source }) },
 };
 
 /**
@@ -54,10 +56,19 @@ export default function Map3D({ terrainEnabled, activeLayers, styleUrl }) {
       // by setLayoutProperty in the activeLayers effect (FEHLER 3 fix)
       if (!activeLayersRef.current.includes(type)) continue;
       try {
-        const points = await base44.entities[config.entity].filter(query, undefined, 5000, 0);
+        let points = [];
+        if (config.useFunction === "getReferencesInBounds") {
+          const res = await base44.functions.invoke("getReferencesInBounds", {
+            types: [type],
+            bounds: { south: sw.lat, west: sw.lng, north: ne.lat, east: ne.lng },
+          });
+          points = res.data?.[type] || res?.[type] || [];
+        } else if (config.entity) {
+          points = await base44.entities[config.entity].filter(query, undefined, 5000, 0);
+        }
         const geojson = {
           type: "FeatureCollection",
-          features: (points || []).map(p => ({
+          features: (points || []).filter(p => p.lat != null && p.lng != null).map(p => ({
             type: "Feature",
             geometry: { type: "Point", coordinates: [p.lng, p.lat] },
             properties: {
