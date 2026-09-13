@@ -42,39 +42,47 @@ const OVERPASS_ENDPOINTS = [
 ];
 
 async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
-  const query = `[out:json][timeout:90];
-(
-  node["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
-  node["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
-  way["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
-  way["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
-);
-out center 2000;`;
+  const query = `[out:json][timeout:180];
+  (
+    node["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
+    node["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
+    way["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
+    way["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
+  );
+  out center 2000;`;
 
+  // v0.951-FIX: 3 retry attempts per endpoint with 10s delay on 524/timeout
   for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      console.log(`[fetchCastlesOverpass] Trying endpoint: ${endpoint}`);
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'data=' + encodeURIComponent(query),
-      });
-      if (!resp.ok) {
-        console.log(`[fetchCastlesOverpass] ${endpoint} returned ${resp.status}`);
-        continue;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`[fetchCastlesOverpass] ${country.name} attempt ${attempt}/3 — ${endpoint}`);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 120000); // 120s fetch timeout
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'data=' + encodeURIComponent(query),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (!resp.ok) {
+          console.log(`[fetchCastlesOverpass] ${endpoint} returned ${resp.status}`);
+          if (resp.status === 429 || resp.status === 504 || resp.status === 524) {
+            await new Promise(r => setTimeout(r, 10000)); // 10s delay on rate-limit/timeout
+            continue;
+          }
+          break; // Other errors — try next endpoint
+        }
+        const text = await resp.text();
+        const data = JSON.parse(text);
+        if (data && data.elements) {
+          console.log(`[fetchCastlesOverpass] ${country.name}: ${data.elements.length} elements`);
+          return data.elements;
+        }
+      } catch (e) {
+        console.log(`[fetchCastlesOverpass] ${country.name} attempt ${attempt} error: ${e.message}`);
+        if (attempt < 3) await new Promise(r => setTimeout(r, 10000));
       }
-      const text = await resp.text();
-      const data = JSON.parse(text);
-      if (data && data.elements && data.elements.length > 0) {
-        console.log(`[fetchCastlesOverpass] ${endpoint} returned ${data.elements.length} elements`);
-        return data.elements;
-      }
-      if (data && data.elements && data.elements.length === 0) {
-        console.log(`[fetchCastlesOverpass] ${endpoint} returned 0 elements`);
-        return [];
-      }
-    } catch (e) {
-      console.log(`[fetchCastlesOverpass] ${endpoint} error: ${e.message}`);
     }
   }
   return [];
@@ -88,9 +96,15 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const targetPrefix = body.country_prefix || null;
-    const countries = targetPrefix
+    // v0.951-FIX: batch_limit + batch_offset for smaller batches (prevents 524 timeouts)
+    const batchLimit = body.batch_limit || 0; // 0 = all countries (backward compat)
+    const batchOffset = body.batch_offset || 0;
+    let countries = targetPrefix
       ? COUNTRIES.filter(c => c.prefix === targetPrefix)
       : COUNTRIES;
+    if (batchLimit > 0) {
+      countries = countries.slice(batchOffset, batchOffset + batchLimit);
+    }
 
     // 1. Load existing Overpass castle data (separate from WCA 'castle' type)
     // Use type='castle_overpass' to avoid loading the large WCA document
