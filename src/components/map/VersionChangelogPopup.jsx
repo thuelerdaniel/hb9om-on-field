@@ -10,6 +10,12 @@ export const VERSION_CHANGELOG = [
     version: "0.951",
     title: "Phase 2: 3D-Ansicht + Gelände + Offline-Vektorkacheln + SOTA-Upsert-Fix",
     changes: [
+      "v0.951-FIX1 — SW-Cache: Aggressive Cache-Bereinigung (löscht ALLE Caches) — keine intermittierenden White-Screens mehr",
+      "v0.951-FIX1 — SW-Cache: Dynamic-Import-Fehler abgefangen — einmaliger Auto-Reload statt White-Screen bei stale Chunks",
+      "v0.951-FIX2 — 3D-Layer: Layer-/Filter-Popup im 3D-Modus mit Style-Auswahl (Liberty/Bright/Dark) + 8 Layer-Typen",
+      "v0.951-FIX2 — 3D-Layer: SOTA, POTA, WWFF, Leuchtturm, IOTA, LLOTA, TOTA, Relais als GeoJSON-Layer mit Clustering",
+      "v0.951-FIX3 — 3D-Gelände: Terrain-Quelle auf US-Bucket umgestellt + mapLoaded State fixt Race-Condition — Gelände-Button funktioniert jetzt",
+      "v0.951-FIX4 — POTA-Grenzen: Point-in-Polygon-Test + progressive Toleranz — Grenze läuft exakt um den gewählten Park (nicht mehr verschoben)",
       "Phase 2 — 3D-Ansicht: MapLibre GL JS mit Globus-Projektion, Pitch/Rotate-Gesten, Himmel/Atmosphäre, 3D-Gebäude",
       "Phase 2 — 3D-Gelände: AWS Terrain Tiles (Terrarium, EU-Bucket) — Alpen in echtem 3D-Relief mit Hillshading",
       "Phase 2 — SOTA/POTA/WWFF-Marker in 3D als GeoJSON-Layer mit Clustering bei niedrigem Zoom",

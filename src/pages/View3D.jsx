@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Mountain, Trees, Zap, Globe2 } from "lucide-react";
+import { ArrowLeft, Globe2 } from "lucide-react";
 import Map3D from "@/components/view3d/Map3D";
+import LayerControl3D from "@/components/view3d/LayerControl3D";
 import BottomNavigation from "@/components/BottomNavigation";
 
-const LAYER_BUTTONS = [
-  { type: "sota", label: "SOTA", icon: Mountain, color: "#e74c3c" },
-  { type: "pota", label: "POTA", icon: Trees, color: "#27ae60" },
-  { type: "hbff", label: "WWFF", icon: Zap, color: "#8e44ad" },
+const QUICK_LAYERS = [
+  { type: "sota", label: "SOTA", color: "#e74c3c" },
+  { type: "pota", label: "POTA", color: "#27ae60" },
+  { type: "hbff", label: "WWFF", color: "#8e44ad" },
 ];
 
 export default function View3D() {
   const navigate = useNavigate();
   const [terrainEnabled, setTerrainEnabled] = useState(false);
   const [activeLayers, setActiveLayers] = useState(["sota", "pota", "hbff"]);
+  const [styleUrl, setStyleUrl] = useState("https://tiles.openfreemap.org/styles/liberty");
 
   const toggleLayer = (type) => {
     setActiveLayers(prev =>
@@ -37,6 +39,16 @@ export default function View3D() {
             <h1 className="text-sm font-bold text-gray-900 dark:text-slate-100">3D-Ansicht</h1>
             <p className="text-[10px] text-gray-500 dark:text-slate-400">Globus · Gelände · Gebäude · OpenFreeMap</p>
           </div>
+
+          {/* v0.951-FIX2: Layer Control with style selection */}
+          <LayerControl3D
+            activeLayers={activeLayers}
+            onToggleLayer={toggleLayer}
+            styleUrl={styleUrl}
+            onChangeStyle={setStyleUrl}
+          />
+
+          {/* Terrain toggle */}
           <button
             onClick={() => setTerrainEnabled(!terrainEnabled)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${
@@ -52,16 +64,15 @@ export default function View3D() {
         </div>
       </div>
 
-      {/* Map */}
+      {/* Map — key=styleUrl forces re-mount on style change */}
       <div className="absolute top-[57px] bottom-0 left-0 right-0">
-        <Map3D terrainEnabled={terrainEnabled} activeLayers={activeLayers} />
+        <Map3D key={styleUrl} terrainEnabled={terrainEnabled} activeLayers={activeLayers} styleUrl={styleUrl} />
       </div>
 
-      {/* Layer toggle buttons — floating bottom left */}
+      {/* Quick layer toggle buttons — floating bottom left */}
       <div className="absolute bottom-16 left-4 z-20 flex gap-2 flex-wrap max-w-[calc(100vw-2rem)]">
-        {LAYER_BUTTONS.map(btn => {
+        {QUICK_LAYERS.map(btn => {
           const active = activeLayers.includes(btn.type);
-          const Icon = btn.icon;
           return (
             <button
               key={btn.type}
@@ -73,7 +84,6 @@ export default function View3D() {
               }`}
               style={{ borderLeft: `3px solid ${active ? btn.color : "transparent"}` }}
             >
-              <Icon className="w-4 h-4" style={{ color: active ? btn.color : undefined }} />
               {btn.label}
             </button>
           );

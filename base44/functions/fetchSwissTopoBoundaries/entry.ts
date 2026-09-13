@@ -23,6 +23,20 @@ import {
 
 const API_BASE = 'https://api3.geo.admin.ch/rest/services/ech';
 
+// v0.951-FIX4: Point-in-polygon test (ray casting) — ensures the BLN polygon
+// actually contains the POTA point, preventing shifted/neighbor boundaries.
+function pointInPolygon(lat: number, lng: number, polygon: [number, number][]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [piLat, piLng] = polygon[i];
+    const [pjLat, pjLng] = polygon[j];
+    const intersect = ((piLng > lng) !== (pjLng > lng)) &&
+      (lat < ((pjLat - piLat) * (lng - piLng)) / (pjLng - piLng) + piLat);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
 // Identify features at a point via SwissTopo MapServer identify API.
 // Uses a bounding box (envelope) around the point for reliable polygon intersection.
 async function identifyAtPoint(
@@ -133,33 +147,64 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // --- BLN: Protected landscape boundary (polygon) ---
+    // v0.951-FIX4: Use progressive tolerance (200m → 1000m → 2000m) and
+    // point-in-polygon test to ensure the correct polygon is returned.
+    // Previously, the first polygon found was returned, which could be
+    // a neighboring BLN area when the point was near a boundary.
     if (type === 'bln') {
-      const tolerance = radius || 2000;
-      // Query BLN only — multiple layers can cause the API to return 0 results
-      const features = await identifyAtPoint(
-        lat, lng,
-        [SWISSTOPO_LAYERS.BLN],
-        tolerance,
-      );
-      for (const feature of features) {
-        const poly = extractPolygon(feature);
-        if (poly && poly.length >= 3) {
-          const simplified = simplifyPolygon(poly);
-          const featureName =
-            feature.properties?.bln_name ||
-            feature.properties?.label ||
-            feature.properties?.name ||
-            '';
-          return Response.json({
-            success: true,
-            type: 'bln',
-            polygon: simplified,
-            name: featureName,
-            layer: feature.layerBodId || '',
-            source: 'swisstopo',
-          });
+      const tolerances = [200, 1000, 2000];
+      let fallback: { poly: [number, number][]; feature: any } | null = null;
+
+      for (const tolerance of tolerances) {
+        const features = await identifyAtPoint(
+          lat, lng,
+          [SWISSTOPO_LAYERS.BLN],
+          tolerance,
+        );
+        for (const feature of features) {
+          const poly = extractPolygon(feature);
+          if (poly && poly.length >= 3) {
+            // v0.951-FIX4: Check if the point is inside this polygon
+            if (pointInPolygon(lat, lng, poly)) {
+              const simplified = simplifyPolygon(poly);
+              const featureName =
+                feature.properties?.bln_name ||
+                feature.properties?.label ||
+                feature.properties?.name ||
+                '';
+              return Response.json({
+                success: true,
+                type: 'bln',
+                polygon: simplified,
+                name: featureName,
+                layer: feature.layerBodId || '',
+                source: 'swisstopo',
+              });
+            }
+            // Save first polygon as fallback (closest match)
+            if (!fallback) fallback = { poly, feature };
+          }
         }
       }
+
+      // Fallback: return the first polygon found if none contained the point
+      if (fallback) {
+        const simplified = simplifyPolygon(fallback.poly);
+        const featureName =
+          fallback.feature.properties?.bln_name ||
+          fallback.feature.properties?.label ||
+          fallback.feature.properties?.name ||
+          '';
+        return Response.json({
+          success: true,
+          type: 'bln',
+          polygon: simplified,
+          name: featureName,
+          layer: fallback.feature.layerBodId || '',
+          source: 'swisstopo',
+        });
+      }
+
       return Response.json({
         success: false,
         error: 'No BLN/biotope/moor boundary found at coordinates',

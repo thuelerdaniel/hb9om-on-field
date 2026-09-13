@@ -4,21 +4,30 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { base44 } from "@/api/base44Client";
 
 const LAYER_CONFIG = {
-  sota: { color: "#e74c3c", label: "SOTA", entity: "SotaPoint" },
-  pota: { color: "#27ae60", label: "POTA", entity: "PotaPoint" },
-  hbff: { color: "#8e44ad", label: "WWFF", entity: "WwffPoint" },
+  sota: { color: "#e74c3c", label: "SOTA", entity: "SotaPoint", codeField: "code", nameField: "name" },
+  pota: { color: "#27ae60", label: "POTA", entity: "PotaPoint", codeField: "code", nameField: "name" },
+  hbff: { color: "#8e44ad", label: "WWFF", entity: "WwffPoint", codeField: "code", nameField: "name" },
+  lighthouse: { color: "#dc2626", label: "Leuchtturm", entity: "Lighthouse", codeField: "code", nameField: "name" },
+  iota: { color: "#3498db", label: "IOTA", entity: "IotaPoint", codeField: "code", nameField: "name" },
+  llota: { color: "#0ea5e9", label: "LLOTA", entity: "LlotaRef", codeField: "code", nameField: "name" },
+  tota: { color: "#f97316", label: "TOTA", entity: "TotaPoint", codeField: "code", nameField: "name" },
+  repeater: { color: "#3b82f6", label: "Relais", entity: "Repeater", codeField: "callsign", nameField: "location_name" },
 };
 
 /**
  * MapLibre GL JS 3D map component — globe projection, 3D terrain, 3D buildings,
- * SOTA/POTA/WWFF markers with clustering. Completely separate from the Leaflet map.
+ * SOTA/POTA/WWFF/Repeater/etc markers with clustering. Completely separate from Leaflet.
+ *
+ * v0.951-FIX2: Accepts styleUrl prop for style selection (Liberty/Bright/Dark).
+ * v0.951-FIX3: Terrain uses US bucket (more reliable) + mapLoaded state to fix race condition.
  */
-export default function Map3D({ terrainEnabled, activeLayers }) {
+export default function Map3D({ terrainEnabled, activeLayers, styleUrl }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const activeLayersRef = useRef(activeLayers);
   activeLayersRef.current = activeLayers;
   const [loading, setLoading] = useState(true);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const loadMarkers = useCallback(async () => {
     const map = mapRef.current;
@@ -45,7 +54,10 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
           features: (points || []).map(p => ({
             type: "Feature",
             geometry: { type: "Point", coordinates: [p.lng, p.lat] },
-            properties: { code: p.code, name: p.name || p.code },
+            properties: {
+              code: p[config.codeField] || "",
+              name: p[config.nameField] || "",
+            },
           })),
         };
         const source = map.getSource(`${type}-points`);
@@ -62,7 +74,7 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: "https://tiles.openfreemap.org/styles/liberty",
+      style: styleUrl || "https://tiles.openfreemap.org/styles/liberty",
       center: [8.2, 46.8],
       zoom: 7,
       pitch: 30,
@@ -75,12 +87,14 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
     mapRef.current = map;
 
     map.on("load", () => {
-      // Terrain source — AWS Terrarium tiles, EU bucket for low latency from CH
+      // v0.951-FIX3: Terrain source — US bucket (more reliable than EU bucket)
+      // + maxzoom 14 (terrain tiles only go to zoom 14)
       map.addSource("terrain", {
         type: "raster-dem",
-        tiles: ["https://s3.amazonaws.com/elevation-tiles-prod-eu/terrarium/{z}/{x}/{y}.png"],
+        tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
         encoding: "terrarium",
         tileSize: 256,
+        maxzoom: 14,
         attribution: "Terrain: Mapzen, USGS, NASA (AWS Terrain Tiles)",
       });
 
@@ -92,7 +106,7 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
 
       map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
-      // Sky/atmosphere — try setSky (v4+) and setFog
+      // Sky/atmosphere
       try {
         if (map.setSky) {
           map.setSky({ "sky-color": "#199EF2", "sky-horizon-blend": 0.5 });
@@ -114,7 +128,6 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
           clusterRadius: 40,
         });
 
-        // Cluster circles
         map.addLayer({
           id: `${type}-clusters`,
           type: "circle",
@@ -129,7 +142,6 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
           },
         });
 
-        // Cluster count labels
         map.addLayer({
           id: `${type}-cluster-count`,
           type: "symbol",
@@ -146,7 +158,6 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
           },
         });
 
-        // Individual markers
         map.addLayer({
           id: `${type}-markers`,
           type: "circle",
@@ -160,7 +171,6 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
           },
         });
 
-        // Popup on marker click
         map.on("click", `${type}-markers`, (e) => {
           if (e.features.length === 0) return;
           const f = e.features[0];
@@ -194,6 +204,7 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
         }
       });
 
+      setMapLoaded(true);
       setLoading(false);
       loadMarkers();
     });
@@ -209,19 +220,20 @@ export default function Map3D({ terrainEnabled, activeLayers }) {
       if (moveTimer) clearTimeout(moveTimer);
       map.remove();
       mapRef.current = null;
+      setMapLoaded(false);
     };
-  }, [loadMarkers]);
+  }, [loadMarkers, styleUrl]);
 
-  // Terrain toggle
+  // v0.951-FIX3: Terrain toggle — depends on mapLoaded to fix race condition
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getSource("terrain")) return;
+    if (!map || !mapLoaded || !map.getSource("terrain")) return;
     if (terrainEnabled) {
       map.setTerrain({ source: "terrain", exaggeration: 1.2 });
     } else {
       map.setTerrain(null);
     }
-  }, [terrainEnabled]);
+  }, [terrainEnabled, mapLoaded]);
 
   // Active layers change — reload markers
   useEffect(() => {

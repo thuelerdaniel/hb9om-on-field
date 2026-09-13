@@ -13,11 +13,23 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609131006";
+export const APP_BUILD = "202609131729";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-FIX1: SW-CACHE-FIX — Aggressive Cache-Bereinigung (löscht ALLE Caches, nicht nur workbox/base44) — keine intermittierenden White-Screens mehr",
+  "v0.951-FIX1: SW-CACHE-FIX — Dynamic-Import-Fehler abgefangen (Failed to fetch dynamically imported module) — einmaliger Auto-Reload statt White-Screen",
+  "v0.951-FIX1: SW-CACHE-FIX — Reload-Loop-Schutz durch sessionStorage Flag (nur 1 Reload pro Session)",
+  "v0.951-FIX2: 3D-LAYER — Layer-/Filter-Popup im 3D-Modus: Style-Auswahl (Liberty/Bright/Dark) + alle Aktivitätszonen + Repeater-Layer",
+  "v0.951-FIX2: 3D-LAYER — 8 Layer-Typen im 3D-Modus: SOTA, POTA, WWFF, Leuchtturm, IOTA, LLOTA, TOTA, Relais — GeoJSON mit Clustering",
+  "v0.951-FIX2: 3D-LAYER — Style-Wechsel erzwingt Map-Neuaufbau (key=styleUrl) — saubere Layer-Initialisierung",
+  "v0.951-FIX3: 3D-GELÄNDE — Terrain-Quelle auf US-Bucket umgestellt (elevation-tiles-prod statt EU-Bucket) — zuverlässigere Tile-Auslieferung",
+  "v0.951-FIX3: 3D-GELÄNDE — mapLoaded State verhindert Race-Condition (setTerrain vor map.on('load') hatte keinen Effekt)",
+  "v0.951-FIX3: 3D-GELÄNDE — maxzoom: 14 im Terrain-Source (Terrain-Tiles nur bis Zoom 14 verfügbar)",
+  "v0.951-FIX4: POTA-GRENZEN — Point-in-Polygon-Test (Ray-Casting) stellt sicher dass BLN-Polygon den POTA-Punkt enthält",
+  "v0.951-FIX4: POTA-GRENZEN — Progressive Toleranz (200m → 1000m → 2000m) verhindert Nachbar-Polygon-Zuordnung",
+  "v0.951-FIX4: POTA-GRENZEN — Fallback auf nächstgelegenes Polygon wenn kein Polygon den Punkt enthält",
   "v0.951-HOTFIX: MOBIL-CRASH-FIX — L.maplibreGL undefined in Production-Builds (Tree-Shaking) — Raster-TileLayer Fallback hinzugefügt",
   "v0.951-HOTFIX: MOBIL-CRASH-FIX — resolveGoogleMapsLink parst Koordinaten direkt aus URL (keine Google Anti-Bot Redirects mehr)",
   "v0.951-HOTFIX: LEGACY-DELETE — 5 veraltete ReferenceData-Records bestätigt gelöscht (11 aktuelle Records verbleiben)",

@@ -5,7 +5,8 @@ import '@/index.css'
 import { base44 } from '@/api/base44Client'
 import { cleanupLargeLocalStorageData } from '@/lib/safeStorage'
 
-// Alte Service Worker deregistrieren (verhindert White-Screen durch veraltete Caches)
+// v0.951-FIX1: Aggressive SW + Cache Cleanup — verhindert intermittierende White-Screens
+// durch veraltete App-Shell/JS-Chunks. Löscht ALLE Caches (nicht nur workbox/base44).
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(registrations => {
     registrations.forEach(reg => {
@@ -16,9 +17,7 @@ if ('serviceWorker' in navigator) {
 }
 if ('caches' in window) {
   caches.keys().then(names => {
-    if (names.some(n => n.includes('workbox') || n.includes('base44'))) {
-      names.forEach(n => caches.delete(n));
-    }
+    names.forEach(n => caches.delete(n));
   });
 }
 
@@ -56,7 +55,11 @@ window.addEventListener('error', (event) => {
       if ('caches' in window) {
         caches.keys().then(names => names.forEach(n => caches.delete(n)));
       }
-      setTimeout(() => window.location.reload(), 1000);
+      // v0.951-FIX1: Only reload once to prevent loops
+      if (!sessionStorage.getItem('hb9om_chunk_reload')) {
+        sessionStorage.setItem('hb9om_chunk_reload', '1');
+        setTimeout(() => window.location.reload(), 1000);
+      }
     }
     return;
   }
@@ -65,7 +68,23 @@ window.addEventListener('error', (event) => {
 
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event.reason;
-  reportError('unhandled_promise', reason?.message || String(reason), reason?.stack);
+  const msg = String(reason?.message || reason || '');
+  // v0.951-FIX1: Dynamic import failure (stale chunk after deploy) — reload once with cache bust
+  if (msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('error loading dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      msg.includes('error resolving module specifier')) {
+    console.error('Dynamic import failed — reloading with cache bust:', msg);
+    if (!sessionStorage.getItem('hb9om_chunk_reload')) {
+      sessionStorage.setItem('hb9om_chunk_reload', '1');
+      if ('caches' in window) {
+        caches.keys().then(names => names.forEach(n => caches.delete(n)));
+      }
+      window.location.reload();
+      return;
+    }
+  }
+  reportError('unhandled_promise', msg, reason?.stack);
 });
 
 try {
@@ -96,6 +115,11 @@ try {
   }
   console.error('Render error:', renderError);
 }
+
+// v0.951-FIX1: Clear chunk reload flag after successful load (prevents reload loop)
+setTimeout(() => {
+  sessionStorage.removeItem('hb9om_chunk_reload');
+}, 5000);
 
 // White-Screen-Fallback: Wenn nach 5 Sekunden kein React-Inhalt, Seite neu laden
 setTimeout(() => {
