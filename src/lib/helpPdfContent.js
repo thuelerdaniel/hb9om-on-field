@@ -76,6 +76,7 @@ export const UI_ICONS = [
   { icon: "barChart3", color: [5, 150, 105], name: "Statistik", desc: "Wechselt zur Statistik-Ansicht im Logbuch." },
   { icon: "clipboardList", color: [59, 130, 246], name: "Meine Anträge", desc: "Zeigt eingereichte Positions-Korrekturen und deren Status." },
   { icon: "search", color: [100, 116, 139], name: "Suchfeld", desc: "Suche nach Referenz-Code, Name oder Ort (oben Mitte)." },
+  { icon: "mountain", color: [249, 115, 22], name: "3D-Gelände-Toggle", desc: "Schaltet die Hauptkarte in 3D-Modus (Terrain + 45° Neigung). Orange = aktiv." },
   { icon: "helpCircle", color: [59, 130, 246], name: "Hilfe", desc: "Öffnet diese Hilfe-Anleitung." },
   { icon: "plus", color: [100, 116, 139], name: "Zoom rein/raus", desc: "Karte vergrössern/verkleinern (rechts oben)." },
   { icon: "bookOpen", color: [100, 116, 139], name: "Logbuch (Nav)", desc: "Navigation unten: Wechsel zum QSO-Logbuch." },
@@ -152,6 +153,28 @@ export const SECTIONS = [
           { icon: "ruler", text: "Kreise erscheinen um alle sichtbaren Referenzpunkte" },
           { icon: "check", text: "Radius ist standardmässig 1 km" }
         ]
+      },
+      {
+        title: "Referenz-Grenzen (POTA, WWFF, LLOTA)",
+        body: "Für POTA-Parks, WWFF-Schutzgebiete und LLOTA-Seen können Sie die echte Gebietsgrenze auf der Karte anzeigen. Die Grenzen stammen von pota-map.fr (weltweite autoritative Quelle). Echte Grenzen werden als durchgezogenes Polygon dargestellt; wenn keine Grenze gefunden wird, erscheint ein gestrichelter Kreis mit «ca.»-Label als Näherung.",
+        steps: [
+          { icon: "mapPin", text: "Auf einen POTA-, WWFF- oder LLOTA-Marker tippen" },
+          { icon: "ruler", text: "Im Popup «Grenze anzeigen» aktivieren" },
+          { icon: "check", text: "Echte Grenze (durchgezogen) oder «ca.»-Kreis (gestrichelt) erscheint" },
+          { icon: "layers", text: "Im Filter-Menü: «Alle Grenzen» für gesamten Layer ein-/ausschalten" }
+        ],
+        tip: "Tipp: WWFF- und LLOTA-Grenzen nutzen denselben API-Endpoint wie POTA (pota-map.fr) und werden im gemeinsamen Cache gespeichert."
+      },
+      {
+        title: "3D-Gelände in der Hauptkarte",
+        body: "Mit dem 3D-Toggle (Berg-Icon, oben rechts) schalten Sie die Hauptkarte in den 3D-Modus: Gelände-Relief mit 45°-Neigung auf der MapLibre-GL-Basiskarte. Alle Layer, Marker, Popups und Filter bleiben voll bedienbar. Der Modus wird in localStorage gespeichert und beim nächsten Start wiederhergestellt.",
+        steps: [
+          { icon: "mountain", text: "Berg-Icon oben rechts antippen — Karte kippt in 3D" },
+          { icon: "move", text: "Mit gedrückter Maus/Finger die Karte neigen und drehen" },
+          { icon: "layers", text: "Layer, Marker und Filter funktionieren wie in 2D" },
+          { icon: "mountain", text: "Erneut tippen — zurück in 2D (ohne Reload)" }
+        ],
+        tip: "Tipp: 3D-Gelände funktioniert nur mit Vektor-Karten (OpenFreeMap Liberty/Bright/Dark), nicht mit SwissTopo oder Satellit."
       },
       {
         title: "Bestätigung bei vielen Datenpunkten",
@@ -429,6 +452,17 @@ export const SECTIONS = [
           { icon: "user", text: "Operator-Name eingeben" },
           { icon: "save", text: "«Bestätigen» – Daten werden für zukünftige QSOs gespeichert" }
         ]
+      },
+      {
+        title: "QRZ Club-Log Upload",
+        body: "Clubstations-QSOs können automatisch ins QRZ-Club-Logbuch (z.B. HB9OM) hochgeladen werden. Jeder Benutzer hinterlegt seinen persönlichen QRZ-API-Key in den Einstellungen (Meine Station → QRZ Club-Log Upload). Der Key wird pro User gespeichert und nicht global geteilt.",
+        steps: [
+          { icon: "settings", text: "Einstellungen → Meine Station → QRZ Club-Log Upload" },
+          { icon: "keyRound", text: "Persönlichen QRZ-API-Key eingeben (von qrz.com)" },
+          { icon: "check", text: "Clubstation-QSOs werden automatisch ins Club-Log hochgeladen" },
+          { icon: "radio", text: "Ohne Key ist der Club-Upload deaktiviert" }
+        ],
+        tip: "Tipp: Der QRZ Club-API-Key ist pro Benutzer — jeder Operator kann seinen eigenen Key hinterlegen."
       },
       {
         title: "QSO bearbeiten",

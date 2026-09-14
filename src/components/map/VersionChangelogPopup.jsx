@@ -8,8 +8,16 @@ const DISMISS_KEY = "hb9om_changelog_dismissed";
 export const VERSION_CHANGELOG = [
   {
     version: "0.951",
-    title: "Phase 2: 3D-Ansicht + Gelände + Offline-Vektorkacheln + SOTA-Upsert-Fix",
+    title: "Release 0.951: WWFF/LLOTA-Grenzen + 3D-Toggle in Hauptkarte + QRZ-Club-Upload",
     changes: [
+      "v0.951-RC — GRENZEN: WWFF- und LLOTA-Grenzen jetzt über pota-map.fr (gleicher Endpoint wie POTA, gleicher Cache mit program-Feld)",
+      "v0.951-RC — GRENZEN: DLFF-0001 echtes Polygon 'National Park Bavarian Forest', HBFF-0001 echtes Polygon, LLCH-0002 'Lake Geneva' — alle bestätigt",
+      "v0.951-RC — GRENZEN: WWFF/LLOTA ohne Grenze zeigen gestrichelten 'ca.'-Kreis (identisch wie POTA-Fallback)",
+      "v0.951-RC — 3D-TOGGLE: 3D-Gelände-Toggle direkt in der Hauptkarte (topright, Berg-Icon) — keine separate 3D-Seite nötig",
+      "v0.951-RC — 3D-TOGGLE: Terrain + 45° Pitch auf MapLibre-GL-Basiskarte, alle Layer/Marker/Popups/Filter bleiben bedienbar",
+      "v0.951-RC — 3D-TOGGLE: 2D↔3D Umschalten ohne Reload, Zustand in localStorage gespeichert",
+      "v0.951-RC — QRZ-CLUB: Club-Log-Upload wieder aktiv — pro User individueller QRZ-API-Key in persönlichen Einstellungen",
+      "v0.951-RC — QRZ-CLUB: uploadToQrz verwendet user.qrz_club_api_key (Fallback auf globale Config/Secret)",
       "v0.951-HOTFIX3 — Mobil-SW: Early SW-Cleanup direkt in index.html (vor Module-Loading) — keine stale Chunks mehr",
       "v0.951-HOTFIX3 — 3D-Layer: setLayoutProperty('visibility') für zuverlässiges Toggle-On/Off",
       "v0.951-HOTFIX3 — 3D-Popup: Alle Properties (points, altitude, country, frequency, band, mode) — Popups nicht mehr leer",
