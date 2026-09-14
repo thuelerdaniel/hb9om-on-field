@@ -116,9 +116,9 @@ export default async function (req: Request): Promise<Response> {
               // Persist polygon to PotaPoint record for future instant loading
               if (reference) {
                 try {
-                  const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+                  const existing = await base44.asServiceRole.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
                   if (existing && existing.length > 0) {
-                    await base44.entities.PotaPoint.update(existing[0].id, {
+                    await base44.asServiceRole.entities.PotaPoint.update(existing[0].id, {
                       boundary: simplified,
                       boundary_source: 'openstreetmap-nominatim',
                     });
@@ -201,9 +201,9 @@ export default async function (req: Request): Promise<Response> {
             // v0.952: Persist polygon to PotaPoint
             if (reference) {
               try {
-                const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+                const existing = await base44.asServiceRole.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
                 if (existing && existing.length > 0) {
-                  await base44.entities.PotaPoint.update(existing[0].id, {
+                  await base44.asServiceRole.entities.PotaPoint.update(existing[0].id, {
                     boundary: simplified,
                     boundary_source: 'openstreetmap-overpass',
                   });
@@ -234,9 +234,9 @@ export default async function (req: Request): Promise<Response> {
           // v0.952: Persist nearest polygon to PotaPoint
           if (reference) {
             try {
-              const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+              const existing = await base44.asServiceRole.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
               if (existing && existing.length > 0) {
-                await base44.entities.PotaPoint.update(existing[0].id, {
+                await base44.asServiceRole.entities.PotaPoint.update(existing[0].id, {
                   boundary: simplified,
                   boundary_source: 'openstreetmap-overpass-nearest',
                 });

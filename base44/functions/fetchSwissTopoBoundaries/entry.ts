@@ -181,9 +181,9 @@ export default async function (req: Request): Promise<Response> {
               // v0.952: Persist BLN polygon to PotaPoint for instant loading next time
               if (reference) {
                 try {
-                  const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+                  const existing = await base44.asServiceRole.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
                   if (existing && existing.length > 0) {
-                    await base44.entities.PotaPoint.update(existing[0].id, {
+                    await base44.asServiceRole.entities.PotaPoint.update(existing[0].id, {
                       boundary: simplified,
                       boundary_source: 'swisstopo-bln',
                     });
@@ -216,9 +216,9 @@ export default async function (req: Request): Promise<Response> {
         // v0.952: Persist fallback polygon to PotaPoint
         if (reference) {
           try {
-            const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+            const existing = await base44.asServiceRole.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
             if (existing && existing.length > 0) {
-              await base44.entities.PotaPoint.update(existing[0].id, {
+              await base44.asServiceRole.entities.PotaPoint.update(existing[0].id, {
                 boundary: simplified,
                 boundary_source: 'swisstopo-bln',
               });
