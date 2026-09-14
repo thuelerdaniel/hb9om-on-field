@@ -22,7 +22,7 @@ export default function MapControls({
   const { containerRef } = useDraggablePosition("drag-map-controls");
 
   return (
-    <div ref={containerRef} className="absolute right-3 top-28 z-[1000] flex flex-col gap-2" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+    <div ref={containerRef} className="absolute right-2 sm:right-3 top-16 sm:top-28 z-[1000] flex flex-col gap-2" style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       {/* Zoom controls */}
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col items-center overflow-hidden">
         <button

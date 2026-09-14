@@ -56,12 +56,12 @@ export default function BottomNavigation() {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex-1 min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 px-2 py-2 transition-colors touch-manipulation select-none ${active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}
+            className={`flex-1 min-w-[40px] min-h-[44px] flex flex-col items-center justify-center gap-0.5 px-1.5 py-1.5 transition-colors touch-manipulation select-none ${active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}
             title={item.label}
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
             <Icon className={`w-5 h-5 ${active ? "scale-110" : ""} transition-transform`} />
-            <span className="text-[10px] font-medium leading-none">{item.label}</span>
+            <span className="text-[10px] font-medium leading-none hidden min-[360px]:block">{item.label}</span>
           </Link>
         );
       })}
@@ -70,7 +70,7 @@ export default function BottomNavigation() {
       {isAdmin && (
         <Link
           to="/settings"
-          className={`flex-1 min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 px-2 py-2 transition-colors touch-manipulation select-none ${
+          className={`flex-1 min-w-[40px] min-h-[44px] flex flex-col items-center justify-center gap-0.5 px-1.5 py-1.5 transition-colors touch-manipulation select-none ${
             location.pathname.startsWith("/admin")
               ? "text-red-600 dark:text-red-400"
               : "text-red-500 dark:text-red-400 hover:text-red-600"
@@ -85,12 +85,12 @@ export default function BottomNavigation() {
 
       <button
         onClick={handleLogout}
-        className="flex-1 min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 px-2 py-2 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors touch-manipulation select-none"
+        className="flex-1 min-w-[40px] min-h-[44px] flex flex-col items-center justify-center gap-0.5 px-1.5 py-1.5 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors touch-manipulation select-none"
         title="Abmelden"
         style={{ WebkitTapHighlightColor: "transparent" }}
       >
         <LogOut className="w-5 h-5" />
-        <span className="text-[10px] font-medium leading-none">Abmelden</span>
+        <span className="text-[10px] font-medium leading-none hidden min-[360px]:block">Abmelden</span>
       </button>
     </nav>
   );

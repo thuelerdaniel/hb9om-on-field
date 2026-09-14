@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, Move, Radio, MapPin, Loader2, Mountain } from "lucide-react";
+import { Plus, Move, Radio, MapPin, Loader2 } from "lucide-react";
 import { MapContainer, useMap, useMapEvents, Circle } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
@@ -15,6 +15,7 @@ import MapHeader from "@/components/map/MapHeader";
 import LayerControl from "@/components/map/LayerControl";
 import MapControls from "@/components/map/MapControls";
 import MapPositionControls from "@/components/map/MapPositionControls";
+import DraggableTerrainToggle from "@/components/map/DraggableTerrainToggle";
 import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
 import CountryAggregateLayer from "@/components/map/CountryAggregateLayer";
@@ -1922,20 +1923,12 @@ export default function Home() {
         baseLayer={baseLayer}
       />
 
-      {/* v0.951: 3D Terrain Toggle — schaltet die Hauptkarte in 3D-Modus (Gelände + Pitch) */}
-      {tileConfig.type === "vector" && (
-        <button
-          onClick={() => setTerrain3DEnabled(!terrain3DEnabled)}
-          className={`fixed z-[1000] top-20 right-3 w-11 h-11 flex items-center justify-center rounded-lg shadow-lg transition-all ${
-            terrain3DEnabled
-              ? "bg-orange-500 text-white"
-              : "bg-white text-gray-600 hover:bg-gray-50"
-          }`}
-          title={terrain3DEnabled ? "3D-Modus aktiv — tippen zum Deaktivieren" : "3D-Gelände anzeigen (Terrain + Neigung)"}
-        >
-          <Mountain className="w-5 h-5" />
-        </button>
-      )}
+      {/* v0.951: 3D Terrain Toggle — verschiebbar, Default im Daumenbereich */}
+      <DraggableTerrainToggle
+        enabled={terrain3DEnabled}
+        onToggle={() => setTerrain3DEnabled(!terrain3DEnabled)}
+        visible={tileConfig.type === "vector"}
+      />
 
       {/* Position Controls (offline, GPS, center position, offline download) */}
       <MapPositionControls

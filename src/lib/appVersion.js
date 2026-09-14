@@ -13,7 +13,7 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609141439";
+export const APP_BUILD = "202609141606";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
