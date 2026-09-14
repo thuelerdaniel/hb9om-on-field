@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Circle, Polygon } from "react-leaflet";
+import { Circle, Polygon, Tooltip } from "react-leaflet";
 import { expandPolygon } from "@/lib/polygonBuffer";
 
 // Renders boundary circles for reference points where the user toggled
@@ -135,6 +135,7 @@ function BoundaryLayerInner({ boundaryPoints }) {
         // Other layers: render circle (existing behavior)
         if (data.lat == null || data.lng == null) return null;
         const radius = radiusOverride || DEFAULT_RADIUS_M[layerType] || 200;
+        const isPotaFallback = layerType === "pota";
         return (
           <Circle
             key={key}
@@ -148,7 +149,13 @@ function BoundaryLayerInner({ boundaryPoints }) {
               dashArray: "6 4",
               interactive: false,
             }}
-          />
+          >
+            {isPotaFallback && (
+              <Tooltip permanent direction="center" className="pota-ca-label">
+                ca.
+              </Tooltip>
+            )}
+          </Circle>
         );
       })}
     </>

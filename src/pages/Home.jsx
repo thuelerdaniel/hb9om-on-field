@@ -440,70 +440,24 @@ export default function Home() {
         return [...prev, { data, layerType, polygonLoading: true }];
       }
 
-      // For POTA in Switzerland, fetch the official BLN protected area boundary
-      // from SwissTopo. While loading, the default 500m circle is shown as fallback.
-      // If a BLN polygon is found, BoundaryLayer renders it instead of the circle.
-      // v0.952: If the PotaPoint already has a stored boundary, use it instantly (no API call).
-      if (layerType === "pota" && data.lat != null && data.lng != null &&
-          data.lat >= 45.8 && data.lat <= 47.9 && data.lng >= 5.9 && data.lng <= 10.6) {
-        if (data.boundary && Array.isArray(data.boundary) && data.boundary.length > 2) {
-          return [...prev, { data, layerType, polygon: data.boundary, polygonLoading: false }];
-        }
-        base44.functions.invoke("fetchSwissTopoBoundaries", {
-          type: "bln",
-          lat: data.lat,
-          lng: data.lng,
-          name: data.name,
-          reference: data.code || data.reference,
-        }).then(res => {
-          if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
-            setBoundaryPoints(prev => prev.map(bp =>
-              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
-                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
-                : bp
-            ));
-          } else {
-            // No BLN boundary found — keep the circle fallback
-            setBoundaryPoints(prev => prev.map(bp =>
-              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
-                ? { ...bp, polygonLoading: false }
-                : bp
-            ));
-          }
-        }).catch(() => {
-          // Fetch failed — keep the circle fallback
-          setBoundaryPoints(prev => prev.map(bp =>
-            `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
-              ? { ...bp, polygonLoading: false }
-              : bp
-          ));
-        });
-
-        return [...prev, { data, layerType, polygonLoading: true }];
-      }
-
-      // For POTA OUTSIDE Switzerland, fetch park boundary from OpenStreetMap (Overpass API).
-      // The Overpass API searches for national_park, nature_reserve, protected_area boundaries
-      // near the park's coordinates. Point-in-polygon test ensures correct association.
-      // While loading, the default 500m circle is shown as fallback.
-      // v0.952: If the PotaPoint already has a stored boundary, use it instantly (no API call).
+      // v0.952: POTA boundaries from pota-map.fr (worldwide, authoritative source).
+      // Uses PotaBoundaryCache for caching — null results cached as has_boundary=false.
+      // If PotaPoint already has a stored boundary, use it instantly (no API call).
       if (layerType === "pota" && data.lat != null && data.lng != null) {
         if (data.boundary && Array.isArray(data.boundary) && data.boundary.length > 2) {
           return [...prev, { data, layerType, polygon: data.boundary, polygonLoading: false }];
         }
-        base44.functions.invoke("fetchPotaBoundary", {
-          lat: data.lat,
-          lng: data.lng,
-          name: data.name,
+        base44.functions.invoke("getPotaBoundary", {
           reference: data.code || data.reference,
         }).then(res => {
-          if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+          if (res.data?.has_boundary && res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
             setBoundaryPoints(prev => prev.map(bp =>
               `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
                 ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
                 : bp
             ));
           } else {
+            // No boundary from pota-map.fr — keep dashed circle fallback
             setBoundaryPoints(prev => prev.map(bp =>
               `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
                 ? { ...bp, polygonLoading: false }

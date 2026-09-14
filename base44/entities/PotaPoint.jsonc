@@ -36,11 +36,12 @@
         },
         "description": "[lat, lng] Koordinatenpaar"
       },
-      "description": "Park-Grenzpolygon (vereinfacht, max 200 Punkte) \u2014 [lat, lng] Array. Quelle: OSM Nominatim/Overpass (weltweit) oder SwissTopo BLN (Schweiz)"
+      "description": "Park-Grenzpolygon (vereinfacht, max 200 Punkte) \u2014 [lat, lng] Array. Quelle: pota-map.fr (weltweit, bevorzugt) oder OSM Nominatim/Overpass oder SwissTopo BLN (Schweiz, Legacy)"
     },
     "boundary_source": {
       "type": "string",
       "enum": [
+        "pota-map-fr",
         "openstreetmap-nominatim",
         "openstreetmap-overpass",
         "openstreetmap-overpass-nearest",

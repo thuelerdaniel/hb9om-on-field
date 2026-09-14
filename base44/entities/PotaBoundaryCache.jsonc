@@ -1,0 +1,48 @@
+{
+  "name": "PotaBoundaryCache",
+  "type": "object",
+  "properties": {
+    "reference": {
+      "type": "string",
+      "description": "POTA Referenz-Code (z.B. CH-0224, US-0001, DE-0001)"
+    },
+    "boundary": {
+      "type": "object",
+      "description": "GeoJSON MultiPolygon/Polygon der Park-Grenze von pota-map.fr (Koordinaten [lng, lat]) \u2014 null wenn keine Grenze vorhanden"
+    },
+    "polygon": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "description": "[lat, lng] Koordinatenpaar"
+      },
+      "description": "Vereinfachtes Grenzpolygon [lat, lng] Array (max 200 Punkte) \u2014 fuer schnelles Frontend-Rendering"
+    },
+    "has_boundary": {
+      "type": "boolean",
+      "default": false,
+      "description": "True wenn eine Grenze gefunden wurde, false wenn pota-map.fr null zurueckgab"
+    },
+    "park_name": {
+      "type": "string",
+      "description": "Park-Name von pota-map.fr"
+    },
+    "fetched_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wann die Grenze von pota-map.fr abgerufen wurde"
+    }
+  },
+  "required": [
+    "reference"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

@@ -18,6 +18,11 @@ export const APP_BUILD = "202609140856";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.952: POTA-GRENZEN — pota-map.fr als neue autoritative Datenquelle für Park-Grenzen weltweit (getestet: CH/DE/US)",
+  "v0.952: POTA-GRENZEN — PotaBoundaryCache-Entity cached GeoJSON-Grenzen + has_boundary-Flag (null-Ergebnisse werden gecacht)",
+  "v0.952: POTA-GRENZEN — getPotaBoundary Backend-Funktion mit Cache-Lookup + pota-map.fr API + PotaPoint-Persistierung",
+  "v0.952: POTA-GRENZEN — Echte Polygone durchgezogen (solid), Parks ohne Grenze gestrichelter Kreis mit 'ca.'-Kennzeichnung",
+  "v0.952: POTA-GRENZEN — DACH-Prefetch (CH/DE/AT/LI) für sofortige Grenzanzeige in der Heimat-Region",
   "v0.952: REPEATER-CLEANUP — 16'626 null-Koordinaten-Records gelöscht (vorher 17'836, jetzt 5'000 valide Relais)",
   "v0.952: REPEATER-CLEANUP — fetchRepeaters buildRecord gibt null zurück bei invaliden Koordinaten — bulkCreate überspringt sie",
   "v0.952: REPEATER-CLEANUP — ReferenceData repeater total_count korrigiert (17'836 → 5'000 echte Entity-Anzahl)",
