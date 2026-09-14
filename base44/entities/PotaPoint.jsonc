@@ -27,6 +27,30 @@
       "default": true,
       "description": "Ob der Park aktiv ist"
     },
+    "boundary": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "description": "[lat, lng] Koordinatenpaar"
+      },
+      "description": "Park-Grenzpolygon (vereinfacht, max 200 Punkte) \u2014 [lat, lng] Array. Quelle: OSM Nominatim/Overpass (weltweit) oder SwissTopo BLN (Schweiz)"
+    },
+    "boundary_source": {
+      "type": "string",
+      "enum": [
+        "openstreetmap-nominatim",
+        "openstreetmap-overpass",
+        "openstreetmap-overpass-nearest",
+        "swisstopo-bln",
+        "swisstopo-biotop",
+        "swisstopo-moor",
+        "swisstopo-auen"
+      ],
+      "description": "Quelle des Grenzpolygons"
+    },
     "description": {
       "type": "string",
       "description": "Beschreibung",

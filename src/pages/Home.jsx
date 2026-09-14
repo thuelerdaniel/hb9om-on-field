@@ -443,13 +443,18 @@ export default function Home() {
       // For POTA in Switzerland, fetch the official BLN protected area boundary
       // from SwissTopo. While loading, the default 500m circle is shown as fallback.
       // If a BLN polygon is found, BoundaryLayer renders it instead of the circle.
+      // v0.952: If the PotaPoint already has a stored boundary, use it instantly (no API call).
       if (layerType === "pota" && data.lat != null && data.lng != null &&
           data.lat >= 45.8 && data.lat <= 47.9 && data.lng >= 5.9 && data.lng <= 10.6) {
+        if (data.boundary && Array.isArray(data.boundary) && data.boundary.length > 2) {
+          return [...prev, { data, layerType, polygon: data.boundary, polygonLoading: false }];
+        }
         base44.functions.invoke("fetchSwissTopoBoundaries", {
           type: "bln",
           lat: data.lat,
           lng: data.lng,
           name: data.name,
+          reference: data.code || data.reference,
         }).then(res => {
           if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
             setBoundaryPoints(prev => prev.map(bp =>
@@ -481,7 +486,11 @@ export default function Home() {
       // The Overpass API searches for national_park, nature_reserve, protected_area boundaries
       // near the park's coordinates. Point-in-polygon test ensures correct association.
       // While loading, the default 500m circle is shown as fallback.
+      // v0.952: If the PotaPoint already has a stored boundary, use it instantly (no API call).
       if (layerType === "pota" && data.lat != null && data.lng != null) {
+        if (data.boundary && Array.isArray(data.boundary) && data.boundary.length > 2) {
+          return [...prev, { data, layerType, polygon: data.boundary, polygonLoading: false }];
+        }
         base44.functions.invoke("fetchPotaBoundary", {
           lat: data.lat,
           lng: data.lng,

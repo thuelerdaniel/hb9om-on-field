@@ -130,7 +130,7 @@ export default async function (req: Request): Promise<Response> {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { type, lat, lng, name, radius, elevation } = body;
+    const { type, lat, lng, name, radius, elevation, reference } = body;
     if (!type) {
       return Response.json(
         { error: "Missing 'type' parameter (bln, sota, sota_contour, or lake)" },
@@ -178,6 +178,18 @@ export default async function (req: Request): Promise<Response> {
                 feature.properties?.label ||
                 feature.properties?.name ||
                 '';
+              // v0.952: Persist BLN polygon to PotaPoint for instant loading next time
+              if (reference) {
+                try {
+                  const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+                  if (existing && existing.length > 0) {
+                    await base44.entities.PotaPoint.update(existing[0].id, {
+                      boundary: simplified,
+                      boundary_source: 'swisstopo-bln',
+                    });
+                  }
+                } catch {}
+              }
               return Response.json({
                 success: true,
                 type: 'bln',
@@ -201,6 +213,18 @@ export default async function (req: Request): Promise<Response> {
           fallback.feature.properties?.label ||
           fallback.feature.properties?.name ||
           '';
+        // v0.952: Persist fallback polygon to PotaPoint
+        if (reference) {
+          try {
+            const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+            if (existing && existing.length > 0) {
+              await base44.entities.PotaPoint.update(existing[0].id, {
+                boundary: simplified,
+                boundary_source: 'swisstopo-bln',
+              });
+            }
+          } catch {}
+        }
         return Response.json({
           success: true,
           type: 'bln',

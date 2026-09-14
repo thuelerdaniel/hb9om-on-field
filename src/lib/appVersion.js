@@ -8,16 +8,26 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.951";
+export const APP_VERSION = "0.952";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609132040";
+export const APP_BUILD = "202609140856";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.952: REPEATER-CLEANUP — 16'626 null-Koordinaten-Records gelöscht (vorher 17'836, jetzt 5'000 valide Relais)",
+  "v0.952: REPEATER-CLEANUP — fetchRepeaters buildRecord gibt null zurück bei invaliden Koordinaten — bulkCreate überspringt sie",
+  "v0.952: REPEATER-CLEANUP — ReferenceData repeater total_count korrigiert (17'836 → 5'000 echte Entity-Anzahl)",
+  "v0.952: KOORD-GUARD — MobilActive.jsx filtert NaN/out-of-range Koordinaten vor haversine-Berechnung — keine NaN-Distanzen mehr",
+  "v0.952: KOORD-GUARD — MobilMapView, RouteMapView, LiveMapView, RepeaterLayer, Map3D prüfen lat/lng auf null+NaN+Range — keine Map-Crashes mehr",
+  "v0.952: POTA-GRENZEN — boundary-Feld in PotaPoint-Entity (Array von [lat,lng] Polygon-Punkten) — Grenzen werden gespeichert",
+  "v0.952: POTA-GRENZEN — fetchPotaBoundary speichert gefundene Polygone in PotaPoint (Nominatim + Overpass + Nearest-Fallback)",
+  "v0.952: POTA-GRENZEN — fetchSwissTopoBoundaries speichert BLN-Polygone in PotaPoint (bei reference-Übergabe)",
+  "v0.952: POTA-GRENZEN — Grenz-Toggle prüft zuerst gespeicherte boundary — instant Anzeige ohne API-Aufruf bei erneutem Toggle",
+  "v0.952: POTA-GRENZEN — boundary_source-Feld zeigt Quelle des Polygons (nominatim/overpass/swisstopo-bln)",
   "v0.951-HOTFIX3: MOBIL-SW — Early SW-Cleanup direkt in index.html (vor Module-Loading) — SW kann keine stale Chunks mehr servieren",
   "v0.951-HOTFIX3: 3D-LAYER — setLayoutProperty('visibility') für zuverlässiges Toggle-On/Off (vorher: Source-Data gelöscht → unzuverlässig)",
   "v0.951-HOTFIX3: 3D-POPUP — GeoJSON-Features haben jetzt alle Properties (points, altitude, country, frequency, band, mode etc.) — Popups nicht mehr leer",

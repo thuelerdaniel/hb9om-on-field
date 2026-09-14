@@ -112,9 +112,22 @@ export default async function (req: Request): Promise<Response> {
           if (bestResult) {
             const polygon = extractPolygonFromGeoJSON(bestResult.geojson);
             if (polygon && polygon.length >= 3) {
+              const simplified = simplifyPolygon(polygon);
+              // Persist polygon to PotaPoint record for future instant loading
+              if (reference) {
+                try {
+                  const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+                  if (existing && existing.length > 0) {
+                    await base44.entities.PotaPoint.update(existing[0].id, {
+                      boundary: simplified,
+                      boundary_source: 'openstreetmap-nominatim',
+                    });
+                  }
+                } catch {}
+              }
               return Response.json({
                 success: true,
-                polygon: simplifyPolygon(polygon),
+                polygon: simplified,
                 name: bestResult.name || name,
                 source: 'openstreetmap-nominatim',
                 osm_id: bestResult.osm_id,
@@ -184,9 +197,22 @@ export default async function (req: Request): Promise<Response> {
         // Find polygon containing the park point (strict matching)
         for (const p of polygons) {
           if (pointInPolygon(lat, lng, p.polygon)) {
+            const simplified = simplifyPolygon(p.polygon);
+            // v0.952: Persist polygon to PotaPoint
+            if (reference) {
+              try {
+                const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+                if (existing && existing.length > 0) {
+                  await base44.entities.PotaPoint.update(existing[0].id, {
+                    boundary: simplified,
+                    boundary_source: 'openstreetmap-overpass',
+                  });
+                }
+              } catch {}
+            }
             return Response.json({
               success: true,
-              polygon: simplifyPolygon(p.polygon),
+              polygon: simplified,
               name: p.tags.name || '',
               source: 'openstreetmap-overpass',
               reference,
@@ -204,9 +230,22 @@ export default async function (req: Request): Promise<Response> {
             const d = Math.hypot(cx - lat, cy - lng);
             if (d < minDist) { minDist = d; nearest = p; }
           }
+          const simplified = simplifyPolygon(nearest.polygon);
+          // v0.952: Persist nearest polygon to PotaPoint
+          if (reference) {
+            try {
+              const existing = await base44.entities.PotaPoint.filter({ code: reference }, undefined, 1, 0);
+              if (existing && existing.length > 0) {
+                await base44.entities.PotaPoint.update(existing[0].id, {
+                  boundary: simplified,
+                  boundary_source: 'openstreetmap-overpass-nearest',
+                });
+              }
+            } catch {}
+          }
           return Response.json({
             success: true,
-            polygon: simplifyPolygon(nearest.polygon),
+            polygon: simplified,
             name: nearest.tags.name || '',
             source: 'openstreetmap-overpass-nearest',
             reference,
