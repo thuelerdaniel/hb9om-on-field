@@ -91,9 +91,9 @@ export default async function (req: Request): Promise<Response> {
       const offsetMHz = isNaN(offsetHz) ? 0 : offsetHz / 1000000;
       if (freqMHz < 0.1 || freqMHz > 2000) continue; // skip invalid frequencies
 
-      // Validate coordinates — skip repeaters with invalid/null coords
-      const validCoords = validateCoords(lat, lng);
-      if (!validCoords) continue;
+      // Validate coordinates — skip repeaters with invalid/null coords.
+      // validateCoords returns a boolean (not an object) — use lat/lng directly.
+      if (!validateCoords(lat, lng)) continue;
 
       const { primary, modes } = normalizeMode(r.mode);
       const status = r.operational === 1 || r.operational === '1' ? 'on-air' : 'off-air';
@@ -109,9 +109,7 @@ export default async function (req: Request): Promise<Response> {
         tone = '';
       }
       // Detect country per-repeater instead of blindly assigning region's country.
-      // This correctly tags US repeaters (K/N/W callsigns, US states) as 'US'
-      // even though they fall within the broad "canada" bounding box.
-      const { country, cc } = detectRepeaterCountry(callsign, validCoords.lat, validCoords.lng, locationName);
+      const { country, cc } = detectRepeaterCountry(callsign, lat, lng, locationName);
 
       regionRepeaters.push({
         callsign,
@@ -124,11 +122,12 @@ export default async function (req: Request): Promise<Response> {
         location_name: locationName,
         country: country || locationName || '',
         country_code: cc,
-        lat: validCoords.lat,
-        lng: validCoords.lng,
+        lat,
+        lng,
         band: bandFromFreq(freqMHz),
         status,
         source: 'Hearham',
+        source_id: `hearham_${callsign}_${freqMHz}`,
         web_url: 'https://hearham.com/repeaters',
       });
     }
@@ -171,16 +170,24 @@ export default async function (req: Request): Promise<Response> {
     const { toCreate, protectedCount } = filterProtected(deduped, protectionSet);
     jsonProtected += protectedCount;
 
-    // Bulk create new repeaters
-    for (let i = 0; i < toCreate.length; i += 100) {
-      const batch = toCreate.slice(i, i + 100);
+    // HOTFIX#5: Hard coordinate guard — strip any record with invalid coords before write.
+    // This is the safety net that guarantees NO null-coord record ever enters the entity.
+    const withValidCoords = toCreate.filter(r =>
+      r.lat != null && r.lng != null &&
+      !isNaN(r.lat) && !isNaN(r.lng) &&
+      r.lat >= -90 && r.lat <= 90 && r.lng >= -180 && r.lng <= 180
+    );
+
+    // Bulk create new repeaters (only records with valid coordinates)
+    for (let i = 0; i < withValidCoords.length; i += 100) {
+      const batch = withValidCoords.slice(i, i + 100);
       await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
     }
 
     return Response.json({
       status: 'success',
       label: `Relais ${region === 'canada' ? 'Kanada' : region === 'asia' ? 'Asien' : 'Afrika'} (Hearham)`,
-      count: toCreate.length,
+      count: withValidCoords.length,
       json_protected: jsonProtected,
       source: 'Hearham API',
       region,

@@ -343,8 +343,13 @@ export default async function(req) {
         const ukRecords = ukRepeaters.map(r => buildRecord(r, existingBySourceId, existingByCallsign)).filter(Boolean);
         const { toCreate: ukToCreate, protectedCount: ukProt } = filterProtected(ukRecords, protectionSet);
         jsonProtected += ukProt;
-        for (let i = 0; i < ukToCreate.length; i += 500) {
-          const batch = ukToCreate.slice(i, i + 500);
+        // HOTFIX#5: Hard coordinate guard — strip null-coord records before write.
+        const ukValid = ukToCreate.filter(r =>
+          r.lat != null && r.lng != null && !isNaN(r.lat) && !isNaN(r.lng) &&
+          r.lat >= -90 && r.lat <= 90 && r.lng >= -180 && r.lng <= 180
+        );
+        for (let i = 0; i < ukValid.length; i += 500) {
+          const batch = ukValid.slice(i, i + 500);
           await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
           totalSaved += batch.length;
         }
@@ -520,8 +525,13 @@ export default async function(req) {
         const records = batchRepeaters.map(r => buildRecord(r, existingBySourceId, existingByCallsign)).filter(Boolean);
         const { toCreate: rbToCreate, protectedCount: rbProt } = filterProtected(records, protectionSet);
         jsonProtected += rbProt;
-        for (let j = 0; j < rbToCreate.length; j += 500) {
-          const batch = rbToCreate.slice(j, j + 500);
+        // HOTFIX#5: Hard coordinate guard — strip null-coord records before write.
+        const rbValid = rbToCreate.filter(r =>
+          r.lat != null && r.lng != null && !isNaN(r.lat) && !isNaN(r.lng) &&
+          r.lat >= -90 && r.lat <= 90 && r.lng >= -180 && r.lng <= 180
+        );
+        for (let j = 0; j < rbValid.length; j += 500) {
+          const batch = rbValid.slice(j, j + 500);
           await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
           totalSaved += batch.length;
         }
