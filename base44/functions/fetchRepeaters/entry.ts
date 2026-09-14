@@ -166,6 +166,12 @@ function buildRecord(r: any, existingBySourceId?: Map<string, any>, existingByCa
       if (!locator && existing.locator) locator = existing.locator;
     }
   }
+  // v0.952: Hard coordinate guard — records without valid coords are skipped to prevent
+  // null-coord blind creates that crash the Mobil map (Invalid LatLng).
+  if (r.lat == null || r.lng == null || isNaN(r.lat) || isNaN(r.lng) ||
+      r.lat < -90 || r.lat > 90 || r.lng < -180 || r.lng > 180) {
+    return null;
+  }
   return {
     callsign: r.callsign,
     frequency: r.frequency,
@@ -334,7 +340,7 @@ export default async function(req) {
           return true;
         });
         // Save UK repeaters
-        const ukRecords = ukRepeaters.map(r => buildRecord(r, existingBySourceId, existingByCallsign));
+        const ukRecords = ukRepeaters.map(r => buildRecord(r, existingBySourceId, existingByCallsign)).filter(Boolean);
         const { toCreate: ukToCreate, protectedCount: ukProt } = filterProtected(ukRecords, protectionSet);
         jsonProtected += ukProt;
         for (let i = 0; i < ukToCreate.length; i += 500) {
@@ -511,7 +517,7 @@ export default async function(req) {
         }
 
         // Build records and save
-        const records = batchRepeaters.map(r => buildRecord(r, existingBySourceId, existingByCallsign));
+        const records = batchRepeaters.map(r => buildRecord(r, existingBySourceId, existingByCallsign)).filter(Boolean);
         const { toCreate: rbToCreate, protectedCount: rbProt } = filterProtected(records, protectionSet);
         jsonProtected += rbProt;
         for (let j = 0; j < rbToCreate.length; j += 500) {

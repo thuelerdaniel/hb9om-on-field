@@ -64,7 +64,7 @@ export default function MobilActive({
     if (!refPoint) return [];
 
     return repeaters
-      .filter((r) => r.lat != null && r.lng != null)
+      .filter((r) => r.lat != null && r.lng != null && !isNaN(r.lat) && !isNaN(r.lng) && r.lat >= -90 && r.lat <= 90 && r.lng >= -180 && r.lng <= 180)
       .map((r) => {
         const dist = haversine(refPoint.lat, refPoint.lon, r.lat, r.lng);
         const az = bearing(refPoint.lat, refPoint.lon, r.lat, r.lng);

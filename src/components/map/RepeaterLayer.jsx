@@ -106,8 +106,8 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   // Filter repeaters by continent, country, mode, search, and radius
   const filteredRepeaters = useMemo(() => {
     let result = repeaters;
-    // Exclude repeaters without coordinates — they can't be placed on the map
-    result = result.filter(r => r.lat != null && r.lng != null);
+    // Exclude repeaters without valid coordinates — null, NaN, or out of range
+    result = result.filter(r => r.lat != null && r.lng != null && !isNaN(r.lat) && !isNaN(r.lng) && r.lat >= -90 && r.lat <= 90 && r.lng >= -180 && r.lng <= 180);
     // Per-layer country filter (multi-select) overrides global LayerControl country filter.
     // When specific countries are selected in the RepeaterFilter, the global
     // activeContinents/activeCountries from LayerControl are NOT applied — so the

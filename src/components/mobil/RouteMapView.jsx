@@ -64,7 +64,7 @@ export default function RouteMapView({ routeCoords, repeaters, rangeKm, gpsPosit
 
   const filteredRepeaters = useMemo(() => {
     return repeaters.filter((r) => {
-      if (r.lat == null || r.lng == null) return false;
+      if (r.lat == null || r.lng == null || isNaN(r.lat) || isNaN(r.lng) || r.lat < -90 || r.lat > 90 || r.lng < -180 || r.lng > 180) return false;
       if (selectedModes.length > 0 && !selectedModes.some((m) => repeaterMatchesMode(r, m))) return false;
       if (selectedBands.length > 0 && r.band && !selectedBands.includes(r.band)) return false;
       return true;

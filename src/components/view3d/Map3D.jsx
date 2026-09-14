@@ -68,7 +68,7 @@ export default function Map3D({ terrainEnabled, activeLayers, styleUrl }) {
         }
         const geojson = {
           type: "FeatureCollection",
-          features: (points || []).filter(p => p.lat != null && p.lng != null).map(p => ({
+          features: (points || []).filter(p => p.lat != null && p.lng != null && !isNaN(p.lat) && !isNaN(p.lng) && p.lat >= -90 && p.lat <= 90 && p.lng >= -180 && p.lng <= 180).map(p => ({
             type: "Feature",
             geometry: { type: "Point", coordinates: [p.lng, p.lat] },
             properties: {

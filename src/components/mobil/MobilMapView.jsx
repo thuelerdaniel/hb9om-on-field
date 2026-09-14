@@ -365,7 +365,7 @@ export default function MobilMapView({
 
         {/* Repeater markers */}
         {(repeaters || []).map((r, i) => {
-          if (r.lat == null || r.lng == null) return null;
+          if (r.lat == null || r.lng == null || isNaN(r.lat) || isNaN(r.lng) || r.lat < -90 || r.lat > 90 || r.lng < -180 || r.lng > 180) return null;
           const color = getModeColor(r.primary_mode);
           const isActive = activeRepeaterId && r.id === activeRepeaterId;
           return (
