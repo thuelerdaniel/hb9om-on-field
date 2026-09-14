@@ -73,6 +73,7 @@ import IllwWeekendBanner from "@/components/map/IllwWeekendBanner";
 import { safeSetJSON, safeSetItem, safeGetItem, safeRemoveItem, cleanupLargeLocalStorageData } from "@/lib/safeStorage";
 import { isInContinents } from "@/lib/continents";
 import { isInCountries } from "@/lib/countries";
+import { startBatchBoundaryLoad, fetchBoundaryWithCache, abortBoundaryRefill } from "@/lib/boundaryBatchLoader";
 
 // Other components
 import BottomNavigation from "@/components/BottomNavigation";
@@ -372,25 +373,20 @@ export default function Home() {
       }
 
       // For LLOTA, fetch the lake boundary from pota-map.fr (same API as POTA/WWFF).
-      // While loading, a 200m circle is shown as fallback (BoundaryLayer handles this).
-      // Once the polygon arrives, BoundaryLayer switches to the lake outline + 200m buffer.
+      // v0.951: Client cache (IndexedDB) checked first — zero network for already-seen boundaries.
       // If LlotaRef already has a stored polygon, use it instantly (no API call).
       if (layerType === "llota" && data.lat != null && data.lng != null) {
         if (data.polygon && Array.isArray(data.polygon) && data.polygon.length > 2) {
           return [...prev, { data, layerType, polygon: data.polygon, polygonLoading: false }];
         }
-        base44.functions.invoke("getPotaBoundary", {
-          reference: data.code || data.reference,
-          program: "llota",
-        }).then(res => {
-          if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+        fetchBoundaryWithCache("llota", data.code || data.reference).then(b => {
+          if (b?.polygon && Array.isArray(b.polygon) && b.polygon.length > 2) {
             setBoundaryPoints(prev => prev.map(bp =>
               `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
-                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
+                ? { ...bp, polygon: b.polygon, polygonLoading: false }
                 : bp
             ));
           } else {
-            // No polygon found — keep the 200m circle fallback
             setBoundaryPoints(prev => prev.map(bp =>
               `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
                 ? { ...bp, polygonLoading: false }
@@ -398,7 +394,6 @@ export default function Home() {
             ));
           }
         }).catch(() => {
-          // Fetch failed — keep the 200m circle fallback
           setBoundaryPoints(prev => prev.map(bp =>
             `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
               ? { ...bp, polygonLoading: false }
@@ -446,19 +441,17 @@ export default function Home() {
       }
 
       // v0.951: WWFF boundaries from pota-map.fr (same API as POTA, program="wwff").
+      // v0.951: Client cache (IndexedDB) checked first — zero network for already-seen boundaries.
       // If WwffPoint already has a stored boundary, use it instantly (no API call).
       if (layerType === "hbff" && data.lat != null && data.lng != null) {
         if (data.boundary && Array.isArray(data.boundary) && data.boundary.length > 2) {
           return [...prev, { data, layerType, polygon: data.boundary, polygonLoading: false }];
         }
-        base44.functions.invoke("getPotaBoundary", {
-          reference: data.code || data.reference,
-          program: "wwff",
-        }).then(res => {
-          if (res.data?.has_boundary && res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+        fetchBoundaryWithCache("wwff", data.code || data.reference).then(b => {
+          if (b?.polygon && Array.isArray(b.polygon) && b.polygon.length > 2) {
             setBoundaryPoints(prev => prev.map(bp =>
               `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
-                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
+                ? { ...bp, polygon: b.polygon, polygonLoading: false }
                 : bp
             ));
           } else {
@@ -479,23 +472,20 @@ export default function Home() {
       }
 
       // v0.952: POTA boundaries from pota-map.fr (worldwide, authoritative source).
-      // Uses PotaBoundaryCache for caching — null results cached as has_boundary=false.
+      // v0.951: Client cache (IndexedDB) checked first — zero network for already-seen boundaries.
       // If PotaPoint already has a stored boundary, use it instantly (no API call).
       if (layerType === "pota" && data.lat != null && data.lng != null) {
         if (data.boundary && Array.isArray(data.boundary) && data.boundary.length > 2) {
           return [...prev, { data, layerType, polygon: data.boundary, polygonLoading: false }];
         }
-        base44.functions.invoke("getPotaBoundary", {
-          reference: data.code || data.reference,
-        }).then(res => {
-          if (res.data?.has_boundary && res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+        fetchBoundaryWithCache("pota", data.code || data.reference).then(b => {
+          if (b?.polygon && Array.isArray(b.polygon) && b.polygon.length > 2) {
             setBoundaryPoints(prev => prev.map(bp =>
               `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
-                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
+                ? { ...bp, polygon: b.polygon, polygonLoading: false }
                 : bp
             ));
           } else {
-            // No boundary from pota-map.fr — keep dashed circle fallback
             setBoundaryPoints(prev => prev.map(bp =>
               `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
                 ? { ...bp, polygonLoading: false }
@@ -969,7 +959,10 @@ export default function Home() {
     [boundaryPoints]
   );
 
-  // Toggle all boundaries for a given layer type — adds boundary circles for all visible markers
+  // Toggle all boundaries for a given layer type — adds boundary circles for all visible markers.
+  // v0.951: Batch boundary load — client cache (instant) + server batch (PotaBoundaryCache) +
+  // progressive refill (rate-limited, max 20/map-move). Parks with cached boundaries get
+  // polygons immediately; parks without stay as circles until their boundary arrives.
   const handleToggleAllBoundaries = useCallback((layerType, enabled) => {
     setAllBoundariesEnabled(prev => {
       const next = new Set(prev);
@@ -979,6 +972,7 @@ export default function Home() {
     if (enabled) {
       const layerMarkers = allMarkers.filter(m => m.layerType === layerType);
       const capped = layerMarkers.slice(0, 500);
+      const newRefs = capped.map(m => m.code || m.reference || m.id || "").filter(Boolean);
       setBoundaryPoints(prev => {
         const existing = new Set(prev.map(bp =>
           `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}`
@@ -988,7 +982,22 @@ export default function Home() {
           .map(m => ({ data: m, layerType, bulkAdded: true }));
         return [...prev, ...newPoints];
       });
+
+      // Batch load: client cache → server batch → progressive refill
+      const applyBoundaries = (refToBoundary, usePolygon) => {
+        setBoundaryPoints(prev => prev.map(bp => {
+          if (bp.layerType !== layerType) return bp;
+          const ref = bp.data.code || bp.data.reference || bp.data.id || "";
+          const b = refToBoundary[ref];
+          if (b && b.polygon && b.polygon.length > 2) {
+            return { ...bp, polygon: b.polygon, polygonLoading: false };
+          }
+          return bp;
+        }));
+      };
+      startBatchBoundaryLoad(layerType, newRefs, applyBoundaries);
     } else {
+      abortBoundaryRefill();
       setBoundaryPoints(prev => prev.filter(bp => bp.layerType !== layerType));
     }
   }, [allMarkers]);
