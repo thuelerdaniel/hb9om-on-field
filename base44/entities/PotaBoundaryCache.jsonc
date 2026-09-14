@@ -4,11 +4,21 @@
   "properties": {
     "reference": {
       "type": "string",
-      "description": "POTA Referenz-Code (z.B. CH-0224, US-0001, DE-0001)"
+      "description": "Referenz-Code (z.B. CH-0224 fuer POTA, DLFF-0001 fuer WWFF, LLCH-0002 fuer LLOTA)"
+    },
+    "program": {
+      "type": "string",
+      "enum": [
+        "pota",
+        "wwff",
+        "llota"
+      ],
+      "default": "pota",
+      "description": "Programm-Typ: pota, wwff oder llota (gleicher Cache, gleicher API-Endpoint)"
     },
     "boundary": {
       "type": "object",
-      "description": "GeoJSON MultiPolygon/Polygon der Park-Grenze von pota-map.fr (Koordinaten [lng, lat]) \u2014 null wenn keine Grenze vorhanden"
+      "description": "GeoJSON MultiPolygon/Polygon der Grenze von pota-map.fr (Koordinaten [lng, lat]) \u2014 null wenn keine Grenze vorhanden"
     },
     "polygon": {
       "type": "array",
@@ -28,7 +38,7 @@
     },
     "park_name": {
       "type": "string",
-      "description": "Park-Name von pota-map.fr"
+      "description": "Name von pota-map.fr"
     },
     "fetched_date": {
       "type": "string",

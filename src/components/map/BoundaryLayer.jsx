@@ -94,9 +94,9 @@ function BoundaryLayerInner({ boundaryPoints }) {
               </React.Fragment>
             );
           }
-          // HOTFIX#3: POTA (BLN) polygon boundaries — SOLID (real boundary).
-          // Other layers (WWFF etc.) — DASHED (approximative).
-          const isRealBoundary = layerType === "pota";
+          // v0.951: POTA, WWFF, and LLOTA boundaries from pota-map.fr — SOLID (real boundary).
+          // Other layers — DASHED (approximative).
+          const isRealBoundary = layerType === "pota" || layerType === "hbff" || layerType === "llota";
           return (
             <Polygon
               key={key}
@@ -135,7 +135,8 @@ function BoundaryLayerInner({ boundaryPoints }) {
         // Other layers: render circle (existing behavior)
         if (data.lat == null || data.lng == null) return null;
         const radius = radiusOverride || DEFAULT_RADIUS_M[layerType] || 200;
-        const isPotaFallback = layerType === "pota";
+        // v0.951: POTA, WWFF, and LLOTA fallback circles show "ca." label
+        const showCaLabel = layerType === "pota" || layerType === "hbff" || layerType === "llota";
         return (
           <Circle
             key={key}
@@ -150,7 +151,7 @@ function BoundaryLayerInner({ boundaryPoints }) {
               interactive: false,
             }}
           >
-            {isPotaFallback && (
+            {showCaLabel && (
               <Tooltip permanent direction="center" className="pota-ca-label">
                 ca.
               </Tooltip>

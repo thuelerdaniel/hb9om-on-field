@@ -8,16 +8,26 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.952";
+export const APP_VERSION = "0.951";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609140856";
+export const APP_BUILD = "202609141300";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-RC: GRENZEN — WWFF- und LLOTA-Grenzen jetzt über pota-map.fr API (gleicher Endpoint wie POTA, gleicher Cache mit program-Feld)",
+  "v0.951-RC: GRENZEN — DLFF-0001 echtes Polygon, HBFF-0001 echtes Polygon, LLCH-0002 'Lake Geneva' echtes Polygon — alle bestätigt",
+  "v0.951-RC: GRENZEN — WWFF/LLOTA ohne Grenze zeigen gestrichelten 'ca.'-Kreis (identisch wie POTA-Fallback)",
+  "v0.951-RC: GRENZEN — WwffPoint-Entity um boundary/boundary_source-Felder erweitert, LlotaRef.polygon wird von pota-map.fr aktualisiert",
+  "v0.951-RC: 3D-TOGGLE — 3D-Gelände-Toggle direkt in der Hauptkarte (topright, Berg-Icon) — keine separate 3D-Seite mehr nötig",
+  "v0.951-RC: 3D-TOGGLE — Terrain + 45° Pitch auf der MapLibre-GL-Basiskarte, alle Layer/Marker/Popups/Filter bleiben voll bedienbar",
+  "v0.951-RC: 3D-TOGGLE — Umschalten 2D↔3D ohne Reload, Zustand wird in localStorage gespeichert",
+  "v0.951-RC: QRZ-CLUB — Club-Log-Upload wieder aktiv — pro User individueller QRZ-API-Key in persönlichen Einstellungen",
+  "v0.951-RC: QRZ-CLUB — uploadToQrz verwendet user.qrz_club_api_key (Fallback auf globale Config/Secret)",
+  "v0.951-RC: QRZ-CLUB — UI: Key-Eingabefeld in Einstellungen → Meine Station → QRZ Club-Log Upload",
   "v0.952: POTA-GRENZEN — pota-map.fr als neue autoritative Datenquelle für Park-Grenzen weltweit (getestet: CH/DE/US)",
   "v0.952: POTA-GRENZEN — PotaBoundaryCache-Entity cached GeoJSON-Grenzen + has_boundary-Flag (null-Ergebnisse werden gecacht)",
   "v0.952: POTA-GRENZEN — getPotaBoundary Backend-Funktion mit Cache-Lookup + pota-map.fr API + PotaPoint-Persistierung",

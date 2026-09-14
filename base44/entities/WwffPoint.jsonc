@@ -30,6 +30,26 @@
       "type": "string",
       "description": "Web-Link zum Gebiet"
     },
+    "boundary": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "description": "[lat, lng] Koordinatenpaar"
+      },
+      "description": "Vereinfachtes Grenzpolygon [lat, lng] Array (max 200 Punkte) \u2014 Quelle: pota-map.fr"
+    },
+    "boundary_source": {
+      "type": "string",
+      "enum": [
+        "pota-map-fr",
+        "openstreetmap-nominatim",
+        "openstreetmap-overpass"
+      ],
+      "description": "Quelle des Grenzpolygons"
+    },
     "last_synced": {
       "type": "string",
       "format": "date-time",

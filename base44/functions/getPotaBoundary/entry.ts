@@ -1,25 +1,32 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall } from '../../shared/internalAuth.ts';
 
-// Fetches POTA park boundary polygons from pota-map.fr (authoritative source).
+// Fetches boundary polygons from pota-map.fr (authoritative source).
+// Supports POTA, WWFF, and LLOTA references — same API endpoint, same cache.
 //
 // API: GET https://pota-map.fr/api/boundary/{reference}
 // Response: { reference, name, boundary: GeoJSON | null }
 //   - GeoJSON MultiPolygon/Polygon, coordinates [lng, lat]
 //   - boundary: null when no polygon available (clean "no boundary" signal)
 //
+// Programs:
+//   - pota  (default): POTA parks (e.g. CH-0224, US-0001) → persist to PotaPoint.boundary
+//   - wwff:           WWFF reserves (e.g. DLFF-0001, HBFF-0001) → persist to WwffPoint.boundary
+//   - llota:          LLOTA lakes (e.g. LLCH-0002) → persist to LlotaRef.polygon
+//
 // Caching strategy:
-//   - PotaBoundaryCache entity stores the raw GeoJSON + converted polygon + has_boundary flag
-//   - Null results are cached as has_boundary=false (parks without boundaries are never re-fetched)
-//   - Successful polygons are also persisted to PotaPoint.boundary for instant frontend loading
+//   - PotaBoundaryCache entity stores the raw GeoJSON + converted polygon + has_boundary flag + program
+//   - Null results are cached as has_boundary=false (areas without boundaries are never re-fetched)
+//   - Successful polygons are also persisted to the program-specific entity for instant frontend loading
 //
 // Rate limiting: max ~2 requests/second (500ms delay between fetches during prefetch).
-// No mass-prefetch of all parks — only on-demand single lookups + optional DACH prefetch.
 //
 // Actions:
-//   - { reference: "CH-0224" }           → single lookup (cache or fetch)
-//   - { action: "prefetch_dach" }       → prefetch CH/DE/AT/LI parks (sequential, 500ms delay)
-//   - { action: "prefetch_dach", limit } → limit number of parks to prefetch
+//   - { reference: "CH-0224", program: "pota" }  → single POTA lookup
+//   - { reference: "DLFF-0001", program: "wwff" } → single WWFF lookup
+//   - { reference: "LLCH-0002", program: "llota" } → single LLOTA lookup
+//   - { action: "prefetch_dach" }                 → prefetch CH/DE/AT/LI POTA parks
+//   - { action: "prefetch_dach", limit }          → limit number of parks to prefetch
 
 const API_BASE = 'https://pota-map.fr/api/boundary';
 const USER_AGENT = 'HB9OM-OnField/0.951 (amateur radio)';
@@ -104,13 +111,14 @@ async function fetchFromApi(reference: string): Promise<{ boundary: any; name: s
   }
 }
 
-// Cache a boundary result in PotaBoundaryCache + PotaPoint
+// Cache a boundary result in PotaBoundaryCache + program-specific entity
 async function cacheResult(
   base44: any,
   reference: string,
   boundary: any,
   name: string,
   has_boundary: boolean,
+  program: string = 'pota',
 ): Promise<[number, number][] | null> {
   let polygon: [number, number][] | null = null;
 
@@ -124,7 +132,7 @@ async function cacheResult(
     }
   }
 
-  // Save to PotaBoundaryCache
+  // Save to PotaBoundaryCache (shared cache for all programs)
   try {
     const existing = await base44.asServiceRole.entities.PotaBoundaryCache.filter(
       { reference }, undefined, 1, 0,
@@ -136,6 +144,7 @@ async function cacheResult(
         polygon: polygon || [],
         has_boundary,
         park_name: name,
+        program,
         fetched_date: now,
       });
     } else {
@@ -145,6 +154,7 @@ async function cacheResult(
         polygon: polygon || [],
         has_boundary,
         park_name: name,
+        program,
         fetched_date: now,
       });
     }
@@ -152,20 +162,42 @@ async function cacheResult(
     console.warn(`PotaBoundaryCache save failed for ${reference}:`, e.message);
   }
 
-  // Also persist polygon to PotaPoint for instant frontend loading
+  // Persist polygon to the program-specific entity for instant frontend loading
   if (polygon && polygon.length >= 3) {
     try {
-      const existingPota = await base44.asServiceRole.entities.PotaPoint.filter(
-        { code: reference }, undefined, 1, 0,
-      );
-      if (existingPota && existingPota.length > 0) {
-        await base44.asServiceRole.entities.PotaPoint.update(existingPota[0].id, {
-          boundary: polygon,
-          boundary_source: 'pota-map-fr',
-        });
+      if (program === 'wwff') {
+        const existingWwff = await base44.asServiceRole.entities.WwffPoint.filter(
+          { code: reference }, undefined, 1, 0,
+        );
+        if (existingWwff && existingWwff.length > 0) {
+          await base44.asServiceRole.entities.WwffPoint.update(existingWwff[0].id, {
+            boundary: polygon,
+            boundary_source: 'pota-map-fr',
+          });
+        }
+      } else if (program === 'llota') {
+        const existingLlota = await base44.asServiceRole.entities.LlotaRef.filter(
+          { code: reference }, undefined, 1, 0,
+        );
+        if (existingLlota && existingLlota.length > 0) {
+          await base44.asServiceRole.entities.LlotaRef.update(existingLlota[0].id, {
+            polygon: polygon,
+          });
+        }
+      } else {
+        // Default: POTA
+        const existingPota = await base44.asServiceRole.entities.PotaPoint.filter(
+          { code: reference }, undefined, 1, 0,
+        );
+        if (existingPota && existingPota.length > 0) {
+          await base44.asServiceRole.entities.PotaPoint.update(existingPota[0].id, {
+            boundary: polygon,
+            boundary_source: 'pota-map-fr',
+          });
+        }
       }
     } catch (e) {
-      console.warn(`PotaPoint boundary save failed for ${reference}:`, e.message);
+      console.warn(`Entity boundary save failed for ${reference} (${program}):`, e.message);
     }
   }
 
@@ -183,7 +215,8 @@ export default async function (req: Request): Promise<Response> {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reference, action, limit } = body;
+    const { reference, action, limit, program } = body;
+    const prog = (program === 'wwff' || program === 'llota') ? program : 'pota';
 
     // --- DACH Prefetch: sequential fetch for CH/DE/AT/LI parks ---
     if (action === 'prefetch_dach') {
@@ -284,12 +317,13 @@ export default async function (req: Request): Promise<Response> {
     try {
       const result = await fetchFromApi(reference);
       const polygon = await cacheResult(
-        base44, reference, result.boundary, result.name, result.has_boundary,
+        base44, reference, result.boundary, result.name, result.has_boundary, prog,
       );
 
       return Response.json({
         success: true,
         reference,
+        program: prog,
         polygon: polygon,
         has_boundary: result.has_boundary && polygon != null,
         name: result.name,

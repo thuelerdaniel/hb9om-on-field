@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, Move, Radio, MapPin, Loader2 } from "lucide-react";
+import { Plus, Move, Radio, MapPin, Loader2, Mountain } from "lucide-react";
 import { MapContainer, useMap, useMapEvents, Circle } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
@@ -290,6 +290,8 @@ export default function Home() {
     const saved = safeGetItem("hb9om_map_opacity");
     return saved ? parseFloat(saved) : 1;
   });
+  // v0.951: 3D terrain toggle — adds terrain + pitch to the MapLibre GL base map
+  const [terrain3DEnabled, setTerrain3DEnabled] = useState(() => safeGetItem("hb9om_terrain_3d") === "true");
   const [activeContinents, setActiveContinents] = useState(() => {
     try { return JSON.parse(safeGetItem("hb9om_active_continents")) || []; } catch { return []; }
   });
@@ -368,15 +370,17 @@ export default function Home() {
         return prev.filter((_, i) => i !== existing);
       }
 
-      // For LLOTA, fetch the actual lake polygon from SwissTopo/OSM via backend function.
+      // For LLOTA, fetch the lake boundary from pota-map.fr (same API as POTA/WWFF).
       // While loading, a 200m circle is shown as fallback (BoundaryLayer handles this).
       // Once the polygon arrives, BoundaryLayer switches to the lake outline + 200m buffer.
+      // If LlotaRef already has a stored polygon, use it instantly (no API call).
       if (layerType === "llota" && data.lat != null && data.lng != null) {
-        base44.functions.invoke("fetchLlotaPolygon", {
-          code: data.code || data.reference,
-          lat: data.lat,
-          lng: data.lng,
-          name: data.name,
+        if (data.polygon && Array.isArray(data.polygon) && data.polygon.length > 2) {
+          return [...prev, { data, layerType, polygon: data.polygon, polygonLoading: false }];
+        }
+        base44.functions.invoke("getPotaBoundary", {
+          reference: data.code || data.reference,
+          program: "llota",
         }).then(res => {
           if (res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
             setBoundaryPoints(prev => prev.map(bp =>
@@ -437,6 +441,39 @@ export default function Home() {
           ));
         });
 
+        return [...prev, { data, layerType, polygonLoading: true }];
+      }
+
+      // v0.951: WWFF boundaries from pota-map.fr (same API as POTA, program="wwff").
+      // If WwffPoint already has a stored boundary, use it instantly (no API call).
+      if (layerType === "hbff" && data.lat != null && data.lng != null) {
+        if (data.boundary && Array.isArray(data.boundary) && data.boundary.length > 2) {
+          return [...prev, { data, layerType, polygon: data.boundary, polygonLoading: false }];
+        }
+        base44.functions.invoke("getPotaBoundary", {
+          reference: data.code || data.reference,
+          program: "wwff",
+        }).then(res => {
+          if (res.data?.has_boundary && res.data?.polygon && Array.isArray(res.data.polygon) && res.data.polygon.length > 2) {
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygon: res.data.polygon, polygonLoading: false }
+                : bp
+            ));
+          } else {
+            setBoundaryPoints(prev => prev.map(bp =>
+              `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+                ? { ...bp, polygonLoading: false }
+                : bp
+            ));
+          }
+        }).catch(() => {
+          setBoundaryPoints(prev => prev.map(bp =>
+            `${bp.layerType}-${bp.data.code || bp.data.reference || bp.data.id || ""}` === key
+              ? { ...bp, polygonLoading: false }
+              : bp
+          ));
+        });
         return [...prev, { data, layerType, polygonLoading: true }];
       }
 
@@ -743,6 +780,10 @@ export default function Home() {
   useEffect(() => {
     safeSetItem("hb9om_map_opacity", String(mapOpacity));
   }, [mapOpacity]);
+
+  useEffect(() => {
+    safeSetItem("hb9om_terrain_3d", String(terrain3DEnabled));
+  }, [terrain3DEnabled]);
 
   useEffect(() => {
     safeSetItem("hb9om_drag_mode", String(dragMode));
@@ -1605,6 +1646,7 @@ export default function Home() {
             opacity={mapOpacity}
             isOffline={isOffline}
             tileKeyPrefix={tileConfig.tileKeyPrefix}
+            terrain3DEnabled={terrain3DEnabled}
           />
         ) : (
           <MapTileLayer
@@ -1879,6 +1921,21 @@ export default function Home() {
         onScaleDown={handleScaleDown}
         baseLayer={baseLayer}
       />
+
+      {/* v0.951: 3D Terrain Toggle — schaltet die Hauptkarte in 3D-Modus (Gelände + Pitch) */}
+      {tileConfig.type === "vector" && (
+        <button
+          onClick={() => setTerrain3DEnabled(!terrain3DEnabled)}
+          className={`fixed z-[1000] top-20 right-3 w-11 h-11 flex items-center justify-center rounded-lg shadow-lg transition-all ${
+            terrain3DEnabled
+              ? "bg-orange-500 text-white"
+              : "bg-white text-gray-600 hover:bg-gray-50"
+          }`}
+          title={terrain3DEnabled ? "3D-Modus aktiv — tippen zum Deaktivieren" : "3D-Gelände anzeigen (Terrain + Neigung)"}
+        >
+          <Mountain className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Position Controls (offline, GPS, center position, offline download) */}
       <MapPositionControls

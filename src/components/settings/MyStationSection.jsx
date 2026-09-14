@@ -27,6 +27,7 @@ export default function MyStationSection() {
   const [suffix, setSuffix] = useState("");
   const [clubCallsign, setClubCallsign] = useState("");
   const [clubOperatorName, setClubOperatorName] = useState("");
+  const [qrzClubApiKey, setQrzClubApiKey] = useState("");
   const [countryOpen, setCountryOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [saved, setSaved] = useState(false);
@@ -39,6 +40,10 @@ export default function MyStationSection() {
     setSuffix(savedSuffix === null ? "" : savedSuffix);
     setClubCallsign((safeGetItem("hb9om_club_callsign") || "").toUpperCase());
     setClubOperatorName(safeGetItem("hb9om_club_operator_name") || "");
+    // QRZ Club API Key aus User-Entity laden
+    base44.auth.me().then(me => {
+      setQrzClubApiKey((me?.qrz_club_api_key || "").trim());
+    }).catch(() => {});
     // Club-Call aus Backend laden (admin-set global default)
     base44.functions.invoke("manageApiKeys", { action: "getClubCallsign" })
       .then(res => {
@@ -107,6 +112,16 @@ export default function MyStationSection() {
   const handleClubOperatorNameChange = (val) => {
     setClubOperatorName(val);
     saveSetting("hb9om_club_operator_name", val);
+    showSaved();
+  };
+
+  const handleQrzClubApiKeyChange = async (val) => {
+    const trimmed = val.trim();
+    setQrzClubApiKey(trimmed);
+    safeSetItem("hb9om_qrz_club_api_key", trimmed);
+    try {
+      await base44.auth.updateMe({ qrz_club_api_key: trimmed });
+    } catch {}
     showSaved();
   };
 
@@ -330,6 +345,36 @@ export default function MyStationSection() {
           </div>
         ) : (
           <p className="text-[10px] text-gray-400 mt-2">Kein Club-Call konfiguriert — wird im Log-Formular ausgeblendet.</p>
+        )}
+      </div>
+
+      {/* v0.951: QRZ Club-API-Key — pro User individuell für Club-Log-Upload */}
+      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+        <h3 className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <Radio className="w-3.5 h-3.5 text-green-500" /> QRZ Club-Log Upload
+        </h3>
+        <p className="text-[10px] text-gray-400 mb-2 leading-relaxed">
+          Hinterlege deinen persönlichen QRZ-API-Key um QSOs ins Club-Logbuch (HB9OM) hochzuladen.
+          Der Key wird pro User gespeichert — nicht global geteilt.
+        </p>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">QRZ Club-API-Key</label>
+          <input
+            type="password"
+            value={qrzClubApiKey}
+            onChange={e => handleQrzClubApiKeyChange(e.target.value)}
+            placeholder="z.B. 1a2b3c4d5e6f..."
+            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300 font-mono"
+          />
+        </div>
+        {qrzClubApiKey ? (
+          <p className="text-[10px] text-green-600 mt-1.5 flex items-center gap-1">
+            <Check className="w-3 h-3" /> Club-Upload verfügbar — Key gespeichert
+          </p>
+        ) : (
+          <p className="text-[10px] text-gray-400 mt-1.5">
+            Kein Key gesetzt — Club-Log-Upload ist deaktiviert.
+          </p>
         )}
       </div>
 

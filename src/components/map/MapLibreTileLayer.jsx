@@ -12,7 +12,7 @@ import { loadAllTileBlobs } from "@/lib/offlineMapStore";
  * v0.951: Supports offline mode — pre-loads PBF tiles from IndexedDB and
  * serves them via transformRequest (blob URLs created on demand).
  */
-export default function MapLibreTileLayer({ styleUrl, attribution, opacity, isOffline, tileKeyPrefix }) {
+export default function MapLibreTileLayer({ styleUrl, attribution, opacity, isOffline, tileKeyPrefix, terrain3DEnabled }) {
   const map = useMap();
   const layerRef = useRef(null);
   const blobUrlsRef = useRef(new Set());
@@ -125,6 +125,46 @@ export default function MapLibreTileLayer({ styleUrl, attribution, opacity, isOf
       } catch {}
     }
   }, [opacity]);
+
+  // v0.951: 3D terrain toggle — adds terrain source + pitch to the MapLibre GL map.
+  // The GL map is the base tile renderer; Leaflet overlays (markers, popups) stay in 2D screen space
+  // but remain fully functional. Terrain gives a 3D elevation effect on the base map.
+  useEffect(() => {
+    const gl = layerRef.current;
+    if (!gl) return;
+    const glMap = gl._glMap || gl.getMap?.();
+    if (!glMap) return;
+
+    const applyTerrain = () => {
+      try {
+        if (terrain3DEnabled) {
+          // Add terrain source if not present
+          if (!glMap.getSource('terrain')) {
+            glMap.addSource('terrain', {
+              type: 'raster-dem',
+              tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+              encoding: 'terrarium',
+              tileSize: 256,
+              maxzoom: 14,
+            });
+          }
+          glMap.setTerrain({ source: 'terrain', exaggeration: 1.2 });
+          glMap.setPitch(45);
+        } else {
+          glMap.setTerrain(null);
+          glMap.setPitch(0);
+        }
+      } catch (e) {
+        console.warn('MapLibreTileLayer 3D terrain toggle failed:', e.message);
+      }
+    };
+
+    if (glMap.isStyleLoaded()) {
+      applyTerrain();
+    } else {
+      glMap.once('load', applyTerrain);
+    }
+  }, [terrain3DEnabled]);
 
   // Fallback: raster TileLayer when MapLibre GL plugin is not available (production tree-shaking fix)
   if (!maplibreAvailable) {
