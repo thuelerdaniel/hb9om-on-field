@@ -258,8 +258,19 @@ export default function Log() {
     if (filterStatus !== "all") result = result.filter(e => e.status === filterStatus);
     if (filterDateFrom) result = result.filter(e => (e.qso_date || "") >= filterDateFrom);
     if (filterDateTo) result = result.filter(e => (e.qso_date || "") <= filterDateTo);
-    if (sortBy === "date_desc") result.sort((a, b) => (b.qso_date || "").localeCompare(a.qso_date || ""));
-    if (sortBy === "date_asc") result.sort((a, b) => (a.qso_date || "").localeCompare(b.qso_date || ""));
+    // v0.951-HF5: Sort by qso_date (primary) + time_start (secondary) — works across
+    // all import sources. Previous sort used qso_date only, leaving same-day QSOs in
+    // arbitrary order (appeared "durcheinander" with Wavelog imports sharing created_date).
+    if (sortBy === "date_desc") result.sort((a, b) => {
+      const d = (b.qso_date || "").localeCompare(a.qso_date || "");
+      if (d !== 0) return d;
+      return (b.time_start || "").localeCompare(a.time_start || "");
+    });
+    if (sortBy === "date_asc") result.sort((a, b) => {
+      const d = (a.qso_date || "").localeCompare(b.qso_date || "");
+      if (d !== 0) return d;
+      return (a.time_start || "").localeCompare(b.time_start || "");
+    });
     if (sortBy === "callsign") result.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
     return result;
   }, [entries, filterType, filterStatus, sortBy, filterSource, filterDateFrom, filterDateTo]);
