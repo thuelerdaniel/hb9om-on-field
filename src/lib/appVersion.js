@@ -13,11 +13,19 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609141849";
+export const APP_BUILD = "202609150858";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-HF: LOG-FILTER — Club-Ansicht strikt: log_type='club' AND is_clubstation=true AND club_callsign='HB9OM' — keine privaten QSOs mehr in Club-Ansicht",
+  "v0.951-HF: LOG-FILTER — Privat-Ansicht: alles NIC-Club — keine Club-QSOs mehr in Privat-Ansicht, keine Überschneidung",
+  "v0.951-HF: QRZ-CLUB-IMPORT — fetchQrzClubLog verwendet Club-API-Key 2B86-9159-3CAA-B13D (HB9OM-Logbuch), NICHT privaten QRZ_API_KEY",
+  "v0.951-HF: QRZ-CLUB-IMPORT — operator_callsign = OPERATOR-Feld aus QRZ-ADIF (tatsächlicher OM), nicht mehr HB9OM",
+  "v0.951-HF: QRZ-CLUB-IMPORT — Within-batch Dedup verhindert doppelte Importe bei mehrfach gelieferten QSOs",
+  "v0.951-HF: QRZ-CLUB-IMPORT — Letzter Sync-Zeitstempel + Import-Zahl in AppSetting gespeichert, in UI sichtbar",
+  "v0.951-HF: DUBLETTEN — 15 doppelte Club-QSOs vom 09.04.2026 (MM7CEH 7x, SP5XTY 9x, MM7CEH 2x) bereinigt auf je 1x",
+  "v0.951-HF: GETCLUBLOG — Strikter Filter log_type+is_clubstation+club_callsign, kein $or-Fallback mehr",
   "v0.951-RC: GRENZEN — WWFF- und LLOTA-Grenzen jetzt über pota-map.fr API (gleicher Endpoint wie POTA, gleicher Cache mit program-Feld)",
   "v0.951-RC: GRENZEN — DLFF-0001 echtes Polygon, HBFF-0001 echtes Polygon, LLCH-0002 'Lake Geneva' echtes Polygon — alle bestätigt",
   "v0.951-RC: GRENZEN — WWFF/LLOTA ohne Grenze zeigen gestrichelten 'ca.'-Kreis (identisch wie POTA-Fallback)",

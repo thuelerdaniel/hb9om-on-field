@@ -59,6 +59,8 @@ export default function Log() {
   const [syncPaused, setSyncPaused] = useState(false);
   const [syncPauseLoading, setSyncPauseLoading] = useState(false);
   const [hasWavelogConfig, setHasWavelogConfig] = useState(false);
+  // v0.951: Last QRZ Club Sync info (timestamp, imported count, duplicates)
+  const [lastClubSync, setLastClubSync] = useState(null);
   // v0.9018 FORTSCHRITSANZEIGE: Delete progress overlay state
   const [deleteProgress, setDeleteProgress] = useState(null); // { phase, count, total, message }
   const cancelDeleteRef = useRef(false);
@@ -68,6 +70,23 @@ export default function Log() {
     try {
       const res = await base44.functions.invoke("manageSyncPause", { action: "get" });
       if (res.data) setSyncPaused(res.data.paused === true);
+    } catch {}
+  };
+
+  // v0.951: Load last QRZ Club Sync info from AppSetting
+  const loadLastClubSync = async () => {
+    try {
+      const res = await base44.entities.AppSetting.filter({ key: 'club_callsign_config' });
+      if (res && res.length > 0) {
+        const config = JSON.parse(res[0].value || '{}');
+        if (config.last_club_sync) {
+          setLastClubSync({
+            timestamp: config.last_club_sync,
+            imported: config.last_club_sync_imported || 0,
+            duplicates: config.last_club_sync_duplicates || 0,
+          });
+        }
+      }
     } catch {}
   };
 
@@ -103,6 +122,7 @@ export default function Log() {
   useEffect(() => {
     loadEntries();
     loadSyncPauseStatus();
+    loadLastClubSync();
     // Check if demo account (point 13)
     base44.auth.me().then(me => {
       setIsDemo(me?.email === DEMO_EMAIL);
@@ -226,11 +246,14 @@ export default function Log() {
     setLoading(false);
   };
 
+  // v0.951: Strict club/private separation — Club = log_type='club' AND is_clubstation=true AND club_callsign='HB9OM'
+  // No record in both views, none in neither. Same criteria for filter, counters, export, upload.
+  const isClubQso = (e) => e.log_type === "club" && e.is_clubstation === true && e.club_callsign === "HB9OM";
+
   const filtered = useMemo(() => {
-    // v0.9018 FIX point 5: Filter by log_type directly (not is_clubstation)
     let result = [...entries];
-    if (filterSource === "private") result = result.filter(e => e.log_type === "private");
-    if (filterSource === "club") result = result.filter(e => e.log_type === "club");
+    if (filterSource === "private") result = result.filter(e => !isClubQso(e));
+    if (filterSource === "club") result = result.filter(e => isClubQso(e));
     if (filterType !== "all") result = result.filter(e => e.my_reference_type === filterType);
     if (filterStatus !== "all") result = result.filter(e => e.status === filterStatus);
     if (filterDateFrom) result = result.filter(e => (e.qso_date || "") >= filterDateFrom);
@@ -241,9 +264,9 @@ export default function Log() {
     return result;
   }, [entries, filterType, filterStatus, sortBy, filterSource, filterDateFrom, filterDateTo]);
 
-  // v0.9018 point 8: Separate Private/Club QSO counters
-  const privateTotal = useMemo(() => entries.filter(e => e.log_type === "private").length, [entries]);
-  const clubTotal = useMemo(() => entries.filter(e => e.log_type === "club").length, [entries]);
+  // v0.951: Strict Private/Club counters — same isClubQso criteria as filter
+  const privateTotal = useMemo(() => entries.filter(e => !isClubQso(e)).length, [entries]);
+  const clubTotal = useMemo(() => entries.filter(e => isClubQso(e)).length, [entries]);
 
   const handleExport = () => {
     const header = "HB9OM On Field - ADIF Export\n<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
@@ -285,9 +308,9 @@ export default function Log() {
     // Filter: club target only uploads club QSOs, private target only uploads private QSOs
     let qsoToUpload = filtered;
     if (target === 'club') {
-      qsoToUpload = filtered.filter(e => e.is_clubstation === true);
+      qsoToUpload = filtered.filter(e => isClubQso(e));
     } else if (target === 'personal') {
-      qsoToUpload = filtered.filter(e => !e.is_clubstation);
+      qsoToUpload = filtered.filter(e => !isClubQso(e));
     }
     if (qsoToUpload.length === 0) {
       setQrzUploadResult({ success: false, message: target === 'club' ? 'Keine Club-QSOs (is_clubstation: true) zum Hochladen' : 'Keine privaten QSOs zum Hochladen' });
@@ -356,6 +379,7 @@ export default function Log() {
         setQrzUploadResult({ success: true, message: msg });
         toast({ title: "QRZ Club", description: msg, duration: 5000 });
         loadEntries();
+        loadLastClubSync();
         if (filterSource === "club") loadClubEntries();
       } else {
         setQrzUploadResult({ success: false, message: "Keine QSOs im Club-Logbuch gefunden" });
@@ -775,15 +799,24 @@ export default function Log() {
             </button>
             {/* 3-5. Wavelog: Club Log Wavelog + Wavelog Import + Wavelog Voll Import */}
             <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
-            {/* v0.9042: QRZ Club Upload DEAKTIVIERT — Club-QRZ-Login entfernt, Button grau/disable */}
-            <button
-              disabled={true}
-              className="px-3 py-2 text-sm font-medium text-gray-400 border border-gray-200 rounded-lg opacity-40 cursor-not-allowed flex items-center gap-1.5"
-              title="Club-Upload derzeit deaktiviert"
-            >
-              <Upload className="w-4 h-4" />
-              QRZ Club Upload
-            </button>
+            {/* v0.951: QRZ Club Download — lädt Club-QSOs vom HB9OM-Logbuch (Club-API-Key 2B86-9159-3CAA-B13D) */}
+            {isAdmin && (
+              <button
+                onClick={handleClubLogSync}
+                disabled={clubSyncLoading || syncPaused}
+                className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                title={syncPaused ? "Sync ist gestoppt" : "Club-QSOs von QRZ.com (HB9OM-Logbuch) abrufen"}
+              >
+                {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                QRZ Club Sync
+              </button>
+            )}
+            {lastClubSync && (
+              <span className="text-[10px] text-gray-400 flex items-center gap-1" title={`Letzter Club-Sync: ${new Date(lastClubSync.timestamp).toLocaleString('de-CH')}`}>
+                <CheckCircle2 className="w-3 h-3 text-green-500" />
+                {new Date(lastClubSync.timestamp).toLocaleDateString('de-CH')}: {lastClubSync.imported} neu
+              </span>
+            )}
             {/* 6. Löschen — always active, even when sync is paused */}
             <button
               onClick={() => setShowConfirmDelete(true)}
