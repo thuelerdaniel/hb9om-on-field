@@ -18,6 +18,14 @@ export const APP_BUILD = "202609150948";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-HF: QRZ-CLUB-MANUELL — Manueller Club-Import (Button) wird NICHT durch sync_paused blockiert — nur automatische Hintergrund-Syncs respektieren die Pause",
+  "v0.951-HF: QRZ-CLUB-MANUELL — fetchQrzClubLog akzeptiert { manual: true } im Request-Body um Sync-Pause zu umgehen",
+  "v0.951-HF: ADIF-TYP-AUSWAHL — Import-Dialog zeigt Typ-Auswahl (Privat vs Club) VOR dem Datei-Upload — manuelle Auswahl ist führend",
+  "v0.951-HF: ADIF-TYP-AUSWAHL — Privat: log_type='private', is_clubstation=false, operator_callsign=private_callsign (HB3YNF aus AppSetting)",
+  "v0.951-HF: ADIF-TYP-AUSWAHL — Club: log_type='club', is_clubstation=true, club_callsign='HB9OM', club_operator_callsign aus ADIF OPERATOR-Feld",
+  "v0.951-HF: ADIF-TYP-AUSWAHL — applyImportType() Funktion überschreibt ADIF-eigene STATION_CALLSIGN/MY_SIG bei manueller Auswahl",
+  "v0.951-HF: ADIF-TYP-AUSWAHL — Warnung bei fehlender private_callsign Konfiguration (Einstellungen → Club-Station)",
+  "v0.951-HF: APPSETTING — private_callsign='HB3YNF' zu club_callsign_config hinzugefügt — für ADIF-Import und zukünftige Verwendung",
   "v0.951-HF: LOG-FILTER — Club-Ansicht strikt: log_type='club' AND is_clubstation=true AND club_callsign='HB9OM' — keine privaten QSOs mehr in Club-Ansicht",
   "v0.951-HF: LOG-FILTER — Privat-Ansicht: alles NIC-Club — keine Club-QSOs mehr in Privat-Ansicht, keine Überschneidung",
   "v0.951-HF: QRZ-CLUB-IMPORT — fetchQrzClubLog verwendet Club-API-Key 2B86-9159-3CAA-B13D (HB9OM-Logbuch), NICHT privaten QRZ_API_KEY",
