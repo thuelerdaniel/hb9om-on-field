@@ -1,6 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { dedupKey } from '../../shared/logDedup.ts';
-import { isSyncPaused } from '../../shared/syncPause.ts';
 import { normalizeTime } from '../../shared/normalizeTime.ts';
 
 // fetchQrzClubLog — v0.9003 Problem 2
@@ -9,7 +8,11 @@ import { normalizeTime } from '../../shared/normalizeTime.ts';
 //   is_clubstation: true, club_callsign: HB9OM, wavelog_imported: true
 // Admin-only — the club logbook is communal.
 //
-// API key source: AppSetting club_callsign_config.qrz_logbook_api_key → QRZ_API_KEY secret fallback.
+// v0.953 Fix 1: NO sync_paused check here — this function is ONLY called manually
+// (Button-Klick → Import-Lauf ohne jede Pause-Prüfung).
+// The automatic scheduler path checks pause flags BEFORE calling this function.
+//
+// API key source: AppSetting club_callsign_config.qrz_logbook_api_key.
 // QRZ Logbook API: https://logbook.qrz.com/api (ACTION=FETCH)
 
 export default async function(req: Request): Promise<Response> {
@@ -21,15 +24,9 @@ export default async function(req: Request): Promise<Response> {
       return Response.json({ error: 'Club-Log-Sync nur für Admins' }, { status: 403 });
     }
 
-    // v0.951: Manual import is NOT blocked by sync_paused — only automatic syncs are paused.
-    // The frontend passes { manual: true } for user-triggered imports; the scheduler omits it.
+    // v0.953 Fix 1: Manual import — NO pause check. Button-Klick läuft IMMER.
     let body: any = {};
     try { body = await req.json(); } catch {}
-    const isManual = body && body.manual === true;
-
-    if (!isManual && await isSyncPaused(base44)) {
-      return Response.json({ status: 'success', imported: 0, message: 'Sync ist pausiert — Club-Log-Sync übersprungen', paused: true });
-    }
 
     // 1. Read API key from AppSetting, fall back to QRZ_API_KEY secret
     let apiKey = '';

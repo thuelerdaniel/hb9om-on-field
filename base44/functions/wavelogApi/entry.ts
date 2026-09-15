@@ -367,8 +367,12 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'full_import': {
-        // v0.9003: Full import from Wavelog with PAGING — batches of 500 QSOs.
-        // Uses fetchfromid as cursor, loops until response has < 500 QSOs.
+        // v0.953 Fix 5: Full import from Wavelog — starts from ID 0, pages through ALL QSOs.
+        // NO increment behavior (unlike delta sync which uses wavelog_last_fetch_id cursor).
+        // NO pause check (Fix 1: manual button → always runs).
+        // Correct marking: log_type=private/operator_callsign=user's call, Club detection
+        // via STATION_CALLSIGN ≠ OPERATOR (Fix 3).
+        // Uses fetchfromid as cursor starting from 0, loops until response has < 500 QSOs.
         // Reads config from UserHuntingSettings (per-user, NOT from body).
         if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 

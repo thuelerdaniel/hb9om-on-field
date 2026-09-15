@@ -442,29 +442,32 @@ export default function Log() {
     } catch (e) { }
   };
 
+  // v0.953 Fix 4: Server-side complete deletion via service-role — paginates through ALL
+  // matching records until 0 remain. Previous approach only deleted loaded entries (RLS gap).
+  // Check order: Button-Klick → Delete-Lauf ohne Pause-Prüfung; Scheduler → prüft Pause-Flags.
   const handleDeleteAll = async () => {
-    const toDelete = filtered.map(e => e.id);
-    const total = toDelete.length;
-    const BATCH_SIZE = 500;
-    let deleted = 0;
     cancelDeleteRef.current = false;
-    setDeleteProgress({ phase: "deleting", count: 0, total });
+    setDeleteProgress({ phase: "deleting", count: 0, total: filtered.length });
     try {
-      for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
-        if (cancelDeleteRef.current) break;
-        const batch = toDelete.slice(i, i + BATCH_SIZE);
-        await base44.functions.invoke("bulkDeleteLogs", { ids: batch });
-        deleted += batch.length;
-        setDeleteProgress({ phase: "deleting", count: deleted, total });
-      }
-      const deletedIdSet = new Set(toDelete.slice(0, deleted));
-      const local = loadLocal();
-      saveLocal(local.filter(e => !deletedIdSet.has(e.id)));
+      const res = await base44.functions.invoke("deleteAllFilteredLogs", {
+        filterSource,
+        filterType,
+        filterStatus,
+        filterDateFrom,
+        filterDateTo,
+      });
+      const deleted = res.data?.deleted || 0;
+      const errors = res.data?.errors || 0;
+      const remaining = res.data?.remaining || 0;
+      // Clear local cache — reload will fetch remaining entries from server
+      saveLocal([]);
       setShowConfirmDelete(false);
-      if (cancelDeleteRef.current && deleted < total) {
-        setDeleteProgress({ phase: "done", count: deleted, total, message: `Abgebrochen: ${deleted} von ${total} Einträgen gelöscht` });
+      if (errors > 0) {
+        setDeleteProgress({ phase: "done", count: deleted, total: deleted, message: `${deleted} Einträge gelöscht, ${errors} Fehler` });
+      } else if (remaining > 0) {
+        setDeleteProgress({ phase: "done", count: deleted, total: deleted, message: `${deleted} Einträge gelöscht, ${remaining} verbleibend` });
       } else {
-        setDeleteProgress({ phase: "done", count: deleted, total, message: `${deleted} Einträge erfolgreich gelöscht` });
+        setDeleteProgress({ phase: "done", count: deleted, total: deleted, message: `${deleted} Einträge erfolgreich gelöscht` });
       }
       loadEntries();
     } catch (e) {
@@ -796,37 +799,38 @@ export default function Log() {
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            {/* v0.9042: QRZ Club Download ENTFERNT — Club-QRZ-Login entfernt, nur noch persönliches QRZ-Login */}
-            {/* 2. Club Sync — syncClubLog (Upload to clublog.org) */}
-            <button
-              onClick={handleClubLogUpload}
-              disabled={clubLogUploading}
-              className="px-3 py-2 text-sm font-medium text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-              title={syncPaused ? "Sync ist gestoppt" : "Private QSOs zu ClubLog (clublog.org) hochladen"}
-            >
-              {clubLogUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Club Sync
-            </button>
-            {/* 3-5. Wavelog: Club Log Wavelog + Wavelog Import + Wavelog Voll Import */}
-            <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
-            {/* v0.951: QRZ Club Download — lädt Club-QSOs vom HB9OM-Logbuch (Club-API-Key 2B86-9159-3CAA-B13D) */}
-            {/* v0.951-HF3: Button sichtbar UND klickbar für alle User — nicht durch isAdmin eingeschränkt */}
-            <button
-              onClick={handleClubLogSync}
-              disabled={clubSyncLoading}
-              className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-              title="Club-QSOs von QRZ.com (HB9OM-Logbuch) abrufen — manuell, nicht durch Sync-Pause blockiert"
-            >
-              {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              QRZ Club Sync
-            </button>
+            {/* v0.953 Fix 2: Club-Log-Buttons nebeneinander in einer Reihe — responsive */}
+            <div className="flex items-center gap-2">
+              {/* Club Sync — Upload private QSOs to clublog.org */}
+              <button
+                onClick={handleClubLogUpload}
+                disabled={clubLogUploading}
+                className="px-3 py-2 text-sm font-medium text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                title="Private QSOs zu ClubLog (clublog.org) hochladen"
+              >
+                {clubLogUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                Club Sync
+              </button>
+              {/* QRZ Club Sync — Download club QSOs from QRZ.com HB9OM logbook */}
+              <button
+                onClick={handleClubLogSync}
+                disabled={clubSyncLoading}
+                className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                title="Club-QSOs von QRZ.com (HB9OM-Logbuch) abrufen"
+              >
+                {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                QRZ Club Sync
+              </button>
+            </div>
             {lastClubSync && (
               <span className="text-[10px] text-gray-400 flex items-center gap-1" title={`Letzter Club-Sync: ${new Date(lastClubSync.timestamp).toLocaleString('de-CH')}`}>
                 <CheckCircle2 className="w-3 h-3 text-green-500" />
                 {new Date(lastClubSync.timestamp).toLocaleDateString('de-CH')}: {lastClubSync.imported} neu
               </span>
             )}
-            {/* 6. Löschen — always active, even when sync is paused */}
+            {/* Wavelog Import + Wavelog Voll Import */}
+            <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
+            {/* Löschen — always active, even when sync is paused */}
             <button
               onClick={() => setShowConfirmDelete(true)}
               disabled={filtered.length === 0}
@@ -890,6 +894,12 @@ export default function Log() {
                       )}
                       {entry.is_clubstation && !entry.club_callsign && entry.club_operator_callsign && (
                         <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">Op: {entry.club_operator_callsign}{entry.club_operator_name && ` · ${entry.club_operator_name}`}</span>
+                      )}
+                      {/* v0.953 Fix 3: Privat-Badge für nicht-Club QSOs — nutzt log_type/is_clubstation aus dem Record */}
+                      {!entry.is_clubstation && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400 rounded-full">
+                          Privat
+                        </span>
                       )}
                       {entry.status === "archived" && (
                         <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">Archiviert</span>
