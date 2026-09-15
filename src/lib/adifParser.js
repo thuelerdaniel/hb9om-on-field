@@ -230,6 +230,32 @@ export function dedupKey(r) {
   ].join("|");
 }
 
+// Apply manual import type selection to a parsed record.
+// importType: 'club' | 'private'
+// privateCallsign: user's personal callsign (e.g. 'HB3YNF') — used for private imports
+// The manual selection takes precedence over ADIF's own STATION_CALLSIGN/MY_SIG.
+export function applyImportType(record, importType, privateCallsign) {
+  if (importType === "club") {
+    return {
+      ...record,
+      log_type: "club",
+      is_clubstation: true,
+      club_callsign: "HB9OM",
+      // club_operator_callsign from ADIF OPERATOR field (already set by mapAdifRecord if present)
+      operator_callsign: record.club_operator_callsign || undefined,
+    };
+  }
+  // private
+  return {
+    ...record,
+    log_type: "private",
+    is_clubstation: false,
+    club_callsign: "",
+    club_operator_callsign: "",
+    operator_callsign: privateCallsign || record.operator_callsign || "",
+  };
+}
+
 // Full parse + validate + dedup pipeline.
 // existingEntries: array of existing Log entries to check duplicates against.
 // Returns { parsed, duplicates, invalid, summary }

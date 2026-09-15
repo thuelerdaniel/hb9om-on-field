@@ -370,7 +370,7 @@ export default function Log() {
     setClubSyncLoading(true);
     setQrzUploadResult(null);
     try {
-      const res = await base44.functions.invoke("fetchQrzClubLog", {});
+      const res = await base44.functions.invoke("fetchQrzClubLog", { manual: true });
       if (res.data?.error) {
         setQrzUploadResult({ success: false, message: res.data.error });
         toast({ title: "QRZ Club Fehler", description: res.data.error, variant: "destructive", duration: 5000 });
@@ -803,9 +803,9 @@ export default function Log() {
             {isAdmin && (
               <button
                 onClick={handleClubLogSync}
-                disabled={clubSyncLoading || syncPaused}
+                disabled={clubSyncLoading}
                 className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                title={syncPaused ? "Sync ist gestoppt" : "Club-QSOs von QRZ.com (HB9OM-Logbuch) abrufen"}
+                title="Club-QSOs von QRZ.com (HB9OM-Logbuch) abrufen — manuell, nicht durch Sync-Pause blockiert"
               >
                 {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                 QRZ Club Sync

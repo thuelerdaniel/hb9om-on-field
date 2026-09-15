@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Upload, FileText, AlertTriangle, CheckCircle2, XCircle, Copy, Loader2, X, ChevronDown, ChevronUp, History, FileUp } from "lucide-react";
+import { Upload, FileText, AlertTriangle, CheckCircle2, XCircle, Copy, Loader2, X, ChevronDown, ChevronUp, History, FileUp, Building, User } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { parseAndValidate, dedupKey } from "@/lib/adifParser";
+import { parseAndValidate, dedupKey, applyImportType } from "@/lib/adifParser";
 import { createEntry, loadLocal } from "@/lib/localLogStore";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -90,10 +90,24 @@ export default function AdifImportDialog({ onClose, onImported }) {
   const [pastImports, setPastImports] = useState([]);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("valid"); // valid | duplicates | invalid
+  // v0.951: ADIF import type selection — Club vs Private (manual selection takes precedence)
+  const [importType, setImportType] = useState("private"); // private | club
+  const [privateCallsign, setPrivateCallsign] = useState("");
 
   useEffect(() => {
     loadPastImports();
+    loadPrivateCallsign();
   }, []);
+
+  const loadPrivateCallsign = async () => {
+    try {
+      const res = await base44.entities.AppSetting.filter({ key: "club_callsign_config" });
+      if (res && res.length > 0) {
+        const config = JSON.parse(res[0].value || "{}");
+        if (config.private_callsign) setPrivateCallsign(config.private_callsign);
+      }
+    } catch {}
+  };
 
   const loadPastImports = async () => {
     try {
@@ -153,7 +167,9 @@ export default function AdifImportDialog({ onClose, onImported }) {
     for (let i = 0; i < toImport.length; i++) {
       const entry = toImport[i];
       try {
-        createEntry(entry.record);
+        // v0.951: Apply manual import type selection — overrides ADIF's own STATION_CALLSIGN/MY_SIG
+        const typedRecord = applyImportType(entry.record, importType, privateCallsign);
+        createEntry(typedRecord);
         imported++;
         results.push({ index: entry.index, callsign: entry.record.callsign, status: "imported" });
       } catch (e) {
@@ -242,6 +258,53 @@ export default function AdifImportDialog({ onClose, onImported }) {
           {/* Step: Upload */}
           {step === "upload" && (
             <div className="space-y-4">
+              {/* v0.951: Import type selection — Club vs Private */}
+              <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <FileUp className="w-3.5 h-3.5 text-gray-400" />
+                  <h3 className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Import-Typ</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setImportType("private")}
+                    className={`px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                      importType === "private"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
+                        : "border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:border-gray-300"
+                    }`}
+                  >
+                    <User className="w-4 h-4" />
+                    <div className="text-left">
+                      <div className="font-semibold">Privater Import</div>
+                      <div className="text-[10px] opacity-70">log_type=private · operator_callsign={privateCallsign || "—"}</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setImportType("club")}
+                    className={`px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                      importType === "club"
+                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                        : "border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:border-gray-300"
+                    }`}
+                  >
+                    <Building className="w-4 h-4" />
+                    <div className="text-left">
+                      <div className="font-semibold">Club-Log Import</div>
+                      <div className="text-[10px] opacity-70">log_type=club · club_callsign=HB9OM</div>
+                    </div>
+                  </button>
+                </div>
+                {importType === "private" && !privateCallsign && (
+                  <div className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                    Keine private Callsign konfiguriert — operator_callsign bleibt leer. In Einstellungen → Club-Station setzen.
+                  </div>
+                )}
+                <p className="mt-2 text-[10px] text-gray-400 leading-relaxed">
+                  Die manuelle Auswahl ist führend — ein ADIF mit STATION_CALLSIGN=HB9OM wird trotzdem als Privat importiert, wenn "Privater Import" gewählt ist.
+                </p>
+              </div>
+
               <div
                 onClick={() => fileInputRef.current?.click()}
                 className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
