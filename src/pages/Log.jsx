@@ -800,17 +800,16 @@ export default function Log() {
             {/* 3-5. Wavelog: Club Log Wavelog + Wavelog Import + Wavelog Voll Import */}
             <WavelogSyncButtons onSynced={loadEntries} syncPaused={syncPaused} />
             {/* v0.951: QRZ Club Download — lädt Club-QSOs vom HB9OM-Logbuch (Club-API-Key 2B86-9159-3CAA-B13D) */}
-            {isAdmin && (
-              <button
-                onClick={handleClubLogSync}
-                disabled={clubSyncLoading}
-                className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                title="Club-QSOs von QRZ.com (HB9OM-Logbuch) abrufen — manuell, nicht durch Sync-Pause blockiert"
-              >
-                {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                QRZ Club Sync
-              </button>
-            )}
+            {/* v0.951-HF3: Button sichtbar UND klickbar für alle User — nicht durch isAdmin eingeschränkt */}
+            <button
+              onClick={handleClubLogSync}
+              disabled={clubSyncLoading}
+              className="px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+              title="Club-QSOs von QRZ.com (HB9OM-Logbuch) abrufen — manuell, nicht durch Sync-Pause blockiert"
+            >
+              {clubSyncLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              QRZ Club Sync
+            </button>
             {lastClubSync && (
               <span className="text-[10px] text-gray-400 flex items-center gap-1" title={`Letzter Club-Sync: ${new Date(lastClubSync.timestamp).toLocaleString('de-CH')}`}>
                 <CheckCircle2 className="w-3 h-3 text-green-500" />

@@ -207,8 +207,10 @@ export async function uploadToWavelog(config, onProgress) {
 // === Import: QSOs von Wavelog importieren (Delta-Sync) ===
 // v0.9032: Backend does ADIF parsing and entity creation — frontend just calls and returns result
 export async function importFromWavelog(config, onProgress) {
-  if (!config?.wavelog_enabled || !config?.wavelog_api_key) {
-    return { success: false, message: 'Wavelog nicht konfiguriert' };
+  // v0.951-HF3: wavelog_enabled is a pause flag — manual import bypasses it.
+  // Only check for API key (real prerequisite, not a pause flag).
+  if (!config?.wavelog_api_key) {
+    return { success: false, message: 'Wavelog API-Key nicht konfiguriert — in Einstellungen setzen' };
   }
 
   const lastFetchId = config.wavelog_last_fetch_id || 0;
@@ -285,8 +287,9 @@ export async function processWavelogOfflineQueue(config) {
 // === Full Import: Alle QSOs von Wavelog importieren (Voll-Neuimport) ===
 // v0.9003 Problem 1: Startet bei fetchfromid: 0, paginated dedup, batches of 500
 export async function fullImportFromWavelog(config) {
-  if (!config?.wavelog_enabled || !config?.wavelog_api_key) {
-    return { success: false, message: 'Wavelog nicht konfiguriert' };
+  // v0.951-HF3: wavelog_enabled is a pause flag — manual full import bypasses it.
+  if (!config?.wavelog_api_key) {
+    return { success: false, message: 'Wavelog API-Key nicht konfiguriert — in Einstellungen setzen' };
   }
   let result;
   try {

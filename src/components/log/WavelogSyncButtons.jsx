@@ -39,8 +39,10 @@ export default function WavelogSyncButtons({ onSynced, syncPaused }) {
     wavelog_last_fetch_id: settings?.wavelog_last_fetch_id || 0,
   };
   const wavelogConfigured = !!(config.wavelog_api_key && (config.wavelog_lan_url || config.wavelog_wan_url) && config.wavelog_station_id);
-  // v0.9018 point 7: syncPaused only affects auto-sync cronjob, NOT manual buttons
-  const disabled = !wavelogEnabled || !wavelogConfigured;
+  // v0.951-HF3: Manual buttons are ALWAYS clickable — pause flags (wavelog_enabled, sync_paused)
+  // control ONLY automatic background sync, NOT manual button clickability.
+  // If config is missing, the import function returns an error toast — better UX than a grayed-out button.
+  const disabled = false;
 
   const handleImport = async () => {
     if (disabled) return;
@@ -91,18 +93,18 @@ export default function WavelogSyncButtons({ onSynced, syncPaused }) {
     <>
       <button
         onClick={handleImport}
-        disabled={disabled || importing || fullImporting}
+        disabled={importing || fullImporting}
         className="px-3 py-2 text-sm font-medium text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-        title={!wavelogEnabled ? "Wavelog nicht aktiviert — in Einstellungen konfigurieren" : !wavelogConfigured ? "Wavelog nicht vollständig konfiguriert" : "Neue QSOs von Wavelog importieren (Delta-Sync)"}
+        title="Neue QSOs von Wavelog importieren (Delta-Sync) — manuell, nicht durch Pause blockiert"
       >
         {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         Wavelog Import
       </button>
       <button
         onClick={handleFullImport}
-        disabled={disabled || importing || fullImporting}
+        disabled={importing || fullImporting}
         className="px-3 py-2 text-sm font-medium text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-        title={!wavelogEnabled ? "Wavelog nicht aktiviert — in Einstellungen konfigurieren" : !wavelogConfigured ? "Wavelog nicht vollständig konfiguriert" : "ALLE QSOs von Wavelog importieren (Voll-Neuimport ab ID 0)"}
+        title="ALLE QSOs von Wavelog importieren (Voll-Neuimport ab ID 0) — manuell, nicht durch Pause blockiert"
       >
         {fullImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         Wavelog Voll Import

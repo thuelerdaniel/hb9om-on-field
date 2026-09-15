@@ -13,11 +13,17 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609151009";
+export const APP_BUILD = "202609151017";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-HF3: WAVELOG-BUTTONS — Manuelle Wavelog-Buttons (Import + Voll-Import) sind IMMER klickbar — wavelog_enabled=false deaktiviert sie nicht mehr",
+  "v0.951-HF3: WAVELOG-BUTTONS — disabled-Logik entfernt: nur noch importing/fullImporting deaktiviert — keine Pause-Flags mehr in der disabled-Prüfung",
+  "v0.951-HF3: WAVELOG-IMPORT — importFromWavelog/fullImportFromWavelog prüfen NICHT mehr wavelog_enabled — nur noch API-Key als echte Voraussetzung",
+  "v0.951-HF3: QRZ-CLUB-SYNC — Button sichtbar UND klickbar für ALLE User (nicht mehr isAdmin-only) — nicht durch Pause blockiert",
+  "v0.951-HF3: ADIF-IMPORT — Button war bereits immer sichtbar/klickbar — keine Änderung nötig",
+  "v0.951-HF3: REGEL — Pause-Flags (sync_paused, wavelog_enabled, wavelog_auto_sync) steuern NUR automatische Hintergrund-Syncs — manuelle Buttons sind immer funktionsfähig",
   "v0.951-HF2: ADIF-WARNUNG — Private Callsign wird aus 'Meine Station' (localStorage hb9om_my_callsign) gelesen, NICHT aus club_callsign_config — falsches Feld korrigiert",
   "v0.951-HF2: ADIF-WARNUNG — Fehlertext korrigiert: 'In Einstellungen → Meine Station setzen' (vorher falsch 'Club-Station')",
   "v0.951-HF2: ADIF-WARNUNG — Bei CLUB-Import wird keine Private-Callsign-Warnung mehr angezeigt — Club-QSOs brauchen club_callsign=HB9OM, nicht die private Callsign",
