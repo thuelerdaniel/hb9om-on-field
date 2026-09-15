@@ -34,11 +34,10 @@ export default async function(req: Request): Promise<Response> {
         apiKey = config.qrz_logbook_api_key || '';
       }
     } catch {}
+    // v0.951 FIX: Do NOT fall back to QRZ_API_KEY secret — that is the PRIVATE key (HB3YNF),
+    // which causes QRZ to return private QSOs instead of club QSOs.
     if (!apiKey) {
-      apiKey = Deno.env.get('QRZ_API_KEY') || '';
-    }
-    if (!apiKey) {
-      return Response.json({ error: 'Kein Club QRZ API-Key konfiguriert (AppSetting club_callsign_config.qrz_logbook_api_key oder QRZ_API_KEY Secret)' }, { status: 200 });
+      return Response.json({ error: 'Kein Club QRZ API-Key konfiguriert (AppSetting club_callsign_config.qrz_logbook_api_key). Der QRZ_API_KEY Secret ist der private Key und darf hier NICHT verwendet werden.' }, { status: 200 });
     }
 
     // 2. Fetch QSOs from QRZ Logbook API
@@ -147,9 +146,9 @@ export default async function(req: Request): Promise<Response> {
           // v0.9018: ALWAYS use HB9OM as club_callsign — QRZ ADIF may contain HB3YNF (personal call)
           club_callsign: CLUB_CALLSIGN,
           club_operator_callsign: f.OPERATOR || undefined,
-          // v0.9018 FIX: log_type + operator_callsign for correct filter assignment
+          // v0.951 FIX: operator_callsign = tatsächlicher Operator aus OPERATOR-Feld, NICHT HB9OM
           log_type: 'club',
-          operator_callsign: CLUB_CALLSIGN,
+          operator_callsign: f.OPERATOR || undefined,
           my_grid: f.MY_GRIDSQUARE || undefined,
           wavelog_imported: true,
           wavelog_import_date: new Date().toISOString(),
@@ -178,8 +177,12 @@ export default async function(req: Request): Promise<Response> {
       }
     } catch {}
 
+    // v0.951: Within-batch dedup — prevents duplicates when QRZ returns the same QSO multiple times
+    const batchKeys = new Set<string>();
     const newQsos = qsos.filter(q => {
       const key = dedupKey(q.callsign, q.qso_date, q.time_start, q.frequency, q.club_callsign);
+      if (batchKeys.has(key)) return false;
+      batchKeys.add(key);
       return !existingKeys.has(key);
     });
     const duplicateCount = qsos.length - newQsos.length;
@@ -201,6 +204,19 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
+    // v0.951: Store last club sync timestamp in AppSetting for UI display
+    const syncTimestamp = new Date().toISOString();
+    try {
+      const clubConfig = await base44.asServiceRole.entities.AppSetting.filter({ key: 'club_callsign_config' });
+      if (clubConfig && clubConfig.length > 0) {
+        const config = JSON.parse(clubConfig[0].value || '{}');
+        config.last_club_sync = syncTimestamp;
+        config.last_club_sync_imported = importedCount;
+        config.last_club_sync_duplicates = duplicateCount;
+        await base44.asServiceRole.entities.AppSetting.update(clubConfig[0].id, { value: JSON.stringify(config) });
+      }
+    } catch {}
+
     return Response.json({
       status: 'success',
       success: true,
@@ -210,6 +226,7 @@ export default async function(req: Request): Promise<Response> {
       duplicates_skipped: duplicateCount,
       errors: errorCount,
       total: qsos.length,
+      last_sync: syncTimestamp,
       message: `Club-Log-Sync: ${importedCount} QSOs importiert, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler`,
     });
   } catch (error: any) {

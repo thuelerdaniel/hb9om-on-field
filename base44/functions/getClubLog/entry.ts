@@ -16,10 +16,10 @@ export default async function(req: Request): Promise<Response> {
     const skip = parseInt(body.skip) || 0;
 
     const sr = base44.asServiceRole;
-    // v0.9018 FIX: Filter by log_type="club" with fallback to is_clubstation=true for legacy entries
-    // MongoDB $or query: matches entries with log_type="club" OR (legacy) is_clubstation=true without log_type
+    // v0.951: Strict club filter — log_type='club' AND is_clubstation=true AND club_callsign='HB9OM'
+    // No $or fallback — prevents private QSOs (log_type='private') from appearing in club view
     const records = await sr.entities.Log.filter(
-      { status: 'active', $or: [{ log_type: 'club' }, { is_clubstation: true }] },
+      { status: 'active', log_type: 'club', is_clubstation: true, club_callsign: 'HB9OM' },
       '-qso_date', limit, skip
     );
 
