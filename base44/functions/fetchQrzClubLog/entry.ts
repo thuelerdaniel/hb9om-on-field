@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { dedupKey } from '../../shared/logDedup.ts';
 import { isSyncPaused } from '../../shared/syncPause.ts';
+import { normalizeTime } from '../../shared/normalizeTime.ts';
 
 // fetchQrzClubLog — v0.9003 Problem 2
 // Downloads QSOs from the QRZ.com Club Logbook (station_callsign: HB9OM),
@@ -118,10 +119,9 @@ export default async function(req: Request): Promise<Response> {
       return d.substring(0, 4) + '-' + d.substring(4, 6) + '-' + d.substring(6, 8);
     }
 
+    // v0.952 FIX: normalizeTime handles HHMM (4-digit) correctly — padStart(6,'0') produced 00:HH:MM
     function fmtTime(t: string): string {
-      if (!t) return '';
-      const p = t.padStart(6, '0');
-      return p.substring(0, 2) + ':' + p.substring(2, 4) + ':' + p.substring(4, 6);
+      return normalizeTime(t) || '';
     }
 
     const CLUB_CALLSIGN = 'HB9OM';

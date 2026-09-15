@@ -55,6 +55,8 @@ export function qsoToAdif(qso) {
   return a;
 }
 
+import { normalizeTime } from './normalizeTime.js';
+
 // === ADIF Parser: ADIF String → QSO-Objekte ===
 export function parseAdif(adifString) {
   const qsos = [];
@@ -102,17 +104,12 @@ export function parseAdif(adifString) {
       delete qso._qso_date_raw;
     }
     if (qso._time_start_raw) {
-      const t = qso._time_start_raw;
-      qso.time_start = t.length >= 4
-        ? `${t.substring(0, 2)}:${t.substring(2, 4)}${t.length >= 6 ? ':' + t.substring(4, 6) : ''}`
-        : t;
+      // v0.952 FIX: normalizeTime handles HHMM (4-digit) correctly → HH:MM:SS
+      qso.time_start = normalizeTime(qso._time_start_raw) || qso._time_start_raw;
       delete qso._time_start_raw;
     }
     if (qso._time_end_raw) {
-      const te = qso._time_end_raw;
-      qso.time_end = te.length >= 4
-        ? `${te.substring(0, 2)}:${te.substring(2, 4)}${te.length >= 6 ? ':' + te.substring(4, 6) : ''}`
-        : te;
+      qso.time_end = normalizeTime(qso._time_end_raw) || qso._time_end_raw;
       delete qso._time_end_raw;
     }
     if (qso.callsign) qsos.push(qso);

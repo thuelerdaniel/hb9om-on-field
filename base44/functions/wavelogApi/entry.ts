@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall } from '../../shared/internalAuth.ts';
 import { dedupKey } from '../../shared/logDedup.ts';
 import { isSyncPaused } from '../../shared/syncPause.ts';
+import { normalizeTime } from '../../shared/normalizeTime.ts';
 
 // Wavelog API Proxy — v0.9022
 // Vermeidet Mixed-Content Blocking (App ist HTTPS, Wavelog-Server ist HTTP).
@@ -227,10 +228,9 @@ export default async function(req: Request): Promise<Response> {
           return d.substring(0, 4) + '-' + d.substring(4, 6) + '-' + d.substring(6, 8);
         }
 
+        // v0.952 FIX: normalizeTime handles HHMM (4-digit) correctly — padStart(6,'0') produced 00:HH:MM
         function formatTime(t: string): string {
-          if (!t) return '';
-          const p = t.padStart(6, '0');
-          return p.substring(0, 2) + ':' + p.substring(2, 4) + ':' + p.substring(4, 6);
+          return normalizeTime(t) || '';
         }
 
         // Parse ALL records — NO early return, NO break
@@ -412,10 +412,9 @@ export default async function(req: Request): Promise<Response> {
           if (!d || d.length !== 8) return d || '';
           return d.substring(0, 4) + '-' + d.substring(4, 6) + '-' + d.substring(6, 8);
         }
+        // v0.952 FIX: normalizeTime handles HHMM (4-digit) correctly
         function fmtTime(t: string): string {
-          if (!t) return '';
-          const p = t.padStart(6, '0');
-          return p.substring(0, 2) + ':' + p.substring(2, 4) + ':' + p.substring(4, 6);
+          return normalizeTime(t) || '';
         }
 
         // Paging loop — fetch QSOs in batches of 500 using fetchfromid cursor
@@ -664,8 +663,8 @@ export default async function(req: Request): Promise<Response> {
                 const freq = parseFloat(fields.FREQ || '0');
                 const d = fields.QSO_DATE || '';
                 const qsoDate = d.length === 8 ? `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}` : '';
-                const t = (fields.TIME_ON || '').padStart(6, '0');
-                const timeStart = t.length >= 6 ? `${t.substring(0,2)}:${t.substring(2,4)}:${t.substring(4,6)}` : '';
+                // v0.952 FIX: normalizeTime handles HHMM (4-digit) correctly — padStart(6,'0') produced 00:HH:MM
+                const timeStart = normalizeTime(fields.TIME_ON || '') || '';
                 const isClub = !!(fields.STATION_CALLSIGN && fields.OPERATOR && fields.OPERATOR !== fields.STATION_CALLSIGN);
 
                 qsos.push({

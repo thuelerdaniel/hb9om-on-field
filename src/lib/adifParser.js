@@ -59,14 +59,10 @@ function parseAdifDate(d) {
   return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
 }
 
-// Parse ADIF time HHMM or HHMMSS → HH:MM
+// Parse ADIF time → HH:MM:SS (normalized via shared normalizeTime)
+import { normalizeTime } from './normalizeTime.js';
 function parseAdifTime(t) {
-  if (!t) return null;
-  t = String(t).trim();
-  if (t.length >= 4 && /^\d{4,6}$/.test(t)) {
-    return `${t.slice(0, 2)}:${t.slice(2, 4)}`;
-  }
-  return null;
+  return normalizeTime(t);
 }
 
 // Common mode mappings (ADIF files often use sub-modes)
