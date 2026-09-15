@@ -13,11 +13,17 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609150948";
+export const APP_BUILD = "202609151009";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.951-HF2: ADIF-WARNUNG — Private Callsign wird aus 'Meine Station' (localStorage hb9om_my_callsign) gelesen, NICHT aus club_callsign_config — falsches Feld korrigiert",
+  "v0.951-HF2: ADIF-WARNUNG — Fehlertext korrigiert: 'In Einstellungen → Meine Station setzen' (vorher falsch 'Club-Station')",
+  "v0.951-HF2: ADIF-WARNUNG — Bei CLUB-Import wird keine Private-Callsign-Warnung mehr angezeigt — Club-QSOs brauchen club_callsign=HB9OM, nicht die private Callsign",
+  "v0.951-HF2: SYNC-PAUSE — sync_paused (per-User UND global) blockiert NUR automatische Hintergrund-Syncs — manuelle Buttons bleiben aktiv",
+  "v0.951-HF2: SYNC-PAUSE — Wavelog-Buttons bleiben sichtbar (nur disabled wenn Wavelog nicht konfiguriert) — Pause entfernt keine Buttons aus der UI",
+  "v0.951-HF2: QRZ-CLUB — Manueller Club-Import funktioniert auch mit globalem AppSetting sync_paused=true — manual-Flag umgeht isSyncPaused komplett",
   "v0.951-HF: QRZ-CLUB-MANUELL — Manueller Club-Import (Button) wird NICHT durch sync_paused blockiert — nur automatische Hintergrund-Syncs respektieren die Pause",
   "v0.951-HF: QRZ-CLUB-MANUELL — fetchQrzClubLog akzeptiert { manual: true } im Request-Body um Sync-Pause zu umgehen",
   "v0.951-HF: ADIF-TYP-AUSWAHL — Import-Dialog zeigt Typ-Auswahl (Privat vs Club) VOR dem Datei-Upload — manuelle Auswahl ist führend",

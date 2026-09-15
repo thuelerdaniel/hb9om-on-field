@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { parseAndValidate, dedupKey, applyImportType } from "@/lib/adifParser";
 import { createEntry, loadLocal } from "@/lib/localLogStore";
 import { useToast } from "@/components/ui/use-toast";
+import { safeGetItem } from "@/lib/safeStorage";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "WWFF", wwbota: "WWBOTA",
@@ -99,12 +100,18 @@ export default function AdifImportDialog({ onClose, onImported }) {
     loadPrivateCallsign();
   }, []);
 
+  // v0.951-HF2: Read private callsign from the SAME place the user configured it —
+  // localStorage "hb9om_my_callsign" (set in Einstellungen → Meine Station), with AppSetting fallback.
+  // NOT from club_callsign_config (that's the CLUB callsign, a different field).
   const loadPrivateCallsign = async () => {
     try {
-      const res = await base44.entities.AppSetting.filter({ key: "club_callsign_config" });
-      if (res && res.length > 0) {
-        const config = JSON.parse(res[0].value || "{}");
-        if (config.private_callsign) setPrivateCallsign(config.private_callsign);
+      // 1. localStorage (fastest, works offline, always in sync with UI)
+      const local = (safeGetItem("hb9om_my_callsign") || "").toUpperCase().trim();
+      if (local) { setPrivateCallsign(local); return; }
+      // 2. AppSetting fallback (cross-device)
+      const res = await base44.entities.AppSetting.filter({ key: "hb9om_my_callsign" });
+      if (res && res.length > 0 && res[0].value) {
+        setPrivateCallsign(res[0].value.toUpperCase().trim());
       }
     } catch {}
   };
@@ -297,7 +304,7 @@ export default function AdifImportDialog({ onClose, onImported }) {
                 {importType === "private" && !privateCallsign && (
                   <div className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                    Keine private Callsign konfiguriert — operator_callsign bleibt leer. In Einstellungen → Club-Station setzen.
+                    Keine persönliche Callsign konfiguriert — operator_callsign bleibt leer. In Einstellungen → Meine Station setzen.
                   </div>
                 )}
                 <p className="mt-2 text-[10px] text-gray-400 leading-relaxed">
