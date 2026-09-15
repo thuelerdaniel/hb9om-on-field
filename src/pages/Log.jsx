@@ -246,9 +246,9 @@ export default function Log() {
     setLoading(false);
   };
 
-  // v0.951: Strict club/private separation — Club = log_type='club' AND is_clubstation=true AND club_callsign='HB9OM'
-  // No record in both views, none in neither. Same criteria for filter, counters, export, upload.
-  const isClubQso = (e) => e.log_type === "club" && e.is_clubstation === true && e.club_callsign === "HB9OM";
+  // v0.951-HF4: Filter based on log_type ONLY — works for all import sources
+  // (manual QSO, Wavelog-Import, ADIF-Import, QRZ-Import) regardless of is_clubstation/club_callsign.
+  const isClubQso = (e) => e.log_type === "club";
 
   const filtered = useMemo(() => {
     let result = [...entries];
@@ -595,27 +595,26 @@ export default function Log() {
           >
             <CheckSquare className="w-5 h-5" />
           </button>
-          {hasWavelogConfig && (
-            <button
-              onClick={toggleSyncPause}
-              disabled={syncPauseLoading}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
-                syncPaused
-                  ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"
-                  : "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
-              } ${syncPauseLoading ? "opacity-50" : ""}`}
-              title={syncPaused ? "Auto-Sync ist deaktiviert — Klick zum Aktivieren" : "Auto-Sync ist aktiv — Klick zum Deaktivieren"}
-            >
-              {syncPauseLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : syncPaused ? (
-                <Play className="w-3.5 h-3.5" />
-              ) : (
-                <Pause className="w-3.5 h-3.5" />
-              )}
-              Auto-Sync: {syncPaused ? "AUS" : "AN"}
-            </button>
-          )}
+          {/* v0.951-HF4: Auto-Sync toggle ALWAYS visible — independent of wavelog_enabled/sync_paused */}
+          <button
+            onClick={toggleSyncPause}
+            disabled={syncPauseLoading}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+              syncPaused
+                ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"
+                : "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
+            } ${syncPauseLoading ? "opacity-50" : ""}`}
+            title={syncPaused ? "Auto-Sync ist deaktiviert — Klick zum Aktivieren" : "Auto-Sync ist aktiv — Klick zum Deaktivieren"}
+          >
+            {syncPauseLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : syncPaused ? (
+              <Play className="w-3.5 h-3.5" />
+            ) : (
+              <Pause className="w-3.5 h-3.5" />
+            )}
+            Auto-Sync: {syncPaused ? "AUS" : "AN"}
+          </button>
           <Link to="/help" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700" title="Hilfe">
             <HelpCircle className="w-5 h-5" />
           </Link>
