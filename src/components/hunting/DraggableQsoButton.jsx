@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { loadDevicePosition, saveDevicePosition, detectDeviceType } from "@/lib/deviceUtils";
+import { clampToViewport } from "@/lib/viewportClamp";
 
 // Verschiebbarer QSO-Loggen Button — v0.9019: gerätespezifische Position.
 // Position wird pro Gerät (desktop/tablet/mobile) gespeichert.
 // QSO-Formular hat eigene Position — Button springt NICHT beim Schließen des Formulars.
+// Viewport-Clamping mit Safe-Area-Support via shared viewportClamp utility.
 
 const STORAGE_BASE_KEY = "qso_btn_pos";
 const LONG_PRESS_MS = 500;
@@ -20,13 +22,8 @@ function savePosition(x, y) {
   saveDevicePosition(STORAGE_BASE_KEY, { x, y });
 }
 
-function clampToViewport(x, y) {
-  const maxX = window.innerWidth - BUTTON_WIDTH;
-  const maxY = window.innerHeight - BUTTON_HEIGHT;
-  return {
-    x: Math.max(4, Math.min(maxX, x)),
-    y: Math.max(4, Math.min(maxY, y)),
-  };
+function clamp(x, y) {
+  return clampToViewport(x, y, BUTTON_WIDTH, BUTTON_HEIGHT);
 }
 
 export function resetQsoButtonPosition() {
@@ -40,9 +37,9 @@ export function resetQsoButtonPosition() {
 export default function DraggableQsoButton({ onClick }) {
   const [pos, setPos] = useState(() => {
     const saved = loadPosition();
-    if (saved) return clampToViewport(saved.x, saved.y);
+    if (saved) return clamp(saved.x, saved.y);
     // Default: unten rechts
-    return clampToViewport(window.innerWidth - BUTTON_WIDTH - 20, window.innerHeight - BUTTON_HEIGHT - 100);
+    return clamp(window.innerWidth - BUTTON_WIDTH - 20, window.innerHeight - BUTTON_HEIGHT - 100);
   });
   const [isDragging, setIsDragging] = useState(false);
   const isLongPressRef = useRef(false);
@@ -50,11 +47,16 @@ export default function DraggableQsoButton({ onClick }) {
   const longPressTimerRef = useRef(null);
   const hasMovedRef = useRef(false);
 
-  // Position bei Viewport-Änderung neu clampen
+  // Position bei Viewport-Änderung neu clampen (resize + orientation)
   useEffect(() => {
-    const handleResize = () => setPos(p => clampToViewport(p.x, p.y));
+    const handleResize = () => setPos(p => clamp(p.x, p.y));
+    const handleOrientationChange = () => setTimeout(() => setPos(p => clamp(p.x, p.y)), 150);
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleOrientationChange);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleOrientationChange);
+    };
   }, []);
 
   const handlePointerDown = useCallback((e) => {
@@ -94,7 +96,7 @@ export default function DraggableQsoButton({ onClick }) {
 
     const newX = dragStartRef.current.posX + dx;
     const newY = dragStartRef.current.posY + dy;
-    setPos(clampToViewport(newX, newY));
+    setPos(clamp(newX, newY));
   }, [isDragging]);
 
   // pointerup direkt am Button — löscht den Long-Press Timer bei einem kurzen Klick.

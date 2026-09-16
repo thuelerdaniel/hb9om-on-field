@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { clampToParent } from "@/lib/viewportClamp";
 
 const LONG_PRESS_MS = 500;
 const MOVE_THRESHOLD = 10;
@@ -35,6 +36,14 @@ export function useDraggablePosition(storageKey) {
         container.style.transform = "none";
       }
     } catch {}
+
+    // Clamp to parent bounds after restore — ensures button is visible
+    // even if viewport changed since last save (orientation, resize).
+    // Save clamped position so there's no jump on next load.
+    requestAnimationFrame(() => {
+      const clamped = clampToParent(container);
+      try { localStorage.setItem(storageKey, JSON.stringify(clamped)); } catch {}
+    });
 
     const onStart = (clientX, clientY) => {
       startPos.current = { x: clientX, y: clientY };
@@ -136,6 +145,20 @@ export function useDraggablePosition(storageKey) {
     container.addEventListener("click", onClickCapture, true);
     container.addEventListener("contextmenu", onContextMenu);
 
+    // Viewport clamping on resize/orientation change — keep button visible
+    const handleResize = () => {
+      const clamped = clampToParent(container);
+      try { localStorage.setItem(storageKey, JSON.stringify(clamped)); } catch {}
+    };
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        const clamped = clampToParent(container);
+        try { localStorage.setItem(storageKey, JSON.stringify(clamped)); } catch {}
+      }, 150);
+    };
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleOrientationChange);
+
     return () => {
       container.removeEventListener("touchstart", onTouchStart);
       document.removeEventListener("touchmove", onTouchMove);
@@ -145,6 +168,8 @@ export function useDraggablePosition(storageKey) {
       document.removeEventListener("mouseup", onMouseUp);
       container.removeEventListener("click", onClickCapture, true);
       container.removeEventListener("contextmenu", onContextMenu);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleOrientationChange);
       clearTimeout(longPressTimer.current);
     };
   }, [storageKey]);

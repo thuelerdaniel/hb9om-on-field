@@ -1,21 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { loadDevicePosition, saveDevicePosition } from "@/lib/deviceUtils";
+import { clampToViewport } from "@/lib/viewportClamp";
 
 // Generischer verschiebbarer Map-Button — v0.92: Lang-Press zum Verschieben,
 // kurzer Klick löst onClick aus. Position pro Gerät gespeichert.
 // Default-Position wird als { x, y } in Pixeln relativ zum Viewport angegeben.
+// Viewport-Clamping mit Safe-Area-Support via shared viewportClamp utility.
 
 const LONG_PRESS_MS = 500;
-
-function clampToViewport(x, y, w, h) {
-  const maxX = window.innerWidth - w;
-  const maxY = window.innerHeight - h;
-  return {
-    x: Math.max(4, Math.min(maxX, x)),
-    y: Math.max(4, Math.min(maxY, y)),
-  };
-}
 
 export default function DraggableMapButton({
   storageKey,        // localStorage base key (e.g. "mapbtn_drag_mode")
@@ -43,8 +36,13 @@ export default function DraggableMapButton({
 
   useEffect(() => {
     const handleResize = () => setPos(p => clampToViewport(p.x, p.y, size, size));
+    const handleOrientationChange = () => setTimeout(() => setPos(p => clampToViewport(p.x, p.y, size, size)), 150);
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleOrientationChange);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleOrientationChange);
+    };
   }, [size]);
 
   const handlePointerDown = useCallback((e) => {

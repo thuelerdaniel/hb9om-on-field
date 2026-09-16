@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { clampElementToViewport, clampToViewport } from "@/lib/viewportClamp";
 
 function getDeviceType() {
   const width = window.innerWidth;
@@ -79,31 +80,7 @@ async function saveUserSettingsPosition(buttonId, x, y) {
   } catch {}
 }
 
-// Clamp button to viewport — always stays visible
-function clampToViewport(el) {
-  if (!el) return { x: 0, y: 0 };
-  const rect = el.getBoundingClientRect();
-  const margin = 8;
-  const maxX = window.innerWidth - el.offsetWidth - margin;
-  const maxY = window.innerHeight - el.offsetHeight - margin;
-  const minX = margin;
-  const minY = margin;
-
-  let x = rect.left;
-  let y = rect.top;
-
-  if (x > maxX) x = maxX;
-  if (y > maxY) y = maxY;
-  if (x < minX) x = minX;
-  if (y < minY) y = minY;
-
-  el.style.left = `${x}px`;
-  el.style.top = `${y}px`;
-  el.style.right = "auto";
-  el.style.bottom = "auto";
-
-  return { x, y };
-}
+// clampToViewport is now imported from viewportClamp — safe-area aware, always stays visible
 
 export function useDraggableButton(buttonId, defaultPosition) {
   const buttonRef = useRef(null);
@@ -150,14 +127,16 @@ export function useDraggableButton(buttonId, defaultPosition) {
     const pos = loadPosition();
     if (pos) {
       applyPosition(pos.x, pos.y);
-      clampToViewport(el);
+      const clamped = clampElementToViewport(el);
+      savePosition(clamped.x, clamped.y);
     }
 
     // Also load from UserHuntingSettings (async, may override localStorage)
     loadUserSettingsPositions().then((userPos) => {
       if (userPos && userPos[buttonId]) {
         applyPosition(userPos[buttonId].x, userPos[buttonId].y);
-        clampToViewport(el);
+        const clamped = clampElementToViewport(el);
+        savePosition(clamped.x, clamped.y);
       }
     });
 
@@ -167,20 +146,16 @@ export function useDraggableButton(buttonId, defaultPosition) {
       if (!dragState.current.dragging) return;
       const x = clientX - dragState.current.offset.x;
       const y = clientY - dragState.current.offset.y;
-      // Clamp during drag — button stays in viewport
-      const margin = 8;
-      const maxX = window.innerWidth - el.offsetWidth - margin;
-      const maxY = window.innerHeight - el.offsetHeight - margin;
-      const clampedX = Math.max(margin, Math.min(x, maxX));
-      const clampedY = Math.max(margin, Math.min(y, maxY));
-      applyPosition(clampedX, clampedY);
+      // Clamp during drag — button stays in viewport (safe-area aware)
+      const clamped = clampToViewport(x, y, el.offsetWidth, el.offsetHeight);
+      applyPosition(clamped.x, clamped.y);
       dragState.current.moved = true;
     };
 
     const onEnd = () => {
       if (dragState.current.dragging && dragState.current.moved) {
         // Clamp to viewport before saving
-        const clamped = clampToViewport(el);
+        const clamped = clampElementToViewport(el);
         savePosition(clamped.x, clamped.y);
       }
       dragState.current.dragging = false;
@@ -231,12 +206,16 @@ export function useDraggableButton(buttonId, defaultPosition) {
     const handleMouseMove = (e) => onMove(e.clientX, e.clientY);
     const handleMouseUp = () => onEnd();
 
-    // Viewport clamping on resize/orientation change
+    // Viewport clamping on resize/orientation change — save clamped position
     const handleResize = () => {
-      clampToViewport(el);
+      const clamped = clampElementToViewport(el);
+      savePosition(clamped.x, clamped.y);
     };
     const handleOrientationChange = () => {
-      setTimeout(() => clampToViewport(el), 100);
+      setTimeout(() => {
+        const clamped = clampElementToViewport(el);
+        savePosition(clamped.x, clamped.y);
+      }, 150);
     };
 
     el.addEventListener("touchstart", handleTouchStart, { passive: false });
