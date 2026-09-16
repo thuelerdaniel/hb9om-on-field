@@ -271,7 +271,13 @@ export default function ContestTable() {
 
     // Apply time filter
     let timeFiltered = filtered;
-    if (timeFilter === "active") {
+    if (timeFilter === "all") {
+      // v0.953: "Aktuell" (Default) = laufende + zukünftige, schliesst vergangene aus
+      timeFiltered = filtered.filter(c => {
+        const e = new Date(c.end_utc).getTime();
+        return e >= now - 24 * 60 * 60 * 1000;
+      });
+    } else if (timeFilter === "active") {
       timeFiltered = filtered.filter(c => {
         const s = new Date(c.start_utc).getTime();
         const e = new Date(c.end_utc).getTime();
