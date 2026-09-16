@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { dedupKey } from '../../shared/logDedup.ts';
 import { normalizeTime } from '../../shared/normalizeTime.ts';
+import { loadExistingLogMap, upsertLogs } from '../../shared/logUpsert.ts';
 
 // fetchQrzClubLog — v0.9003 Problem 2
 // Downloads QSOs from the QRZ.com Club Logbook (station_callsign: HB9OM),
@@ -159,52 +160,16 @@ export default async function(req: Request): Promise<Response> {
       } catch {}
     }
 
-    // 5. Dedup against existing club QSOs — paginated, NORMALIZED keys (v0.9004)
-    // Normalization: strips /P/M/PM/MM suffixes + truncates time to HH:MM
-    // so "HB9CCS/P 00:07:50" matches "HB9CCS 07:50"
-    const existingKeys = new Set<string>();
-    try {
-      const DEDUP_LIMIT = 5000;
-      const MAX_PAGES = 20;
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const batch = await base44.asServiceRole.entities.Log.filter(
-          { is_clubstation: true },
-          '-created_date', DEDUP_LIMIT, page * DEDUP_LIMIT
-        );
-        if (!Array.isArray(batch) || batch.length === 0) break;
-        for (const l of batch) {
-          existingKeys.add(dedupKey(l.callsign, l.qso_date, l.time_start, l.frequency, l.club_callsign));
-        }
-        if (batch.length < DEDUP_LIMIT) break;
-      }
-    } catch {}
-
-    // v0.951: Within-batch dedup — prevents duplicates when QRZ returns the same QSO multiple times
-    const batchKeys = new Set<string>();
-    const newQsos = qsos.filter(q => {
-      const key = dedupKey(q.callsign, q.qso_date, q.time_start, q.frequency, q.club_callsign);
-      if (batchKeys.has(key)) return false;
-      batchKeys.add(key);
-      return !existingKeys.has(key);
-    });
-    const duplicateCount = qsos.length - newQsos.length;
-
-    // 6. Bulk create in batches of 500
-    let importedCount = 0;
-    let errorCount = 0;
-    const BATCH_SIZE = 500;
-    for (let i = 0; i < newQsos.length; i += BATCH_SIZE) {
-      const batch = newQsos.slice(i, i + BATCH_SIZE);
-      try {
-        await base44.asServiceRole.entities.Log.bulkCreate(batch);
-        importedCount += batch.length;
-      } catch {
-        for (const qso of batch) {
-          try { await base44.asServiceRole.entities.Log.create(qso); importedCount++; }
-          catch { errorCount++; }
-        }
-      }
-    }
+    // v0.954: True upsert — prevents duplicates on repeated club log imports.
+    // Key: (operator_callsign, callsign, qso_date, time_start, log_type, club_callsign)
+    const sr = base44.asServiceRole;
+    const existingMap = await loadExistingLogMap(sr, { is_clubstation: true });
+    const upsertResult = await upsertLogs(sr, qsos, existingMap);
+    const importedCount = upsertResult.created;
+    const updatedCount = upsertResult.updated;
+    let errorCount = upsertResult.errors;
+    const duplicateCount = updatedCount;
+    console.log(`[QRZ Club] Upsert: ${importedCount} new, ${updatedCount} updated, ${errorCount} errors`);
 
     // v0.951: Store last club sync timestamp in AppSetting for UI display
     const syncTimestamp = new Date().toISOString();
@@ -229,7 +194,7 @@ export default async function(req: Request): Promise<Response> {
       errors: errorCount,
       total: qsos.length,
       last_sync: syncTimestamp,
-      message: `Club-Log-Sync: ${importedCount} QSOs importiert, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler`,
+      message: `Club-Log-Sync: ${importedCount} QSOs importiert, ${updatedCount} aktualisiert, ${errorCount} Fehler`,
     });
   } catch (error: any) {
     return Response.json({ error: error.message || String(error) }, { status: 500 });

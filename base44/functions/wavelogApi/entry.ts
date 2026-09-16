@@ -3,6 +3,7 @@ import { isInternalCall } from '../../shared/internalAuth.ts';
 import { dedupKey } from '../../shared/logDedup.ts';
 import { isSyncPaused } from '../../shared/syncPause.ts';
 import { normalizeTime } from '../../shared/normalizeTime.ts';
+import { loadExistingLogMap, upsertLogs } from '../../shared/logUpsert.ts';
 
 // Wavelog API Proxy — v0.9022
 // Vermeidet Mixed-Content Blocking (App ist HTTPS, Wavelog-Server ist HTTP).
@@ -282,58 +283,19 @@ export default async function(req: Request): Promise<Response> {
 
         console.log(`[Wavelog] Parsed ${qsos.length} QSOs, ${parseErrors.length} parse errors`);
 
-        // v0.9003: Dedup — paginated loading of ALL existing wavelog_imported logs (not just 5000).
-        // Key includes club_callsign to distinguish club vs private QSOs with same call/date/time/freq.
-        const existingKeys = new Set<string>();
-        try {
-          const DEDUP_LIMIT = 5000;
-          const MAX_DEDUP_PAGES = 20;
-          for (let page = 0; page < MAX_DEDUP_PAGES; page++) {
-            const batch = await base44.entities.Log.filter(
-              { wavelog_imported: true },
-              '-created_date', DEDUP_LIMIT, page * DEDUP_LIMIT
-            );
-            if (!Array.isArray(batch) || batch.length === 0) break;
-            for (const l of batch) {
-              existingKeys.add(`${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}|${l.club_callsign || ''}`);
-            }
-            if (batch.length < DEDUP_LIMIT) break;
-          }
-        } catch {}
-        const newQsos = qsos.filter(q => {
-          const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}|${q.club_callsign || ''}`;
-          return !existingKeys.has(key);
-        });
-        const duplicateCount = qsos.length - newQsos.length;
-        console.log(`[Wavelog] Dedup: ${newQsos.length} new, ${duplicateCount} duplicates skipped`);
-
-        // v0.9036: Batch import using bulkCreate (100 per batch) with dedup
-        let importedCount = 0;
-        let errorCount = 0;
-        const importErrors: string[] = [];
-        const BATCH_SIZE = 100;
-
-        for (let i = 0; i < newQsos.length; i += BATCH_SIZE) {
-          const batch = newQsos.slice(i, i + BATCH_SIZE);
-          try {
-            await base44.entities.Log.bulkCreate(batch);
-            importedCount += batch.length;
-            console.log(`[Wavelog] Imported ${importedCount}/${newQsos.length}`);
-          } catch (err: any) {
-            // Fallback: create individually
-            for (const qso of batch) {
-              try {
-                await base44.entities.Log.create(qso);
-                importedCount++;
-              } catch (e2: any) {
-                errorCount++;
-                if (importErrors.length < 10) {
-                  importErrors.push(`${qso.callsign} ${qso.qso_date}: ${e2.message || 'create error'}`);
-                }
-              }
-            }
-          }
-        }
+        // v0.954: True upsert — prevents duplicates on repeated imports.
+        // Key: (operator_callsign, callsign, qso_date, time_start, log_type, club_callsign)
+        // Existing record → UPDATE; new → CREATE. Service role bypasses RLS.
+        const sr = base44.asServiceRole;
+        for (const q of qsos) { if (!q.created_by_id) q.created_by_id = user.id; }
+        const existingMap = await loadExistingLogMap(sr);
+        const upsertResult = await upsertLogs(sr, qsos, existingMap);
+        const importedCount = upsertResult.created;
+        const updatedCount = upsertResult.updated;
+        let errorCount = upsertResult.errors;
+        const importErrors = upsertResult.errorDetails;
+        const duplicateCount = updatedCount;
+        console.log(`[Wavelog] Upsert: ${importedCount} new, ${updatedCount} updated, ${errorCount} errors`);
 
         // v0.9036: Only update last_fetch_id if NO DB errors — failed QSOs get retried next sync.
         // Parse errors (no CALL field) don't count — those QSOs will never import anyway.
@@ -362,7 +324,7 @@ export default async function(req: Request): Promise<Response> {
           lastfetchedid: errorCount === 0 ? lastfetchedid : String(fetchfromid),
           parse_errors: parseErrors.slice(0, 5),
           import_errors: importErrors,
-          message: `Importiert: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler`,
+          message: `Importiert: ${importedCount} neu, ${updatedCount} aktualisiert, ${errorCount} Fehler`,
         });
       }
 
@@ -423,7 +385,7 @@ export default async function(req: Request): Promise<Response> {
 
         // Paging loop — fetch QSOs in batches of 500 using fetchfromid cursor
         let allQsos: any[] = [];
-        let currentFetchFromId = 0;
+        let currentFetchFromId = settings.wavelog_last_fetch_id || 0;
         let totalExported = 0;
         let lastFetchedId = 0;
         const MAX_PAGES = 50;
@@ -502,47 +464,17 @@ export default async function(req: Request): Promise<Response> {
           });
         }
 
-        // v0.9004: Normalized dedup — strips /P/M/PM/MM suffixes and truncates time to HH:MM
-        // so Wavelog QSOs match existing records despite format differences.
-        const existingKeys = new Set<string>();
-        try {
-          const DEDUP_LIMIT = 5000;
-          const MAX_DEDUP_PAGES = 20;
-          for (let page = 0; page < MAX_DEDUP_PAGES; page++) {
-            const batch = await base44.entities.Log.filter(
-              { wavelog_imported: true },
-              '-created_date', DEDUP_LIMIT, page * DEDUP_LIMIT
-            );
-            if (!Array.isArray(batch) || batch.length === 0) break;
-            for (const l of batch) {
-              existingKeys.add(dedupKey(l.callsign, l.qso_date, l.time_start, l.frequency, l.club_callsign));
-            }
-            if (batch.length < DEDUP_LIMIT) break;
-          }
-        } catch {}
-        const newQsos = allQsos.filter(q => {
-          const key = dedupKey(q.callsign, q.qso_date, q.time_start, q.frequency, q.club_callsign);
-          return !existingKeys.has(key);
-        });
-        const duplicateCount = allQsos.length - newQsos.length;
-        console.log(`[Wavelog Full-Import] Dedup: ${newQsos.length} new, ${duplicateCount} duplicates skipped`);
-
-        // Bulk create in batches of 500
-        let importedCount = 0;
-        let errorCount = 0;
-        const BATCH_SIZE = 500;
-        for (let i = 0; i < newQsos.length; i += BATCH_SIZE) {
-          const batch = newQsos.slice(i, i + BATCH_SIZE);
-          try {
-            await base44.entities.Log.bulkCreate(batch);
-            importedCount += batch.length;
-          } catch {
-            for (const qso of batch) {
-              try { await base44.entities.Log.create(qso); importedCount++; }
-              catch { errorCount++; }
-            }
-          }
-        }
+        // v0.954: True upsert — prevents duplicates on repeated full imports.
+        // Key: (operator_callsign, callsign, qso_date, time_start, log_type, club_callsign)
+        const sr = base44.asServiceRole;
+        for (const q of allQsos) { if (!q.created_by_id) q.created_by_id = user.id; }
+        const existingMap = await loadExistingLogMap(sr);
+        const upsertResult = await upsertLogs(sr, allQsos, existingMap);
+        const importedCount = upsertResult.created;
+        const updatedCount = upsertResult.updated;
+        let errorCount = upsertResult.errors;
+        const duplicateCount = updatedCount;
+        console.log(`[Wavelog Full-Import] Upsert: ${importedCount} new, ${updatedCount} updated, ${errorCount} errors`);
 
         // Update wavelog_last_fetch_id only if no errors
         if (errorCount === 0) {
@@ -585,7 +517,7 @@ export default async function(req: Request): Promise<Response> {
           current_page: totalPages,
           pages: totalPages,
           lastfetchedid: errorCount === 0 ? String(lastFetchedId) : '0',
-          message: `Voll-Import: ${importedCount} neu, ${duplicateCount} Duplikate übersprungen, ${errorCount} Fehler (${totalPages} Seiten)`,
+          message: `Voll-Import: ${importedCount} neu, ${updatedCount} aktualisiert, ${errorCount} Fehler (${totalPages} Seiten)`,
         });
       }
 
@@ -699,38 +631,12 @@ export default async function(req: Request): Promise<Response> {
                 });
               }
 
-              // v0.9036: Dedup — skip QSOs that already exist (prevents duplicates on retry)
-              const existingSyncLogs = await sr.entities.Log.filter(
-                { created_by_id: userId, wavelog_imported: true },
-                '-created_date', 5000
-              );
-              const existingSyncKeys = new Set(
-                existingSyncLogs.map(l => `${l.callsign}|${l.qso_date}|${l.time_start || ''}|${l.frequency || ''}`)
-              );
-              const newSyncQsos = qsos.filter(q => {
-                const key = `${q.callsign}|${q.qso_date}|${q.time_start || ''}|${q.frequency || ''}`;
-                return !existingSyncKeys.has(key);
-              });
-
-              const BATCH = 100;
-              let syncErrorCount = 0;
-              for (let i = 0; i < newSyncQsos.length; i += BATCH) {
-                const batch = newSyncQsos.slice(i, i + BATCH);
-                try {
-                  await sr.entities.Log.bulkCreate(batch);
-                  importedCount += batch.length;
-                } catch (e: any) {
-                  // Fallback: create individually
-                  for (const qso of batch) {
-                    try {
-                      await sr.entities.Log.create(qso);
-                      importedCount++;
-                    } catch (e2: any) {
-                      syncErrorCount++;
-                    }
-                  }
-                }
-              }
+              // v0.954: True upsert — prevents duplicates on repeated syncs.
+              const syncUpsertResult = await upsertLogs(sr, qsos, await loadExistingLogMap(sr, { created_by_id: userId }));
+              importedCount += syncUpsertResult.created;
+              const syncUpdatedCount = syncUpsertResult.updated;
+              const syncErrorCount = syncUpsertResult.errors;
+              console.log(`[Wavelog Sync] Upsert for ${userId}: ${syncUpsertResult.created} new, ${syncUpdatedCount} updated, ${syncErrorCount} errors`);
 
               // v0.9036: Only update last_fetch_id if NO DB errors — retry failed QSOs next sync
               if (syncErrorCount === 0) {
