@@ -66,7 +66,9 @@ function formatLocalDate(isoStr) {
 // ── Filter Constants ──────────────────────────────────────
 
 const MODE_OPTIONS = ["CW", "SSB", "RTTY", "Digital", "FM", "FT8/FT4", "Mixed"];
-const BAND_OPTIONS = ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "VHF+"];
+const BAND_OPTIONS = ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "2m", "70cm", "VHF+"];
+// v0.953 Fix: VHF+ bands — 2m and above (6m has its own option)
+const VHF_PLUS_BANDS = ["2m", "1.25m", "70cm", "33cm", "23cm", "13cm", "3cm"];
 const DURATION_OPTIONS = [
   { value: "lt2", label: "< 2h" },
   { value: "2-12", label: "2-12h" },
@@ -74,7 +76,8 @@ const DURATION_OPTIONS = [
   { value: "24+", label: "> 24h" },
 ];
 const TIME_OPTIONS = [
-  { value: "all", label: "Alle" },
+  { value: "all", label: "Aktuell" },
+  { value: "past", label: "Vergangene" },
   { value: "active", label: "Jetzt aktiv" },
   { value: "7d", label: "Nächste 7 Tage" },
   { value: "30d", label: "Nächste 30 Tage" },
@@ -211,33 +214,36 @@ export default function ContestTable() {
       );
     }
 
-    // Apply mode filter (AND: contest must match ALL selected modes via mode_families)
+    // v0.953 Fix: Mode filter uses modes array (NOT mode_families which is NULL in records).
+    // OR logic: contest matches if ANY selected mode is in its modes array.
     if (modeFilters.length > 0) {
       filtered = filtered.filter(c => {
-        const fams = c.mode_families || [];
-        if (fams.length === 0) return false;
-        // "Mixed" = contest has more than one mode family
-        if (modeFilters.includes("Mixed")) {
-          if (fams.length < 2) return false;
-        }
-        // Check each selected mode (excluding "Mixed" which is a meta-filter)
-        const realModes = modeFilters.filter(m => m !== "Mixed");
-        if (realModes.length > 0) {
-          // FT8/FT4 maps to "Digital"
-          const checkModes = realModes.map(m => m === "FT8/FT4" ? "Digital" : m);
-          const hasAll = checkModes.every(m => fams.includes(m));
-          if (!hasAll) return false;
-        }
-        return true;
+        const modes = c.modes || [];
+        if (modes.length === 0) return false;
+        return modeFilters.some(m => {
+          if (m === "Mixed") {
+            // "Mixed" = contest has "Mixed" in modes OR has more than one mode
+            return modes.includes("Mixed") || modes.length > 1;
+          }
+          // CW, SSB, RTTY, Digital, FM, FT8/FT4 are actual values in modes array
+          return modes.includes(m);
+        });
       });
     }
 
-    // Apply band filter
+    // v0.953 Fix: Band filter uses bands array (NOT band_families which is NULL in records).
+    // OR logic: contest matches if ANY selected band is in its bands array.
     if (bandFilters.length > 0) {
       filtered = filtered.filter(c => {
-        const fams = c.band_families || [];
-        if (fams.length === 0) return false;
-        return bandFilters.every(b => fams.includes(b));
+        const bands = c.bands || [];
+        if (bands.length === 0) return false;
+        return bandFilters.some(b => {
+          if (b === "VHF+") {
+            // VHF+ = any VHF/UHF/SHF band (2m and above)
+            return bands.some(band => VHF_PLUS_BANDS.includes(band));
+          }
+          return bands.includes(b);
+        });
       });
     }
 
@@ -270,6 +276,12 @@ export default function ContestTable() {
         const s = new Date(c.start_utc).getTime();
         const e = new Date(c.end_utc).getTime();
         return now >= s && now <= e;
+      });
+    } else if (timeFilter === "past") {
+      // v0.953: Vergangene Contests — ended > 24h ago
+      timeFiltered = filtered.filter(c => {
+        const e = new Date(c.end_utc).getTime();
+        return e < now - 24 * 60 * 60 * 1000;
       });
     } else if (timeFilter === "7d") {
       timeFiltered = filtered.filter(c => {
@@ -305,11 +317,14 @@ export default function ContestTable() {
 
     // Sort table contests
     let table = [...timeFiltered];
-    // Default: exclude past contests from table
-    table = table.filter(c => {
-      const endMs = new Date(c.end_utc).getTime();
-      return endMs >= now - 24 * 60 * 60 * 1000; // keep contests that ended < 24h ago too
-    });
+    // v0.953: Default (all/active/7d/30d/90d) = exclude past contests (ended > 24h ago).
+    // "past" filter = only show past contests (timeFiltered already filtered above).
+    if (timeFilter !== "past") {
+      table = table.filter(c => {
+        const endMs = new Date(c.end_utc).getTime();
+        return endMs >= now - 24 * 60 * 60 * 1000; // keep contests that ended < 24h ago too
+      });
+    }
 
     table.sort((a, b) => {
       let av, bv;
@@ -323,8 +338,8 @@ export default function ContestTable() {
           bv = (b.sponsor || "").toLowerCase();
           break;
         case "modes":
-          av = (a.mode_families || []).join(",").toLowerCase();
-          bv = (b.mode_families || []).join(",").toLowerCase();
+          av = (a.modes || []).join(",").toLowerCase();
+          bv = (b.modes || []).join(",").toLowerCase();
           break;
         case "duration_hours":
           av = a.duration_hours || 0;
@@ -631,14 +646,14 @@ export default function ContestTable() {
                       </td>
                       <td className="px-2 py-1.5 hidden md:table-cell">
                         <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-                          {(c.mode_families || c.modes || []).join(", ") || "—"}
+                          {(c.modes || []).join(", ") || "—"}
                         </span>
                       </td>
                       <td className="px-2 py-1.5 hidden lg:table-cell">
                         <span className="text-[10px] text-muted-foreground font-mono">
-                          {(c.band_families || c.bands || []).length > 3
-                            ? `${(c.band_families || c.bands || []).slice(0, 3).join(", ")} +${(c.band_families || c.bands || []).length - 3}`
-                            : (c.band_families || c.bands || []).join(", ") || "—"
+                          {(c.bands || []).length > 3
+                            ? `${(c.bands || []).slice(0, 3).join(", ")} +${(c.bands || []).length - 3}`
+                            : (c.bands || []).join(", ") || "—"
                           }
                         </span>
                       </td>

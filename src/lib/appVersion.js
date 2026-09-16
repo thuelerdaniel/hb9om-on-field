@@ -13,11 +13,15 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609151312";
+export const APP_BUILD = "202609160803";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.953: CONTEST-FILTER — Mode-Filter verwendet modes-Array (NOT mode_families die NULL sind) — OR-Logik: Contest matcht wenn ANY ausgewählter Modus in modes enthalten",
+  "v0.953: CONTEST-FILTER — Band-Filter verwendet bands-Array (NOT band_families die NULL sind) — OR-Logik mit VHF+ Sonderbehandlung (2m, 70cm, 23cm, etc.)",
+  "v0.953: CONTEST-FILTER — Zeit-Filter: 'Aktuell' (Default) = laufende + zukünftige, neu 'Vergangene' Option für vergangene Contests",
+  "v0.953: CONTEST-FILTER — Sortierung nach Modus verwendet modes-Array, Anzeige verwendet modes/bands direkt (kein Fallback auf NULL-Felder mehr)",
   "v0.951-HF3: WAVELOG-BUTTONS — Manuelle Wavelog-Buttons (Import + Voll-Import) sind IMMER klickbar — wavelog_enabled=false deaktiviert sie nicht mehr",
   "v0.951-HF3: WAVELOG-BUTTONS — disabled-Logik entfernt: nur noch importing/fullImporting deaktiviert — keine Pause-Flags mehr in der disabled-Prüfung",
   "v0.951-HF3: WAVELOG-IMPORT — importFromWavelog/fullImportFromWavelog prüfen NICHT mehr wavelog_enabled — nur noch API-Key als echte Voraussetzung",
