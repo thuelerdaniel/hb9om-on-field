@@ -46,11 +46,39 @@ export default function DraggableQsoButton({ onClick }) {
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const longPressTimerRef = useRef(null);
   const hasMovedRef = useRef(false);
+  const buttonRef = useRef(null);
+
+  // Post-mount: re-clamp with ACTUAL button dimensions (BUTTON_WIDTH is an estimate;
+  // the real button may be wider due to padding/content). Prevents off-screen buttons
+  // when saved position was clamped with wrong width.
+  useEffect(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const clamped = clampToViewport(pos.x, pos.y, rect.width, rect.height);
+    if (clamped.x !== pos.x || clamped.y !== pos.y) {
+      setPos(clamped);
+      savePosition(clamped.x, clamped.y);
+    }
+  }, []);
 
   // Position bei Viewport-Änderung neu clampen (resize + orientation)
   useEffect(() => {
-    const handleResize = () => setPos(p => clamp(p.x, p.y));
-    const handleOrientationChange = () => setTimeout(() => setPos(p => clamp(p.x, p.y)), 150);
+    const handleResize = () => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setPos(p => clampToViewport(p.x, p.y, rect.width, rect.height));
+      } else {
+        setPos(p => clamp(p.x, p.y));
+      }
+    };
+    const handleOrientationChange = () => setTimeout(() => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setPos(p => clampToViewport(p.x, p.y, rect.width, rect.height));
+      } else {
+        setPos(p => clamp(p.x, p.y));
+      }
+    }, 150);
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleOrientationChange);
     return () => {
@@ -146,6 +174,7 @@ export default function DraggableQsoButton({ onClick }) {
   // Kein Shared-State, kein Event-Bubbling zwischen Button und Modal.
   return createPortal(
     <button
+      ref={buttonRef}
       onPointerDown={handlePointerDown}
       onPointerUp={handleButtonPointerUp}
       onClick={(e) => {
