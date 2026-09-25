@@ -1,12 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { fetchWithRetry } from '../../shared/syncHelpers.ts';
 
-// --- USKA HTML table parser ---
-// The USKA HB Repeater Voice List has 9 columns:
-// QRG TX | QRG RX | Call | QTH | Kanton | Locator | Alt. m | Remarks | Status
-// Status: 0=planned, 1=qrv (active), 2=qrx (standby), 3=qrt (silent)
+// --- USKA HB Voice Repeater List ---
+// v0.955: USKA-Website-Relaunch am 16.09.2026 — alte URL (/hb-repeater-voice-list/) liefert 404.
+// NEU: JSON-API-Endpunkt https://uska.ch/wp-json/uska/v1/repeaters (308 Repeater, verifiziert 25.09.2026).
+// HTML-Parsing als Fallback falls JSON-Endpunkt nicht erreichbar.
+//
+// JSON-Felder: tx, rx, call, qrz, qth, kanton, locator, alt, remarks, type,
+//              bandwidth, rx_tone, tx_tone, dmr, dstar, c4fm, c4fm_node, notes, status
+// Status: qrv=on-air, qrx=testing, planned=testing, qrt=off-air
 
-function decodeHtml(text) {
+const USKA_JSON_URL = 'https://uska.ch/wp-json/uska/v1/repeaters';
+const USKA_HTML_URL = 'https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/';
+
+function decodeHtml(text: string): string {
   return text
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -14,13 +21,13 @@ function decodeHtml(text) {
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'")
     .replace(/&nbsp;/g, ' ')
-    // Only strip actual HTML tags (must start with a letter or /), NOT <> cross-link markers
     .replace(/<[a-zA-Z/][^>]*>/g, '')
     .trim();
 }
 
-function parseUSKATable(html) {
-  const repeaters = [];
+// HTML Fallback parser — 16-column format (neue USKA-Tabelle)
+function parseUSKATable(html: string): USKARepeater[] {
+  const repeaters: USKARepeater[] = [];
   const rowMatches = html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g);
   for (const rowMatch of rowMatches) {
     const rowHtml = rowMatch[1];
@@ -32,43 +39,75 @@ function parseUSKATable(html) {
     if (isNaN(tx) || !callsign || callsign.length < 3) continue;
     repeaters.push({
       tx,
-      rx: parseFloat(cells[1]),
-      callsign,
-      qth: cells[3],
-      kanton: cells[4],
-      locator: cells[5],
-      altitude: parseInt(cells[6]) || null,
-      remarks: cells[7],
-      status: cells[8],
+      rx: parseFloat(cells[1]) || tx,
+      call: callsign,
+      qth: cells[3] || '',
+      kanton: cells[4] || '',
+      locator: cells[5] || '',
+      alt: parseInt(cells[6]) || null,
+      type: cells[7] || 'Analog',
+      dmr: cells[8] === 'Y',
+      dstar: cells[9] === 'Y',
+      c4fm: cells[10] === 'Y',
+      bandwidth: cells[11] || '',
+      rx_tone: cells[12] || '',
+      tx_tone: cells[13] || '',
+      status: cells[14] || '',
+      notes: cells[15] || '',
+      remarks: cells[15] || '',
     });
   }
   return repeaters;
 }
 
-function extractEcholink(remarks) {
+interface USKARepeater {
+  tx: number;
+  rx: number;
+  call: string;
+  qth: string;
+  kanton: string;
+  locator: string;
+  alt: number | null;
+  type: string;
+  dmr: boolean;
+  dstar: boolean;
+  c4fm: boolean;
+  bandwidth: string;
+  rx_tone: string;
+  tx_tone: string;
+  status: string;
+  notes: string;
+  remarks: string;
+}
+
+function extractEcholink(remarks: string): string | null {
   const m = String(remarks).match(/EL#(\d+)/);
   return m ? m[1] : null;
 }
 
-function mapStatus(status) {
-  const s = String(status).trim();
-  if (s === '1') return 'on-air';
-  if (s === '3') return 'off-air';
-  if (s === '0' || s === '2') return 'testing';
+function mapStatus(status: string): string | null {
+  const s = String(status).trim().toLowerCase();
+  if (s === 'qrv') return 'on-air';
+  if (s === 'qrt') return 'off-air';
+  if (s === 'qrx' || s === 'planned') return 'testing';
   return null;
 }
 
-function extractModes(remarks) {
-  const modes = [];
-  const r = String(remarks);
+function extractModes(rep: USKARepeater): string[] {
+  const modes: string[] = [];
+  // v0.955: Nutze strukturierte Felder (dmr/dstar/c4fm) statt Remarks-Parsing
+  if (rep.dmr) modes.push('DMR');
+  if (rep.dstar) modes.push('D-STAR');
+  if (rep.c4fm) modes.push('C4FM');
+  // FM aus Type oder Remarks ableiten
+  const r = String(rep.remarks || '') + ' ' + String(rep.type || '');
   if (/\bNFM\b|\bFM\b/.test(r) && !modes.includes('FM')) modes.push('FM');
-  if (/C4FM/.test(r) && !modes.includes('C4FM')) modes.push('C4FM');
-  if (/D-STAR/.test(r) && !modes.includes('D-STAR')) modes.push('D-STAR');
-  if (/DMR/.test(r) && !modes.includes('DMR')) modes.push('DMR');
   if (/NXDN/.test(r) && !modes.includes('NXDN')) modes.push('NXDN');
   if (/P25/.test(r) && !modes.includes('P25')) modes.push('P25');
   if (/M17/.test(r) && !modes.includes('M17')) modes.push('M17');
   if (/EL#/.test(r) && !modes.includes('EchoLink')) modes.push('EchoLink');
+  // Wenn keine Modi erkannt aber Type=Mixed/Analog → FM als Default
+  if (modes.length === 0 && (rep.type === 'Analog' || rep.type === 'Mixed')) modes.push('FM');
   return modes;
 }
 
@@ -80,10 +119,10 @@ const NON_TARGETS = new Set([
   'Echo', 'CCS', 'Wires', 'SVX', 'SVXlink', 'Digipeater', 'iGate',
 ]);
 
-function extractLinkTargets(remarks) {
-  const targets = [];
+function extractLinkTargets(notes: string): string[] {
+  const targets: string[] = [];
   const seen = new Set();
-  const r = String(remarks);
+  const r = String(notes || '');
 
   // <>Target (bidirectional cross-link)
   for (const m of r.matchAll(/<>([A-Za-z][A-Za-z0-9-]+)/g)) {
@@ -109,7 +148,7 @@ function extractLinkTargets(remarks) {
   return targets;
 }
 
-function detectNetwork(remarks) {
+function detectNetwork(remarks: string): string {
   const r = String(remarks);
   if (/EL#/.test(r)) return 'EchoLink';
   if (/CCS#/.test(r)) return 'D-STAR';
@@ -119,10 +158,10 @@ function detectNetwork(remarks) {
   return 'FM-Crosslink';
 }
 
-export default async function(req) {
+export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
-    let user = null;
+    let user: any = null;
     try { user = await base44.auth.me(); } catch {}
     let body: any = {};
     try { body = await req.json(); } catch {}
@@ -133,51 +172,93 @@ export default async function(req) {
       if (user.role !== 'admin') return Response.json({ error: 'Admin only' }, { status: 403 });
     }
 
-    // v0.955: Retry mit Backoff (10s/30s/60s) — 502 bei CH-Relais-Links ist typisch transient.
-    const result = await fetchWithRetry('https://uska.ch/hb-repeater-voice-list/', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HB9OM-OnField/1.0)' },
-    }, 30000);
-    if (!result.ok) return Response.json({ error: `USKA fetch failed: ${result.error}` }, { status: 502 });
-    const html = result.text;
+    // v0.955: JSON-API als Primärquelle (stabil, strukturiert, keine HTML-Parsing-Anfälligkeit)
+    let uskaRepeaters: USKARepeater[] = [];
+    let dataSource = 'json';
 
-    // 2. Parse table
-    const uskaRepeaters = parseUSKATable(html);
-    if (uskaRepeaters.length === 0) {
-      return Response.json({ error: 'No repeaters found in USKA HTML table' }, { status: 502 });
+    const jsonResult = await fetchWithRetry(USKA_JSON_URL, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (compatible; HB9OM-OnField/1.0)' },
+    }, 15000);
+
+    if (jsonResult.ok && jsonResult.json && Array.isArray(jsonResult.json.rows)) {
+      uskaRepeaters = jsonResult.json.rows.map((r: any) => ({
+        tx: parseFloat(r.tx) || 0,
+        rx: parseFloat(r.rx) || 0,
+        call: r.call || '',
+        qth: r.qth || '',
+        kanton: r.kanton || '',
+        locator: r.locator || '',
+        alt: r.alt ? parseInt(r.alt) : null,
+        type: r.type || 'Analog',
+        dmr: !!r.dmr,
+        dstar: !!r.dstar,
+        c4fm: !!r.c4fm,
+        bandwidth: r.bandwidth || '',
+        rx_tone: r.rx_tone || '',
+        tx_tone: r.tx_tone || '',
+        status: r.status || '',
+        notes: r.notes || '',
+        remarks: r.remarks || r.notes || '',
+      })).filter((r: USKARepeater) => r.call && r.call.length >= 3 && !isNaN(r.tx));
+    } else {
+      // Fallback: HTML-Parsing (neue URL, 16-Spalten-Format)
+      dataSource = 'html';
+      const htmlResult = await fetchWithRetry(USKA_HTML_URL, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HB9OM-OnField/1.0)' },
+      }, 30000);
+      if (!htmlResult.ok) {
+        return Response.json({ error: `USKA fetch failed (JSON+HTML): ${jsonResult.error || ''} / ${htmlResult.error || ''}` }, { status: 502 });
+      }
+      uskaRepeaters = parseUSKATable(htmlResult.text);
     }
 
-    // 3. Get all existing repeaters — filter for CH/LI since USKA only lists Swiss repeaters.
-    // Using filter({ country_code: 'CH' }) avoids loading 30k+ worldwide repeaters and
-    // ensures Swiss repeaters (which may have older created_date) are included.
+    if (uskaRepeaters.length === 0) {
+      return Response.json({ error: 'No repeaters found in USKA data' }, { status: 502 });
+    }
+
+    // Get all existing repeaters — filter for CH/LI since USKA only lists Swiss repeaters.
     const allRepeaters = await base44.asServiceRole.entities.Repeater.filter({ country_code: 'CH' });
     const liRepeaters = await base44.asServiceRole.entities.Repeater.filter({ country_code: 'LI' }).catch(() => []);
     const swissRepeaters = [...(allRepeaters || []), ...(liRepeaters || [])];
 
-    // 4. Match and update
+    // Match and update
     let updatedCount = 0;
-    const linksToCreate = [];
-    const unmatched = [];
+    const linksToCreate: any[] = [];
+    const unmatched: any[] = [];
 
     for (const uska of uskaRepeaters) {
       const matches = swissRepeaters.filter(r =>
-        r.callsign === uska.callsign &&
+        r.callsign === uska.call &&
         Math.abs(r.frequency - uska.tx) < 0.001
       );
 
       if (matches.length === 0) {
-        unmatched.push({ callsign: uska.callsign, tx: uska.tx, qth: uska.qth });
+        unmatched.push({ callsign: uska.call, tx: uska.tx, qth: uska.qth });
         continue;
       }
 
       for (const rep of matches) {
-        const update = {};
+        const update: any = {};
+
+        // Echolink aus Remarks
         const el = extractEcholink(uska.remarks);
         if (el && !rep.echolink_node) update.echolink_node = el;
-        if (uska.altitude && !rep.elevation_m) update.elevation_m = uska.altitude;
+
+        // Höhe
+        if (uska.alt && !rep.elevation_m) update.elevation_m = uska.alt;
+
+        // Status
         const st = mapStatus(uska.status);
         if (st && rep.status === 'unknown') update.status = st;
 
-        const newModes = extractModes(uska.remarks);
+        // CTCSS/DCS-Ton aus rx_tone Feld (v0.955: strukturiert statt Remarks-Parsing)
+        if (uska.rx_tone && !rep.tone) {
+          const tone = uska.rx_tone.replace(/^DCS#?/i, 'D');
+          if (tone) update.tone = tone;
+        }
+
+        // Modi aus strukturierten Feldern
+        const newModes = extractModes(uska);
         if (newModes.length > 0) {
           const existingModes = rep.modes || [];
           const merged = [...existingModes];
@@ -194,10 +275,9 @@ export default async function(req) {
           } catch { /* repeater may have been deleted/re-created by a parallel sync */ }
         }
 
-        // Extract cross-links from remarks
-        const linkTargets = extractLinkTargets(uska.remarks);
+        // Extract cross-links from notes
+        const linkTargets = extractLinkTargets(uska.notes);
         for (const target of linkTargets) {
-          // Try callsign match first (e.g. <>HB9T, <>HB9BA)
           const targetUpper = target.toUpperCase();
           let targetReps = swissRepeaters.filter(r =>
             r.callsign === targetUpper &&
@@ -223,16 +303,16 @@ export default async function(req) {
       }
     }
 
-    // 5. Create RepeaterLink entries (deduped)
+    // Create RepeaterLink entries (deduped)
     const existingLinks = await base44.asServiceRole.entities.RepeaterLink.list("-created_date", 500);
-    const existingLinkKeys = new Set();
+    const existingLinkKeys = new Set<string>();
     for (const l of existingLinks) {
       const key = [l.from_callsign + (l.from_frequency || ''), l.to_callsign + (l.to_frequency || '')].sort().join('→');
       existingLinkKeys.add(key);
     }
 
-    const createdLinks = [];
-    const seenNewKeys = new Set();
+    const createdLinks: any[] = [];
+    const seenNewKeys = new Set<string>();
     for (const link of linksToCreate) {
       if (!link.from.lat || !link.from.lng || !link.to.lat || !link.to.lng) continue;
       const key = [link.from.callsign + link.from.frequency, link.to.callsign + link.to.frequency].sort().join('→');
@@ -251,7 +331,7 @@ export default async function(req) {
         to_lng: link.to.lng,
         link_type: 'permanent',
         status: 'approved',
-        description: 'USKA HB Repeater Voice List',
+        description: 'USKA HB Voice Repeater List',
         network,
       });
       createdLinks.push({
@@ -264,7 +344,7 @@ export default async function(req) {
     const matchedCount = uskaRepeaters.length - unmatched.length;
     return Response.json({
       status: 'success',
-      count: matchedCount, // Fix 5: count = matchedCount so sync-batch reports 191 not 0
+      count: matchedCount,
       uskaCount: uskaRepeaters.length,
       matchedCount,
       updatedCount,
@@ -272,8 +352,9 @@ export default async function(req) {
       links: createdLinks,
       unmatchedCount: unmatched.length,
       unmatchedSample: unmatched.slice(0, 15),
+      dataSource,
     });
-  } catch (error) {
+  } catch (error: any) {
     return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
   }
 }

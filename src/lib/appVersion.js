@@ -13,7 +13,7 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609250415";
+export const APP_BUILD = "202609250430";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
@@ -26,6 +26,12 @@ export const APP_CHANGELOG = [
   "v0.955: COVERAGE — calculateRepeaterCoverage: batch_limit 50→15 (verteilt Rechenlast über mehrere kleine Läufe), Resume-Cursor in AppSetting für Fortschritts-Tracking",
   "v0.955: 0-EINTRÄGE — HTTP 200 + gültiges leeres Ergebnis = success (0), KEINE Warnung — LLOTA-Spots können legitim 0 sein",
   "v0.955: DEGRADED — Erst nach 3 aufeinanderfolgenden 0/Fehler-Läufen → Status 'degraded' + Warnung (statt sofortiger Warnung bei einzelnen 0-Läufen)",
+  "v0.955: USKA-RELAUNCH — fetchCHRepeaterLinks auf neue USKA-Website umgestellt (alte URL /hb-repeater-voice-list/ liefert 404 seit 16.09. Relaunch)",
+  "v0.955: USKA-RELAUNCH — JSON-API-Endpunkt https://uska.ch/wp-json/uska/v1/repeaters als Primärquelle (308 Repeater, strukturierte Felder: tx/rx/call/qth/kanton/locator/alt/type/dmr/dstar/c4fm/rx_tone/tx_tone/status/notes)",
+  "v0.955: USKA-RELAUNCH — HTML-Parsing als Fallback (neue 16-Spalten-Tabelle, neue URL /de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/)",
+  "v0.955: USKA-RELAUNCH — Modi-Extraktion nutzt strukturierte dmr/dstar/c4fm-Boolean-Felder statt Remarks-Parsing — zuverlässiger",
+  "v0.955: USKA-RELAUNCH — CTCSS/DCS-Ton aus rx_tone-Feld (vorher: Remarks-Parsing) — DCS#023 Format wird korrekt erkannt",
+  "v0.955: USKA-RELAUNCH — Status-Mapping: qrv=on-air, qrx=testing, planned=testing, qrt=off-air (vorher: numerisch 0/1/2/3)",
   "v0.955: BUCHHALTUNG — extractCount erkennt jetzt saved/fetched/merged/new_castles/linksCreated/calculated/countriesSaved — last_count wird korrekt gepflegt statt auf 0 zu stehen",
   "v0.954: UPSERT-SCHUTZ — Wavelog-Import (import, full_import, permanent_sync) und QRZ-Club-Import nutzen echten Upsert statt Skip-Dedup — existierende Records werden aktualisiert, nicht übersprungen",
   "v0.954: UPSERT-SCHLÜSSEL — (operator_callsign, callsign, qso_date, time_start, log_type, club_callsign) — verhindert Duplikate bei wiederholten Imports zuverlässig",
