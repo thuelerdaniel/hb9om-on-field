@@ -451,11 +451,11 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
-    // Create RepeaterLink entries (deduped)
+    // Create RepeaterLink entries (deduped — callsign only, case-insensitive)
     const existingLinks = await base44.asServiceRole.entities.RepeaterLink.list("-created_date", 500);
     const existingLinkKeys = new Set<string>();
     for (const l of existingLinks) {
-      const key = [l.from_callsign + (l.from_frequency || ''), l.to_callsign + (l.to_frequency || '')].sort().join('→');
+      const key = [l.from_callsign?.toLowerCase() || '', l.to_callsign?.toLowerCase() || ''].sort().join('→');
       existingLinkKeys.add(key);
     }
 
@@ -463,7 +463,10 @@ export default async function(req: Request): Promise<Response> {
     const seenNewKeys = new Set<string>();
     for (const link of linksToCreate) {
       if (!link.from.lat || !link.from.lng || !link.to.lat || !link.to.lng) continue;
-      const key = [link.from.callsign + link.from.frequency, link.to.callsign + link.to.frequency].sort().join('→');
+      // v0.957: Skip self-connections (same callsign, case-insensitive — even cross-band)
+      if (link.from.callsign?.toLowerCase() === link.to.callsign?.toLowerCase()) continue;
+      // v0.957: Dedup by callsign only (case-insensitive) — matches cleanup logic
+      const key = [link.from.callsign?.toLowerCase() || '', link.to.callsign?.toLowerCase() || ''].sort().join('→');
       if (existingLinkKeys.has(key) || seenNewKeys.has(key)) continue;
       seenNewKeys.add(key);
 
