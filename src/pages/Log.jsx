@@ -286,7 +286,8 @@ export default function Log() {
       const fields = [
         `<call:${fullCall.length}>${fullCall}`,
         `<qso_date:8>${(e.qso_date || "").replace(/-/g, "")}`,
-        `<time_on:4>${(e.time_start || "").replace(":", "")}`,
+        `<time_on:6>${((e.time_start || "00:00:00").replace(/:/g, "").substring(0, 6)).padEnd(6, "0")}`,
+        e.time_end ? `<time_off:6>${((e.time_end || "").replace(/:/g, "").substring(0, 6)).padEnd(6, "0")}` : "",
         `<band:${(e.band || "").length}>${e.band || ""}`,
         `<mode:${(e.mode || "").length}>${e.mode || ""}`,
         e.frequency ? `<freq:${String(e.frequency).length}>${e.frequency}` : "",
@@ -337,7 +338,8 @@ export default function Log() {
         const fields = [
           `<call:${fullCall.length}>${fullCall}`,
           `<qso_date:8>${(e.qso_date || "").replace(/-/g, "")}`,
-          `<time_on:4>${(e.time_start || "").replace(":", "")}`,
+          `<time_on:6>${((e.time_start || "00:00:00").replace(/:/g, "").substring(0, 6)).padEnd(6, "0")}`,
+          e.time_end ? `<time_off:6>${((e.time_end || "").replace(/:/g, "").substring(0, 6)).padEnd(6, "0")}` : "",
           `<band:${(e.band || "").length}>${e.band || ""}`,
           `<mode:${(e.mode || "").length}>${e.mode || ""}`,
           e.frequency ? `<freq:${String(e.frequency).length}>${e.frequency}` : "",

@@ -671,7 +671,8 @@ export default async function(req: Request): Promise<Response> {
                 if (qso.mode) adifString += `<MODE:${qso.mode.length}>${qso.mode}`;
                 if (qso.frequency) { const f = String(qso.frequency); adifString += `<FREQ:${f.length}>${f}`; }
                 if (qso.qso_date) { const d = qso.qso_date.replace(/-/g, ''); adifString += `<QSO_DATE:8>${d}`; }
-                if (qso.time_start) { const t = qso.time_start.replace(/:/g, '').substring(0, 6); adifString += `<TIME_ON:6>${t}`; }
+                // v0.956 FIX: Pad to 6 digits — time_start may be "HH:MM" (4 digits) → ADIF corruption
+                if (qso.time_start) { let t = qso.time_start.replace(/:/g, '').substring(0, 6); while (t.length < 6) t += '0'; adifString += `<TIME_ON:6>${t}`; }
                 if (qso.rst_sent) adifString += `<RST_SENT:${qso.rst_sent.length}>${qso.rst_sent}`;
                 if (qso.rst_received) adifString += `<RST_RCVD:${qso.rst_received.length}>${qso.rst_received}`;
                 if (qso.operator_name) adifString += `<NAME:${qso.operator_name.length}>${qso.operator_name}`;

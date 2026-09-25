@@ -21,11 +21,16 @@ export function qsoToAdif(qso) {
     const d = qso.qso_date.replace(/[-:]/g, '').split('T')[0];
     a += `<qso_date:8>${d}`;
   }
+  // v0.956 FIX: Pad time to 6 digits (HHMMSS) — time_start may be "HH:MM" (4 digits without colons)
+  // from older entries or LogEntryForm default. ADIF declares <time_on:6> so we MUST provide 6 chars,
+  // otherwise the parser reads into the next field and corrupts the record → Wavelog defaults to 00:00.
   if (qso.time_start) {
-    const t = qso.time_start.replace(/:/g, '').substring(0, 6);
+    let t = qso.time_start.replace(/:/g, '').substring(0, 6);
+    while (t.length < 6) t += '0';
     a += `<time_on:6>${t}`;
     if (qso.time_end) {
-      const te = qso.time_end.replace(/:/g, '').substring(0, 6);
+      let te = qso.time_end.replace(/:/g, '').substring(0, 6);
+      while (te.length < 6) te += '0';
       a += `<time_off:6>${te}`;
     } else {
       a += `<time_off:6>${t}`;

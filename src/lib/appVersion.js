@@ -13,11 +13,16 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609250430";
+export const APP_BUILD = "202609250610";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.956: WAVELOG-ZEIT-BUG — qsoToAdif: time_start Padding auf 6 Stellen (HHMMSS) — 'HH:MM' (4 Ziffern) wurde als <time_on:6> mit nur 4 Zeichen gesendet → ADIF-Längen-Mismatch korruptierte Datensatz → Wavelog defaultete auf 00:00",
+  "v0.956: WAVELOG-ZEIT-BUG — permanent_sync (Backend): Gleicher Padding-Fix für serverseitigen ADIF-Export",
+  "v0.956: WAVELOG-ZEIT-BUG — LogEntryForm: Default-Zeit jetzt HH:MM:SS (vorher HH:MM = 4 Ziffern ohne Doppelpunkt = ADIF-Korruption)",
+  "v0.956: WAVELOG-ZEIT-BUG — LogEntryForm: 'Jetzt'-Buttons für Start+Endzeit liefern jetzt HH:MM:SS",
+  "v0.956: QRZ-EXPORT — Log.jsx handleExport + handleQrzUpload: <time_on:4> mit replace(':', '') (nur erstes Zeichen) → <time_on:6> mit replace(/:/g, '') + padEnd(6, '0') + TIME_OFF hinzugefügt",
   "v0.955: RESILIENZ — fetchWithRetry Shared-Utility (3 Versuche, 10s/30s/60s Backoff) für alle Sync-Funktionen bei 5xx/Timeout/Netzwerkfehler",
   "v0.955: RESILIENZ — fetchCHRepeaterLinks: USKA-Fetch mit Retry — transienter 502 wird jetzt automatisch retried statt sofort zu fehlschlagen",
   "v0.955: RESILIENZ — fetchLlotaRefs: LLOTA-API + Country-Stats mit Retry — transiente Fehler werden retried",

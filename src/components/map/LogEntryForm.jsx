@@ -140,7 +140,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
   });
 
   const today = new Date().toISOString().slice(0, 10);
-  const nowUTC = new Date().toISOString().slice(11, 16);
+  const nowUTC = new Date().toISOString().slice(11, 19);
 
   const [qsoDate, setQsoDate] = useState(editEntry?.qso_date || today);
   const [timeStart, setTimeStart] = useState(editEntry?.time_start || nowUTC);
@@ -563,7 +563,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                 <input type="time" value={timeStart} onChange={e => setTimeStart(e.target.value)} className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 <button
                   type="button"
-                  onClick={() => setTimeStart(new Date().toISOString().slice(11, 16))}
+                  onClick={() => setTimeStart(new Date().toISOString().slice(11, 19))}
                   className="px-2.5 py-2 text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center justify-center flex-shrink-0"
                   title="Auf aktuelle UTC-Zeit setzen"
                 >
@@ -577,7 +577,7 @@ export default function LogEntryForm({ mapCenter, myPosition, allMarkers, active
                 <input type="time" value={timeEnd} onChange={e => setTimeEnd(e.target.value)} className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 <button
                   type="button"
-                  onClick={() => setTimeEnd(new Date().toISOString().slice(11, 16))}
+                  onClick={() => setTimeEnd(new Date().toISOString().slice(11, 19))}
                   className="px-2.5 py-2 text-white bg-gray-900 rounded-lg hover:bg-gray-800 flex items-center justify-center flex-shrink-0"
                   title="Auf aktuelle UTC-Zeit setzen"
                 >
