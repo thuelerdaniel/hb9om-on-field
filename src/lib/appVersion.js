@@ -18,6 +18,12 @@ export const APP_BUILD = "202609251128";
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.957: CH-RELAIS-LINKS — USKA-Link-Refresh: Alte USKA-Links (description='USKA HB Repeater Voice List') vor Neuerstellung gelöscht — frische Links aus aktueller USKA-API",
+  "v0.957: CH-RELAIS-LINKS — Link-Erzeugung: Selbst-Verbindungen (from===to case-insensitive) übersprungen, Dedup nach Callsign-Paar (case-insensitive, keine Frequenz)",
+  "v0.957: CH-RELAIS-LINKS — Diagnostics: linkDiagnostics in Response (remarksWithLinkInfo, totalTargetsExtracted, targetsMatchedToDb, Beispiel-Remarks)",
+  "v0.957: CH-RELAIS-LINKS — QTH-Substring-Matching: 'Tamaro' matcht 'Monte Tamaro' (qthNorm.includes(targetNorm) || targetNorm.includes(qthNorm))",
+  "v0.957: CH-RELAIS-LINKS — Cleanup: Dedup auf (from_callsign, to_callsign) case-insensitive ohne Frequenz — zuvor mit Frequenz → 0 Duplikate gefunden",
+  "v0.957: CH-RELAIS-LINKS — Cleanup: Selbst-Verbindungen auf from===to case-insensitive ohne Frequenz-Check — zuvor mit Frequenz-Check → 0 gefunden",
   "v0.957: WAVELOG-SYNC-FLAG — Defensive Reparatur: Records mit wavelog_sync_date aber wavelog_synced=false werden nicht erneut gesendet, sondern nur das Flag repariert (verhindert doppelte Uploads)",
   "v0.957: WAVELOG-SYNC-FLAG — uploadToWavelog (manueller Upload): Defensive Prüfung vor Upload — wavelog_sync_date gesetzt → Flag reparieren statt erneut senden",
   "v0.957: WAVELOG-SYNC-FLAG — sendQsoToWavelog (Auto-Sync/Offline-Queue): Gleiche defensive Prüfung — verhindert doppelte Uploads bei durch Import überschriebenem Flag",

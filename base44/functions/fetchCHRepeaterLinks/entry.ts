@@ -250,6 +250,26 @@ export default async function(req: Request): Promise<Response> {
       if (user.role !== 'admin') return Response.json({ error: 'Admin only' }, { status: 403 });
     }
 
+    // v0.957: Delete old USKA-source links to refresh from latest USKA data
+    let oldUskaLinksDeleted = 0;
+    try {
+      const allExistingLinks = await base44.asServiceRole.entities.RepeaterLink.list("-created_date", 500);
+      const uskaLinks = (allExistingLinks || []).filter(l =>
+        l.description === 'USKA HB Repeater Voice List' ||
+        l.description === 'USKA HB Voice Repeater List'
+      );
+      for (const l of uskaLinks) {
+        try {
+          await base44.asServiceRole.entities.RepeaterLink.delete(l.id);
+          oldUskaLinksDeleted++;
+        } catch (e: any) {
+          console.log('[RepeaterLink] Delete old USKA link failed:', e.message);
+        }
+      }
+    } catch (e: any) {
+      console.log('[RepeaterLink] Load for USKA deletion failed:', e.message);
+    }
+
     // v0.957: Cleanup RepeaterLink table (backup + remove duplicates + self-connections)
     const cleanupResult = await cleanupRepeaterLinks(base44);
 
@@ -505,6 +525,7 @@ export default async function(req: Request): Promise<Response> {
       unmatchedSample: unmatched.slice(0, 15),
       dataSource,
       cleanup: cleanupResult,
+      oldUskaLinksDeleted,
       linkDiagnostics: {
         remarksWithLinkInfo,
         totalTargetsExtracted,
