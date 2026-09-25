@@ -199,17 +199,17 @@ async function cleanupRepeaterLinks(base44: any): Promise<{ backedUp: number; du
   let selfConnectionsDeleted = 0;
 
   for (const link of allLinks) {
-    // Self-connection: from === to (same callsign AND same frequency)
-    if (link.from_callsign === link.to_callsign &&
-        link.from_frequency === link.to_frequency) {
+    // Self-connection: from === to (case-insensitive, callsign only — no frequency check)
+    if (link.from_callsign && link.to_callsign &&
+        link.from_callsign.toLowerCase() === link.to_callsign.toLowerCase()) {
       toDelete.push(link.id);
       selfConnectionsDeleted++;
       continue;
     }
 
-    // Duplicate: same from→to pair (sorted key for bidirectional)
-    const key = [link.from_callsign + (link.from_frequency || ''),
-                 link.to_callsign + (link.to_frequency || '')].sort().join('→');
+    // Duplicate: same from→to pair (case-insensitive, callsign only, no frequency)
+    const key = [link.from_callsign?.toLowerCase() || '',
+                 link.to_callsign?.toLowerCase() || ''].sort().join('→');
     if (seenKeys.has(key)) {
       toDelete.push(link.id);
       duplicatesDeleted++;
@@ -317,6 +317,12 @@ export default async function(req: Request): Promise<Response> {
     const linksToCreate: any[] = [];
     const unmatched: any[] = [];
 
+    // v0.957 DIAG: Link extraction diagnostics
+    let remarksWithLinkInfo = 0;
+    let totalTargetsExtracted = 0;
+    let targetsMatchedToDb = 0;
+    const linkDiagExamples: any[] = [];
+
     for (const uska of uskaRepeaters) {
       const matches = swissRepeaters.filter(r =>
         r.callsign === uska.call &&
@@ -368,6 +374,25 @@ export default async function(req: Request): Promise<Response> {
 
         // Extract cross-links from notes
         const linkTargets = extractLinkTargets(uska.notes);
+
+        // v0.957 DIAG: Track link extraction
+        if (linkTargets.length > 0) {
+          remarksWithLinkInfo++;
+          totalTargetsExtracted += linkTargets.length;
+          if (linkDiagExamples.length < 5) {
+            linkDiagExamples.push({
+              uska_call: uska.call,
+              uska_tx: uska.tx,
+              uska_qth: uska.qth,
+              notes: uska.notes,
+              remarks: uska.remarks,
+              targets: linkTargets,
+              matchedRep: rep.callsign,
+              matchResults: [] as any[],
+            });
+          }
+        }
+
         for (const target of linkTargets) {
           const targetUpper = target.toUpperCase();
           // 1. Try callsign match (for targets that are callsigns)
@@ -375,16 +400,23 @@ export default async function(req: Request): Promise<Response> {
             r.callsign === targetUpper &&
             !(r.callsign === rep.callsign && Math.abs(r.frequency - rep.frequency) < 0.001)
           );
-          // 2. Try QTH map (for targets that are location names like "HochYbrig", "Tamaro")
+          // 2. Try QTH map with substring matching (for location names like "Tamaro" matching "Monte Tamaro")
           if (targetReps.length === 0) {
             const targetNorm = normalizeQth(target);
-            const targetUska = qthToUska.get(targetNorm);
-            if (targetUska) {
-              targetReps = swissRepeaters.filter(r =>
-                r.callsign === targetUska.call &&
-                Math.abs(r.frequency - targetUska.tx) < 0.001 &&
-                r.callsign !== rep.callsign
-              );
+            if (targetNorm.length >= 3) {
+              for (const [qthNorm, targetUska] of qthToUska) {
+                if (qthNorm.includes(targetNorm) || targetNorm.includes(qthNorm)) {
+                  const matched = swissRepeaters.filter(r =>
+                    r.callsign === targetUska.call &&
+                    Math.abs(r.frequency - targetUska.tx) < 0.001 &&
+                    r.callsign !== rep.callsign
+                  );
+                  if (matched.length > 0) {
+                    targetReps = matched;
+                    break;
+                  }
+                }
+              }
             }
           }
           // 3. Fallback: location_name match (case-insensitive)
@@ -396,7 +428,18 @@ export default async function(req: Request): Promise<Response> {
               r.callsign !== rep.callsign
             );
           }
-          if (targetReps.length === 0) continue;
+          if (targetReps.length === 0) {
+            // v0.957 DIAG: Record failed match
+            if (linkDiagExamples.length > 0 && linkDiagExamples[linkDiagExamples.length - 1].matchedRep === rep.callsign) {
+              linkDiagExamples[linkDiagExamples.length - 1].matchResults.push({
+                target,
+                matched: false,
+                reason: 'no DB repeater found',
+              });
+            }
+            continue;
+          }
+          targetsMatchedToDb++;
           // Prefer Swiss repeaters, then closest by frequency
           const swissTarget = targetReps.find(r => r.country_code === 'CH') || targetReps[0];
           linksToCreate.push({
@@ -459,6 +502,12 @@ export default async function(req: Request): Promise<Response> {
       unmatchedSample: unmatched.slice(0, 15),
       dataSource,
       cleanup: cleanupResult,
+      linkDiagnostics: {
+        remarksWithLinkInfo,
+        totalTargetsExtracted,
+        targetsMatchedToDb,
+        examples: linkDiagExamples,
+      },
     });
   } catch (error: any) {
     return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
