@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { fetchWithRetry } from '../../shared/syncHelpers.ts';
 
 // --- USKA HTML table parser ---
 // The USKA HB Repeater Voice List has 9 columns:
@@ -132,12 +133,12 @@ export default async function(req) {
       if (user.role !== 'admin') return Response.json({ error: 'Admin only' }, { status: 403 });
     }
 
-    // 1. Fetch USKA page
-    const resp = await fetch('https://uska.ch/hb-repeater-voice-list/', {
+    // v0.955: Retry mit Backoff (10s/30s/60s) — 502 bei CH-Relais-Links ist typisch transient.
+    const result = await fetchWithRetry('https://uska.ch/hb-repeater-voice-list/', {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HB9OM-OnField/1.0)' },
-    });
-    if (!resp.ok) return Response.json({ error: `USKA fetch failed: ${resp.status}` }, { status: 502 });
-    const html = await resp.text();
+    }, 30000);
+    if (!result.ok) return Response.json({ error: `USKA fetch failed: ${result.error}` }, { status: 502 });
+    const html = result.text;
 
     // 2. Parse table
     const uskaRepeaters = parseUSKATable(html);

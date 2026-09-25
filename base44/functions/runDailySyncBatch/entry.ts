@@ -435,15 +435,59 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // ─── Normal completion ───
-    const status = result.timedOut
+    // v0.955: HTTP 200 + gültiges leeres Ergebnis = "success (0)", KEINE Warnung.
+    // LLOTA-Spots können legitim 0 sein. Nur nach 3 aufeinanderfolgenden 0/Fehler-Läufen → "degraded".
+    const rawStatus = result.timedOut
       ? 'timeout'
       : extractStatus(result.data);
     const count = result.timedOut ? 0 : extractCount(result.data);
-    // Fix 5: Don't show "0 Einträge" warning when source is reachable (e.g. CH-Links with matchedCount > 0)
     const reachable = !result.timedOut && isSourceReachable(result.data);
-    const errorMsg = result.timedOut
+
+    // v0.955: Consecutive failure tracking — 3 aufeinanderfolgende 0/Fehler → "degraded"
+    let consecutiveFailures = 0;
+    try {
+      const cfKey = 'consecutive_failures_' + nextSource.source;
+      const cfSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: cfKey });
+      if (cfSettings && cfSettings.length > 0) {
+        consecutiveFailures = parseInt(cfSettings[0].value || '0') || 0;
+      }
+    } catch {}
+
+    const isSuccess = rawStatus === 'success';
+    const isZeroOrFailed = !isSuccess || (count === 0 && !reachable);
+
+    if (isZeroOrFailed) {
+      consecutiveFailures++;
+    } else {
+      consecutiveFailures = 0;
+    }
+
+    // Persist consecutive failure count
+    try {
+      const cfKey = 'consecutive_failures_' + nextSource.source;
+      const cfSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: cfKey });
+      const cfValue = String(consecutiveFailures);
+      if (cfSettings && cfSettings.length > 0) {
+        await base44.asServiceRole.entities.AppSetting.update(cfSettings[0].id, { value: cfValue });
+      } else {
+        await base44.asServiceRole.entities.AppSetting.create({ key: cfKey, value: cfValue });
+      }
+    } catch {}
+
+    // v0.955: Status-Logik — success bleibt success auch bei 0 Einträgen.
+    // Erst nach 3 aufeinanderfolgenden 0/Fehler-Läufen → "degraded" + Warnung.
+    let status = rawStatus;
+    let errorMsg = result.timedOut
       ? `Timeout nach ${timeout / 1000}s`
-      : (result.data?.error || (status === 'success' && count === 0 && !reachable ? 'Warnung: 0 Einträge geladen' : ''));
+      : (result.data?.error || '');
+
+    if (isSuccess && count === 0 && !reachable && consecutiveFailures >= 3) {
+      status = 'failed';
+      errorMsg = `Degraded: 3 aufeinanderfolgende Läufe mit 0 Einträgen — Quelle möglicherweise defekt`;
+    } else if (isSuccess && count === 0 && !reachable) {
+      // 0 Einträge aber Quelle erreichbar — success ohne Warnung
+      errorMsg = '';
+    }
 
     let errorDetail = '';
     if (status !== 'success') {

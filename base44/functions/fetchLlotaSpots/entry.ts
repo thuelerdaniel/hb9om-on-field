@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { deriveBand } from "../../shared/bandDerivation.ts";
 import { maidenheadToLatLon, haversine, bearing } from "../../shared/geoUtils.ts";
 import { isInternalCall } from "../../shared/internalAuth.ts";
+import { fetchWithRetry } from "../../shared/syncHelpers.ts";
 
 // Fetch LLOTA live spots from two sources:
 // 1. LLOTA direct: https://llota.app/api/spots (live spots with history)
@@ -41,51 +42,37 @@ export default async function(req: Request): Promise<Response> {
       stationPos = maidenheadToLatLon(stationLocator) || { lat: 46.5, lon: 6.5 };
     }
 
-    // Delete ALL existing LLOTA spots before saving new ones — prevents duplicates from multiple calls
-    try {
-      await base44.asServiceRole.entities.ActivitySpot.deleteMany({ activity_type: 'LLOTA' });
-    } catch {}
+    // v0.955: KEIN Delete vor Fetch — bei Fehlschlag bleiben alte Spots erhalten (kein Datenverlust).
+    // Delete passiert erst NACH erfolgreichem Fetch+Merge, direkt vor dem bulkCreate.
 
-    // 1. Fetch LLOTA direct spots
+    // 1. Fetch LLOTA direct spots (mit Retry 10s/30s/60s Backoff)
     let llotaSpots: any[] = [];
     let llotaWarning: string | null = null;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const resp = await fetch('https://llota.app/api/spots', {
+    {
+      const r = await fetchWithRetry('https://llota.app/api/spots', {
         headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (resp.ok) {
-        llotaSpots = await resp.json();
-        if (!Array.isArray(llotaSpots)) llotaSpots = [];
+      }, 15000);
+      if (r.ok) {
+        llotaSpots = Array.isArray(r.json) ? r.json : [];
       } else {
-        llotaWarning = `LLOTA direct HTTP ${resp.status}`;
+        llotaWarning = `LLOTA direct: ${r.error}`;
       }
-    } catch (e: any) {
-      llotaWarning = `LLOTA direct: ${e?.message || 'unreachable'}`;
     }
 
-    // 2. Fetch Spothole enriched LLOTA spots
+    // 2. Fetch Spothole enriched LLOTA spots (mit Retry)
     let spotholeSpots: any[] = [];
     let spotholeWarning: string | null = null;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const resp = await fetch(
+    {
+      const r = await fetchWithRetry(
         'https://spothole.app/api/v2/spots?sig=LLOTA&limit=200',
-        { headers: { 'Accept': 'application/json' }, signal: controller.signal }
+        { headers: { 'Accept': 'application/json' } },
+        15000
       );
-      clearTimeout(timeout);
-      if (resp.ok) {
-        spotholeSpots = await resp.json();
-        if (!Array.isArray(spotholeSpots)) spotholeSpots = [];
+      if (r.ok) {
+        spotholeSpots = Array.isArray(r.json) ? r.json : [];
       } else {
-        spotholeWarning = `Spothole LLOTA HTTP ${resp.status}`;
+        spotholeWarning = `Spothole LLOTA: ${r.error}`;
       }
-    } catch (e: any) {
-      spotholeWarning = `Spothole LLOTA: ${e?.message || 'unreachable'}`;
     }
 
     // 3. Build Spothole lookup map for enrichment (key: callsign_freqKHz)
@@ -213,9 +200,11 @@ export default async function(req: Request): Promise<Response> {
       });
     }
 
-    // 6. Save to ActivitySpot
+    // 6. Save to ActivitySpot — erst hier alte Spots löschen (nach erfolgreichem Fetch+Merge)
     let savedCount = 0;
     if (merged.length > 0) {
+      // v0.955: Delete alte Spots nur wenn neue Daten vorhanden — kein Datenverlust bei fehlgeschlagenem Fetch
+      try { await base44.asServiceRole.entities.ActivitySpot.deleteMany({ activity_type: 'LLOTA' }); } catch {}
       try {
         await base44.asServiceRole.entities.ActivitySpot.bulkCreate(merged);
         savedCount = merged.length;

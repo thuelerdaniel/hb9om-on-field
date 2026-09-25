@@ -165,12 +165,22 @@ export default async function(req: any): Promise<Response> {
     let calculated = 0, errors = 0, skipped = 0;
     const errorDetails: string[] = [];
     const startTime = Date.now();
-    // BUG 1: Batch limit 50 per run, with 250s time budget (leaves 50s buffer for API overhead)
-    const BATCH_LIMIT = body?.batch_limit || 50;
+    // v0.955: Batch limit 15 pro Lauf — verteilt Rechenlast über mehrere kleine Läufe statt einem 125s-Lauf der abkippt.
+    // Resume-Cursor: needs_recalc=false nach Verarbeitung fungiert als impliziter Cursor — nächste Run holt andere Repeaters.
+    const BATCH_LIMIT = body?.batch_limit || 15;
     const TIME_BUDGET_MS = 250000; // 250 seconds
     const delayMs = body?.delay_ms || 500;
     // Use fewer radials in batch mode for speed (36 instead of 72)
     const batchRadials = body?.radials || 36;
+
+    // v0.955: Resume-Cursor in AppSetting — speichert Fortschritt für Report/Visibility
+    let progressCursor: any = { last_run: null, total_calculated: 0, estimated_remaining: 0 };
+    try {
+      const cursorSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'repeater_coverage_progress' });
+      if (cursorSettings && cursorSettings.length > 0) {
+        progressCursor = JSON.parse(cursorSettings[0].value || '{}');
+      }
+    } catch {}
 
     for (const r of repeaters) {
       if (calculated >= BATCH_LIMIT) break;
@@ -215,12 +225,27 @@ export default async function(req: any): Promise<Response> {
       }
     }
 
+    // v0.955: Resume-Cursor aktualisieren — Fortschritt für nächste Run sichtbar
+    progressCursor.last_run = new Date().toISOString();
+    progressCursor.total_calculated = (progressCursor.total_calculated || 0) + calculated;
+    progressCursor.estimated_remaining = Math.max(0, repeaters.length - calculated);
+    try {
+      const cursorSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'repeater_coverage_progress' });
+      const cursorValue = JSON.stringify(progressCursor);
+      if (cursorSettings && cursorSettings.length > 0) {
+        await base44.asServiceRole.entities.AppSetting.update(cursorSettings[0].id, { value: cursorValue });
+      } else {
+        await base44.asServiceRole.entities.AppSetting.create({ key: 'repeater_coverage_progress', value: cursorValue });
+      }
+    } catch {}
+
     return Response.json({
       success: true, scope, total: repeaters.length,
       calculated, errors, skipped,
       batch_limit: BATCH_LIMIT,
       duration_ms: Date.now() - startTime,
       error_details: errorDetails.slice(0, 10),
+      progress: progressCursor,
     });
   } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });

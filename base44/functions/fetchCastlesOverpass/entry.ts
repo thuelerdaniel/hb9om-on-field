@@ -41,8 +41,11 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass.openstreetmap.fr/api/interpreter',
 ];
 
+// v0.955: Resilience-Paket — per-request timeout 85s (unter 100s Cloudflare-524-Limit).
+// Mirror-Rotation: 429/521 = sofort nächster Mirror; 524/504/Netzwerk = 10s Backoff, 1 Retry, dann nächster Mirror.
+// Nach allen Mirrors: 30s Backoff, dann komplette Rotation noch einmal (max 2 Runden).
 async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
-  const query = `[out:json][timeout:180];
+  const query = `[out:json][timeout:85];
   (
     node["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
     node["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
@@ -51,44 +54,43 @@ async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
   );
   out center 2000;`;
 
-  // v0.951-FIX: Try each endpoint once — on 429/521 skip to next endpoint immediately.
-  // Only retry on 524/network errors (1 retry with 5s delay). This prevents wasting
-  // 30s+ per country on rate-limited endpoints.
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        console.log(`[fetchCastlesOverpass] ${country.name} attempt ${attempt}/2 — ${endpoint}`);
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 90000); // 90s fetch timeout
-        const resp = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'data=' + encodeURIComponent(query),
-          signal: controller.signal,
-        });
-        clearTimeout(timer);
-        if (!resp.ok) {
-          console.log(`[fetchCastlesOverpass] ${endpoint} returned ${resp.status}`);
-          // 429/521 = rate limited/down — try next endpoint immediately (no retry)
-          if (resp.status === 429 || resp.status === 502 || resp.status === 521) break;
-          // 504/524 = timeout — retry once with 5s delay, then try next endpoint
-          if (resp.status === 504 || resp.status === 524) {
-            if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
-            continue;
+  for (let round = 0; round < 2; round++) {
+    for (const endpoint of OVERPASS_ENDPOINTS) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          console.log(`[fetchCastlesOverpass] ${country.name} R${round + 1} A${attempt}/2 — ${endpoint.substring(8, 40)}`);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 85000);
+          const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'data=' + encodeURIComponent(query),
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+          if (!resp.ok) {
+            // 429/521/502 = rate limited/down — sofort nächster Mirror (kein Retry)
+            if (resp.status === 429 || resp.status === 502 || resp.status === 521) break;
+            // 504/524 = Proxy-Timeout — 1 Retry mit 10s Backoff, dann nächster Mirror
+            if (resp.status === 504 || resp.status === 524) {
+              if (attempt < 2) await new Promise(r => setTimeout(r, 10000));
+              continue;
+            }
+            break; // Andere 4xx — nächster Mirror
           }
-          break; // Other errors — try next endpoint
+          const text = await resp.text();
+          const data = JSON.parse(text);
+          if (data && data.elements) {
+            console.log(`[fetchCastlesOverpass] ${country.name}: ${data.elements.length} elements`);
+            return data.elements;
+          }
+        } catch (e) {
+          console.log(`[fetchCastlesOverpass] ${country.name} error: ${e.message}`);
+          if (attempt < 2) await new Promise(r => setTimeout(r, 10000));
         }
-        const text = await resp.text();
-        const data = JSON.parse(text);
-        if (data && data.elements) {
-          console.log(`[fetchCastlesOverpass] ${country.name}: ${data.elements.length} elements`);
-          return data.elements;
-        }
-      } catch (e) {
-        console.log(`[fetchCastlesOverpass] ${country.name} attempt ${attempt} error: ${e.message}`);
-        if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
       }
     }
+    if (round < 1) await new Promise(r => setTimeout(r, 30000));
   }
   return [];
 }

@@ -13,11 +13,20 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609161644";
+export const APP_BUILD = "202609250415";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.955: RESILIENZ — fetchWithRetry Shared-Utility (3 Versuche, 10s/30s/60s Backoff) für alle Sync-Funktionen bei 5xx/Timeout/Netzwerkfehler",
+  "v0.955: RESILIENZ — fetchCHRepeaterLinks: USKA-Fetch mit Retry — transienter 502 wird jetzt automatisch retried statt sofort zu fehlschlagen",
+  "v0.955: RESILIENZ — fetchLlotaRefs: LLOTA-API + Country-Stats mit Retry — transiente Fehler werden retried",
+  "v0.955: RESILIENZ — fetchLlotaSpots: LLOTA + Spothole mit Retry — CRITICAL FIX: Delete alte Spots erst NACH erfolgreichem Fetch (vorher: Delete vor Fetch = Datenverlust bei Fehlschlag)",
+  "v0.955: OVERPASS — fetchCastlesOverpass: Per-Request-Timeout 85s (unter 100s Cloudflare-524-Limit), 2 Runden Mirror-Rotation mit 10s/30s Backoff, out center bereits vorhanden",
+  "v0.955: COVERAGE — calculateRepeaterCoverage: batch_limit 50→15 (verteilt Rechenlast über mehrere kleine Läufe), Resume-Cursor in AppSetting für Fortschritts-Tracking",
+  "v0.955: 0-EINTRÄGE — HTTP 200 + gültiges leeres Ergebnis = success (0), KEINE Warnung — LLOTA-Spots können legitim 0 sein",
+  "v0.955: DEGRADED — Erst nach 3 aufeinanderfolgenden 0/Fehler-Läufen → Status 'degraded' + Warnung (statt sofortiger Warnung bei einzelnen 0-Läufen)",
+  "v0.955: BUCHHALTUNG — extractCount erkennt jetzt saved/fetched/merged/new_castles/linksCreated/calculated/countriesSaved — last_count wird korrekt gepflegt statt auf 0 zu stehen",
   "v0.954: UPSERT-SCHUTZ — Wavelog-Import (import, full_import, permanent_sync) und QRZ-Club-Import nutzen echten Upsert statt Skip-Dedup — existierende Records werden aktualisiert, nicht übersprungen",
   "v0.954: UPSERT-SCHLÜSSEL — (operator_callsign, callsign, qso_date, time_start, log_type, club_callsign) — verhindert Duplikate bei wiederholten Imports zuverlässig",
   "v0.954: FULL-IMPORT — Startet ab wavelog_last_fetch_id (bzw. 0) wie delta sync — gleicher Upsert-Pfad für beide Modi",

@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { upsertPointsByCode } from '../../shared/pointUpsert.ts';
 import { isInternalCall } from '../../shared/internalAuth.ts';
+import { fetchWithRetry } from '../../shared/syncHelpers.ts';
 
 // Fetch LLOTA references (8.357 worldwide) + country stats from llota.app API.
 // Single API call for all references (~5.6MB), no pagination needed.
@@ -17,37 +18,26 @@ export default async function(req: Request): Promise<Response> {
       if (!isAuthed) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Fetch all references (single call, ~5.6MB)
+    // v0.955: Retry mit Backoff (10s/30s/60s) — llota.app 200 OK per Stichprobe, Fehler sind transient.
     let refs: any[] = [];
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000);
-      const resp = await fetch('https://llota.app/api/public/references', {
-        headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!resp.ok) {
-        const bodyText = await resp.text().catch(() => '').then(t => t.substring(0, 300));
-        return Response.json({ error: `LLOTA API HTTP ${resp.status}: ${bodyText}` }, { status: 502 });
-      }
-      refs = await resp.json();
-      if (!Array.isArray(refs)) refs = [];
-    } catch (e: any) {
-      return Response.json({ error: `LLOTA fetch error: ${e?.message || e}` }, { status: 502 });
+    const refsResult = await fetchWithRetry('https://llota.app/api/public/references', {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' },
+    }, 30000);
+    if (!refsResult.ok) {
+      return Response.json({ error: `LLOTA API: ${refsResult.error}` }, { status: 502 });
     }
+    refs = Array.isArray(refsResult.json) ? refsResult.json : [];
 
-    // 2. Fetch country stats
+    // v0.955: Retry mit Backoff auch für country stats
     let stats: any[] = [];
-    try {
-      const statsResp = await fetch('https://llota.app/api/public/countries-stats', {
+    {
+      const statsResult = await fetchWithRetry('https://llota.app/api/public/countries-stats', {
         headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' },
-      });
-      if (statsResp.ok) {
-        stats = await statsResp.json();
-        if (!Array.isArray(stats)) stats = [];
+      }, 15000);
+      if (statsResult.ok && Array.isArray(statsResult.json)) {
+        stats = statsResult.json;
       }
-    } catch {}
+    }
 
     // 3. Upsert country stats into LlotaCountry
     let countriesSaved = 0;
