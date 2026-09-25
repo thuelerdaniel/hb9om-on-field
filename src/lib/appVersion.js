@@ -13,11 +13,22 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609250610";
+export const APP_BUILD = "202609251056";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.957: WAVELOG-SYNC-FLAG — Defensive Reparatur: Records mit wavelog_sync_date aber wavelog_synced=false werden nicht erneut gesendet, sondern nur das Flag repariert (verhindert doppelte Uploads)",
+  "v0.957: WAVELOG-SYNC-FLAG — uploadToWavelog (manueller Upload): Defensive Prüfung vor Upload — wavelog_sync_date gesetzt → Flag reparieren statt erneut senden",
+  "v0.957: WAVELOG-SYNC-FLAG — sendQsoToWavelog (Auto-Sync/Offline-Queue): Gleiche defensive Prüfung — verhindert doppelte Uploads bei durch Import überschriebenem Flag",
+  "v0.957: WAVELOG-SYNC-FLAG — permanent_sync Step B (Backend): toExport aufgespalten in toRepair (sync_date gesetzt) + toSend (kein sync_date) — toRepair bekommt nur Flag-Reparatur, toSend wird hochgeladen",
+  "v0.957: CH-RELAIS-LINKS — QTH-Map: USKA-remarks enthalten Standortnamen (HochYbrig, Tamaro, Chestenberg), keine Callsigns — QTH→Repeater-Map aus USKA-Daten für zuverlässiges Link-Target-Matching",
+  "v0.957: CH-RELAIS-LINKS — Link-Matching: 3-stufige Suche (1. Callsign, 2. QTH-Map, 3. location_name case-insensitive) — case-sensitivity Bug im location_name-Fallback korrigiert",
+  "v0.957: CH-RELAIS-LINKS — Cleanup: RepeaterLink-Tabelle vor Sync bereinigt — Backup in AppSetting, Duplikate (sortierter from→to Key) und Selbst-Verbindungen (from===to) gelöscht",
+  "v0.957: CH-RELAIS-LINKS — KEINE neuen Repeater-Records aus USKA-Liste importiert (nur Link-Logik auf vorhandenem Bestand)",
+  "v0.957: UI-CLAMPING — DraggableMapButton: requestAnimationFrame für resize-Handler + tatsächliche Button-Dimensionen via ref statt size-prop",
+  "v0.957: UI-CLAMPING — useDraggableButton: requestAnimationFrame für resize-Handler (Layout muss settled sein vor Clamping)",
+  "v0.957: UI-CLAMPING — useDraggablePosition: requestAnimationFrame für resize-Handler",
   "v0.956: WAVELOG-ZEIT-BUG — qsoToAdif: time_start Padding auf 6 Stellen (HHMMSS) — 'HH:MM' (4 Ziffern) wurde als <time_on:6> mit nur 4 Zeichen gesendet → ADIF-Längen-Mismatch korruptierte Datensatz → Wavelog defaultete auf 00:00",
   "v0.956: WAVELOG-ZEIT-BUG — permanent_sync (Backend): Gleicher Padding-Fix für serverseitigen ADIF-Export",
   "v0.956: WAVELOG-ZEIT-BUG — LogEntryForm: Default-Zeit jetzt HH:MM:SS (vorher HH:MM = 4 Ziffern ohne Doppelpunkt = ADIF-Korruption)",

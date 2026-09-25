@@ -146,9 +146,12 @@ export function useDraggablePosition(storageKey) {
     container.addEventListener("contextmenu", onContextMenu);
 
     // Viewport clamping on resize/orientation change — keep button visible
+    // v0.957: Use requestAnimationFrame for resize to ensure layout has settled
     const handleResize = () => {
-      const clamped = clampToParent(container);
-      try { localStorage.setItem(storageKey, JSON.stringify(clamped)); } catch {}
+      requestAnimationFrame(() => {
+        const clamped = clampToParent(container);
+        try { localStorage.setItem(storageKey, JSON.stringify(clamped)); } catch {}
+      });
     };
     const handleOrientationChange = () => {
       setTimeout(() => {

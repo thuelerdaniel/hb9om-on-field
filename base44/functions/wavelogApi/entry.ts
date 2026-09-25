@@ -662,9 +662,21 @@ export default async function(req: Request): Promise<Response> {
               '-created_date', 100
             );
 
-            if (toExport.length > 0) {
+            // v0.957 FIX: Defensive repair — records with wavelog_sync_date but wavelog_synced=false
+            // were already uploaded (flag was overwritten by a subsequent import upsert).
+            // Don't re-send them — just fix the flag to prevent duplicate uploads.
+            const toRepair = toExport.filter(q => q.wavelog_sync_date);
+            const toSend = toExport.filter(q => !q.wavelog_sync_date);
+
+            for (const qso of toRepair) {
+              try {
+                await sr.entities.Log.update(qso.id, { wavelog_synced: true });
+              } catch (e: any) {}
+            }
+
+            if (toSend.length > 0) {
               let adifString = '';
-              for (const qso of toExport) {
+              for (const qso of toSend) {
                 const fullCall = (qso.callsign || '') + (qso.callsign_suffix || '');
                 if (fullCall) adifString += `<CALL:${fullCall.length}>${fullCall}`;
                 if (qso.band) adifString += `<BAND:${qso.band.length}>${qso.band}`;
@@ -694,7 +706,7 @@ export default async function(req: Request): Promise<Response> {
               });
 
               if (uploadResp.status === 201 || uploadResp.ok) {
-                for (const qso of toExport) {
+                for (const qso of toSend) {
                   try {
                     await sr.entities.Log.update(qso.id, {
                       wavelog_synced: true,

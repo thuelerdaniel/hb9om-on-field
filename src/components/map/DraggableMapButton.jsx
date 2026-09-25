@@ -33,10 +33,20 @@ export default function DraggableMapButton({
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const longPressTimerRef = useRef(null);
   const hasMovedRef = useRef(false);
+  const buttonRef = useRef(null);
 
   useEffect(() => {
-    const handleResize = () => setPos(p => clampToViewport(p.x, p.y, size, size));
-    const handleOrientationChange = () => setTimeout(() => setPos(p => clampToViewport(p.x, p.y, size, size)), 150);
+    const handleResize = () => requestAnimationFrame(() => {
+      // Use actual button dimensions if available (button may be wider than `size` due to content)
+      const w = buttonRef?.current?.offsetWidth || size;
+      const h = buttonRef?.current?.offsetHeight || size;
+      setPos(p => clampToViewport(p.x, p.y, w, h));
+    });
+    const handleOrientationChange = () => setTimeout(() => {
+      const w = buttonRef?.current?.offsetWidth || size;
+      const h = buttonRef?.current?.offsetHeight || size;
+      setPos(p => clampToViewport(p.x, p.y, w, h));
+    }, 150);
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleOrientationChange);
     return () => {
@@ -108,6 +118,7 @@ export default function DraggableMapButton({
 
   return createPortal(
     <button
+      ref={buttonRef}
       onPointerDown={handlePointerDown}
       onPointerUp={handleButtonPointerUp}
       onClick={(e) => {

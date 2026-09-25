@@ -207,9 +207,12 @@ export function useDraggableButton(buttonId, defaultPosition) {
     const handleMouseUp = () => onEnd();
 
     // Viewport clamping on resize/orientation change — save clamped position
+    // v0.957: Use requestAnimationFrame for resize to ensure layout has settled
     const handleResize = () => {
-      const clamped = clampElementToViewport(el);
-      savePosition(clamped.x, clamped.y);
+      requestAnimationFrame(() => {
+        const clamped = clampElementToViewport(el);
+        savePosition(clamped.x, clamped.y);
+      });
     };
     const handleOrientationChange = () => {
       setTimeout(() => {

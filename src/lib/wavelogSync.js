@@ -180,6 +180,17 @@ export async function uploadToWavelog(config, onProgress) {
 
   for (let i = 0; i < unsent.length; i++) {
     const qso = unsent[i];
+    // v0.957 FIX: Defensive — if wavelog_sync_date is set but wavelog_synced is false,
+    // the QSO was already uploaded (flag was overwritten by a subsequent import upsert).
+    // Don't re-upload — just repair the flag to prevent duplicate uploads.
+    if (qso.wavelog_sync_date && !qso.wavelog_synced) {
+      try {
+        await base44.entities.Log.update(qso.id, { wavelog_synced: true });
+        success++;
+      } catch { failed++; }
+      if (onProgress) onProgress(i + 1, unsent.length);
+      continue;
+    }
     try {
       const adifString = qsoToAdif(qso);
       const result = await callWavelogApi('upload', config, { adif_string: adifString });
@@ -239,6 +250,16 @@ export async function importFromWavelog(config, onProgress) {
 export async function sendQsoToWavelog(qso, config) {
   if (!config?.wavelog_enabled || !config?.wavelog_api_key || !config?.wavelog_station_id) {
     return { success: false, reason: 'Nicht konfiguriert' };
+  }
+  // v0.957 FIX: Defensive — if wavelog_sync_date is set but wavelog_synced is false,
+  // the QSO was already uploaded — just repair the flag without re-sending.
+  if (qso.wavelog_sync_date && !qso.wavelog_synced) {
+    try {
+      await base44.entities.Log.update(qso.id, { wavelog_synced: true });
+      return { success: true };
+    } catch (e) {
+      return { success: false, reason: e.message };
+    }
   }
   try {
     const adifString = qsoToAdif(qso);

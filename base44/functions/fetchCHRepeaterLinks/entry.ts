@@ -158,6 +158,84 @@ function detectNetwork(remarks: string): string {
   return 'FM-Crosslink';
 }
 
+// v0.957: Cleanup RepeaterLink table — backup, remove duplicates and self-connections
+async function cleanupRepeaterLinks(base44: any): Promise<{ backedUp: number; duplicatesDeleted: number; selfConnectionsDeleted: number; remaining: number }> {
+  const sr = base44.asServiceRole;
+  let allLinks: any[] = [];
+  try {
+    allLinks = await sr.entities.RepeaterLink.list("created_date", 1000);
+  } catch (e: any) {
+    console.log('[RepeaterLink] Load for cleanup failed:', e.message);
+    return { backedUp: 0, duplicatesDeleted: 0, selfConnectionsDeleted: 0, remaining: 0 };
+  }
+
+  // Backup to AppSetting (full export before any deletion)
+  try {
+    const backupValue = JSON.stringify(allLinks.map(l => ({
+      id: l.id,
+      from_callsign: l.from_callsign,
+      from_frequency: l.from_frequency,
+      to_callsign: l.to_callsign,
+      to_frequency: l.to_frequency,
+      link_type: l.link_type,
+      network: l.network,
+      description: l.description,
+      created_date: l.created_date,
+    })));
+    const existingBackup = await base44.entities.AppSetting.filter({ key: 'repeater_link_backup' });
+    if (existingBackup && existingBackup.length > 0) {
+      await base44.entities.AppSetting.update(existingBackup[0].id, { value: backupValue });
+    } else {
+      await base44.entities.AppSetting.create({ key: 'repeater_link_backup', value: backupValue });
+    }
+  } catch (e: any) {
+    console.log('[RepeaterLink] Backup failed:', e.message);
+  }
+
+  // Find duplicates and self-connections
+  const seenKeys = new Set<string>();
+  const toDelete: string[] = [];
+  let duplicatesDeleted = 0;
+  let selfConnectionsDeleted = 0;
+
+  for (const link of allLinks) {
+    // Self-connection: from === to (same callsign AND same frequency)
+    if (link.from_callsign === link.to_callsign &&
+        link.from_frequency === link.to_frequency) {
+      toDelete.push(link.id);
+      selfConnectionsDeleted++;
+      continue;
+    }
+
+    // Duplicate: same from→to pair (sorted key for bidirectional)
+    const key = [link.from_callsign + (link.from_frequency || ''),
+                 link.to_callsign + (link.to_frequency || '')].sort().join('→');
+    if (seenKeys.has(key)) {
+      toDelete.push(link.id);
+      duplicatesDeleted++;
+      continue;
+    }
+    seenKeys.add(key);
+  }
+
+  // Delete individually (SDK may not support $in operator in deleteMany)
+  for (const id of toDelete) {
+    try {
+      await sr.entities.RepeaterLink.delete(id);
+    } catch (e: any) {
+      console.log('[RepeaterLink] Delete failed for', id, ':', e.message);
+    }
+  }
+
+  console.log(`[RepeaterLink] Cleanup: ${allLinks.length} total, ${duplicatesDeleted} duplicates, ${selfConnectionsDeleted} self-connections deleted, ${allLinks.length - toDelete.length} remaining`);
+  return {
+    backedUp: allLinks.length,
+    duplicatesDeleted,
+    selfConnectionsDeleted,
+    remaining: allLinks.length - toDelete.length,
+  };
+}
+
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -171,6 +249,9 @@ export default async function(req: Request): Promise<Response> {
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       if (user.role !== 'admin') return Response.json({ error: 'Admin only' }, { status: 403 });
     }
+
+    // v0.957: Cleanup RepeaterLink table (backup + remove duplicates + self-connections)
+    const cleanupResult = await cleanupRepeaterLinks(base44);
 
     // v0.955: JSON-API als Primärquelle (stabil, strukturiert, keine HTML-Parsing-Anfälligkeit)
     let uskaRepeaters: USKARepeater[] = [];
@@ -214,6 +295,16 @@ export default async function(req: Request): Promise<Response> {
 
     if (uskaRepeaters.length === 0) {
       return Response.json({ error: 'No repeaters found in USKA data' }, { status: 502 });
+    }
+
+    // v0.957: Build QTH → USKA repeater map for reliable link target matching.
+    // USKA remarks contain location names (e.g. "HochYbrig", "Tamaro", "Chestenberg"),
+    // not callsigns. Map normalized QTH names to USKA repeater entries for lookup.
+    const normalizeQth = (qth: string) => (qth || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const qthToUska = new Map<string, USKARepeater>();
+    for (const u of uskaRepeaters) {
+      const norm = normalizeQth(u.qth);
+      if (norm && norm.length >= 3) qthToUska.set(norm, u);
     }
 
     // Get all existing repeaters — filter for CH/LI since USKA only lists Swiss repeaters.
@@ -279,15 +370,29 @@ export default async function(req: Request): Promise<Response> {
         const linkTargets = extractLinkTargets(uska.notes);
         for (const target of linkTargets) {
           const targetUpper = target.toUpperCase();
+          // 1. Try callsign match (for targets that are callsigns)
           let targetReps = swissRepeaters.filter(r =>
             r.callsign === targetUpper &&
             !(r.callsign === rep.callsign && Math.abs(r.frequency - rep.frequency) < 0.001)
           );
-          // If no callsign match, try location name (e.g. <>Tamaro, <>Bachtel)
+          // 2. Try QTH map (for targets that are location names like "HochYbrig", "Tamaro")
           if (targetReps.length === 0) {
+            const targetNorm = normalizeQth(target);
+            const targetUska = qthToUska.get(targetNorm);
+            if (targetUska) {
+              targetReps = swissRepeaters.filter(r =>
+                r.callsign === targetUska.call &&
+                Math.abs(r.frequency - targetUska.tx) < 0.001 &&
+                r.callsign !== rep.callsign
+              );
+            }
+          }
+          // 3. Fallback: location_name match (case-insensitive)
+          if (targetReps.length === 0) {
+            const targetLower = target.toLowerCase();
             targetReps = swissRepeaters.filter(r =>
               r.location_name &&
-              r.location_name.toLowerCase().includes(target) &&
+              r.location_name.toLowerCase().includes(targetLower) &&
               r.callsign !== rep.callsign
             );
           }
@@ -353,6 +458,7 @@ export default async function(req: Request): Promise<Response> {
       unmatchedCount: unmatched.length,
       unmatchedSample: unmatched.slice(0, 15),
       dataSource,
+      cleanup: cleanupResult,
     });
   } catch (error: any) {
     return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
