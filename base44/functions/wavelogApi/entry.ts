@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall } from '../../shared/internalAuth.ts';
 import { dedupKey } from '../../shared/logDedup.ts';
 import { isSyncPaused } from '../../shared/syncPause.ts';
-import { normalizeTime } from '../../shared/normalizeTime.ts';
+import { normalizeTime, resolveTime } from '../../shared/normalizeTime.ts';
 import { loadExistingLogMap, upsertLogs } from '../../shared/logUpsert.ts';
 
 // Wavelog API Proxy — v0.9022
@@ -250,7 +250,7 @@ export default async function(req: Request): Promise<Response> {
               band: f.BAND || undefined,
               mode: f.MODE || undefined,
               qso_date: formatDate(f.QSO_DATE || ''),
-              time_start: formatTime(f.TIME_ON || ''),
+              time_start: resolveTime(f.TIME_ON, f.TIME_OFF) || '',
               time_end: formatTime(f.TIME_OFF || '') || undefined,
               rst_sent: f.RST_SENT || undefined,
               rst_received: f.RST_RCVD || undefined,
@@ -419,7 +419,7 @@ export default async function(req: Request): Promise<Response> {
                 band: f.BAND || undefined,
                 mode: f.MODE || undefined,
                 qso_date: fmtDate(f.QSO_DATE || ''),
-                time_start: fmtTime(f.TIME_ON || ''),
+                time_start: resolveTime(f.TIME_ON, f.TIME_OFF) || '',
                 time_end: fmtTime(f.TIME_OFF || '') || undefined,
                 rst_sent: f.RST_SENT || undefined,
                 rst_received: f.RST_RCVD || undefined,
@@ -599,8 +599,8 @@ export default async function(req: Request): Promise<Response> {
                 const freq = parseFloat(fields.FREQ || '0');
                 const d = fields.QSO_DATE || '';
                 const qsoDate = d.length === 8 ? `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}` : '';
-                // v0.952 FIX: normalizeTime handles HHMM (4-digit) correctly — padStart(6,'0') produced 00:HH:MM
-                const timeStart = normalizeTime(fields.TIME_ON || '') || '';
+                // v0.958 FIX: Fallback to TIME_OFF if TIME_ON is 00:00:00 (missing col_time_on in Wavelog)
+                const timeStart = resolveTime(fields.TIME_ON, fields.TIME_OFF) || '';
                 const isClub = !!(fields.STATION_CALLSIGN && fields.OPERATOR && fields.OPERATOR !== fields.STATION_CALLSIGN);
 
                 qsos.push({

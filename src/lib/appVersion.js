@@ -13,11 +13,19 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609251128";
+export const APP_BUILD = "202609261050";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.958: LOG-ANZEIGE-BUG — localLogStore syncFromServer: Dedup-by-ID hinzugefügt — Paginierung (list+skip) lieferte gleiche Records auf mehreren Seiten → React duplicate-key Warnungen",
+  "v0.958: LOG-ANZEIGE-BUG — RLS read auf true gesetzt — Service-Importe (Wavelog/QRZ) waren unsichtbar da created_by_id=Service-Rolle, nicht User — jetzt alle 2300+ Einträge sichtbar",
+  "v0.958: LOG-ANZEIGE-BUG — RLS update/delete: Admin-Override hinzugefügt — Admin kann Service-importierte Einträge bearbeiten/archivieren/löschen",
+  "v0.958: WAVELOG-ZEIT-FALLBACK — resolveTime() Shared-Utility: TIME_ON=00:00:00 (fehlendes col_time_on in Wavelog) → Fallback auf TIME_OFF statt 00:00 zu speichern",
+  "v0.958: WAVELOG-ZEIT-FALLBACK — wavelogApi import/full_import/permanent_sync: Alle 3 ADIF-Parsing-Pfade verwenden resolveTime() — 22 Einträge mit 00:00:00 betroffen",
+  "v0.958: LOG-DEDUP-FIX — cleanupLogDuplicates: Wechsel von dedupKey (mit Frequenz) zu upsertKey (mit operator_callsign+log_type) — gleicher Schlüssel wie Import-Logik",
+  "v0.958: LOG-DEDUP-FIX — cleanupLogDuplicates: Dry-Run-Modus (dry_run=true) — zählt Duplikate ohne Löschung, zeigt Beispiele im Response",
+  "v0.958: LOG-DEDUP-FIX — cleanupLogDuplicates: duplicate_examples in Response (erste 10 Duplikat-Gruppen mit callsign/date/time/kept_id/delete_ids)",
   "v0.957: CH-RELAIS-LINKS — USKA-Link-Refresh: Alte USKA-Links (description='USKA HB Repeater Voice List') vor Neuerstellung gelöscht — frische Links aus aktueller USKA-API",
   "v0.957: CH-RELAIS-LINKS — Link-Erzeugung: Selbst-Verbindungen (from===to case-insensitive) übersprungen, Dedup nach Callsign-Paar (case-insensitive, keine Frequenz)",
   "v0.957: CH-RELAIS-LINKS — Diagnostics: linkDiagnostics in Response (remarksWithLinkInfo, totalTargetsExtracted, targetsMatchedToDb, Beispiel-Remarks)",

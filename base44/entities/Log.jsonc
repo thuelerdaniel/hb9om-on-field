@@ -25,11 +25,11 @@
     },
     "time_start": {
       "type": "string",
-      "description": "Startzeit UTC (HH:MM)"
+      "description": "Startzeit UTC (HH:MM:SS)"
     },
     "time_end": {
       "type": "string",
-      "description": "Endzeit UTC (HH:MM)"
+      "description": "Endzeit UTC (HH:MM:SS)"
     },
     "frequency": {
       "type": "number",
@@ -249,21 +249,30 @@
     "create": {
       "created_by_id": "{{user.id}}"
     },
-    "read": {
+    "read": true,
+    "update": {
       "$or": [
         {
           "created_by_id": "{{user.id}}"
         },
         {
-          "data.is_clubstation": true
+          "user_condition": {
+            "role": "admin"
+          }
         }
       ]
     },
-    "update": {
-      "created_by_id": "{{user.id}}"
-    },
     "delete": {
-      "created_by_id": "{{user.id}}"
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }

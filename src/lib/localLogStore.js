@@ -67,7 +67,13 @@ export async function syncFromServer() {
       skip += batch.length;
       if (batch.length < PAGE_SIZE) break;
     }
-    const serverData = allServerData;
+    // v0.958: Deduplicate by ID — pagination (list with skip) may return the same
+    // record on multiple pages, causing React duplicate-key warnings.
+    const serverIdMap = new Map();
+    for (const e of allServerData) {
+      if (!serverIdMap.has(e.id)) serverIdMap.set(e.id, e);
+    }
+    const serverData = Array.from(serverIdMap.values());
     if (serverData) {
       const serverIds = new Set(serverData.map(e => e.id));
       // Keep pending entries not yet on server, plus pending updates/deletes, plus optimistic in-flight

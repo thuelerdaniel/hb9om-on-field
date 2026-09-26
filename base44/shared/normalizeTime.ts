@@ -33,3 +33,20 @@ export function normalizeTime(t: string | null | undefined): string | null {
 
   return null;
 }
+
+/**
+ * Resolve QSO start time with fallback to TIME_OFF.
+ * If TIME_ON is missing or "00:00:00" (missing col_time_on in Wavelog),
+ * fall back to TIME_OFF. Returns the first non-zero normalized time,
+ * or the last available time (even 00:00:00) if both are zero.
+ */
+export function resolveTime(
+  timeOn: string | null | undefined,
+  timeOff: string | null | undefined,
+): string | null {
+  const on = normalizeTime(timeOn);
+  if (on && on !== '00:00:00') return on;
+  const off = normalizeTime(timeOff);
+  if (off && off !== '00:00:00') return off;
+  return on || off;
+}
