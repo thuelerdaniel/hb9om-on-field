@@ -46,13 +46,16 @@ function statusBadge(status: string): string {
 }
 
 // Format delta with color
-function formatDelta(current: number, previous: number | undefined): string {
-  if (previous == null) return '<span style="color:#3b82f6;font-size:11px;">Neu</span>';
-  const delta = current - previous;
-  if (delta > 0) return `<span style="color:#16a34a;font-size:11px;">+${delta}</span>`;
-  if (delta < 0) return `<span style="color:#dc2626;font-size:11px;">${delta}</span>`;
-  return `<span style="color:#9ca3af;font-size:11px;">±0</span>`;
-}
+  // v0.959: If source failed, show "0 geladen (fehlgeschlagen)" instead of misleading negative delta.
+  // Delta only for sources that actually ran successfully and changed their count.
+  function formatDelta(current: number, previous: number | undefined, sourceFailed?: boolean, ranToday?: boolean): string {
+    if (sourceFailed || !ranToday) return '<span style="color:#9ca3af;font-size:11px;">—</span>';
+    if (previous == null) return '<span style="color:#3b82f6;font-size:11px;">Neu</span>';
+    const delta = current - previous;
+    if (delta > 0) return `<span style="color:#16a34a;font-size:11px;">+${delta}</span>`;
+    if (delta < 0) return `<span style="color:#dc2626;font-size:11px;">${delta}</span>`;
+    return `<span style="color:#9ca3af;font-size:11px;">±0</span>`;
+  }
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -201,7 +204,8 @@ export default async function(req: Request): Promise<Response> {
       const duration = s.last_duration_ms ? `${(s.last_duration_ms / 1000).toFixed(1)}s` : '—';
       const count = s.last_count != null ? s.last_count : '—';
       const error = s.last_error ? `<div style="font-size:11px;color:#dc2626;margin-top:2px;">${s.last_error}</div>` : '';
-      const deltaCell = mode === 'weekly' ? `<td style="padding:6px 8px;font-size:13px;text-align:right;">${formatDelta(count !== '—' ? count : 0, lastWeekCounts[s.source])}</td>` : '';
+      const sourceFailed = rawStatus === 'failed' || rawStatus === 'timeout';
+      const deltaCell = mode === 'weekly' ? `<td style="padding:6px 8px;font-size:13px;text-align:right;">${formatDelta(count !== '—' ? count : 0, lastWeekCounts[s.source], sourceFailed, ran)}</td>` : '';
       return `
         <tr style="border-bottom:1px solid #eee;">
           <td style="padding:6px 8px;font-size:13px;font-weight:600;color:#333;">${s.label || s.source}${error}${warningNote}</td>

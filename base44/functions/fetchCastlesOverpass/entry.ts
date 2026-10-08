@@ -41,16 +41,17 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass.openstreetmap.fr/api/interpreter',
 ];
 
+// v0.959: BBox-Splitting — teilt jedes Land in 4 Quadranten, um 524-Timeouts zu vermeiden.
+// Kleinere BBox = schnellere Overpass-Abfrage = unter 100s Cloudflare-Limit.
 // v0.955: Resilience-Paket — per-request timeout 85s (unter 100s Cloudflare-524-Limit).
 // Mirror-Rotation: 429/521 = sofort nächster Mirror; 524/504/Netzwerk = 10s Backoff, 1 Retry, dann nächster Mirror.
-// Nach allen Mirrors: 30s Backoff, dann komplette Rotation noch einmal (max 2 Runden).
-async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
+async function fetchOverpassBBox(south: number, west: number, north: number, east: number, label: string): Promise<any[]> {
   const query = `[out:json][timeout:85];
   (
-    node["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
-    node["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
-    way["historic"="castle"](${country.south},${country.west},${country.north},${country.east});
-    way["historic"="fortress"](${country.south},${country.west},${country.north},${country.east});
+    node["historic"="castle"](${south},${west},${north},${east});
+    node["historic"="fortress"](${south},${west},${north},${east});
+    way["historic"="castle"](${south},${west},${north},${east});
+    way["historic"="fortress"](${south},${west},${north},${east});
   );
   out center 2000;`;
 
@@ -58,7 +59,7 @@ async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
     for (const endpoint of OVERPASS_ENDPOINTS) {
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          console.log(`[fetchCastlesOverpass] ${country.name} R${round + 1} A${attempt}/2 — ${endpoint.substring(8, 40)}`);
+          console.log(`[fetchCastlesOverpass] ${label} R${round + 1} A${attempt}/2 — ${endpoint.substring(8, 40)}`);
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), 85000);
           const resp = await fetch(endpoint, {
@@ -69,23 +70,21 @@ async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
           });
           clearTimeout(timer);
           if (!resp.ok) {
-            // 429/521/502 = rate limited/down — sofort nächster Mirror (kein Retry)
             if (resp.status === 429 || resp.status === 502 || resp.status === 521) break;
-            // 504/524 = Proxy-Timeout — 1 Retry mit 10s Backoff, dann nächster Mirror
             if (resp.status === 504 || resp.status === 524) {
               if (attempt < 2) await new Promise(r => setTimeout(r, 10000));
               continue;
             }
-            break; // Andere 4xx — nächster Mirror
+            break;
           }
           const text = await resp.text();
           const data = JSON.parse(text);
           if (data && data.elements) {
-            console.log(`[fetchCastlesOverpass] ${country.name}: ${data.elements.length} elements`);
+            console.log(`[fetchCastlesOverpass] ${label}: ${data.elements.length} elements`);
             return data.elements;
           }
         } catch (e) {
-          console.log(`[fetchCastlesOverpass] ${country.name} error: ${e.message}`);
+          console.log(`[fetchCastlesOverpass] ${label} error: ${e.message}`);
           if (attempt < 2) await new Promise(r => setTimeout(r, 10000));
         }
       }
@@ -93,6 +92,26 @@ async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
     if (round < 1) await new Promise(r => setTimeout(r, 30000));
   }
   return [];
+}
+
+// v0.959: Fetch a country by splitting its BBox into 4 quadrants — smaller queries avoid 524.
+async function fetchOverpassCountry(country: CountryConfig): Promise<any[]> {
+  const midLat = (country.south + country.north) / 2;
+  const midLng = (country.west + country.east) / 2;
+  const quadrants = [
+    { s: country.south, w: country.west, n: midLat, e: midLng, label: `${country.name} SW` },
+    { s: country.south, w: midLng, n: midLat, e: country.east, label: `${country.name} SE` },
+    { s: midLat, w: country.west, n: country.north, e: midLng, label: `${country.name} NW` },
+    { s: midLat, w: midLng, n: country.north, e: country.east, label: `${country.name} NE` },
+  ];
+
+  const allElements: any[] = [];
+  for (const q of quadrants) {
+    const elements = await fetchOverpassBBox(q.s, q.w, q.n, q.e, q.label);
+    allElements.push(...elements);
+    await new Promise(r => setTimeout(r, 1000)); // Brief pause between quadrants
+  }
+  return allElements;
 }
 
 Deno.serve(async (req) => {
@@ -113,15 +132,31 @@ Deno.serve(async (req) => {
       countries = countries.slice(batchOffset, batchOffset + batchLimit);
     }
 
-    // 1. Load existing Overpass castle data (separate from WCA 'castle' type)
-    // Use type='castle_overpass' to avoid loading the large WCA document
+    // v0.959: Monthly cadence — castles change rarely, only reload if >30 days old.
+    // If existing data is fresh, skip the fetch and return the cached count.
     const existing = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'castle_overpass' });
     let existingCastles: any[] = [];
     let primaryId: string | null = null;
+    let lastUpdated: Date | null = null;
     if (existing.length > 0) {
       existing.sort((a, b) => (b.total_count || 0) - (a.total_count || 0));
       primaryId = existing[0].id;
       existingCastles = existing[0].references || [];
+      lastUpdated = existing[0].last_updated ? new Date(existing[0].last_updated) : null;
+    }
+
+    // Skip if data is < 30 days old (unless force refresh)
+    if (lastUpdated && !body.force_refresh) {
+      const ageDays = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
+      if (ageDays < 30) {
+        return Response.json({
+          saved: false,
+          skipped: true,
+          reason: `Daten erst ${Math.round(ageDays)} Tage alt — monatlicher Rhythmus, nächster Refresh in ${30 - Math.round(ageDays)} Tagen`,
+          total_overpass: existingCastles.length,
+          last_updated: lastUpdated.toISOString(),
+        });
+      }
     }
 
     // Build set of existing codes to avoid duplicates

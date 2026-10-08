@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { todayUTC, isToday, extractCount, extractStatus } from '../../shared/syncHelpers.ts';
 import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
+import { getDueNachlaufe, clearNachlauf, checkThreshold, getErrorAction, scheduleNachlauf, shouldPreserveData } from '../../shared/syncRobustness.ts';
 
 // This function runs every 5 minutes via automation.
 // It checks the DailyRefreshSchedule entity for sources whose next_run_utc
@@ -8,11 +9,175 @@ import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts'
 // per run (to avoid blocking other sources) and records the result.
 //
 // v0.951-FIX: Only fires on Monday (full batch) and Thursday (partial repeater sync).
-// The cron was changed from */5 3-7 * * * (every day) to */5 3-7 * * 1,4 (Mo+Do only).
-// This belt-and-suspenders check prevents firing on non-scheduled days even if
-// next_run_utc was set incorrectly by the orchestrator.
+// v0.959 FIX: Checks weekly_days + weekly_enabled — prevents triggering SOTA/POTA/WWFF
+//   on Thursday and APRS (weekly_enabled=false, runs via daily workflow).
+// v0.959: Processes Nachläufe (retry of failed sources later in the day).
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// ─── Process a single source (shared by regular + Nachlauf paths) ───
+async function processSource(base44: any, src: any, body: any, isNachlauf: boolean = false): Promise<void> {
+  // Mark as running
+  try {
+    await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, { last_status: 'running' });
+  } catch {}
+
+  const taskStart = Date.now();
+  try {
+    const payload = { ...(src.function_payload || {}), scheduled: true, preserve_on_failure: true };
+    const res = await base44.functions.invoke(src.function_name, payload);
+    const data = res?.data || res;
+    const duration = Date.now() - taskStart;
+
+    const status = extractStatus(data);
+    const errorMsg = data?.error || '';
+    const count = extractCount(data);
+
+    // v0.959: Threshold check — warn if below expected minimum
+    const thresholdWarning = checkThreshold(src.source, count);
+    const warningMsg = (status === 'success' && count === 0 && !errorMsg)
+      ? (thresholdWarning || 'Warnung: 0 Einträge geladen — Quelle möglicherweise nicht erreichbar')
+      : (thresholdWarning || '');
+
+    // Build detailed error info for admins
+    let errorDetail = '';
+    if (status === 'failed' || (status === 'success' && count === 0 && thresholdWarning)) {
+      errorDetail = JSON.stringify({
+        source: src.source,
+        function: src.function_name,
+        error: errorMsg || thresholdWarning,
+        response: typeof data === 'object' ? JSON.stringify(data).substring(0, 2000) : String(data).substring(0, 2000),
+        duration_ms: duration,
+        timestamp: new Date().toISOString(),
+        nachlauf: isNachlauf,
+      }, null, 2);
+    }
+
+    await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
+      last_run_time: new Date().toISOString(),
+      last_status: status,
+      last_count: count,
+      last_duration_ms: duration,
+      last_error: (errorMsg || warningMsg).substring(0, 500),
+      last_error_detail: errorDetail,
+    });
+
+    // v0.959: If source failed, schedule a Nachlauf (if not already a Nachlauf)
+    if (status === 'failed' && !isNachlauf) {
+      await scheduleNachlauf(base44, src.source, 120); // Retry in 2 hours
+    }
+    // v0.959: If Nachlauf succeeded, clear the Nachlauf marker
+    if (isNachlauf) {
+      await clearNachlauf(base44, src.source);
+    }
+
+    // v0.959: Error counter — track consecutive failures for escalation
+    let consecutiveFailures = 0;
+    try {
+      const cfKey = 'consecutive_failures_' + src.source;
+      const cfSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: cfKey });
+      if (cfSettings && cfSettings.length > 0) {
+        consecutiveFailures = parseInt(cfSettings[0].value || '0') || 0;
+      }
+    } catch {}
+
+    if (status === 'failed' || (count === 0 && !thresholdWarning === false)) {
+      consecutiveFailures++;
+    } else {
+      consecutiveFailures = 0;
+    }
+
+    try {
+      const cfKey = 'consecutive_failures_' + src.source;
+      const cfSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: cfKey });
+      const cfValue = String(consecutiveFailures);
+      if (cfSettings && cfSettings.length > 0) {
+        await base44.asServiceRole.entities.AppSetting.update(cfSettings[0].id, { value: cfValue });
+      } else {
+        await base44.asServiceRole.entities.AppSetting.create({ key: cfKey, value: cfValue });
+      }
+    } catch {}
+
+    // v0.959: 3rd consecutive error → auto-pause source
+    const action = getErrorAction(consecutiveFailures);
+    if (action === 'pause') {
+      try {
+        await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
+          weekly_enabled: false,
+          last_error: `AUTO-PAUSIERT: 3 aufeinanderfolgende Fehler — Daniel muss Quelle reaktivieren`,
+        });
+      } catch {}
+    }
+
+    // Write SyncLog entry
+    try {
+      await base44.asServiceRole.entities.SyncLog.create({
+        timestamp: new Date().toISOString(),
+        overall_status: status,
+        total_duration_ms: duration,
+        results: [{
+          source: src.source,
+          label: src.label,
+          status,
+          count,
+          duration_ms: duration,
+          error: errorMsg || warningMsg,
+          retried: isNachlauf,
+        }],
+        trigger: isInternalCall(body) ? 'scheduled' : 'manual',
+      });
+    } catch {}
+  } catch (e: any) {
+    const duration = Date.now() - taskStart;
+    const errorMsg = e?.message || String(e);
+
+    let errorDetail = JSON.stringify({
+      source: src.source,
+      function: src.function_name,
+      error: errorMsg,
+      stack: e?.stack || '',
+      duration_ms: duration,
+      timestamp: new Date().toISOString(),
+      nachlauf: isNachlauf,
+    }, null, 2);
+
+    try {
+      await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
+        last_run_time: new Date().toISOString(),
+        last_status: 'failed',
+        last_count: 0,
+        last_duration_ms: duration,
+        last_error: errorMsg.substring(0, 500),
+        last_error_detail: errorDetail,
+      });
+    } catch {}
+
+    // Schedule Nachlauf if not already a Nachlauf
+    if (!isNachlauf) {
+      await scheduleNachlauf(base44, src.source, 120);
+    } else {
+      await clearNachlauf(base44, src.source);
+    }
+
+    try {
+      await base44.asServiceRole.entities.SyncLog.create({
+        timestamp: new Date().toISOString(),
+        overall_status: 'failed',
+        total_duration_ms: duration,
+        results: [{
+          source: src.source,
+          label: src.label,
+          status: 'failed',
+          count: 0,
+          duration_ms: duration,
+          error: errorMsg,
+          retried: isNachlauf,
+        }],
+        trigger: isInternalCall(body) ? 'scheduled' : 'manual',
+      });
+    } catch {}
+  }
+}
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -29,7 +194,6 @@ export default async function(req: Request): Promise<Response> {
     }
 
     // v0.951-FIX: Only run on Monday (full batch) or Thursday (partial repeater sync).
-    // This prevents the 5-minute checker from firing sources on non-scheduled days.
     const dayName = DAY_NAMES[new Date().getUTCDay()];
     if (dayName !== 'Monday' && dayName !== 'Thursday') {
       return Response.json({ status: 'idle', message: `Kein Sync-Tag (${dayName}) — nur Mo/Do` });
@@ -37,156 +201,52 @@ export default async function(req: Request): Promise<Response> {
 
     const now = Date.now();
     const allSchedules = await base44.asServiceRole.entities.DailyRefreshSchedule.list("display_order", 100);
-    
-    // Find sources that are due: enabled, next_run_utc <= now, and not yet run today.
-    // Each source runs AT MOST ONCE per day — no re-runs for failed sources.
-    // This prevents a slow/failing source (e.g. SOTA ~270s) from blocking the queue
-    // by re-running every 5 minutes. Retries are handled inside each fetch function
-    // via exponential backoff, not at the scheduler level.
+
+    // v0.959 FIX: Check weekly_days + weekly_enabled — prevents triggering SOTA/POTA/WWFF
+    // on Thursday (should only run Monday) and APRS (weekly_enabled=false, runs via daily workflow).
     const dueSources = (allSchedules || []).filter(s => {
       if (!s.enabled) return false;
+      if (s.weekly_enabled === false) return false;
+      if (Array.isArray(s.weekly_days) && s.weekly_days.length > 0 && !s.weekly_days.includes(dayName)) return false;
       const nextRun = s.next_run_utc ? new Date(s.next_run_utc).getTime() : 0;
       if (nextRun === 0 || nextRun > now) return false;
-      // Don't re-run if already ran today (regardless of success/failure)
       if (s.last_run_time && isToday(s.last_run_time)) return false;
       if (s.last_status === 'running') return false;
       return true;
     });
 
+    // v0.959: Check for due Nachläufe (retry of failed sources later in the day)
     if (dueSources.length === 0) {
+      const dueNachlaufe = await getDueNachlaufe(base44);
+      if (dueNachlaufe.length > 0) {
+        for (const nachlaufSource of dueNachlaufe) {
+          const nachlaufSchedule = (allSchedules || []).find(s => s.source === nachlaufSource);
+          if (nachlaufSchedule) {
+            await processSource(base44, nachlaufSchedule, body, true);
+            return Response.json({
+              status: 'nachlauf',
+              checked_at: new Date().toISOString(),
+              source: nachlaufSource,
+              message: `Nachlauf für ${nachlaufSchedule.label || nachlaufSource}`,
+            });
+          }
+        }
+      }
       return Response.json({ status: 'idle', message: 'Keine Quellen fällig', checked_at: new Date().toISOString() });
     }
 
-    // Process only ONE due source per run to avoid blocking other sources.
-    // The checker runs every 5 minutes, so the next due source will be picked up
-    // on the next run. This prevents a slow source (e.g. SOTA ~276s) from blocking
-    // all other sources in the same invocation.
+    // Process only ONE due source per run
     const src = dueSources[0];
-    const results = [];
+    await processSource(base44, src, body, false);
 
-    // Mark as running
-    try {
-      await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, { last_status: 'running' });
-    } catch {}
-
-    const taskStart = Date.now();
-    try {
-      const payload = { ...(src.function_payload || {}), scheduled: true };
-      const res = await base44.functions.invoke(src.function_name, payload);
-      const data = res?.data || res;
-      const duration = Date.now() - taskStart;
-
-      const status = extractStatus(data);
-      const errorMsg = data?.error || '';
-      const count = extractCount(data);
-
-      // A source that returns 0 entries is technically successful but suspicious.
-      // Mark it as 'success' but add a warning to the error field.
-      const warningMsg = (status === 'success' && count === 0)
-        ? 'Warnung: 0 Einträge geladen — Quelle möglicherweise nicht erreichbar'
-        : '';
-
-      // Build detailed error info for admins
-      let errorDetail = '';
-      if (status === 'failed') {
-        errorDetail = JSON.stringify({
-          source: src.source,
-          function: src.function_name,
-          http_status: data?.status_code || data?.http_status || 'n/a',
-          error: errorMsg,
-          response_body: typeof data === 'object' ? JSON.stringify(data).substring(0, 2000) : String(data).substring(0, 2000),
-          duration_ms: duration,
-          timestamp: new Date().toISOString(),
-        }, null, 2);
-      }
-
-      await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
-        last_run_time: new Date().toISOString(),
-        last_status: status,
-        last_count: count,
-        last_duration_ms: duration,
-        last_error: (errorMsg || warningMsg).substring(0, 500),
-        last_error_detail: errorDetail,
-      });
-
-      results.push({ source: src.source, status, count, duration_ms: duration, error: errorMsg || warningMsg });
-
-      // Write SyncLog entry for scheduled/manual runs
-      try {
-        await base44.asServiceRole.entities.SyncLog.create({
-          timestamp: new Date().toISOString(),
-          overall_status: status,
-          total_duration_ms: duration,
-          results: [{
-            source: src.source,
-            label: src.label,
-            status,
-            count,
-            duration_ms: duration,
-            error: errorMsg || warningMsg,
-            retried: false,
-          }],
-          trigger: isInternalCall(body) ? 'scheduled' : 'manual',
-        });
-      } catch {}
-    } catch (e: any) {
-      const duration = Date.now() - taskStart;
-      const errorMsg = e?.message || String(e);
-
-      // Build detailed error info including HTTP status if available
-      let errorDetail = JSON.stringify({
-        source: src.source,
-        function: src.function_name,
-        error: errorMsg,
-        stack: e?.stack || '',
-        http_status: e?.status || e?.statusCode || 'n/a',
-        response_text: e?.responseText || e?.body || '',
-        duration_ms: duration,
-        timestamp: new Date().toISOString(),
-      }, null, 2);
-
-      try {
-        await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
-          last_run_time: new Date().toISOString(),
-          last_status: 'failed',
-          last_count: 0,
-          last_duration_ms: duration,
-          last_error: errorMsg.substring(0, 500),
-          last_error_detail: errorDetail,
-        });
-      } catch {}
-
-      results.push({ source: src.source, status: 'failed', count: 0, duration_ms: duration, error: errorMsg });
-
-      // Write SyncLog entry for scheduled/manual runs
-      try {
-        await base44.asServiceRole.entities.SyncLog.create({
-          timestamp: new Date().toISOString(),
-          overall_status: 'failed',
-          total_duration_ms: duration,
-          results: [{
-            source: src.source,
-            label: src.label,
-            status: 'failed',
-            count: 0,
-            duration_ms: duration,
-            error: errorMsg,
-            retried: false,
-          }],
-          trigger: isInternalCall(body) ? 'scheduled' : 'manual',
-        });
-      } catch {}
-    }
-
-    // After processing a source, check if ALL enabled sources have completed today.
-    // If yes, trigger the daily admin report (so it sends immediately after the last
-    // source completes, not at a fixed time). The report function has its own "waiting"
-    // guard to prevent duplicate sends.
+    // After processing, check if ALL enabled sources have completed today.
+    // If yes, trigger the daily admin report.
     let reportTriggered = false;
     try {
       const allAfter = await base44.asServiceRole.entities.DailyRefreshSchedule.list("display_order", 100);
       const stillIncomplete = (allAfter || []).filter(s => {
-        if (!s.enabled) return false;
+        if (!s.enabled || s.weekly_enabled === false) return false;
+        if (Array.isArray(s.weekly_days) && s.weekly_days.length > 0 && !s.weekly_days.includes(dayName)) return false;
         if (s.last_status === 'pending' || s.last_status === 'running') return true;
         if (!s.last_run_time || !isToday(s.last_run_time)) return true;
         return false;
@@ -200,8 +260,8 @@ export default async function(req: Request): Promise<Response> {
     return Response.json({
       status: 'processed',
       checked_at: new Date().toISOString(),
-      triggered: results.length,
-      results,
+      triggered: 1,
+      source: src.source,
       remaining_due: dueSources.length - 1,
       report_triggered: reportTriggered,
     });

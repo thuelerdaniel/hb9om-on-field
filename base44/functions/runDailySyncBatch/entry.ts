@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { todayUTC, isToday, extractCount, extractStatus, shuffle, isSourceReachable } from '../../shared/syncHelpers.ts';
 import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
+import { scheduleNachlauf, checkThreshold, getErrorAction, shouldPreserveData } from '../../shared/syncRobustness.ts';
 
 // ─── Weekly Sync Batch Scheduler ───
 // Replaces the old daily scheduler. Runs on Mondays (full sync, 01:00-05:00 UTC)
@@ -119,7 +120,7 @@ async function markReportSent(base44: any): Promise<void> {
 // Run a source with timeout
 async function runSourceWithTimeout(base44: any, src: any, timeout: number, incrementalOverride?: boolean): Promise<{ ok: boolean; data: any; timedOut: boolean }> {
   const incremental = incrementalOverride !== undefined ? incrementalOverride : !!src.incremental_enabled;
-  const payload = { ...(src.function_payload || {}), scheduled: true, incremental };
+  const payload = { ...(src.function_payload || {}), scheduled: true, incremental, preserve_on_failure: true };
   try {
     const data = await Promise.race([
       base44.functions.invoke(src.function_name, payload).then((res: any) => res?.data || res),
@@ -308,15 +309,27 @@ export default async function (req: Request): Promise<Response> {
     // ─── First attempt ───
     let result = await runSourceWithTimeout(base44, nextSource, timeout, cfg.incremental);
     let retried = false;
+    let retryCount = 0;
 
-    // ─── Retry on failure (1x after 30s) — but NOT for partial chunks (SOTA, US-Repeater) ───
+    // ─── v0.959: Retry with backoff (2-3 attempts: initial + 60s + 600s) ───
+    // But NOT for partial chunks (SOTA, US-Repeater) — they resume on next tick.
     const isPartialChunk = result.ok && result.data?.has_more &&
       (nextSource.source === 'sota' || nextSource.source === 'repeater_na_us' || nextSource.source === 'repeater_na_ca');
     const firstFailed = !isPartialChunk && (result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed'));
     if (firstFailed) {
-      await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+      // 1st retry after 60s
+      await new Promise(r => setTimeout(r, 60000));
       result = await runSourceWithTimeout(base44, nextSource, timeout, cfg.incremental);
       retried = true;
+      retryCount = 1;
+
+      // 2nd retry after 10 min (only if time window allows)
+      const stillFailed = result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed');
+      if (stillFailed && !isPastDeadline(effectiveDay)) {
+        await new Promise(r => setTimeout(r, 600000));
+        result = await runSourceWithTimeout(base44, nextSource, timeout, cfg.incremental);
+        retryCount = 2;
+      }
     }
 
     const duration = Date.now() - taskStart;
@@ -434,6 +447,12 @@ export default async function (req: Request): Promise<Response> {
       });
     }
 
+    // v0.959: If all retries failed, schedule a Nachlauf for later in the day
+    const finalFailed = !isPartialChunk && (result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed'));
+    if (finalFailed && retryCount >= 1) {
+      await scheduleNachlauf(base44, nextSource.source, 120); // Retry in 2 hours
+    }
+
     // ─── Normal completion ───
     // v0.955: HTTP 200 + gültiges leeres Ergebnis = "success (0)", KEINE Warnung.
     // LLOTA-Spots können legitim 0 sein. Nur nach 3 aufeinanderfolgenden 0/Fehler-Läufen → "degraded".
@@ -489,14 +508,22 @@ export default async function (req: Request): Promise<Response> {
       errorMsg = '';
     }
 
+    // v0.959: Threshold check — warn if below expected minimum
+    const thresholdWarning = checkThreshold(nextSource.source, count);
+    if (thresholdWarning && status === 'success' && !errorMsg) {
+      errorMsg = thresholdWarning;
+    }
+
     let errorDetail = '';
-    if (status !== 'success') {
+    if (status !== 'success' || thresholdWarning) {
       errorDetail = JSON.stringify({
         source: nextSource.source,
         function: nextSource.function_name,
         timedOut: result.timedOut,
         retried,
+        retryCount,
         error: errorMsg,
+        thresholdWarning,
         response: result.data ? JSON.stringify(result.data).substring(0, 2000) : 'null',
         duration_ms: duration,
         timestamp: new Date().toISOString(),
@@ -529,6 +556,7 @@ export default async function (req: Request): Promise<Response> {
           duration_ms: duration,
           error: errorMsg,
           retried,
+          retryCount,
         }],
         trigger: body.scheduled ? 'scheduled' : 'manual',
       });

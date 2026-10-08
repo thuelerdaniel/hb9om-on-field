@@ -155,12 +155,15 @@ export default async function(req: Request): Promise<Response> {
         'fm_funknetz', 'ch_repeater_links'
       ]);
       const isThursdaySource = THURSDAY_SOURCES.has(src.source);
+      // v0.959: Repeater Oceania disabled — RepeaterBook has 0 coverage for AU/NZ/PG/FJ.
+      // 0 entries every run, source is effectively dead. Disabled like WWBOTA.
+      const isDisabledSource = src.source === 'repeater_world_oceania';
       const recordData = {
         source: src.source,
         label: src.label,
-        enabled: true,
-        weekly_enabled: isDailySource ? false : true,
-        weekly_days: isDailySource ? [] : (isThursdaySource ? ['Monday', 'Thursday'] : ['Monday']),
+        enabled: !isDisabledSource,
+        weekly_enabled: isDailySource || isDisabledSource ? false : true,
+        weekly_days: isDailySource || isDisabledSource ? [] : (isThursdaySource ? ['Monday', 'Thursday'] : ['Monday']),
         function_name: src.function_name,
         function_payload: src.function_payload,
         scheduled_time_utc: scheduledTime,

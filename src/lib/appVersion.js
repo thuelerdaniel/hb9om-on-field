@@ -13,11 +13,23 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202609261050";
+export const APP_BUILD = "202610080900";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.959: SYNC-ROBUSTHEIT — dailyRefreshChecker: weekly_days + weekly_enabled Prüfung — verhindert SOTA/POTA/WWFF-Trigger am Donnerstag und APRS im Wochen-Batch (war Bug: Checker prüfte nur enabled, nicht weekly_days)",
+  "v0.959: SYNC-ROBUSTHEIT — runDailySyncBatch: 3 Versuche (initial + 60s + 10min Backoff) statt 1 Retry nach 30s — bei endgültigem Fehlschlag automatischer Nachlauf-Job (2h später)",
+  "v0.959: SYNC-ROBUSTHEIT — runDailySyncBatch: preserve_on_failure Flag im Payload — Source-Funktionen erhalten Signal Bestand bei Fehlschlag nicht zu löschen",
+  "v0.959: SYNC-ROBUSTHEIT — syncRobustness.ts Shared-Modul: SOURCE_THRESHOLDS (Erwartungswerte pro Quelle), checkThreshold, getErrorAction (1=retry, 2=notify, 3=pause), scheduleNachlauf/getDueNachlaufe",
+  "v0.959: SYNC-ROBUSTHEIT — dailyRefreshChecker: Nachlauf-Verarbeitung — fehlgeschlagene Quellen werden 2h später automatisch erneut versucht (max 1 Nachlauf/Tag/Quelle)",
+  "v0.959: SYNC-ROBUSTHEIT — dailyRefreshChecker: 3-Stufen Fehler-Eskalation — 1. Fehler=stiller Nachlauf, 2. aufeinanderfolgend=Report-Markierung, 3. aufeinanderfolgend=Quelle auto-pausiert (Daniel reaktiviert)",
+  "v0.959: DELTA-ANZEIGE — sendDailyAdminReport: formatDelta prüft sourceFailed+ranToday — fehlgeschlagene Quellen zeigen '—' statt irreführendem '-5000' Delta",
+  "v0.959: BURGEN-OVERPASS — fetchCastlesOverpass: BBox-Splitting (4 Quadranten pro Land) — kleinere Overpass-Abfragen vermeiden 524-Timeout",
+  "v0.959: BURGEN-OVERPASS — fetchCastlesOverpass: Monatlicher Rhythmus — Daten <30 Tage alt werden übersprungen (Burgen ändern sich kaum)",
+  "v0.959: REPEATER-ABDECKUNG — calculateRepeaterCoverage: batch_limit 15→10, TIME_BUDGET 250s→90s, PER_REPEATER_TIMEOUT 8s — unter 100s Cloudflare-524-Limit",
+  "v0.959: REPEATER-OZEANIEN — dailyRefreshOrchestrator: repeater_world_oceania deaktiviert (enabled=false, weekly_enabled=false) — RepeaterBook hat 0 Coverage für AU/NZ/PG/FJ, 0 Einträge jeden Lauf",
+  "v0.959: APRS-WOCHENQUELLE — dailyRefreshChecker prüft jetzt weekly_enabled=false für APRS — APRS läuft nur noch über tägliche Automation (Daily APRS Station Sync), nicht im Wochen-Batch",
   "v0.958: LOG-ANZEIGE-BUG — localLogStore syncFromServer: Dedup-by-ID hinzugefügt — Paginierung (list+skip) lieferte gleiche Records auf mehreren Seiten → React duplicate-key Warnungen",
   "v0.958: LOG-ANZEIGE-BUG — RLS read auf true gesetzt — Service-Importe (Wavelog/QRZ) waren unsichtbar da created_by_id=Service-Rolle, nicht User — jetzt alle 2300+ Einträge sichtbar",
   "v0.958: LOG-ANZEIGE-BUG — RLS update/delete: Admin-Override hinzugefügt — Admin kann Service-importierte Einträge bearbeiten/archivieren/löschen",

@@ -167,8 +167,11 @@ export default async function(req: any): Promise<Response> {
     const startTime = Date.now();
     // v0.955: Batch limit 15 pro Lauf — verteilt Rechenlast über mehrere kleine Läufe statt einem 125s-Lauf der abkippt.
     // Resume-Cursor: needs_recalc=false nach Verarbeitung fungiert als impliziter Cursor — nächste Run holt andere Repeaters.
-    const BATCH_LIMIT = body?.batch_limit || 15;
-    const TIME_BUDGET_MS = 250000; // 250 seconds
+    // v0.959: Reduced batch_limit 15→10 — each repeater needs multiple API calls (elevation profile),
+    // 15 repeaters × ~8s each = 120s → too close to 100s Cloudflare limit. 10 × 8s = 80s = safe.
+    const BATCH_LIMIT = body?.batch_limit || 10;
+    const TIME_BUDGET_MS = 90000; // 90 seconds — well under 100s Cloudflare-524 limit
+    const PER_REPEATER_TIMEOUT_MS = 8000; // 8s max per repeater — skip if slower
     const delayMs = body?.delay_ms || 500;
     // Use fewer radials in batch mode for speed (36 instead of 72)
     const batchRadials = body?.radials || 36;
@@ -194,16 +197,23 @@ export default async function(req: any): Promise<Response> {
         if (ageH < 168) { skipped++; continue; }
       }
       try {
+        const repeaterStart = Date.now();
         const f_MHz = r.frequency;
         const mode = r.primary_mode || (r.modes?.[0] || 'FM');
         const params = buildRepeaterParams(f_MHz, mode);
         const bandMaxRange = params.params.max_range_flat_km;
 
-        const result = await calculateCoverage(
-          { lat: r.lat, lng: r.lng, elevation_m: r.elevation_m },
-          params,
-          { radials: batchRadials, max_range_km: bandMaxRange }
-        );
+        // v0.959: Per-repeater timeout — if a single repeater takes >8s, skip it
+        const result = await Promise.race([
+          calculateCoverage(
+            { lat: r.lat, lng: r.lng, elevation_m: r.elevation_m },
+            params,
+            { radials: batchRadials, max_range_km: bandMaxRange }
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('PER_REPEATER_TIMEOUT')), PER_REPEATER_TIMEOUT_MS)
+          ),
+        ]);
 
         await base44.asServiceRole.entities.Repeater.update(r.id, {
           coverage_radius_km: result.avg_range_km,
@@ -221,7 +231,8 @@ export default async function(req: any): Promise<Response> {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       } catch (e: any) {
         errors++;
-        errorDetails.push(`${r.callsign} ${r.frequency}: ${e?.message || 'Fehler'}`);
+        const isTimeout = e?.message === 'PER_REPEATER_TIMEOUT';
+        errorDetails.push(`${r.callsign} ${r.frequency}: ${isTimeout ? 'Timeout (>8s)' : (e?.message || 'Fehler')}`);
       }
     }
 
