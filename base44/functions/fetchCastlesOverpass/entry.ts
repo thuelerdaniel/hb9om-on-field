@@ -48,8 +48,9 @@ const OVERPASS_ENDPOINTS = [
 ];
 
 const CALL_BUDGET_MS = 75000;        // total wall-clock budget per call (< 100s gateway limit)
-const REQUEST_TIMEOUT_MS = 25000;   // per Overpass request
-const MIN_REQUEST_TIME_MS = 3000;   // don't start a new request if < 3s budget remains
+const REQUEST_TIMEOUT_MS = 15000;   // per Overpass request
+const MIN_REQUEST_TIME_MS = 5000;   // don't start a new request if < 5s budget remains
+const PER_QUADRANT_BUDGET_MS = 30000; // cap mirror attempts per quadrant (2 mirrors × 15s)
 const REFRESH_INTERVAL_DAYS = 30;   // monthly — castles change rarely
 const CURSOR_KEY = 'castle_overpass_cycle';
 const MAX_TASK_FAILURES = 3;         // skip a quadrant after this many failed attempts
@@ -67,8 +68,8 @@ function buildTasks(countries: CountryConfig[]): Array<{ label: string; prefix: 
   return tasks;
 }
 
-async function fetchOverpassBBox(south: number, west: number, north: number, east: number): Promise<any[]> {
-  const query = `[out:json][timeout:25];
+async function fetchOverpassBBox(south: number, west: number, north: number, east: number, deadlineMs?: number): Promise<any[]> {
+  const query = `[out:json][timeout:15];
 (
   node["historic"="castle"](${south},${west},${north},${east});
   way["historic"="castle"](${south},${west},${north},${east});
@@ -82,6 +83,7 @@ async function fetchOverpassBBox(south: number, west: number, north: number, eas
 );
 out center 500;`;
   for (const endpoint of OVERPASS_ENDPOINTS) {
+    if (deadlineMs && Date.now() > deadlineMs) break; // stop if quadrant budget exhausted
     try {
       const resp = await fetch(endpoint, {
         method: 'POST',
@@ -130,7 +132,7 @@ async function syncCastles(base44: any, body: any): Promise<any> {
     for (const task of tasks) {
       if (Date.now() > deadline - MIN_REQUEST_TIME_MS) break;
       attempts++;
-      const els = await fetchOverpassBBox(task.south, task.west, task.north, task.east);
+      const els = await fetchOverpassBBox(task.south, task.west, task.north, task.east, Date.now() + PER_QUADRANT_BUDGET_MS);
       if (els == null) { failures++; continue; }
       for (const el of els) {
         const lat = el.lat ?? el.center?.lat;
@@ -187,7 +189,7 @@ async function syncCastles(base44: any, body: any): Promise<any> {
     if ((cycle.task_failures[task.label] || 0) >= MAX_TASK_FAILURES) continue;
 
     attempts++;
-    const els = await fetchOverpassBBox(task.south, task.west, task.north, task.east);
+    const els = await fetchOverpassBBox(task.south, task.west, task.north, task.east, Date.now() + PER_QUADRANT_BUDGET_MS);
     if (els == null) {
       failures++;
       cycle.task_failures[task.label] = (cycle.task_failures[task.label] || 0) + 1;

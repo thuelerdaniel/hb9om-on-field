@@ -13,11 +13,19 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610081130";
+export const APP_BUILD = "202610081218";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.959-HF2: SYNC-MANUELL — manageSyncSchedule triggerSource: gleicher Code-Pfad wie geplante Läufe (shared sourceRunner) — manueller Start läuft mit 85s Timeout, interpretiert Ergebnis (success/skipped/pending/failed) und schreibt last_* in DailyRefreshSchedule + source_config + SyncLog — KEIN 500 mehr bei langen Quellen",
+  "v0.959-HF2: SYNC-MANUELL — SourceConfigCard: Toast zeigt Status+Anzahl+Dauer+Meldung, config wird sofort aktualisiert, useEffect synct localConfig mit Polling, skipped/pending/failed Status-Badges, Fehler nur rot bei echtem Fehler",
+  "v0.959-HF2: BURGEN-OVERPASS — Chunked über viele kurze Calls (1 Quadrant/Call, ≤75s Budget, 15s/Request, 30s/Quadrant) — keine 524-Timeouts mehr — Monatlicher Cache (30 Tage) mit skipped-Status — Dedup nach Name+Koords verhindert 22k→3k Duplikate-Explosion — Cursor in AppSetting für Cycle-Fortsetzung",
+  "v0.959-HF2: REPEATER-ABDECKUNG — Open-Meteo Höhen-API (100 Punkte/Call, 3 concurrent) statt OpenTopoData (1 Call/s) — 1 Relais in ~14s statt ~15s pro Höhen-Call — 2 Versuche → 1 Versuch, fehlgeschlagene Relais requeue (needs_recalc) — Band-Estimate Fallback bei API-Ausfall — 75s Budget, 10/Batch",
+  "v0.959-HF2: REPEATER-ABDECKUNG — calculateRepeaterCoverage: count() unterstützt kein $or — Progress (done/remaining) aus geladenem Array berechnet — Queue via 2 filter-Calls (needs_recalc + coverage_polygon null) gemerged",
+  "v0.959-HF2: SYNC-BATCH — runDailySyncBatch: Fairness — frische Quellen vor resumable pending Chunks (SOTA/NA-Repeater/Burgen) — verhindert Monopolisierung des Zeitfensters — Normal-Completion via interpretResult+recordSourceRun (gleicher Pfad wie manuell/geplant)",
+  "v0.959-HF2: ADMIN-REPORT — sendDailyAdminReport: skipped-Quellen zeigen letztes Datum+Status statt 'FAILED', Erfolg-Zähler inkludiert skipped, Fehler nur rot bei echtem Fehler",
+  "v0.959-HF2: COVERAGE-UI — CoverageScheduleManager: Cron-Text korrigiert (03:00 UTC, ~18k Relais), Button-Label ohne feste Zahl, Batch-Result zeigt berechnet/grob/retry/Fehler+Warteschlange",
   "v0.959: SYNC-ROBUSTHEIT — dailyRefreshChecker: weekly_days + weekly_enabled Prüfung — verhindert SOTA/POTA/WWFF-Trigger am Donnerstag und APRS im Wochen-Batch (war Bug: Checker prüfte nur enabled, nicht weekly_days)",
   "v0.959: SYNC-ROBUSTHEIT — runDailySyncBatch: 3 Versuche (initial + 60s + 10min Backoff) statt 1 Retry nach 30s — bei endgültigem Fehlschlag automatischer Nachlauf-Job (2h später)",
   "v0.959: SYNC-ROBUSTHEIT — runDailySyncBatch: preserve_on_failure Flag im Payload — Source-Funktionen erhalten Signal Bestand bei Fehlschlag nicht zu löschen",

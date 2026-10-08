@@ -15,18 +15,15 @@ import {
 // (needs_recalc=true) so it's retried later instead of being left with no coverage.
 // Progress (total/done/remaining) is stored in AppSetting 'repeater_coverage_progress'.
 
-const BATCH_LIMIT_DEFAULT = 15;
-const BATCH_LIMIT_MAX = 20;
+const BATCH_LIMIT_DEFAULT = 10;
+const BATCH_LIMIT_MAX = 15;
 const TIME_BUDGET_MS = 75000;        // stop starting new repeaters after 75s (< 100s gateway)
 const MIN_REMAINING_MS = 25000;     // don't start a new repeater if < 25s budget remains
-const ATTEMPT_TIMEOUT_MS = 10000;   // per attempt
-const MAX_ATTEMPTS = 2;             // initial + 1 retry
-const BATCH_RADIALS = 36;
-const RETRY_DELAY_MS = 500;
+const ATTEMPT_TIMEOUT_MS = 20000;   // per attempt — Open-Meteo batched fetch + LOS compute
+const MAX_ATTEMPTS = 1;             // no retry — failed repeaters are requeued (needs_recalc)
+const BATCH_RADIALS = 24;            // fewer radials = fewer elevation points = faster
 const DEFAULT_DELAY_MS = 200;
 const PROGRESS_KEY = 'repeater_coverage_progress';
-
-const PENDING_QUERY = { lat: { $ne: null }, $or: [{ needs_recalc: true }, { coverage_polygon: null }] };
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -38,7 +35,8 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 async function getCoverageProgress(base44: any, scope: string): Promise<{ total: number; done: number; remaining: number }> {
   const scopeFilter = scope === 'all' ? {} : { country_code: scope };
   const totalFilter = { ...scopeFilter, lat: { $ne: null } };
-  const pendingFilter = { ...scopeFilter, ...PENDING_QUERY };
+  // v0.959-HF2: count() does not support $or — use coverage_polygon:null (no polygon = not done).
+  const pendingFilter = { ...scopeFilter, lat: { $ne: null }, coverage_polygon: null };
   let total = 0, remaining = 0;
   try {
     total = await base44.asServiceRole.entities.Repeater.count(totalFilter);
@@ -57,12 +55,22 @@ async function runBatch(base44: any, body: any): Promise<any> {
   const batchLimit = Math.min(Math.max(body?.batch_limit || BATCH_LIMIT_DEFAULT, 1), BATCH_LIMIT_MAX);
   const delayMs = body?.delay_ms ?? DEFAULT_DELAY_MS;
 
-  // Queue: oldest coverage_updated first. Failed repeaters get coverage_updated=now on
-  // failure, pushing them to the back of the queue so fresh ones are tried first.
-  const queue = await Rep.filter(
-    { ...scopeFilter, ...PENDING_QUERY },
-    { sort: 'coverage_updated', limit: batchLimit * 2 },
+  // v0.959-HF2: count/filter don't support $or — fetch needs_recalc and no-polygon
+  // separately and merge (dedup by id). Positional filter() form returns an array.
+  let queue: any[] = await Rep.filter(
+    { ...scopeFilter, lat: { $ne: null }, needs_recalc: true },
+    'coverage_updated', batchLimit * 2,
   );
+  if (queue.length < batchLimit * 2) {
+    const noPoly = await Rep.filter(
+      { ...scopeFilter, lat: { $ne: null }, coverage_polygon: null },
+      'coverage_updated', Math.max(1, batchLimit * 2 - queue.length),
+    );
+    const seen = new Set(queue.map((r: any) => r.id));
+    for (const r of noPoly) {
+      if (!seen.has(r.id)) { queue.push(r); seen.add(r.id); }
+    }
+  }
 
   let calculated = 0, fallback = 0, retried = 0, errors = 0, processed = 0;
   const errorDetails: string[] = [];
@@ -95,7 +103,6 @@ async function runBatch(base44: any, body: any): Promise<any> {
         break;
       } catch (e: any) {
         lastErr = e?.message === 'TIMEOUT' ? `Timeout (>${ATTEMPT_TIMEOUT_MS / 1000}s)` : (e?.message || 'Fehler');
-        if (attempt < MAX_ATTEMPTS - 1) await new Promise(res => setTimeout(res, RETRY_DELAY_MS));
       }
     }
 
@@ -132,20 +139,18 @@ async function runBatch(base44: any, body: any): Promise<any> {
     if (delayMs > 0) await new Promise(res => setTimeout(res, delayMs));
   }
 
-  const progress = await getCoverageProgress(base44, scope);
-  const batchStats = { calculated, fallback, retried, errors, processed, queue_remaining: progress.remaining };
+  const batchStats = { calculated, fallback, retried, errors, processed, queue_remaining: queue.length - processed };
   const now = new Date().toISOString();
   try {
     const rows = await base44.asServiceRole.entities.AppSetting.filter({ key: PROGRESS_KEY });
-    const value = JSON.stringify({ last_run: now, ...progress, last_batch: batchStats });
+    const value = JSON.stringify({ last_run: now, last_batch: batchStats });
     if (rows.length > 0) await base44.asServiceRole.entities.AppSetting.update(rows[0].id, { value });
     else await base44.asServiceRole.entities.AppSetting.create({ key: PROGRESS_KEY, value });
   } catch {}
 
-  const note = `${calculated} terrain, ${fallback} grob${retried ? `, ${retried} retry` : ''}, ${errors} Fehler · ${progress.done}/${progress.total} insgesamt`;
+  const note = `${calculated} terrain, ${fallback} grob${retried ? `, ${retried} retry` : ''}, ${errors} Fehler · ${processed} verarbeitet`;
   return {
     success: true, scope, total: queue.length, ...batchStats,
-    total_with_coords: progress.total, remaining: progress.remaining,
     duration_ms: Date.now() - start, error_details: errorDetails.slice(0, 10),
     note, count: calculated + fallback,
   };
@@ -199,13 +204,6 @@ export default async function(req: any): Promise<Response> {
       const withCoords = withCoordsRepeaters.length;
       const avgRefinementPct = withCoords > 0 ? Math.round((refinementSum / withCoords) * 10) / 10 : 0;
 
-      // v0.959-HF2: also include the batch progress (total/done/remaining) from AppSetting
-      let progress: any = null;
-      try {
-        const rows = await base44.asServiceRole.entities.AppSetting.filter({ key: PROGRESS_KEY });
-        if (rows.length > 0) progress = JSON.parse(rows[0].value || '{}');
-      } catch {}
-
       return Response.json({
         global: {
           totalRepeaters,
@@ -216,8 +214,8 @@ export default async function(req: any): Promise<Response> {
           pendingRecalc,
           avgRefinementPct,
           countriesCovered: countriesSet.size,
-          done: progress?.done ?? calculated,
-          remaining: progress?.remaining ?? pendingRecalc,
+          done: calculated,
+          remaining: Math.max(0, withCoords - calculated),
         },
       });
     }

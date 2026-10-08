@@ -272,7 +272,7 @@ export const OPEN_METEO_ELEVATION_URL = 'https://api.open-meteo.com/v1/elevation
 
 async function fetchElevationsOpenMeteo(points: Array<{ lat: number; lng: number }>): Promise<(number | null)[]> {
   const BATCH = 100;
-  const CONCURRENCY = 2;
+  const CONCURRENCY = 3;
   const results: (number | null)[] = new Array(points.length).fill(null);
   const starts: number[] = [];
   for (let i = 0; i < points.length; i += BATCH) starts.push(i);
