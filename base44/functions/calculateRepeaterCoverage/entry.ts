@@ -171,7 +171,7 @@ export default async function(req: any): Promise<Response> {
     // 15 repeaters × ~8s each = 120s → too close to 100s Cloudflare limit. 10 × 8s = 80s = safe.
     const BATCH_LIMIT = body?.batch_limit || 10;
     const TIME_BUDGET_MS = 90000; // 90 seconds — well under 100s Cloudflare-524 limit
-    const PER_REPEATER_TIMEOUT_MS = 8000; // 8s max per repeater — skip if slower
+    const PER_REPEATER_TIMEOUT_MS = 5000; // v0.959-HF: 8s→5s — reduces time wasted on slow repeaters
     const delayMs = body?.delay_ms || 500;
     // Use fewer radials in batch mode for speed (36 instead of 72)
     const batchRadials = body?.radials || 36;
@@ -186,7 +186,9 @@ export default async function(req: any): Promise<Response> {
     } catch {}
 
     for (const r of repeaters) {
-      if (calculated >= BATCH_LIMIT) break;
+      // v0.959-HF: Count errors against batch_limit — 10 errors × 8s = 80s was pushing total to 96s.
+      // Now stops after BATCH_LIMIT total attempts (success + errors), not just successes.
+      if (calculated + errors >= BATCH_LIMIT) break;
       // BUG 1: Time budget check — stop if approaching platform timeout
       if (Date.now() - startTime > TIME_BUDGET_MS) break;
       if (r.lat == null || r.lng == null) { skipped++; continue; }

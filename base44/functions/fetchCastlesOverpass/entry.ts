@@ -43,10 +43,11 @@ const OVERPASS_ENDPOINTS = [
 
 // v0.959: BBox-Splitting — teilt jedes Land in 4 Quadranten, um 524-Timeouts zu vermeiden.
 // Kleinere BBox = schnellere Overpass-Abfrage = unter 100s Cloudflare-Limit.
-// v0.955: Resilience-Paket — per-request timeout 85s (unter 100s Cloudflare-524-Limit).
-// Mirror-Rotation: 429/521 = sofort nächster Mirror; 524/504/Netzwerk = 10s Backoff, 1 Retry, dann nächster Mirror.
+// v0.959-HF: Per-request timeout 85s→45s — jeder Chunk <60s Antwortzeit (Daniel's Anforderung).
+// 1 Retry-Runde statt 2 — halbiert Worst-Case-Zeit pro Quadrant.
+// Mirror-Rotation: 429/521 = sofort nächster Mirror; 524/504/Netzwerk = 5s Backoff, 1 Retry, dann nächster Mirror.
 async function fetchOverpassBBox(south: number, west: number, north: number, east: number, label: string): Promise<any[]> {
-  const query = `[out:json][timeout:85];
+  const query = `[out:json][timeout:45];
   (
     node["historic"="castle"](${south},${west},${north},${east});
     node["historic"="fortress"](${south},${west},${north},${east});
@@ -55,13 +56,13 @@ async function fetchOverpassBBox(south: number, west: number, north: number, eas
   );
   out center 2000;`;
 
-  for (let round = 0; round < 2; round++) {
+  for (let round = 0; round < 1; round++) {
     for (const endpoint of OVERPASS_ENDPOINTS) {
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
           console.log(`[fetchCastlesOverpass] ${label} R${round + 1} A${attempt}/2 — ${endpoint.substring(8, 40)}`);
           const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 85000);
+          const timer = setTimeout(() => controller.abort(), 45000);
           const resp = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -72,7 +73,7 @@ async function fetchOverpassBBox(south: number, west: number, north: number, eas
           if (!resp.ok) {
             if (resp.status === 429 || resp.status === 502 || resp.status === 521) break;
             if (resp.status === 504 || resp.status === 524) {
-              if (attempt < 2) await new Promise(r => setTimeout(r, 10000));
+              if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
               continue;
             }
             break;
@@ -85,11 +86,10 @@ async function fetchOverpassBBox(south: number, west: number, north: number, eas
           }
         } catch (e) {
           console.log(`[fetchCastlesOverpass] ${label} error: ${e.message}`);
-          if (attempt < 2) await new Promise(r => setTimeout(r, 10000));
+          if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
         }
       }
     }
-    if (round < 1) await new Promise(r => setTimeout(r, 30000));
   }
   return [];
 }
