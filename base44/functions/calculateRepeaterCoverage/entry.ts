@@ -234,7 +234,7 @@ export default async function(req: any): Promise<Response> {
       } catch (e: any) {
         errors++;
         const isTimeout = e?.message === 'PER_REPEATER_TIMEOUT';
-        errorDetails.push(`${r.callsign} ${r.frequency}: ${isTimeout ? 'Timeout (>8s)' : (e?.message || 'Fehler')}`);
+        errorDetails.push(`${r.callsign} ${r.frequency}: ${isTimeout ? `Timeout (>${PER_REPEATER_TIMEOUT_MS / 1000}s)` : (e?.message || 'Fehler')}`);
       }
     }
 

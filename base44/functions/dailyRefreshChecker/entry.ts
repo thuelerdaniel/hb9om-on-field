@@ -81,7 +81,9 @@ async function processSource(base44: any, src: any, body: any, isNachlauf: boole
       }
     } catch {}
 
-    if (status === 'failed' || (count === 0 && !thresholdWarning === false)) {
+    // v0.959-HF: Fixed condition — was `!thresholdWarning === false` (confusing double negation).
+    // Increment failures if: source failed, OR count=0 with a threshold warning.
+    if (status === 'failed' || (count === 0 && thresholdWarning)) {
       consecutiveFailures++;
     } else {
       consecutiveFailures = 0;
