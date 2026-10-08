@@ -1,13 +1,159 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { recordOwnRun } from '../../shared/sourceRunner.ts';
 import {
-  calculateCoverage, buildRepeaterParams, getBandFromFrequency, BAND_PARAMS, haversineKm,
+  calculateCoverage, buildRepeaterParams, BAND_PARAMS, haversineKm,
+  bandEstimateCoverage, OPEN_METEO_ELEVATION_URL,
 } from '../../shared/coverageCalc.ts';
 
-// Calculate terrain-based coverage for a single repeater or a batch of CH repeaters.
-// Uses SRTM 30m elevation data via OpenTopoData API + LOS + link budget.
-// Generates an asymmetric GeoJSON polygon (36 radials) and stores it in coverage_polygon.
+// Calculate terrain-based coverage for a single repeater or a batch of repeaters.
+// Uses SRTM 30m elevation data + LOS + link budget.
+// Generates an asymmetric GeoJSON polygon (36/72 radials) and stores it in coverage_polygon.
+//
+// v0.959-HF2: Batch uses Open-Meteo elevation (100 points/call, 2 concurrent) instead of
+// OpenTopoData (1 call/s) — one repeater dropped from ~15s to ~3s. 2 attempts per repeater
+// with a 10s timeout; on failure the old polygon is kept and the repeater is requeued
+// (needs_recalc=true) so it's retried later instead of being left with no coverage.
+// Progress (total/done/remaining) is stored in AppSetting 'repeater_coverage_progress'.
+
+const BATCH_LIMIT_DEFAULT = 15;
+const BATCH_LIMIT_MAX = 20;
+const TIME_BUDGET_MS = 75000;        // stop starting new repeaters after 75s (< 100s gateway)
+const MIN_REMAINING_MS = 25000;     // don't start a new repeater if < 25s budget remains
+const ATTEMPT_TIMEOUT_MS = 10000;   // per attempt
+const MAX_ATTEMPTS = 2;             // initial + 1 retry
+const BATCH_RADIALS = 36;
+const RETRY_DELAY_MS = 500;
+const DEFAULT_DELAY_MS = 200;
+const PROGRESS_KEY = 'repeater_coverage_progress';
+
+const PENDING_QUERY = { lat: { $ne: null }, $or: [{ needs_recalc: true }, { coverage_polygon: null }] };
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), ms)),
+  ]);
+}
+
+async function getCoverageProgress(base44: any, scope: string): Promise<{ total: number; done: number; remaining: number }> {
+  const scopeFilter = scope === 'all' ? {} : { country_code: scope };
+  const totalFilter = { ...scopeFilter, lat: { $ne: null } };
+  const pendingFilter = { ...scopeFilter, ...PENDING_QUERY };
+  let total = 0, remaining = 0;
+  try {
+    total = await base44.asServiceRole.entities.Repeater.count(totalFilter);
+  } catch {}
+  try {
+    remaining = await base44.asServiceRole.entities.Repeater.count(pendingFilter);
+  } catch {}
+  return { total, done: Math.max(0, total - remaining), remaining };
+}
+
+async function runBatch(base44: any, body: any): Promise<any> {
+  const Rep = base44.asServiceRole.entities.Repeater;
+  const start = Date.now();
+  const scope = body?.country_code || 'all';
+  const scopeFilter = scope === 'all' ? {} : { country_code: scope };
+  const batchLimit = Math.min(Math.max(body?.batch_limit || BATCH_LIMIT_DEFAULT, 1), BATCH_LIMIT_MAX);
+  const delayMs = body?.delay_ms ?? DEFAULT_DELAY_MS;
+
+  // Queue: oldest coverage_updated first. Failed repeaters get coverage_updated=now on
+  // failure, pushing them to the back of the queue so fresh ones are tried first.
+  const queue = await Rep.filter(
+    { ...scopeFilter, ...PENDING_QUERY },
+    { sort: 'coverage_updated', limit: batchLimit * 2 },
+  );
+
+  let calculated = 0, fallback = 0, retried = 0, errors = 0, processed = 0;
+  const errorDetails: string[] = [];
+
+  for (const r of queue) {
+    if (processed >= batchLimit) break;
+    if (Date.now() - start > TIME_BUDGET_MS) break;
+    if (Date.now() - start > TIME_BUDGET_MS - MIN_REMAINING_MS) break;
+    processed++;
+
+    const f_MHz = r.frequency;
+    const mode = r.primary_mode || (r.modes?.[0] || 'FM');
+    const params = buildRepeaterParams(f_MHz, mode);
+    const bandMaxRange = params.params.max_range_flat_km;
+    let result: any = null;
+    let lastErr = '';
+    let okAfterRetry = false;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      try {
+        result = await withTimeout(
+          calculateCoverage(
+            { lat: r.lat, lng: r.lng, elevation_m: r.elevation_m },
+            params,
+            { radials: BATCH_RADIALS, max_range_km: bandMaxRange, elevationApiUrl: OPEN_METEO_ELEVATION_URL },
+          ),
+          ATTEMPT_TIMEOUT_MS,
+        );
+        if (attempt > 0) { retried++; okAfterRetry = true; }
+        break;
+      } catch (e: any) {
+        lastErr = e?.message === 'TIMEOUT' ? `Timeout (>${ATTEMPT_TIMEOUT_MS / 1000}s)` : (e?.message || 'Fehler');
+        if (attempt < MAX_ATTEMPTS - 1) await new Promise(res => setTimeout(res, RETRY_DELAY_MS));
+      }
+    }
+
+    if (result) {
+      const isTerrain = result.coverage_source === 'terrain_los' || result.coverage_source === 'terrain_adjusted';
+      try {
+        await Rep.update(r.id, {
+          coverage_radius_km: result.avg_range_km,
+          coverage_source: result.coverage_source,
+          coverage_polygon: result.polygon,
+          coverage_refinement_pct: isTerrain ? 100 : 30,
+          coverage_updated: new Date().toISOString(),
+          elevation_m: result.elevation_m,
+          terrain_factor: result.terrain_factor,
+          needs_recalc: !isTerrain, // band-estimate → requeue for a real terrain pass later
+        });
+        if (isTerrain) calculated++; else fallback++;
+      } catch (e: any) {
+        errors++;
+        errorDetails.push(`${r.callsign}: save failed — ${e?.message || e}`);
+      }
+    } else {
+      // Keep old polygon (if any), requeue for a later retry.
+      try {
+        await Rep.update(r.id, {
+          needs_recalc: true,
+          coverage_updated: new Date().toISOString(),
+        });
+      } catch {}
+      errors++;
+      errorDetails.push(`${r.callsign} ${r.frequency}: ${lastErr}`);
+    }
+
+    if (delayMs > 0) await new Promise(res => setTimeout(res, delayMs));
+  }
+
+  const progress = await getCoverageProgress(base44, scope);
+  const batchStats = { calculated, fallback, retried, errors, processed, queue_remaining: progress.remaining };
+  const now = new Date().toISOString();
+  try {
+    const rows = await base44.asServiceRole.entities.AppSetting.filter({ key: PROGRESS_KEY });
+    const value = JSON.stringify({ last_run: now, ...progress, last_batch: batchStats });
+    if (rows.length > 0) await base44.asServiceRole.entities.AppSetting.update(rows[0].id, { value });
+    else await base44.asServiceRole.entities.AppSetting.create({ key: PROGRESS_KEY, value });
+  } catch {}
+
+  const note = `${calculated} terrain, ${fallback} grob${retried ? `, ${retried} retry` : ''}, ${errors} Fehler · ${progress.done}/${progress.total} insgesamt`;
+  return {
+    success: true, scope, total: queue.length, ...batchStats,
+    total_with_coords: progress.total, remaining: progress.remaining,
+    duration_ms: Date.now() - start, error_details: errorDetails.slice(0, 10),
+    note, count: calculated + fallback,
+  };
+}
 
 export default async function(req: any): Promise<Response> {
+  const start = Date.now();
+  let batchMode = false;
   try {
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => (typeof req.body === 'object' ? req.body : {}));
@@ -20,18 +166,14 @@ export default async function(req: any): Promise<Response> {
 
     const repeaterId = body?.repeater_id;
     const forceRecalc = body?.force_recalc === true || body?.force === true;
-    // 72 radials for smoother, more natural coverage shapes
     const numRadials = body?.radials || 72;
     const maxRangeOverride = body?.max_range_km || null;
     const countryCode = body?.country_code;
     const statsOnly = body?.stats_only === true;
 
-    // --- Stats-only mode: return global coverage statistics without calculating ---
+    // ─── Stats-only mode ───
     if (statsOnly) {
-      // Fetch ALL repeaters WITH coordinates — those without coords can't be calculated.
-      // Use 50000 limit to exceed the default 5000 cap and capture all ~2500+ repeaters.
-      const withCoordRepeaters = await base44.asServiceRole.entities.Repeater.filter({ lat: { $ne: null } }, '-created_date', 50000);
-      // Also fetch total count from ReferenceData for the "total" display
+      const withCoordsRepeaters = await base44.asServiceRole.entities.Repeater.filter({ lat: { $ne: null } }, '-created_date', 50000);
       let totalRepeaters = 0;
       try {
         const refData = await base44.asServiceRole.entities.ReferenceData.filter({ type: 'repeater' });
@@ -39,13 +181,13 @@ export default async function(req: any): Promise<Response> {
           if (rec.total_count && rec.total_count > totalRepeaters) totalRepeaters = rec.total_count;
         }
       } catch {}
-      if (totalRepeaters === 0) totalRepeaters = withCoordRepeaters.length;
+      if (totalRepeaters === 0) totalRepeaters = withCoordsRepeaters.length;
 
-      let withCoords = withCoordRepeaters.length, aprsRefined = 0, terrainAdjusted = 0, calculated = 0, pendingRecalc = 0;
+      let aprsRefined = 0, terrainAdjusted = 0, calculated = 0, pendingRecalc = 0;
       let refinementSum = 0;
       const countriesSet = new Set();
 
-      for (const r of withCoordRepeaters) {
+      for (const r of withCoordsRepeaters) {
         if (r.coverage_source === 'aprs_refined') aprsRefined++;
         if (r.coverage_source === 'terrain_los' || r.coverage_source === 'terrain_adjusted') terrainAdjusted++;
         if (r.coverage_updated != null) calculated++;
@@ -54,7 +196,15 @@ export default async function(req: any): Promise<Response> {
         if (r.country_code) countriesSet.add(r.country_code);
       }
 
+      const withCoords = withCoordsRepeaters.length;
       const avgRefinementPct = withCoords > 0 ? Math.round((refinementSum / withCoords) * 10) / 10 : 0;
+
+      // v0.959-HF2: also include the batch progress (total/done/remaining) from AppSetting
+      let progress: any = null;
+      try {
+        const rows = await base44.asServiceRole.entities.AppSetting.filter({ key: PROGRESS_KEY });
+        if (rows.length > 0) progress = JSON.parse(rows[0].value || '{}');
+      } catch {}
 
       return Response.json({
         global: {
@@ -66,11 +216,13 @@ export default async function(req: any): Promise<Response> {
           pendingRecalc,
           avgRefinementPct,
           countriesCovered: countriesSet.size,
+          done: progress?.done ?? calculated,
+          remaining: progress?.remaining ?? pendingRecalc,
         },
       });
     }
 
-    // --- Single repeater mode ---
+    // ─── Single repeater mode ───
     if (repeaterId) {
       const repeater = await base44.asServiceRole.entities.Repeater.get(repeaterId);
       if (!repeater || repeater.lat == null || repeater.lng == null) {
@@ -89,8 +241,6 @@ export default async function(req: any): Promise<Response> {
         }
       }
 
-      // Clear old coverage data BEFORE calculating new one — prevents stale
-      // polygon/radius from remaining if the new calculation fails partway through.
       await base44.asServiceRole.entities.Repeater.update(repeaterId, {
         coverage_polygon: null,
         coverage_radius_km: null,
@@ -100,17 +250,12 @@ export default async function(req: any): Promise<Response> {
       const f_MHz = repeater.frequency;
       const mode = repeater.primary_mode || (repeater.modes?.[0] || 'FM');
       const params = buildRepeaterParams(f_MHz, mode);
-      // Use max_range_flat_km (not max_range_terrain_km) as the cap — the actual
-      // terrain LOS and link budget will naturally limit the range. For mountain-top
-      // repeaters like Säntis (2502m), LOS extends well beyond the terrain-limited cap.
-      // The calculateVHFCoverage function also computes a dynamic LOS horizon distance
-      // and uses the larger of the two — so high repeaters get proportionally more range.
       const bandMaxRange = maxRangeOverride || params.params.max_range_flat_km;
 
       const result = await calculateCoverage(
         { lat: repeater.lat, lng: repeater.lng, elevation_m: repeater.elevation_m },
         params,
-        { radials: numRadials, max_range_km: bandMaxRange }
+        { radials: numRadials, max_range_km: bandMaxRange },
       );
 
       await base44.asServiceRole.entities.Repeater.update(repeaterId, {
@@ -139,128 +284,19 @@ export default async function(req: any): Promise<Response> {
       });
     }
 
-    // --- Batch mode (admin or cron) ---
-    // BUG 1: Process only repeaters with needs_recalc=true OR without coverage_polygon.
-    // Batch of 50 per run with a 250s time budget to stay within the 300s platform timeout.
-    const scope = countryCode || 'all';
-    // Priority 1: repeaters with needs_recalc=true
-    const filterRecalc = scope === 'all'
-      ? { lat: { $ne: null }, needs_recalc: true }
-      : { country_code: scope, lat: { $ne: null }, needs_recalc: true };
-    let repeaters = await base44.asServiceRole.entities.Repeater.filter(filterRecalc, 'coverage_updated', 500);
-
-    // Priority 2: if not enough needs_recalc, also fetch those without coverage_polygon
-    if (repeaters.length < 50) {
-      const filterNoCov = scope === 'all'
-        ? { lat: { $ne: null }, coverage_polygon: null }
-        : { country_code: scope, lat: { $ne: null }, coverage_polygon: null };
-      const noCovRepeaters = await base44.asServiceRole.entities.Repeater.filter(filterNoCov, 'coverage_updated', 500 - repeaters.length);
-      // Merge and deduplicate by id
-      const seenIds = new Set(repeaters.map((r: any) => r.id));
-      for (const r of noCovRepeaters) {
-        if (!seenIds.has(r.id)) { repeaters.push(r); seenIds.add(r.id); }
-      }
-    }
-
-    let calculated = 0, errors = 0, skipped = 0;
-    const errorDetails: string[] = [];
-    const startTime = Date.now();
-    // v0.955: Batch limit 15 pro Lauf — verteilt Rechenlast über mehrere kleine Läufe statt einem 125s-Lauf der abkippt.
-    // Resume-Cursor: needs_recalc=false nach Verarbeitung fungiert als impliziter Cursor — nächste Run holt andere Repeaters.
-    // v0.959: Reduced batch_limit 15→10 — each repeater needs multiple API calls (elevation profile),
-    // 15 repeaters × ~8s each = 120s → too close to 100s Cloudflare limit. 10 × 8s = 80s = safe.
-    const BATCH_LIMIT = body?.batch_limit || 10;
-    const TIME_BUDGET_MS = 90000; // 90 seconds — well under 100s Cloudflare-524 limit
-    const PER_REPEATER_TIMEOUT_MS = 5000; // v0.959-HF: 8s→5s — reduces time wasted on slow repeaters
-    const delayMs = body?.delay_ms || 500;
-    // Use fewer radials in batch mode for speed (36 instead of 72)
-    const batchRadials = body?.radials || 36;
-
-    // v0.955: Resume-Cursor in AppSetting — speichert Fortschritt für Report/Visibility
-    let progressCursor: any = { last_run: null, total_calculated: 0, estimated_remaining: 0 };
-    try {
-      const cursorSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'repeater_coverage_progress' });
-      if (cursorSettings && cursorSettings.length > 0) {
-        progressCursor = JSON.parse(cursorSettings[0].value || '{}');
-      }
-    } catch {}
-
-    for (const r of repeaters) {
-      // v0.959-HF: Count errors against batch_limit — 10 errors × 8s = 80s was pushing total to 96s.
-      // Now stops after BATCH_LIMIT total attempts (success + errors), not just successes.
-      if (calculated + errors >= BATCH_LIMIT) break;
-      // BUG 1: Time budget check — stop if approaching platform timeout
-      if (Date.now() - startTime > TIME_BUDGET_MS) break;
-      if (r.lat == null || r.lng == null) { skipped++; continue; }
-      // Skip if already has terrain_los coverage newer than 168h (7 days) unless forced.
-      // This prevents recalculating the same repeaters every run.
-      if (!forceRecalc && r.coverage_source === 'terrain_los' && r.coverage_updated != null) {
-        const ageH = (Date.now() - new Date(r.coverage_updated).getTime()) / (1000 * 60 * 60);
-        if (ageH < 168) { skipped++; continue; }
-      }
-      try {
-        const repeaterStart = Date.now();
-        const f_MHz = r.frequency;
-        const mode = r.primary_mode || (r.modes?.[0] || 'FM');
-        const params = buildRepeaterParams(f_MHz, mode);
-        const bandMaxRange = params.params.max_range_flat_km;
-
-        // v0.959: Per-repeater timeout — if a single repeater takes >8s, skip it
-        const result = await Promise.race([
-          calculateCoverage(
-            { lat: r.lat, lng: r.lng, elevation_m: r.elevation_m },
-            params,
-            { radials: batchRadials, max_range_km: bandMaxRange }
-          ),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('PER_REPEATER_TIMEOUT')), PER_REPEATER_TIMEOUT_MS)
-          ),
-        ]);
-
-        await base44.asServiceRole.entities.Repeater.update(r.id, {
-          coverage_radius_km: result.avg_range_km,
-          coverage_source: result.coverage_source,
-          coverage_polygon: result.polygon,
-          coverage_refinement_pct: result.coverage_source === 'terrain_los' ? 100 : 30,
-          coverage_updated: new Date().toISOString(),
-          elevation_m: result.elevation_m,
-          terrain_factor: result.terrain_factor,
-          needs_recalc: false,
-        });
-        // Note: old coverage is overwritten atomically by the update above.
-        // No separate "clear" step needed in batch mode — the update replaces all fields.
-        calculated++;
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      } catch (e: any) {
-        errors++;
-        const isTimeout = e?.message === 'PER_REPEATER_TIMEOUT';
-        errorDetails.push(`${r.callsign} ${r.frequency}: ${isTimeout ? `Timeout (>${PER_REPEATER_TIMEOUT_MS / 1000}s)` : (e?.message || 'Fehler')}`);
-      }
-    }
-
-    // v0.955: Resume-Cursor aktualisieren — Fortschritt für nächste Run sichtbar
-    progressCursor.last_run = new Date().toISOString();
-    progressCursor.total_calculated = (progressCursor.total_calculated || 0) + calculated;
-    progressCursor.estimated_remaining = Math.max(0, repeaters.length - calculated);
-    try {
-      const cursorSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: 'repeater_coverage_progress' });
-      const cursorValue = JSON.stringify(progressCursor);
-      if (cursorSettings && cursorSettings.length > 0) {
-        await base44.asServiceRole.entities.AppSetting.update(cursorSettings[0].id, { value: cursorValue });
-      } else {
-        await base44.asServiceRole.entities.AppSetting.create({ key: 'repeater_coverage_progress', value: cursorValue });
-      }
-    } catch {}
-
-    return Response.json({
-      success: true, scope, total: repeaters.length,
-      calculated, errors, skipped,
-      batch_limit: BATCH_LIMIT,
-      duration_ms: Date.now() - startTime,
-      error_details: errorDetails.slice(0, 10),
-      progress: progressCursor,
-    });
+    // ─── Batch mode (admin or cron) ───
+    batchMode = !body?._runner;
+    const trigger = body?.scheduled ? 'scheduled' : 'manual';
+    const result = await runBatch(base44, body);
+    if (batchMode) await recordOwnRun(base44, 'repeater_coverage', result, Date.now() - start, trigger);
+    return Response.json(result);
   } catch (error: any) {
+    if (batchMode) {
+      try {
+        const base44 = createClientFromRequest(req);
+        await recordOwnRun(base44, 'repeater_coverage', { error: error.message || String(error), status: 'failed' }, Date.now() - start, 'manual');
+      } catch {}
+    }
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
