@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { todayUTC, isToday, extractCount, extractStatus, shuffle, isSourceReachable } from '../../shared/syncHelpers.ts';
 import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
 import { scheduleNachlauf, checkThreshold, getErrorAction, shouldPreserveData } from '../../shared/syncRobustness.ts';
+import { interpretResult, recordSourceRun } from '../../shared/sourceRunner.ts';
 
 // ─── Weekly Sync Batch Scheduler ───
 // Replaces the old daily scheduler. Runs on Mondays (full sync, 01:00-05:00 UTC)
@@ -256,13 +257,23 @@ export default async function (req: Request): Promise<Response> {
     const sourceMap = new Map(enabledSources.map((s: any) => [s.source, s]));
 
     // ─── Find next source to process ───
+    // v0.959-HF2: Fairness — fresh sources (haven't run today) first, then resumable
+    // pending chunks (SOTA, NA-Repeater, Burgen-Overpass). Prevents a long chunked source
+    // from monopolising the window while other sources never get a turn.
     let nextSource: any = null;
     for (const key of order) {
       const src = sourceMap.get(key);
-      if (!src) continue;
-      if (!needsToRun(src)) continue;
+      if (!src || !needsToRun(src)) continue;
+      if (src.last_status === 'pending') continue; // resumable — second pass
       nextSource = src;
       break;
+    }
+    if (!nextSource) {
+      for (const key of order) {
+        const src = sourceMap.get(key);
+        if (!src || !needsToRun(src)) continue;
+        if (src.last_status === 'pending') { nextSource = src; break; }
+      }
     }
 
     if (!nextSource) {
@@ -313,8 +324,7 @@ export default async function (req: Request): Promise<Response> {
 
     // ─── v0.959: Retry with backoff (2-3 attempts: initial + 60s + 600s) ───
     // But NOT for partial chunks (SOTA, US-Repeater) — they resume on next tick.
-    const isPartialChunk = result.ok && result.data?.has_more &&
-      (nextSource.source === 'sota' || nextSource.source === 'repeater_na_us' || nextSource.source === 'repeater_na_ca');
+    const isPartialChunk = result.ok && result.data?.has_more;
     const firstFailed = !isPartialChunk && (result.timedOut || (!result.timedOut && extractStatus(result.data) === 'failed'));
     if (firstFailed) {
       // 1st retry after 60s
@@ -453,14 +463,13 @@ export default async function (req: Request): Promise<Response> {
       await scheduleNachlauf(base44, nextSource.source, 120); // Retry in 2 hours
     }
 
-    // ─── Normal completion ───
-    // v0.955: HTTP 200 + gültiges leeres Ergebnis = "success (0)", KEINE Warnung.
-    // LLOTA-Spots können legitim 0 sein. Nur nach 3 aufeinanderfolgenden 0/Fehler-Läufen → "degraded".
-    const rawStatus = result.timedOut
-      ? 'timeout'
-      : extractStatus(result.data);
-    const count = result.timedOut ? 0 : extractCount(result.data);
-    const reachable = !result.timedOut && isSourceReachable(result.data);
+    // ─── Normal completion (shared sourceRunner path) ───
+    // v0.959-HF2: interpret + record via sourceRunner so manual, scheduled and batch
+    // runs all write the same last_* fields (and SyncLog) in one place.
+    const interpreted = interpretResult(nextSource.source, result.data, result.timedOut, timeout);
+    let status: any = interpreted.status;
+    let count = interpreted.count;
+    let errorMsg = interpreted.message;
 
     // v0.955: Consecutive failure tracking — 3 aufeinanderfolgende 0/Fehler → "degraded"
     let consecutiveFailures = 0;
@@ -472,16 +481,10 @@ export default async function (req: Request): Promise<Response> {
       }
     } catch {}
 
-    const isSuccess = rawStatus === 'success';
-    const isZeroOrFailed = !isSuccess || (count === 0 && !reachable);
+    const reachable = !result.timedOut && isSourceReachable(result.data);
+    const isZeroOrFailed = status === 'failed' || (status === 'success' && count === 0 && !reachable);
+    consecutiveFailures = isZeroOrFailed ? consecutiveFailures + 1 : 0;
 
-    if (isZeroOrFailed) {
-      consecutiveFailures++;
-    } else {
-      consecutiveFailures = 0;
-    }
-
-    // Persist consecutive failure count
     try {
       const cfKey = 'consecutive_failures_' + nextSource.source;
       const cfSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: cfKey });
@@ -493,74 +496,22 @@ export default async function (req: Request): Promise<Response> {
       }
     } catch {}
 
-    // v0.955: Status-Logik — success bleibt success auch bei 0 Einträgen.
-    // Erst nach 3 aufeinanderfolgenden 0/Fehler-Läufen → "degraded" + Warnung.
-    let status = rawStatus;
-    let errorMsg = result.timedOut
-      ? `Timeout nach ${timeout / 1000}s`
-      : (result.data?.error || '');
-
-    if (isSuccess && count === 0 && !reachable && consecutiveFailures >= 3) {
+    // v0.955: Erst nach 3 aufeinanderfolgenden 0/Fehler-Läufen → "degraded" + Warnung
+    if (status === 'success' && count === 0 && !reachable && consecutiveFailures >= 3) {
       status = 'failed';
       errorMsg = `Degraded: 3 aufeinanderfolgende Läufe mit 0 Einträgen — Quelle möglicherweise defekt`;
-    } else if (isSuccess && count === 0 && !reachable) {
-      // 0 Einträge aber Quelle erreichbar — success ohne Warnung
-      errorMsg = '';
     }
 
-    // v0.959: Threshold check — warn if below expected minimum
-    const thresholdWarning = checkThreshold(nextSource.source, count);
-    if (thresholdWarning && status === 'success' && !errorMsg) {
-      errorMsg = thresholdWarning;
-    }
-
-    let errorDetail = '';
-    if (status !== 'success' || thresholdWarning) {
-      errorDetail = JSON.stringify({
-        source: nextSource.source,
-        function: nextSource.function_name,
-        timedOut: result.timedOut,
-        retried,
-        retryCount,
-        error: errorMsg,
-        thresholdWarning,
-        response: result.data ? JSON.stringify(result.data).substring(0, 2000) : 'null',
-        duration_ms: duration,
-        timestamp: new Date().toISOString(),
-      }, null, 2);
-    }
-
-    // Update schedule record
-    try {
-      await base44.asServiceRole.entities.DailyRefreshSchedule.update(nextSource.id, {
-        last_run_time: new Date().toISOString(),
-        last_status: status === 'timeout' ? 'failed' : status,
-        last_count: count,
-        last_duration_ms: duration,
-        last_error: (errorMsg || '').substring(0, 500),
-        last_error_detail: errorDetail,
-      });
-    } catch {}
-
-    // Write SyncLog
-    try {
-      await base44.asServiceRole.entities.SyncLog.create({
-        timestamp: new Date().toISOString(),
-        overall_status: status === 'success' ? 'success' : 'failed',
-        total_duration_ms: duration,
-        results: [{
-          source: nextSource.source,
-          label: nextSource.label,
-          status,
-          count,
-          duration_ms: duration,
-          error: errorMsg,
-          retried,
-          retryCount,
-        }],
-        trigger: body.scheduled ? 'scheduled' : 'manual',
-      });
-    } catch {}
+    await recordSourceRun(base44, nextSource, {
+      source: nextSource.source,
+      label: nextSource.label,
+      status,
+      count,
+      duration_ms: duration,
+      message: errorMsg,
+      has_more: interpreted.has_more,
+      data: result.data,
+    }, body.scheduled ? 'scheduled' : 'manual', { retried, retryCount, timedOut: result.timedOut });
 
     // ─── Update per-source config in AppSettings ───
     try {
@@ -575,12 +526,8 @@ export default async function (req: Request): Promise<Response> {
       const wasFullSync = !curCfg.incremental;
       const syncSuccess = status === 'success';
 
-      // Update last run info
-      curCfg.last_run = new Date().toISOString();
-      curCfg.last_result = status === 'timeout' ? 'timeout' : status;
-      curCfg.last_records = count;
-      curCfg.last_duration_seconds = Math.round(duration / 1000);
-      curCfg.last_error = status === 'success' ? null : (errorMsg || '').substring(0, 500);
+      // v0.959-HF2: last_run/result/records/duration/error already written by recordSourceRun
+      // (same source_config row) — only auto-logic + next_run are managed here.
 
       // Auto-logic: after successful full sync, switch to incremental + weekly
       if (syncSuccess && wasFullSync && curCfg.auto_incremental_after_full && !curCfg.admin_override) {

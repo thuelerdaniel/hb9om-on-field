@@ -1,4 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { runSource } from '../../shared/sourceRunner.ts';
+
+// v0.959-HF2: Manual start must answer within the ~100s gateway limit (UI → this function).
+const MANUAL_TIMEOUT_MS = 85000;
 
 // ─── Sync Schedule Management ───
 // Handles: schedule settings (day/time), source toggles, incremental toggles,
@@ -241,15 +245,27 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // ─── triggerSource: manually trigger a single source ───
+    // v0.959-HF2: Same code path as the scheduled run (shared sourceRunner): invoke with timeout,
+    // interpret (success/skipped/pending/failed) and record in DailyRefreshSchedule + source_config
+    // + SyncLog. A failing source is reported as a readable result (HTTP 200), not as a 500.
     if (action === 'triggerSource') {
       const { source } = body;
       if (!source) return Response.json({ error: 'source required' }, { status: 400 });
       const rows = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source });
       if (rows.length === 0) return Response.json({ error: 'Quelle nicht gefunden' }, { status: 404 });
-      const src = rows[0];
-      const payload = { ...(src.function_payload || {}), scheduled: false };
-      const res = await base44.functions.invoke(src.function_name, payload);
-      return Response.json({ status: 'success', source, result: res?.data || res });
+      const outcome = await runSource(base44, rows[0], { trigger: 'manual', timeoutMs: MANUAL_TIMEOUT_MS });
+      const storedAfter = await getSourceConfig(base44);
+      return Response.json({
+        status: 'success',
+        source,
+        label: outcome.label,
+        result_status: outcome.status,
+        count: outcome.count,
+        duration_ms: outcome.duration_ms,
+        message: outcome.message,
+        has_more: outcome.has_more,
+        config: { ...getDefaultSourceConfig(source), ...(storedAfter[source] || {}) },
+      });
     }
 
     return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });

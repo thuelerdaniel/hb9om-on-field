@@ -36,13 +36,12 @@ export default function CoverageScheduleManager() {
     try {
       const res = await base44.functions.invoke("calculateRepeaterCoverage", {
         country_code: "all",
-        batch_limit: 30,
-        delay_ms: 1000,
       });
       setCalcResult(res.data);
+      const r = res.data || {};
       toast({
         title: "Batch berechnet",
-        description: `${res.data?.calculated || 0} Relais berechnet, ${res.data?.skipped || 0} übersprungen`,
+        description: `${r.calculated || 0} berechnet, ${r.fallback || 0} grob, ${r.retried || 0} retry, ${r.errors || 0} Fehler`,
       });
       fetchStats();
     } catch (e) {
@@ -123,11 +122,11 @@ export default function CoverageScheduleManager() {
               <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-2.5 text-xs">
                 <div className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300 font-semibold mb-1">
                   <Calendar className="w-3.5 h-3.5" />
-                  Cron-Job: Täglich 05:00 UTC
+                  Cron-Job: Täglich 03:00 UTC
                 </div>
                 <p className="text-[10px] text-teal-600 dark:text-teal-400 leading-relaxed">
-                  Verarbeitet weltweit die ältesten/unkalkulierten Relais zuerst (50 pro Lauf).
-                  Bei ~10'000 Relais dauert eine vollständige Abdeckung ca. 200 Tage.
+                  Verarbeitet weltweit die ältesten/unkalkulierten Relais zuerst (ca. 15 pro Lauf).
+                  Bei ~18'000 Relais mit Koordinaten dauert eine vollständige Abdeckung mehrere Monate.
                 </p>
               </div>
 
@@ -138,13 +137,13 @@ export default function CoverageScheduleManager() {
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-40"
               >
                 {calculating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TrendingUp className="w-3.5 h-3.5" />}
-                {calculating ? "Berechne..." : "Manuellen Batch starten (30 Relais)"}
+                {calculating ? "Berechne..." : "Manuellen Batch starten"}
               </button>
 
               {calcResult && (
                 <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 text-xs text-gray-600 dark:text-slate-400">
-                  <div>Berechnet: {calcResult.calculated} · Übersprungen: {calcResult.skipped} · Fehler: {calcResult.errors}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">Dauer: {(calcResult.duration_ms / 1000).toFixed(1)}s</div>
+                  <div>Berechnet: {calcResult.calculated} · Grob: {calcResult.fallback || 0} · Retry: {calcResult.retried || 0} · Fehler: {calcResult.errors}</div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">Dauer: {(calcResult.duration_ms / 1000).toFixed(1)}s · Warteschlange: {calcResult.queue_remaining ?? calcResult.remaining ?? "—"}</div>
                 </div>
               )}
             </>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Play, Loader2, CheckCircle2, XCircle, AlertCircle, Clock, Power,
   RefreshCw, ChevronDown, ChevronRight, Zap, Calendar, Repeat, Cpu,
@@ -8,9 +8,12 @@ import { useToast } from "@/components/ui/use-toast";
 
 const STATUS_CONFIG = {
   success: { icon: CheckCircle2, color: "text-green-600", label: "Erfolg" },
+  failed: { icon: XCircle, color: "text-red-600", label: "Fehler" },
   error: { icon: XCircle, color: "text-red-600", label: "Fehler" },
   timeout: { icon: Clock, color: "text-red-500", label: "Timeout" },
   partial: { icon: AlertCircle, color: "text-amber-600", label: "Teilweise" },
+  pending: { icon: Clock, color: "text-blue-500", label: "Teil-Lauf" },
+  skipped: { icon: AlertCircle, color: "text-amber-500", label: "Übersprungen" },
 };
 
 const MODE_LABELS = { daily: "Täglich", weekly: "Wöchentlich", monthly: "Monatlich" };
@@ -30,6 +33,12 @@ export default function SourceConfigCard({ source, schedule, config, onConfigCha
   const [triggering, setTriggering] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
   const { toast } = useToast();
+
+  // v0.959-HF2: keep the card in sync with the parent's polling refresh
+  // (last_run/status update every 30s) without clobbering edits while expanded.
+  useEffect(() => {
+    if (!expanded) setLocalConfig(config);
+  }, [config, expanded]);
 
   const status = STATUS_CONFIG[localConfig.last_result] || null;
   const isAuto = !localConfig.admin_override;
@@ -97,8 +106,20 @@ export default function SourceConfigCard({ source, schedule, config, onConfigCha
         source,
       });
       const data = res.data || res;
-      const count = data?.count ?? data?.total_saved ?? data?.result?.count ?? 0;
-      toast({ title: `${schedule?.label || source} gestartet`, description: `${count} Einträge verarbeitet`, duration: 5000 });
+      const newCfg = data?.config;
+      if (newCfg) {
+        setLocalConfig(newCfg);
+        onConfigChange?.(source, newCfg);
+      }
+      const statusLabel = STATUS_CONFIG[data?.result_status]?.label || data?.result_status || "OK";
+      const dur = data?.duration_ms ? ` · ${(data.duration_ms / 1000).toFixed(1)}s` : "";
+      const msg = data?.message ? ` · ${data.message}` : "";
+      toast({
+        title: `${schedule?.label || source}: ${statusLabel}`,
+        description: `${data?.count ?? 0} Einträge${dur}${msg}`,
+        variant: data?.result_status === "failed" ? "destructive" : "default",
+        duration: 5000,
+      });
     } catch (e) {
       toast({ title: "Fehler", description: e.message, variant: "destructive" });
     } finally {
@@ -185,9 +206,13 @@ export default function SourceConfigCard({ source, schedule, config, onConfigCha
         {!localConfig.enabled && <span className="text-red-500">deaktiviert</span>}
       </div>
 
-      {/* Row 3: error display */}
+      {/* Row 3: error / note display */}
       {localConfig.last_error && (
-        <div className="mt-1 ml-4 text-[10px] text-red-600 dark:text-red-400 truncate" title={localConfig.last_error}>
+        <div className={`mt-1 ml-4 text-[10px] truncate ${
+          localConfig.last_result === "failed" || localConfig.last_result === "error" || localConfig.last_result === "timeout"
+            ? "text-red-600 dark:text-red-400"
+            : "text-amber-600 dark:text-amber-400"
+        }`} title={localConfig.last_error}>
           ⚠ {localConfig.last_error}
         </div>
       )}

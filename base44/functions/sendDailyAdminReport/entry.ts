@@ -97,7 +97,7 @@ export default async function(req: Request): Promise<Response> {
     const todaySources = (allSchedules || []).filter(s => s.last_run_time && isToday(s.last_run_time));
     const pendingSources = (allSchedules || []).filter(s => !s.last_run_time || !isToday(s.last_run_time));
 
-    const successCount = todaySources.filter(s => s.last_status === 'success' && s.last_count > 0).length;
+    const successCount = todaySources.filter(s => (s.last_status === 'success' && s.last_count > 0) || s.last_status === 'skipped').length;
     const warningCount = todaySources.filter(s => s.last_status === 'success' && (s.last_count == null || s.last_count === 0)).length;
     const failedCount = todaySources.filter(s => s.last_status === 'failed').length;
     const totalCount = todaySources.length;
@@ -193,7 +193,12 @@ export default async function(req: Request): Promise<Response> {
       let displayStatus = rawStatus;
       let warningNote = '';
       if (!ran) {
-        displayStatus = 'skipped';
+        // v0.959-HF2: didn't run today — show the actual last status + date, not a stale FAILED.
+        const lastDate = s.last_run_time ? new Date(s.last_run_time).toISOString().slice(0, 10) : 'nie';
+        displayStatus = rawStatus === 'skipped' ? 'skipped' : (rawStatus === 'success' ? 'success' : rawStatus);
+        warningNote = `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">ℹ letzter Lauf ${lastDate} — ${s.last_error || rawStatus || 'nicht ausgeführt'}</div>`;
+      } else if (rawStatus === 'skipped') {
+        warningNote = '<div style="font-size:11px;color:#9ca3af;margin-top:2px;">⏭ Übersprungen (Daten aktuell)</div>';
       } else if (rawStatus === 'success' && (s.last_count == null || s.last_count === 0)) {
         displayStatus = 'skipped';
         warningNote = '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">⚠ 0 Einträge — Quelle möglicherweise nicht erreichbar</div>';
@@ -203,8 +208,9 @@ export default async function(req: Request): Promise<Response> {
       }
       const duration = s.last_duration_ms ? `${(s.last_duration_ms / 1000).toFixed(1)}s` : '—';
       const count = s.last_count != null ? s.last_count : '—';
-      const error = s.last_error ? `<div style="font-size:11px;color:#dc2626;margin-top:2px;">${s.last_error}</div>` : '';
-      const sourceFailed = rawStatus === 'failed' || rawStatus === 'timeout';
+      const isFailed = rawStatus === 'failed' || rawStatus === 'timeout';
+      const error = s.last_error ? `<div style="font-size:11px;color:${isFailed ? '#dc2626' : '#9ca3af'};margin-top:2px;">${isFailed ? '' : 'ℹ '}${s.last_error}</div>` : '';
+      const sourceFailed = isFailed;
       const deltaCell = mode === 'weekly' ? `<td style="padding:6px 8px;font-size:13px;text-align:right;">${formatDelta(count !== '—' ? count : 0, lastWeekCounts[s.source], sourceFailed, ran)}</td>` : '';
       return `
         <tr style="border-bottom:1px solid #eee;">
@@ -318,7 +324,7 @@ export default async function(req: Request): Promise<Response> {
         <span style="font-size:14px;font-weight:600;color:#333;">${successCount}/${totalCount} Quellen erfolgreich</span>
       </div>
       <div style="margin-top:8px;font-size:12px;color:#666;">
-        Batch-Dauer gesamt: <strong>${batchDurationStr}</strong> · Total Einträge verarbeitet: <strong>${todaySources.reduce((s: number, src: any) => s + (src.last_count || 0), 0).toLocaleString('de-CH')}</strong>
+        Batch-Dauer gesamt: <strong>${batchDurationStr}</strong> · Total Einträge verarbeitet: <strong>${todaySources.filter((s:any)=>s.last_status!=='skipped').reduce((s: number, src: any) => s + (src.last_count || 0), 0).toLocaleString('de-CH')}</strong>
       </div>
       ${failedCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;font-size:12px;color:#dc2626;">⚠️ ${failedCount} Quelle(n) fehlgeschlagen — siehe Probleme unten.</div>` : ''}
       ${warningCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border-radius:6px;font-size:12px;color:#f59e0b;">⚠️ ${warningCount} Quelle(n) mit 0 Einträgen — Quelle möglicherweise nicht erreichbar.</div>` : ''}

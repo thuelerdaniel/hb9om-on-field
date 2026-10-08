@@ -1,7 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
-import { todayUTC, isToday, extractCount, extractStatus } from '../../shared/syncHelpers.ts';
+import { isToday } from '../../shared/syncHelpers.ts';
 import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts';
-import { getDueNachlaufe, clearNachlauf, checkThreshold, getErrorAction, scheduleNachlauf, shouldPreserveData } from '../../shared/syncRobustness.ts';
+import { getDueNachlaufe, clearNachlauf, checkThreshold, getErrorAction, scheduleNachlauf } from '../../shared/syncRobustness.ts';
+import { runSource } from '../../shared/sourceRunner.ts';
 
 // This function runs every 5 minutes via automation.
 // It checks the DailyRefreshSchedule entity for sources whose next_run_utc
@@ -15,167 +16,57 @@ import { getDueNachlaufe, clearNachlauf, checkThreshold, getErrorAction, schedul
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const SCHEDULED_TIMEOUT_MS = 180000;
+
 // ─── Process a single source (shared by regular + Nachlauf paths) ───
+// v0.959-HF2: Invoke + interpret + record via the shared sourceRunner (same path as manual start).
 async function processSource(base44: any, src: any, body: any, isNachlauf: boolean = false): Promise<void> {
-  // Mark as running
+  const trigger = isInternalCall(body) ? 'scheduled' : 'manual';
+  const outcome = await runSource(base44, src, {
+    trigger,
+    timeoutMs: SCHEDULED_TIMEOUT_MS,
+    extra: { retried: isNachlauf, nachlauf: isNachlauf },
+  });
+  const failed = outcome.status === 'failed';
+
+  // v0.959: If source failed, schedule a Nachlauf (if not already a Nachlauf)
+  if (failed && !isNachlauf) {
+    await scheduleNachlauf(base44, src.source, 120); // Retry in 2 hours
+  }
+  // v0.959: Nachlauf done (success or not) → clear the marker
+  if (isNachlauf) {
+    await clearNachlauf(base44, src.source);
+  }
+
+  // v0.959: Error counter — track consecutive failures for escalation.
+  // skipped (Monats-Cache) and pending (Teil-Lauf) are healthy runs.
+  const cfKey = 'consecutive_failures_' + src.source;
+  let consecutiveFailures = 0;
+  let cfRow: any = null;
   try {
-    await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, { last_status: 'running' });
+    const cfSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: cfKey });
+    cfRow = cfSettings?.[0] || null;
+    consecutiveFailures = parseInt(cfRow?.value || '0') || 0;
   } catch {}
 
-  const taskStart = Date.now();
+  const zeroWarning = outcome.status === 'success' && outcome.count === 0 && !!checkThreshold(src.source, 0);
+  consecutiveFailures = (failed || zeroWarning) ? consecutiveFailures + 1 : 0;
+
   try {
-    const payload = { ...(src.function_payload || {}), scheduled: true, preserve_on_failure: true };
-    const res = await base44.functions.invoke(src.function_name, payload);
-    const data = res?.data || res;
-    const duration = Date.now() - taskStart;
-
-    const status = extractStatus(data);
-    const errorMsg = data?.error || '';
-    const count = extractCount(data);
-
-    // v0.959: Threshold check — warn if below expected minimum
-    const thresholdWarning = checkThreshold(src.source, count);
-    const warningMsg = (status === 'success' && count === 0 && !errorMsg)
-      ? (thresholdWarning || 'Warnung: 0 Einträge geladen — Quelle möglicherweise nicht erreichbar')
-      : (thresholdWarning || '');
-
-    // Build detailed error info for admins
-    let errorDetail = '';
-    if (status === 'failed' || (status === 'success' && count === 0 && thresholdWarning)) {
-      errorDetail = JSON.stringify({
-        source: src.source,
-        function: src.function_name,
-        error: errorMsg || thresholdWarning,
-        response: typeof data === 'object' ? JSON.stringify(data).substring(0, 2000) : String(data).substring(0, 2000),
-        duration_ms: duration,
-        timestamp: new Date().toISOString(),
-        nachlauf: isNachlauf,
-      }, null, 2);
-    }
-
-    await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
-      last_run_time: new Date().toISOString(),
-      last_status: status,
-      last_count: count,
-      last_duration_ms: duration,
-      last_error: (errorMsg || warningMsg).substring(0, 500),
-      last_error_detail: errorDetail,
-    });
-
-    // v0.959: If source failed, schedule a Nachlauf (if not already a Nachlauf)
-    if (status === 'failed' && !isNachlauf) {
-      await scheduleNachlauf(base44, src.source, 120); // Retry in 2 hours
-    }
-    // v0.959: If Nachlauf succeeded, clear the Nachlauf marker
-    if (isNachlauf) {
-      await clearNachlauf(base44, src.source);
-    }
-
-    // v0.959: Error counter — track consecutive failures for escalation
-    let consecutiveFailures = 0;
-    try {
-      const cfKey = 'consecutive_failures_' + src.source;
-      const cfSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: cfKey });
-      if (cfSettings && cfSettings.length > 0) {
-        consecutiveFailures = parseInt(cfSettings[0].value || '0') || 0;
-      }
-    } catch {}
-
-    // v0.959-HF: Fixed condition — was `!thresholdWarning === false` (confusing double negation).
-    // Increment failures if: source failed, OR count=0 with a threshold warning.
-    if (status === 'failed' || (count === 0 && thresholdWarning)) {
-      consecutiveFailures++;
+    const cfValue = String(consecutiveFailures);
+    if (cfRow) {
+      await base44.asServiceRole.entities.AppSetting.update(cfRow.id, { value: cfValue });
     } else {
-      consecutiveFailures = 0;
+      await base44.asServiceRole.entities.AppSetting.create({ key: cfKey, value: cfValue });
     }
+  } catch {}
 
-    try {
-      const cfKey = 'consecutive_failures_' + src.source;
-      const cfSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: cfKey });
-      const cfValue = String(consecutiveFailures);
-      if (cfSettings && cfSettings.length > 0) {
-        await base44.asServiceRole.entities.AppSetting.update(cfSettings[0].id, { value: cfValue });
-      } else {
-        await base44.asServiceRole.entities.AppSetting.create({ key: cfKey, value: cfValue });
-      }
-    } catch {}
-
-    // v0.959: 3rd consecutive error → auto-pause source
-    const action = getErrorAction(consecutiveFailures);
-    if (action === 'pause') {
-      try {
-        await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
-          weekly_enabled: false,
-          last_error: `AUTO-PAUSIERT: 3 aufeinanderfolgende Fehler — Daniel muss Quelle reaktivieren`,
-        });
-      } catch {}
-    }
-
-    // Write SyncLog entry
-    try {
-      await base44.asServiceRole.entities.SyncLog.create({
-        timestamp: new Date().toISOString(),
-        overall_status: status,
-        total_duration_ms: duration,
-        results: [{
-          source: src.source,
-          label: src.label,
-          status,
-          count,
-          duration_ms: duration,
-          error: errorMsg || warningMsg,
-          retried: isNachlauf,
-        }],
-        trigger: isInternalCall(body) ? 'scheduled' : 'manual',
-      });
-    } catch {}
-  } catch (e: any) {
-    const duration = Date.now() - taskStart;
-    const errorMsg = e?.message || String(e);
-
-    let errorDetail = JSON.stringify({
-      source: src.source,
-      function: src.function_name,
-      error: errorMsg,
-      stack: e?.stack || '',
-      duration_ms: duration,
-      timestamp: new Date().toISOString(),
-      nachlauf: isNachlauf,
-    }, null, 2);
-
+  // v0.959: 3rd consecutive error → auto-pause source
+  if (getErrorAction(consecutiveFailures) === 'pause') {
     try {
       await base44.asServiceRole.entities.DailyRefreshSchedule.update(src.id, {
-        last_run_time: new Date().toISOString(),
-        last_status: 'failed',
-        last_count: 0,
-        last_duration_ms: duration,
-        last_error: errorMsg.substring(0, 500),
-        last_error_detail: errorDetail,
-      });
-    } catch {}
-
-    // Schedule Nachlauf if not already a Nachlauf
-    if (!isNachlauf) {
-      await scheduleNachlauf(base44, src.source, 120);
-    } else {
-      await clearNachlauf(base44, src.source);
-    }
-
-    try {
-      await base44.asServiceRole.entities.SyncLog.create({
-        timestamp: new Date().toISOString(),
-        overall_status: 'failed',
-        total_duration_ms: duration,
-        results: [{
-          source: src.source,
-          label: src.label,
-          status: 'failed',
-          count: 0,
-          duration_ms: duration,
-          error: errorMsg,
-          retried: isNachlauf,
-        }],
-        trigger: isInternalCall(body) ? 'scheduled' : 'manual',
+        weekly_enabled: false,
+        last_error: `AUTO-PAUSIERT: 3 aufeinanderfolgende Fehler — Daniel muss Quelle reaktivieren`,
       });
     } catch {}
   }
