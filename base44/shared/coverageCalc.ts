@@ -263,11 +263,50 @@ function nvisLoss(f_MHz: number, absorption_db: number): number {
 // Elevation Data
 // ============================================================
 
+// v0.959-HF2: Open-Meteo elevation API (Copernicus DEM, 100 points/call, ~0.2s/call).
+// Used only by the repeater-coverage batch: OpenTopoData's public API allows 1 call/s and
+// 1000 calls/day, so one repeater (~22 calls) took ~15s and the batch timed out.
+// Two requests in flight, one retry; throws if a batch fails so the caller can retry/fallback
+// instead of silently computing coverage on missing terrain data. Other callers are unchanged.
+export const OPEN_METEO_ELEVATION_URL = 'https://api.open-meteo.com/v1/elevation';
+
+async function fetchElevationsOpenMeteo(points: Array<{ lat: number; lng: number }>): Promise<(number | null)[]> {
+  const BATCH = 100;
+  const CONCURRENCY = 2;
+  const results: (number | null)[] = new Array(points.length).fill(null);
+  const starts: number[] = [];
+  for (let i = 0; i < points.length; i += BATCH) starts.push(i);
+
+  const fetchBatch = async (start: number) => {
+    const batch = points.slice(start, start + BATCH);
+    const url = `${OPEN_METEO_ELEVATION_URL}?latitude=${batch.map(p => p.lat.toFixed(5)).join(',')}&longitude=${batch.map(p => p.lng.toFixed(5)).join(',')}`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (resp.ok) {
+          const data = await resp.json();
+          const elev = data.elevation || [];
+          for (let j = 0; j < batch.length; j++) results[start + j] = typeof elev[j] === 'number' ? elev[j] : null;
+          return;
+        }
+      } catch {}
+      if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+    }
+    throw new Error('Höhendaten nicht verfügbar (Open-Meteo)');
+  };
+
+  for (let i = 0; i < starts.length; i += CONCURRENCY) {
+    await Promise.all(starts.slice(i, i + CONCURRENCY).map(fetchBatch));
+  }
+  return results;
+}
+
 export async function fetchElevations(
   points: Array<{ lat: number; lng: number }>,
   apiUrl?: string
 ): Promise<(number | null)[]> {
   if (points.length === 0) return [];
+  if (apiUrl === OPEN_METEO_ELEVATION_URL) return fetchElevationsOpenMeteo(points);
   const baseUrl = apiUrl || 'https://api.opentopodata.org/v1/srtm30m';
   const results: (number | null)[] = [];
   const BATCH = 100;
@@ -868,6 +907,9 @@ async function calculateHFCoverage(
 // ============================================================
 // Fallbacks
 // ============================================================
+
+// v0.959-HF2: exported as bandEstimateCoverage — rough circle used when terrain calculation fails.
+export { fallbackBandEstimate as bandEstimateCoverage };
 
 function fallbackBandEstimate(origin: { lat: number; lng: number }, params: CoverageParams, numRadials: number, bandMaxRange: number): CoverageResult {
   const radialResults: RadialResult[] = [];

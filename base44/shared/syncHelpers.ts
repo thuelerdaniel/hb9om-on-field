@@ -15,13 +15,18 @@ export function isToday(isoStr: string): boolean {
 // — vorher stand last_count auf 0 trotz erfolgreicher Läufe weil Feldnamen nicht erkannt wurden.
 export function extractCount(data: any): number {
   if (!data) return 0;
-  // Direct count fields (most common)
-  const v = data.count ?? data.total_count ?? data.total_saved ??
-    data.imported ?? data.saved ?? data.fetched ?? data.merged ??
-    data.matchedRepeaters ?? data.nodesSaved ?? data.bmDevicesSaved ??
-    data.new_castles ?? data.total_overpass ?? data.linksCreated ??
-    data.countriesSaved ?? data.calculated;
-  if (v != null) return v;
+  // Direct count fields (most common).
+  // v0.959-HF2: only numeric values count — `saved: false/true` (Burgen) was returned as count.
+  const candidates = [
+    data.count, data.total_count, data.total_saved,
+    data.imported, data.saved, data.fetched, data.merged,
+    data.matchedRepeaters, data.nodesSaved, data.bmDevicesSaved,
+    data.new_castles, data.total_overpass, data.linksCreated,
+    data.countriesSaved, data.calculated,
+  ];
+  for (const v of candidates) {
+    if (typeof v === 'number' && !isNaN(v)) return v;
+  }
   // CH-Relais-Links: report matchedCount (links already exist = success)
   if (data.matchedCount != null && data.matchedCount > 0) return data.matchedCount;
   // TOTA returns separate antenna/tower/worldwide counts
