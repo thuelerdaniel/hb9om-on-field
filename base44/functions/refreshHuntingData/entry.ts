@@ -52,52 +52,45 @@ export default async function(req: Request): Promise<Response> {
     // 4. Delete WWBOTA spots (domain dead)
     try { await sr.entities.ActivitySpot.deleteMany({ activity_type: 'WWBOTA' as any }); } catch {}
 
-    // 5. Fetch DX Spots (inline — no sub-function call)
-    try {
-      const dxResult = await fetchDxSpotsInline(base44, body);
-      results.dxSpots = { success: true, saved: dxResult.saved, warning: dxResult.warning };
-    } catch (e: any) {
-      results.dxSpots = { success: false, error: e.message };
-      results.errors.push(`fetchDxSpots: ${e.message}`);
-    }
-
-    // 6. Fetch Propagation (inline)
-    try {
-      const propResult = await fetchPropagationInline(base44);
-      results.propagation = { success: propResult.success, bestBand: propResult.bestBand, solarFlux: propResult.solarFlux };
-    } catch (e: any) {
-      results.propagation = { success: false, error: e.message };
-      results.errors.push(`fetchPropagation: ${e.message}`);
-    }
-
-    // 7. Fetch Activity Spots (all inline — no sub-function calls)
+    // 5-8. Fetch ALL data sources IN PARALLEL — prevents StartToClose timeout.
+    // Previously sequential: 7 API calls + 500+ entity lookups = 380s. Now max(parallel) ≈ 30-60s.
     results.activities = {};
-    const activityFetches: { name: string; fn: () => Promise<any> }[] = [
-      { name: 'sotaSpots', fn: () => fetchSotaSpotsInline(base44, body) },
-      { name: 'sotaAlerts', fn: () => fetchSotaAlertsInline(base44) },
-      { name: 'potaSpots', fn: () => fetchPotaSpotsInline(base44, body) },
-      { name: 'wwffSpots', fn: () => fetchWwffSpotsInline(base44, body) },
-      { name: 'gmaSpots', fn: () => fetchGmaSpotsInline(base44, body) },
+    const parallelFetches: { name: string; key: string; fn: () => Promise<any> }[] = [
+      { name: 'dxSpots', key: 'top', fn: () => fetchDxSpotsInline(base44, body) },
+      { name: 'propagation', key: 'top', fn: () => fetchPropagationInline(base44) },
+      { name: 'sotaSpots', key: 'activities', fn: () => fetchSotaSpotsInline(base44, body) },
+      { name: 'sotaAlerts', key: 'activities', fn: () => fetchSotaAlertsInline(base44) },
+      { name: 'potaSpots', key: 'activities', fn: () => fetchPotaSpotsInline(base44, body) },
+      { name: 'wwffSpots', key: 'activities', fn: () => fetchWwffSpotsInline(base44, body) },
+      { name: 'gmaSpots', key: 'activities', fn: () => fetchGmaSpotsInline(base44, body) },
+      { name: 'llotaSpots', key: 'activities', fn: async () => {
+        const r = await base44.functions.invoke('fetchLlotaSpots', { ...body, scheduled: true });
+        return r?.data || r;
+      }},
     ];
 
-    for (const { name, fn } of activityFetches) {
-      try {
-        const result = await fn();
-        results.activities[name] = { success: true, saved: result.saved, warning: result.warning || null };
-      } catch (e: any) {
-        results.activities[name] = { success: false, error: e.message };
-        results.errors.push(`${name}: ${e.message}`);
+    const settled = await Promise.allSettled(parallelFetches.map(f => f.fn()));
+    for (let i = 0; i < parallelFetches.length; i++) {
+      const { name, key } = parallelFetches[i];
+      const res = settled[i];
+      if (res.status === 'fulfilled') {
+        const val = res.value;
+        if (key === 'top' && name === 'propagation') {
+          results[name] = { success: val.success, bestBand: val.bestBand, solarFlux: val.solarFlux };
+        } else if (key === 'top') {
+          results[name] = { success: true, saved: val.saved, warning: val.warning || null };
+        } else {
+          results.activities[name] = { success: true, saved: val?.saved ?? 0, warning: val?.warning || null };
+        }
+      } else {
+        const errMsg = res.reason?.message || String(res.reason);
+        if (key === 'top') {
+          results[name] = { success: false, error: errMsg };
+        } else {
+          results.activities[name] = { success: false, error: errMsg };
+        }
+        results.errors.push(`${name}: ${errMsg}`);
       }
-    }
-
-    // 8. Fetch LLOTA Spots (via sub-function call — isInternalCall allows it)
-    try {
-      const llotaResp = await base44.functions.invoke('fetchLlotaSpots', { ...body, scheduled: true });
-      const llotaData = llotaResp?.data || llotaResp;
-      results.activities.llotaSpots = { success: true, saved: llotaData?.saved || 0, warning: llotaData?.warning || null };
-    } catch (e: any) {
-      results.activities.llotaSpots = { success: false, error: e.message };
-      results.errors.push(`llotaSpots: ${e.message}`);
     }
 
     // 9. Skip loading all activities — frontend loads them separately from DB.

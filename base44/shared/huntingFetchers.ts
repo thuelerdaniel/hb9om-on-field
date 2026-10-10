@@ -158,22 +158,36 @@ export async function fetchDxSpotsInline(base44: any, body: any = {}): Promise<{
       refsNeedingCoords.push({ type: spot.activity, ref: spot.activity_ref, spotIdx: i });
     }
   }
-  // Batch lookup references
+  // Batched lookup — 1 filter call per type instead of up to 100 individual calls
+  const refsByType: Record<string, { ref: string; spotIdx: number }[]> = {};
   for (const { type, ref, spotIdx } of refsNeedingCoords.slice(0, 100)) {
+    let entityName = '';
+    if (type === 'SOTA') entityName = 'SotaPoint';
+    else if (type === 'POTA') entityName = 'PotaPoint';
+    else if (type === 'WWFF') entityName = 'WwffPoint';
+    else if (type === 'IOTA') entityName = 'IotaPoint';
+    if (!entityName) continue;
+    if (!refsByType[entityName]) refsByType[entityName] = [];
+    refsByType[entityName].push({ ref, spotIdx });
+  }
+  for (const [entityName, items] of Object.entries(refsByType)) {
+    const codes = [...new Set(items.map(i => i.ref))];
     try {
-      let entityName = '';
-      if (type === 'SOTA') entityName = 'SotaPoint';
-      else if (type === 'POTA') entityName = 'PotaPoint';
-      else if (type === 'WWFF') entityName = 'WwffPoint';
-      else if (type === 'IOTA') entityName = 'IotaPoint';
-      if (!entityName) continue;
-      const points = await base44.asServiceRole.entities[entityName].filter({ code: ref });
-      if (points && points.length > 0 && points[0].lat != null) {
-        const lat = Number(points[0].lat), lon = Number(points[0].lng);
-        merged[spotIdx].lat = Math.round(lat * 10000) / 10000;
-        merged[spotIdx].lng = Math.round(lon * 10000) / 10000;
-        merged[spotIdx].distance = haversine(stationPos.lat, stationPos.lon, lat, lon);
-        merged[spotIdx].azimuth = bearing(stationPos.lat, stationPos.lon, lat, lon);
+      const points = await base44.asServiceRole.entities[entityName].filter(
+        { code: { $in: codes } }, '-created_date', Math.min(codes.length, 1000)
+      );
+      const coordMap = new Map<string, { lat: number; lon: number }>();
+      for (const p of points) {
+        if (p.lat != null) coordMap.set(p.code, { lat: Number(p.lat), lon: Number(p.lng) });
+      }
+      for (const { ref, spotIdx } of items) {
+        const c = coordMap.get(ref);
+        if (c) {
+          merged[spotIdx].lat = Math.round(c.lat * 10000) / 10000;
+          merged[spotIdx].lng = Math.round(c.lon * 10000) / 10000;
+          merged[spotIdx].distance = haversine(stationPos.lat, stationPos.lon, c.lat, c.lon);
+          merged[spotIdx].azimuth = bearing(stationPos.lat, stationPos.lon, c.lat, c.lon);
+        }
       }
     } catch {}
   }
@@ -339,18 +353,20 @@ export async function fetchSotaAlertsInline(base44: any): Promise<{ saved: numbe
   }
   if (alerts.length === 0) return { saved: 0 };
 
-  // Lookup coordinates from SotaPoint
+  // Batched coordinate lookup — 1 filter call instead of up to 300 individual calls
   const refCoordMap = new Map<string, { lat: number; lon: number; name: string }>();
-  for (const a of alerts.slice(0, 300)) {
-    const ref = a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : '';
-    if (ref && !refCoordMap.has(ref)) {
-      try {
-        const points = await base44.asServiceRole.entities.SotaPoint.filter({ code: ref });
-        if (points && points.length > 0 && points[0].lat != null) {
-          refCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng), name: points[0].name || '' });
-        }
-      } catch {}
-    }
+  const alertRefs = [...new Set(alerts.slice(0, 300).map((a: any) =>
+    a.associationCode && a.summitCode ? `${a.associationCode}/${a.summitCode}` : ''
+  ).filter(Boolean))];
+  if (alertRefs.length > 0) {
+    try {
+      const points = await base44.asServiceRole.entities.SotaPoint.filter(
+        { code: { $in: alertRefs } }, '-created_date', Math.min(alertRefs.length, 1000)
+      );
+      for (const p of points) {
+        if (p.lat != null) refCoordMap.set(p.code, { lat: Number(p.lat), lon: Number(p.lon), name: p.name || '' });
+      }
+    } catch {}
   }
 
   const records = alerts.slice(0, 300).map((a: any) => {
@@ -396,11 +412,14 @@ export async function fetchPotaSpotsInline(base44: any, body: any = {}): Promise
     if ((isNaN(lat) || isNaN(lon)) && s.reference) refsNeedingCoords.add(s.reference);
   }
   const potaCoordMap = new Map<string, { lat: number; lon: number }>();
-  for (const ref of refsNeedingCoords) {
+  const potaRefs = [...refsNeedingCoords];
+  if (potaRefs.length > 0) {
     try {
-      const points = await base44.asServiceRole.entities.PotaPoint.filter({ code: ref });
-      if (points && points.length > 0 && points[0].lat != null) {
-        potaCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
+      const points = await base44.asServiceRole.entities.PotaPoint.filter(
+        { code: { $in: potaRefs } }, '-created_date', Math.min(potaRefs.length, 1000)
+      );
+      for (const p of points) {
+        if (p.lat != null) potaCoordMap.set(p.code, { lat: Number(p.lat), lon: Number(p.lng) });
       }
     } catch {}
   }
@@ -465,11 +484,14 @@ export async function fetchWwffSpotsInline(base44: any, body: any = {}): Promise
     if ((isNaN(lat) || isNaN(lon)) && s.reference) refsNeedingCoords.add(s.reference);
   }
   const wwffCoordMap = new Map<string, { lat: number; lon: number }>();
-  for (const ref of refsNeedingCoords) {
+  const wwffRefs = [...refsNeedingCoords];
+  if (wwffRefs.length > 0) {
     try {
-      const points = await base44.asServiceRole.entities.WwffPoint.filter({ code: ref });
-      if (points && points.length > 0 && points[0].lat != null) {
-        wwffCoordMap.set(ref, { lat: Number(points[0].lat), lon: Number(points[0].lng) });
+      const points = await base44.asServiceRole.entities.WwffPoint.filter(
+        { code: { $in: wwffRefs } }, '-created_date', Math.min(wwffRefs.length, 1000)
+      );
+      for (const p of points) {
+        if (p.lat != null) wwffCoordMap.set(p.code, { lat: Number(p.lat), lon: Number(p.lng) });
       }
     } catch {}
   }
