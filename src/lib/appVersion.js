@@ -13,11 +13,13 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610081218";
+export const APP_BUILD = "202610100500";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.959-HF3: WAVELOG-SYNC — permanent_sync: Per-QSO Log.update Schleifen (toRepair + toSend) durch bulkUpdate ersetzt — verhindert 'Rate limit exceeded' bei grossen QSO-Batches — 200 einzelne Update-Calls → 2 bulkUpdate Calls",
+  "v0.959-HF3: WAVELOG-SYNC — permanent_sync: isSyncPaused pro User entfernt (2 Entity-Calls/User eingespart) — globale sync_paused AppSetting einmal vor Schleife geladen + setting.sync_paused direkt aus geladenem Setting geprüft",
   "v0.959-HF2: SYNC-MANUELL — manageSyncSchedule triggerSource: gleicher Code-Pfad wie geplante Läufe (shared sourceRunner) — manueller Start läuft mit 85s Timeout, interpretiert Ergebnis (success/skipped/pending/failed) und schreibt last_* in DailyRefreshSchedule + source_config + SyncLog — KEIN 500 mehr bei langen Quellen",
   "v0.959-HF2: SYNC-MANUELL — SourceConfigCard: Toast zeigt Status+Anzahl+Dauer+Meldung, config wird sofort aktualisiert, useEffect synct localConfig mit Polling, skipped/pending/failed Status-Badges, Fehler nur rot bei echtem Fehler",
   "v0.959-HF2: BURGEN-OVERPASS — Chunked über viele kurze Calls (1 Quadrant/Call, ≤75s Budget, 15s/Request, 30s/Quadrant) — keine 524-Timeouts mehr — Monatlicher Cache (30 Tage) mit skipped-Status — Dedup nach Name+Koords verhindert 22k→3k Duplikate-Explosion — Cursor in AppSetting für Cycle-Fortsetzung",

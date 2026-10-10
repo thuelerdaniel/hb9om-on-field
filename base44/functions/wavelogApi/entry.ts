@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { isInternalCall } from '../../shared/internalAuth.ts';
 import { dedupKey } from '../../shared/logDedup.ts';
-import { isSyncPaused } from '../../shared/syncPause.ts';
 import { normalizeTime, resolveTime } from '../../shared/normalizeTime.ts';
 import { loadExistingLogMap, upsertLogs } from '../../shared/logUpsert.ts';
 
@@ -541,11 +540,18 @@ export default async function(req: Request): Promise<Response> {
         } catch {}
         if (!syncUserPrivateCallsign) syncUserPrivateCallsign = 'HB3YNF';
 
+        // v0.959-HF2: Load global sync_paused ONCE — avoids 2 entity calls per user in the loop.
+        let globalSyncPaused = false;
+        try {
+          const gp = await sr.entities.AppSetting.filter({ key: 'sync_paused' });
+          globalSyncPaused = !!(gp && gp.length > 0 && gp[0].value === 'true');
+        } catch {}
+
         for (const setting of settings) {
           if (!setting.wavelog_api_key) continue;
           const userId = setting.user_id || setting.created_by_id;
-          // v0.9018 NACHFOLGE: Per-user sync pause — skip users who paused their own sync
-          if (await isSyncPaused(base44, userId)) {
+          // v0.9018 NACHFOLGE: Per-user sync pause — check loaded setting + global flag (no extra calls)
+          if (setting.sync_paused === true || globalSyncPaused) {
             results.push({ user_id: userId, status: 'skipped', reason: 'sync_paused' });
             continue;
           }
@@ -668,10 +674,15 @@ export default async function(req: Request): Promise<Response> {
             const toRepair = toExport.filter(q => q.wavelog_sync_date);
             const toSend = toExport.filter(q => !q.wavelog_sync_date);
 
-            for (const qso of toRepair) {
+            // v0.959-HF2: bulkUpdate instead of per-QSO update — prevents rate limit on large batches
+            if (toRepair.length > 0) {
               try {
-                await sr.entities.Log.update(qso.id, { wavelog_synced: true });
-              } catch (e: any) {}
+                await sr.entities.Log.bulkUpdate(
+                  toRepair.map(q => ({ id: q.id, wavelog_synced: true }))
+                );
+              } catch (e: any) {
+                console.log(`[Wavelog Sync] bulkUpdate repair failed: ${e.message}`);
+              }
             }
 
             if (toSend.length > 0) {
@@ -706,14 +717,15 @@ export default async function(req: Request): Promise<Response> {
               });
 
               if (uploadResp.status === 201 || uploadResp.ok) {
-                for (const qso of toSend) {
-                  try {
-                    await sr.entities.Log.update(qso.id, {
-                      wavelog_synced: true,
-                      wavelog_sync_date: new Date().toISOString(),
-                    });
-                    exportedCount++;
-                  } catch (e: any) {}
+                // v0.959-HF2: bulkUpdate instead of per-QSO update — prevents rate limit
+                try {
+                  const syncDate = new Date().toISOString();
+                  await sr.entities.Log.bulkUpdate(
+                    toSend.map(q => ({ id: q.id, wavelog_synced: true, wavelog_sync_date: syncDate }))
+                  );
+                  exportedCount = toSend.length;
+                } catch (e: any) {
+                  console.log(`[Wavelog Sync] bulkUpdate export failed: ${e.message}`);
                 }
               }
             }
