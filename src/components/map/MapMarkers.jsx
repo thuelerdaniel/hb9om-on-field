@@ -4,6 +4,7 @@ import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import DraggablePopup from "@/components/map/DraggablePopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
+import { isValidCoord } from "@/lib/geoUtilsFrontend";
 import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
 
 // Hard cap on markers rendered at once — prevents "page not responding" on extreme loads.
@@ -77,7 +78,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
   // Viewport culling: only render markers within current bounds + 30% buffer
   const paddedBounds = bounds.pad(0.3);
   const visibleMarkers = markers.filter(m =>
-    m.lat != null && m.lng != null && paddedBounds.contains([m.lat, m.lng])
+    isValidCoord(m.lat, m.lng) && paddedBounds.contains([m.lat, m.lng])
   );
 
   // Canvas mode: performance mode OR auto-canvas (time-based, triggered by parent)

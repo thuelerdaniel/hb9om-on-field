@@ -3,6 +3,7 @@ import { CircleMarker, Popup, Marker, useMap, useMapEvents } from "react-leaflet
 import L from "leaflet";
 import { Radio, Globe, Signal, Network, MapPin, Navigation, Hash } from "lucide-react";
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
+import { isValidCoord, isPlaceholderCoord } from "@/lib/geoUtilsFrontend";
 import { isInContinents } from "@/lib/continents";
 import { isInCountries } from "@/lib/countries";
 import DraggablePopup from "@/components/map/DraggablePopup";
@@ -155,7 +156,7 @@ function PrivateNodeLayerInner({ nodes, performanceMode, userPosition, filterTyp
   const colorMap = colorScheme === "brandmeister" ? BM_COLORS : NODE_COLORS;
 
   const visibleNodes = useMemo(() => {
-    let result = nodes.filter(n => n.lat != null && n.lng != null);
+    let result = nodes.filter(n => isValidCoord(n.lat, n.lng) && !isPlaceholderCoord(n.lat, n.lng));
     // Filter by source (e.g. "aprs.fi" for APRS layer, "brandmeister" for BrandMeister layer)
     if (sourceFilter) {
       const filters = Array.isArray(sourceFilter) ? sourceFilter : [sourceFilter];

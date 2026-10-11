@@ -5,13 +5,14 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { getModeColor, getModeLabel, repeaterMatchesMode } from "@/lib/repeaterModes";
+import { isValidCoord } from "@/lib/geoUtilsFrontend";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
 // Auto-Zentrierung auf GPS-Position
 function AutoCenter({ position }) {
   const map = useMap();
   useEffect(() => {
-    if (position) {
+    if (position && isValidCoord(position.lat, position.lon)) {
       map.setView([position.lat, position.lon], Math.max(map.getZoom(), 12), { animate: true });
     }
   }, [position, map]);
@@ -62,7 +63,7 @@ export default function LiveMapView({ gpsPosition, accuracy, repeaters, recommen
 
   const filteredRepeaters = useMemo(() => {
     return repeaters.filter((r) => {
-      if (r.lat == null || r.lng == null || isNaN(r.lat) || isNaN(r.lng) || r.lat < -90 || r.lat > 90 || r.lng < -180 || r.lng > 180) return false;
+      if (!isValidCoord(r.lat, r.lng)) return false;
       if (selectedModes.length > 0 && !selectedModes.some((m) => repeaterMatchesMode(r, m))) return false;
       if (selectedBands.length > 0 && r.band && !selectedBands.includes(r.band)) return false;
       return true;
@@ -94,7 +95,7 @@ export default function LiveMapView({ gpsPosition, accuracy, repeaters, recommen
         )}
 
         {/* GPS-Position (pulsierend) */}
-        {gpsPosition && (
+        {gpsPosition && isValidCoord(gpsPosition.lat, gpsPosition.lon) && (
           <Marker position={[gpsPosition.lat, gpsPosition.lon]} icon={gpsIcon} />
         )}
 
@@ -124,7 +125,7 @@ export default function LiveMapView({ gpsPosition, accuracy, repeaters, recommen
         })}
 
         {/* Empfohlener Repeater (hervorgehoben) */}
-        {recommendedRepeater && recommendedRepeater.lat != null && (
+        {recommendedRepeater && isValidCoord(recommendedRepeater.lat, recommendedRepeater.lng) && (
           <Marker
             position={[recommendedRepeater.lat, recommendedRepeater.lng]}
             icon={recommendedIcon}

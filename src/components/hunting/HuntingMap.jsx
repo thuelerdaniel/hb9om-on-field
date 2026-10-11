@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
-import { maidenheadToLatLon } from "@/lib/geoUtilsFrontend";
+import { maidenheadToLatLon, isValidCoord } from "@/lib/geoUtilsFrontend";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
 // Hunting Map — zeigt alle aktiven Spots mit gültigen Koordinaten auf einer Karte.
@@ -61,9 +61,9 @@ export default function HuntingMap({ gpsPos, stationInfo, onSpotClick }) {
           base44.entities.ActivitySpot.list("-spot_time", 100),
           base44.entities.DxSpot.list("-spot_time", 50),
         ]);
-        // FIX 7: Nur Spots mit gültigen Koordinaten
-        setActivities((actList || []).filter(s => s.latitude != null && s.longitude != null));
-        setDxSpots((dxList || []).filter(s => s.lat != null && s.lng != null));
+        // FIX 7: Nur Spots mit gültigen Koordinaten (isValidCoord prüft auch NaN + Null Island)
+        setActivities((actList || []).filter(s => isValidCoord(s.latitude, s.longitude)));
+        setDxSpots((dxList || []).filter(s => isValidCoord(s.lat, s.lng)));
       } catch {} finally { setLoading(false); }
     };
     loadData();
@@ -73,9 +73,10 @@ export default function HuntingMap({ gpsPos, stationInfo, onSpotClick }) {
 
   // Alle Positionen für AutoFit
   const allPositions = useMemo(() => {
-    const arr = [[stationPos.lat, stationPos.lon]];
-    for (const s of activities) arr.push([s.latitude, s.longitude]);
-    for (const s of dxSpots) arr.push([s.lat, s.lng]);
+    const arr = [];
+    if (isValidCoord(stationPos.lat, stationPos.lon)) arr.push([stationPos.lat, stationPos.lon]);
+    for (const s of activities) if (isValidCoord(s.latitude, s.longitude)) arr.push([s.latitude, s.longitude]);
+    for (const s of dxSpots) if (isValidCoord(s.lat, s.lng)) arr.push([s.lat, s.lng]);
     return arr;
   }, [stationPos, activities, dxSpots]);
 

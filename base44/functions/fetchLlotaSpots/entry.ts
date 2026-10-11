@@ -13,6 +13,21 @@ import { fetchWithRetry } from "../../shared/syncHelpers.ts";
 const DEFAULT_LOCATOR = 'JN36FL';
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
+// ─── Coordinate + time validation (prevents map crashes from bad data) ───
+function isValidCoord(lat: any, lng: any): boolean {
+  const la = Number(lat), ln = Number(lng);
+  return Number.isFinite(la) && Number.isFinite(ln) &&
+    la >= -90 && la <= 90 && ln >= -180 && ln <= 180 &&
+    !(la === 0 && ln === 0);
+}
+
+function sanitizeSpotTime(date: Date): Date {
+  const now = Date.now();
+  if (isNaN(date.getTime())) return new Date(now);
+  if (date.getTime() > now + ONE_HOUR_MS) return new Date(now);
+  return date;
+}
+
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -86,6 +101,7 @@ export default async function(req: Request): Promise<Response> {
     // 4. Merge: LLOTA direct + Spothole enrichment
     const now = Date.now();
     const merged: any[] = [];
+    let skippedNoCoord = 0;
 
     for (const ls of llotaSpots) {
       const freqKHz = Math.round(parseFloat(ls.frequency) * 1000);
@@ -99,7 +115,7 @@ export default async function(req: Request): Promise<Response> {
       }
 
       // Fallback: look up coordinates from LlotaRef entity
-      if ((lat == null || lng == null) && ls.reference) {
+      if (!isValidCoord(lat, lng) && ls.reference) {
         try {
           const refs = await base44.asServiceRole.entities.LlotaRef.filter({ code: ls.reference });
           if (refs && refs.length > 0 && refs[0].lat != null) {
@@ -109,6 +125,9 @@ export default async function(req: Request): Promise<Response> {
         } catch {}
       }
 
+      // Skip records without valid coordinates (prevents map crashes)
+      if (!isValidCoord(lat, lng)) { skippedNoCoord++; continue; }
+
       let distance: number | null = null;
       let azimuth: number | null = null;
       if (lat != null && lng != null) {
@@ -116,7 +135,7 @@ export default async function(req: Request): Promise<Response> {
         azimuth = Math.round(bearing(stationPos.lat, stationPos.lon, lat, lng));
       }
 
-      const spotTime = ls.updated_at ? new Date(ls.updated_at) : (ls.created_at ? new Date(ls.created_at) : new Date());
+      const spotTime = sanitizeSpotTime(ls.updated_at ? new Date(ls.updated_at) : (ls.created_at ? new Date(ls.created_at) : new Date()));
       const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
       const comment = (ls.history && ls.history[0]) ? (ls.history[0].comment || '') : '';
 
@@ -129,8 +148,8 @@ export default async function(req: Request): Promise<Response> {
         frequency: freqKHz,
         band: deriveBand(freqKHz),
         mode: ls.mode || 'SSB',
-        latitude: lat != null ? lat : undefined,
-        longitude: lng != null ? lng : undefined,
+        latitude: lat,
+        longitude: lng,
         grid6: enriched?.dx_grid || undefined,
         comments: comment,
         spotter: ls.spotted_by_app || '',
@@ -156,7 +175,7 @@ export default async function(req: Request): Promise<Response> {
       let lng: number | null = s.dx_longitude ? Number(s.dx_longitude) : null;
 
       // Fallback: LlotaRef lookup
-      if ((lat == null || lng == null) && sigRef) {
+      if (!isValidCoord(lat, lng) && sigRef) {
         try {
           const refs = await base44.asServiceRole.entities.LlotaRef.filter({ code: sigRef });
           if (refs && refs.length > 0 && refs[0].lat != null) {
@@ -166,6 +185,9 @@ export default async function(req: Request): Promise<Response> {
         } catch {}
       }
 
+      // Skip records without valid coordinates (prevents map crashes)
+      if (!isValidCoord(lat, lng)) { skippedNoCoord++; continue; }
+
       let distance: number | null = null;
       let azimuth: number | null = null;
       if (lat != null && lng != null) {
@@ -173,7 +195,7 @@ export default async function(req: Request): Promise<Response> {
         azimuth = Math.round(bearing(stationPos.lat, stationPos.lon, lat, lng));
       }
 
-      const spotTime = s.time_iso ? new Date(s.time_iso) : (s.time ? new Date(s.time * 1000) : new Date());
+      const spotTime = sanitizeSpotTime(s.time_iso ? new Date(s.time_iso) : (s.time ? new Date(s.time * 1000) : new Date()));
       const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
 
       merged.push({
@@ -185,8 +207,8 @@ export default async function(req: Request): Promise<Response> {
         frequency: freqKHz,
         band: s.band || deriveBand(freqKHz),
         mode: s.mode || 'SSB',
-        latitude: lat != null ? lat : undefined,
-        longitude: lng != null ? lng : undefined,
+        latitude: lat,
+        longitude: lng,
         grid6: s.dx_grid || undefined,
         comments: s.comment || '',
         spotter: s.de_call || '',
@@ -266,6 +288,7 @@ export default async function(req: Request): Promise<Response> {
       spothole_enriched: spotholeSpots.length,
       merged: merged.length,
       saved: savedCount,
+      skippedNoCoord,
       warning: [llotaWarning, spotholeWarning].filter(Boolean).join('; ') || null,
       timestamp: new Date().toISOString(),
     });

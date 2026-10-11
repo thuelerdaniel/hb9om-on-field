@@ -16,7 +16,7 @@ import {
   totalRouteDistance,
   fetchOsmRoute,
 } from "@/lib/routeDistance";
-import { haversine } from "@/lib/geoUtilsFrontend";
+import { haversine, isValidCoord } from "@/lib/geoUtilsFrontend";
 import { repeaterMatchesMode } from "@/lib/repeaterModes";
 import { maxRangeForBands } from "@/lib/equipmentRange";
 
@@ -115,7 +115,7 @@ export default function Mobil() {
   // Filter repeaters by mode + band
   const filteredRepeaters = useMemo(() => {
     return repeaters.filter((r) => {
-      if (r.lat == null || r.lng == null) return false;
+      if (!isValidCoord(r.lat, r.lng)) return false;
       if (selectedModes.length > 0 && !selectedModes.some((m) => repeaterMatchesMode(r, m)))
         return false;
       if (selectedBands.length > 0 && r.band && !selectedBands.includes(r.band)) return false;

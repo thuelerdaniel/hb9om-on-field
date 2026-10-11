@@ -3,6 +3,7 @@ import { Marker, Popup, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import { Radio, MapPin, Clock, MessageSquare } from "lucide-react";
 import { getAprsSymbolSvg } from "@/lib/aprsSymbols";
+import { isValidCoord } from "@/lib/geoUtilsFrontend";
 
 // Render icon cache keyed by symbol+isOwn+callsign
 const iconCache = new Map();
@@ -46,7 +47,7 @@ function PublicPositionLayerInner({ positions, userCallsign }) {
   // Filter out own position — GpsTracker renders the user's own symbol
   // directly at the GPS coordinates, so we don't duplicate it here.
   const visible = useMemo(() =>
-    (positions || []).filter(p => p.lat != null && p.lng != null && !p.is_own),
+    (positions || []).filter(p => isValidCoord(p.lat, p.lng) && !p.is_own),
     [positions]
   );
 

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { getModeColor, getModeLabel, repeaterMatchesMode } from "@/lib/repeaterModes";
+import { isValidCoord } from "@/lib/geoUtilsFrontend";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
 // Auto-Zentrierung auf Route
@@ -11,8 +12,11 @@ function FitBounds({ routeCoords }) {
   const map = useMap();
   useEffect(() => {
     if (routeCoords && routeCoords.length > 0) {
-      const bounds = L.latLngBounds(routeCoords.map(([lat, lon]) => [lat, lon]));
-      map.fitBounds(bounds, { padding: [40, 40] });
+      const valid = routeCoords.filter(([lat, lon]) => isValidCoord(lat, lon));
+      if (valid.length > 0) {
+        const bounds = L.latLngBounds(valid.map(([lat, lon]) => [lat, lon]));
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
     }
   }, [routeCoords, map]);
   return null;
@@ -64,7 +68,7 @@ export default function RouteMapView({ routeCoords, repeaters, rangeKm, gpsPosit
 
   const filteredRepeaters = useMemo(() => {
     return repeaters.filter((r) => {
-      if (r.lat == null || r.lng == null || isNaN(r.lat) || isNaN(r.lng) || r.lat < -90 || r.lat > 90 || r.lng < -180 || r.lng > 180) return false;
+      if (!isValidCoord(r.lat, r.lng)) return false;
       if (selectedModes.length > 0 && !selectedModes.some((m) => repeaterMatchesMode(r, m))) return false;
       if (selectedBands.length > 0 && r.band && !selectedBands.includes(r.band)) return false;
       return true;
@@ -100,7 +104,7 @@ export default function RouteMapView({ routeCoords, repeaters, rangeKm, gpsPosit
         )}
 
         {/* GPS-Position */}
-        {gpsPosition && (
+        {gpsPosition && isValidCoord(gpsPosition.lat, gpsPosition.lon) && (
           <Marker position={[gpsPosition.lat, gpsPosition.lon]} icon={gpsIcon} />
         )}
 

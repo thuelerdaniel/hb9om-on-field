@@ -11,7 +11,7 @@ import MobilActiveRepeaterPanel from "./MobilActiveRepeaterPanel";
 import MobilRepeaterNav from "./MobilRepeaterNav";
 import MobilRepeaterList from "./MobilRepeaterList";
 import { calculateRange, isRepeaterReachable } from "@/lib/equipmentRange";
-import { haversine, bearing } from "@/lib/geoUtilsFrontend";
+import { haversine, bearing, isValidCoord } from "@/lib/geoUtilsFrontend";
 import { computeItmPropagation, computeItmCoverage } from "@/lib/itmPropagation";
 
 const LIST_LIMIT = 15;
@@ -64,7 +64,7 @@ export default function MobilActive({
     if (!refPoint) return [];
 
     return repeaters
-      .filter((r) => r.lat != null && r.lng != null && !isNaN(r.lat) && !isNaN(r.lng) && r.lat >= -90 && r.lat <= 90 && r.lng >= -180 && r.lng <= 180)
+      .filter((r) => isValidCoord(r.lat, r.lng))
       .map((r) => {
         const dist = haversine(refPoint.lat, refPoint.lon, r.lat, r.lng);
         const az = bearing(refPoint.lat, refPoint.lon, r.lat, r.lng);

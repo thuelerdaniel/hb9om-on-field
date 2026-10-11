@@ -23,7 +23,7 @@ import {
 } from "react-leaflet";
 import { getModeColor, getModeLabel } from "@/lib/repeaterModes";
 import { calculateRange } from "@/lib/equipmentRange";
-import { haversine } from "@/lib/geoUtilsFrontend";
+import { haversine, isValidCoord } from "@/lib/geoUtilsFrontend";
 import { useDraggableButton } from "@/hooks/useDraggableButton";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 
@@ -123,14 +123,16 @@ export default function MobilMapView({
   const bounds = useMemo(() => {
     const points = [];
     if (routeCoords && routeCoords.length > 0) {
-      routeCoords.forEach(([lat, lon]) => points.push([lat, lon]));
+      routeCoords.forEach(([lat, lon]) => {
+        if (isValidCoord(lat, lon)) points.push([lat, lon]);
+      });
     }
-    if (gpsPosition) {
+    if (gpsPosition && isValidCoord(gpsPosition.lat, gpsPosition.lon)) {
       points.push([gpsPosition.lat, gpsPosition.lon]);
     }
     if (repeaters) {
       repeaters.forEach((r) => {
-        if (r.lat != null && r.lng != null) points.push([r.lat, r.lng]);
+        if (isValidCoord(r.lat, r.lng)) points.push([r.lat, r.lng]);
       });
     }
     if (points.length === 0) return null;
@@ -146,12 +148,14 @@ export default function MobilMapView({
     return () => {
       if (!mapInstance) return;
       const points = [];
-      if (gpsPosition) points.push([gpsPosition.lat, gpsPosition.lon]);
-      if (recommendedRepeater && recommendedRepeater.lat != null) {
+      if (gpsPosition && isValidCoord(gpsPosition.lat, gpsPosition.lon)) points.push([gpsPosition.lat, gpsPosition.lon]);
+      if (recommendedRepeater && isValidCoord(recommendedRepeater.lat, recommendedRepeater.lng)) {
         points.push([recommendedRepeater.lat, recommendedRepeater.lng]);
       }
       if (routeCoords && routeCoords.length > 0) {
-        routeCoords.forEach(([lat, lon]) => points.push([lat, lon]));
+        routeCoords.forEach(([lat, lon]) => {
+          if (isValidCoord(lat, lon)) points.push([lat, lon]);
+        });
       }
       if (points.length >= 2) {
         const lats = points.map((p) => p[0]);
@@ -326,7 +330,7 @@ export default function MobilMapView({
           )}
 
         {/* GPS marker */}
-        {gpsPosition && (
+        {gpsPosition && isValidCoord(gpsPosition.lat, gpsPosition.lon) && (
           <>
             <CircleMarker
               center={[gpsPosition.lat, gpsPosition.lon]}
@@ -365,7 +369,7 @@ export default function MobilMapView({
 
         {/* Repeater markers */}
         {(repeaters || []).map((r, i) => {
-          if (r.lat == null || r.lng == null || isNaN(r.lat) || isNaN(r.lng) || r.lat < -90 || r.lat > 90 || r.lng < -180 || r.lng > 180) return null;
+          if (!isValidCoord(r.lat, r.lng)) return null;
           const color = getModeColor(r.primary_mode);
           const isActive = activeRepeaterId && r.id === activeRepeaterId;
           return (

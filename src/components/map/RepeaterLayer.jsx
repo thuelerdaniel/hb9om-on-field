@@ -6,6 +6,7 @@ import DraggablePopup from "@/components/map/DraggablePopup";
 import CoveragePolygon, { CoverageCircle } from "@/components/map/CoveragePolygon";
 import { getModeColor, repeaterMatchesMode, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
+import { isValidCoord } from "@/lib/geoUtilsFrontend";
 import { isInContinents } from "@/lib/continents";
 import { isInCountries, getCountriesByContinent } from "@/lib/countries";
 import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
@@ -106,8 +107,8 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   // Filter repeaters by continent, country, mode, search, and radius
   const filteredRepeaters = useMemo(() => {
     let result = repeaters;
-    // Exclude repeaters without valid coordinates — null, NaN, or out of range
-    result = result.filter(r => r.lat != null && r.lng != null && !isNaN(r.lat) && !isNaN(r.lng) && r.lat >= -90 && r.lat <= 90 && r.lng >= -180 && r.lng <= 180);
+    // Exclude repeaters without valid coordinates — null, NaN, out of range, or Null Island
+    result = result.filter(r => isValidCoord(r.lat, r.lng));
     // Per-layer country filter (multi-select) overrides global LayerControl country filter.
     // When specific countries are selected in the RepeaterFilter, the global
     // activeContinents/activeCountries from LayerControl are NOT applied — so the
@@ -214,7 +215,7 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   const byCallsignAll = useMemo(() => {
     const map = new Map();
     for (const r of repeaters) {
-      if (r.lat == null || r.lng == null) continue;
+      if (!isValidCoord(r.lat, r.lng)) continue;
       if (!map.has(r.callsign)) map.set(r.callsign, []);
       map.get(r.callsign).push(r);
     }
@@ -226,7 +227,7 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   const byCallsignFiltered = useMemo(() => {
     const map = new Map();
     for (const r of filteredRepeaters) {
-      if (r.lat == null || r.lng == null) continue;
+      if (!isValidCoord(r.lat, r.lng)) continue;
       if (!map.has(r.callsign)) map.set(r.callsign, []);
       map.get(r.callsign).push(r);
     }
@@ -467,7 +468,7 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   const bounds = map.getBounds();
   const paddedBounds = bounds.pad(0.3);
   const visibleRepeaters = filteredRepeaters.filter(r =>
-    r.lat != null && r.lng != null && paddedBounds.contains([r.lat, r.lng])
+    isValidCoord(r.lat, r.lng) && paddedBounds.contains([r.lat, r.lng])
   );
 
   // Viewport culling already limits to the current map area. The cap is a safety net

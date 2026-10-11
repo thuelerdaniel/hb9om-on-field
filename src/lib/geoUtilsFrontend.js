@@ -69,6 +69,27 @@ export function signalToDistance(sMeter) {
   return map[sMeter] || 500;
 }
 
+// isValidCoord — checks if lat/lng are valid finite numbers in geographic range.
+// Rejects: null, undefined, NaN, Infinity, out-of-range, and Null Island (0,0).
+// Used by ALL map components to prevent Leaflet "Invalid LatLng object: (NaN, NaN)" crashes.
+export function isValidCoord(lat, lng) {
+  const la = Number(lat);
+  const ln = Number(lng);
+  return (
+    Number.isFinite(la) && Number.isFinite(ln) &&
+    la >= -90 && la <= 90 && ln >= -180 && ln <= 180 &&
+    !(la === 0 && ln === 0)
+  );
+}
+
+// Known placeholder coordinates in PrivateNode data — excluded from map rendering.
+const PLACEHOLDER_COORDS = new Set(["0,0", "50,-3", "-3,50"]);
+
+export function isPlaceholderCoord(lat, lng) {
+  const key = `${Number(lat)},${Number(lng)}`;
+  return PLACEHOLDER_COORDS.has(key);
+}
+
 export function latLngToGrid(lat, lng) {
   const adjLng = lng + 180;
   const adjLat = lat + 90;

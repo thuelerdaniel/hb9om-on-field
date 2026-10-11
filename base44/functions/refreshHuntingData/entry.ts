@@ -70,17 +70,20 @@ export default async function(req: Request): Promise<Response> {
     ];
 
     const settled = await Promise.allSettled(parallelFetches.map(f => f.fn()));
+    let totalSkippedNoCoord = 0;
     for (let i = 0; i < parallelFetches.length; i++) {
       const { name, key } = parallelFetches[i];
       const res = settled[i];
       if (res.status === 'fulfilled') {
         const val = res.value;
+        const skipped = val?.skippedNoCoord || 0;
+        totalSkippedNoCoord += skipped;
         if (key === 'top' && name === 'propagation') {
           results[name] = { success: val.success, bestBand: val.bestBand, solarFlux: val.solarFlux };
         } else if (key === 'top') {
-          results[name] = { success: true, saved: val.saved, warning: val.warning || null };
+          results[name] = { success: true, saved: val.saved, warning: val.warning || null, skippedNoCoord: skipped };
         } else {
-          results.activities[name] = { success: true, saved: val?.saved ?? 0, warning: val?.warning || null };
+          results.activities[name] = { success: true, saved: val?.saved ?? 0, warning: val?.warning || null, skippedNoCoord: skipped };
         }
       } else {
         const errMsg = res.reason?.message || String(res.reason);
@@ -91,6 +94,11 @@ export default async function(req: Request): Promise<Response> {
         }
         results.errors.push(`${name}: ${errMsg}`);
       }
+    }
+
+    // E) Self-test: warn if any spots were skipped due to invalid coordinates
+    if (totalSkippedNoCoord > 0) {
+      results.errors.push(`⚠ ${totalSkippedNoCoord} Spots ohne gültige Koordinaten verworfen`);
     }
 
     // 9. Skip loading all activities — frontend loads them separately from DB.

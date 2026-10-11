@@ -10,6 +10,25 @@ const UA = 'HB9OM-OnField/1.0';
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
+// ─── Coordinate + time validation (prevents "Invalid LatLng object: (NaN, NaN)" crashes) ───
+// Returns true only if both lat and lng are finite numbers in valid geographic range
+// and not both 0 (Null Island placeholder).
+export function isValidCoord(lat: any, lng: any): boolean {
+  const la = Number(lat), ln = Number(lng);
+  return Number.isFinite(la) && Number.isFinite(ln) &&
+    la >= -90 && la <= 90 && ln >= -180 && ln <= 180 &&
+    !(la === 0 && ln === 0);
+}
+
+// Clamp spot_time to now if it's more than 1h in the future (bad time parsing).
+// Future spots (is_future=true, e.g. SOTA alerts) are exempt — their future date is intentional.
+export function sanitizeSpotTime(date: Date, isFuture: boolean = false): Date {
+  const now = Date.now();
+  if (isNaN(date.getTime())) return new Date(now);
+  if (!isFuture && date.getTime() > now + ONE_HOUR_MS) return new Date(now);
+  return date;
+}
+
 function getStationPos(body: any, base44: any): { lat: number; lon: number } {
   if (typeof body?.station_lat === 'number' && typeof body?.station_lng === 'number') {
     return { lat: body.station_lat, lon: body.station_lng };
@@ -72,7 +91,7 @@ export async function fetchDxSpotsInline(base44: any, body: any = {}): Promise<{
     const freqKHz = Number(s.frequency || s.freq || 0);
     const call = s.spotted || s.call || s.dxcallsign;
     if (!freqKHz || !call) continue;
-    const spotTime = s.when ? new Date(s.when) : (s.time ? new Date(s.time) : new Date());
+    const spotTime = sanitizeSpotTime(s.when ? new Date(s.when) : (s.time ? new Date(s.time) : new Date()));
     const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
     const message = s.message || s.comment || '';
     const comments = message ? [message] : [];
@@ -108,7 +127,7 @@ export async function fetchDxSpotsInline(base44: any, body: any = {}): Promise<{
     const freqKHz = Math.round(Number(s.freq || 0) / 1000);
     const call = s.dx_call;
     if (!freqKHz || !call) continue;
-    const spotTime = s.time_iso ? new Date(s.time_iso) : new Date();
+    const spotTime = sanitizeSpotTime(s.time_iso ? new Date(s.time_iso) : new Date());
     const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
     const sig = s.sig || '';
     const activity = SIG_MAP[sig] || sig || '';
@@ -192,13 +211,20 @@ export async function fetchDxSpotsInline(base44: any, body: any = {}): Promise<{
     } catch {}
   }
 
+  // Validate coordinates — skip records with invalid/partial coords
+  let skippedNoCoord = 0;
+  const validMerged = merged.filter((m: any) => {
+    if (!isValidCoord(m.lat, m.lng)) { skippedNoCoord++; return false; }
+    return true;
+  });
+
   let savedCount = 0;
-  if (merged.length > 0) {
+  if (validMerged.length > 0) {
     try {
-      await base44.asServiceRole.entities.DxSpot.bulkCreate(merged);
-      savedCount = merged.length;
+      await base44.asServiceRole.entities.DxSpot.bulkCreate(validMerged);
+      savedCount = validMerged.length;
     } catch {
-      for (const spot of merged) {
+      for (const spot of validMerged) {
         try { await base44.asServiceRole.entities.DxSpot.create(spot); savedCount++; } catch {}
       }
     }
@@ -225,7 +251,7 @@ export async function fetchDxSpotsInline(base44: any, body: any = {}): Promise<{
     await updateStatus('Spothole (SIG-Filter)', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
   } catch {}
 
-  return { saved: savedCount, warning: [apiWarning, spotholeWarning].filter(Boolean).join('; ') || null };
+  return { saved: savedCount, warning: [apiWarning, spotholeWarning].filter(Boolean).join('; ') || null, skippedNoCoord };
 }
 
 // === Propagation: NOAA SWPC ===
@@ -299,7 +325,7 @@ export async function fetchSotaSpotsInline(base44: any, body: any = {}): Promise
       const frequency = Number(s.frequency) * 1000;
       if (!frequency || isNaN(frequency)) return null;
       const band = deriveBand(frequency);
-      const spotTime = s.timeStamp ? new Date(s.timeStamp) : new Date();
+      const spotTime = sanitizeSpotTime(s.timeStamp ? new Date(s.timeStamp) : new Date());
       const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
       const comments = s.comments || '';
       const isQRT = /\bQRT\b/i.test(comments);
@@ -326,11 +352,18 @@ export async function fetchSotaSpotsInline(base44: any, body: any = {}): Promise
     })
     .filter((r: any) => r !== null && r.call && r.frequency);
 
+  // Validate coordinates — skip records with invalid/partial coords (prevents map crashes)
+  let skippedNoCoord = 0;
+  const validRecords = records.filter((r: any) => {
+    if (!isValidCoord(r.latitude, r.longitude)) { skippedNoCoord++; return false; }
+    return true;
+  });
+
   let savedCount = 0;
-  if (records.length > 0) {
-    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(records); savedCount = records.length; } catch {}
+  if (validRecords.length > 0) {
+    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(validRecords); savedCount = validRecords.length; } catch {}
   }
-  return { saved: savedCount };
+  return { saved: savedCount, skippedNoCoord };
 }
 
 // === SOTA Alerts ===
@@ -374,22 +407,33 @@ export async function fetchSotaAlertsInline(base44: any): Promise<{ saved: numbe
     const coords = refCoordMap.get(ref);
     const freqNum = a.frequency ? parseFloat(String(a.frequency)) : NaN;
     const frequency = !isNaN(freqNum) ? freqNum * 1000 : 0;
+    // Ensure both coords are set or both undefined — prevents partial (lat set, lng null)
+    const hasValidCoords = coords && isValidCoord(coords.lat, coords.lon);
     return {
       call: a.activatingCallsign || '', activity_type: 'SOTA-ALERT', reference: ref,
       name: a.summitDetails || coords?.name || '', frequency,
       band: frequency ? deriveBand(frequency) : '', mode: a.mode || '',
-      latitude: coords?.lat, longitude: coords?.lon, comments: a.comments || '',
+      latitude: hasValidCoords ? coords.lat : undefined,
+      longitude: hasValidCoords ? coords.lon : undefined,
+      comments: a.comments || '',
       spotter: a.posterCallsign || '', source: 'SOTA-Alerts',
       spot_time: a.dateActivated ? new Date(a.dateActivated).toISOString() : new Date().toISOString(),
       is_future: true, is_active: false,
     };
   }).filter((r: any) => r.call);
 
+  // Skip records without valid coordinates (consistent with all other fetchers)
+  let skippedNoCoord = 0;
+  const validRecords = records.filter((r: any) => {
+    if (!isValidCoord(r.latitude, r.longitude)) { skippedNoCoord++; return false; }
+    return true;
+  });
+
   let savedCount = 0;
-  if (records.length > 0) {
-    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(records); savedCount = records.length; } catch {}
+  if (validRecords.length > 0) {
+    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(validRecords); savedCount = validRecords.length; } catch {}
   }
-  return { saved: savedCount };
+  return { saved: savedCount, skippedNoCoord };
 }
 
 // === POTA Spots: api.pota.app ===
@@ -429,10 +473,10 @@ export async function fetchPotaSpotsInline(base44: any, body: any = {}): Promise
     .map((s: any) => {
       const frequency = Number(s.frequency);
       const band = deriveBand(frequency);
-      const spotTime = s.spotTime ? new Date(s.spotTime) : new Date();
+      const spotTime = sanitizeSpotTime(s.spotTime ? new Date(s.spotTime) : new Date());
       const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
       let lat = Number(s.latitude), lon = Number(s.longitude);
-      if ((isNaN(lat) || isNaN(lon)) && s.reference) {
+      if (!isValidCoord(lat, lon) && s.reference) {
         const fallback = potaCoordMap.get(s.reference);
         if (fallback) { lat = fallback.lat; lon = fallback.lon; }
       }
@@ -454,11 +498,18 @@ export async function fetchPotaSpotsInline(base44: any, body: any = {}): Promise
     })
     .filter((r: any) => r.call && r.frequency);
 
+  // Validate coordinates — skip records with invalid/partial coords
+  let skippedNoCoord = 0;
+  const validRecords = records.filter((r: any) => {
+    if (!isValidCoord(r.latitude, r.longitude)) { skippedNoCoord++; return false; }
+    return true;
+  });
+
   let savedCount = 0;
-  if (records.length > 0) {
-    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(records); savedCount = records.length; } catch {}
+  if (validRecords.length > 0) {
+    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(validRecords); savedCount = validRecords.length; } catch {}
   }
-  return { saved: savedCount };
+  return { saved: savedCount, skippedNoCoord };
 }
 
 // === WWFF Spots: spots.wwff.co ===
@@ -502,10 +553,10 @@ export async function fetchWwffSpotsInline(base44: any, body: any = {}): Promise
       const frequency = Number(s.frequency_khz);
       if (!frequency || isNaN(frequency)) return null;
       const band = deriveBand(frequency);
-      const spotTime = s.spot_time ? new Date(s.spot_time * 1000) : new Date();
+      const spotTime = sanitizeSpotTime(s.spot_time ? new Date(s.spot_time * 1000) : new Date());
       const ageSeconds = Math.round((Date.now() - spotTime.getTime()) / 1000);
       let lat = Number(s.latitude), lon = Number(s.longitude);
-      if ((isNaN(lat) || isNaN(lon)) && s.reference) {
+      if (!isValidCoord(lat, lon) && s.reference) {
         const fallback = wwffCoordMap.get(s.reference);
         if (fallback) { lat = fallback.lat; lon = fallback.lon; }
       }
@@ -526,11 +577,18 @@ export async function fetchWwffSpotsInline(base44: any, body: any = {}): Promise
     })
     .filter((r: any) => r !== null && r.call && r.frequency);
 
+  // Validate coordinates — skip records with invalid/partial coords
+  let skippedNoCoord = 0;
+  const validRecords = records.filter((r: any) => {
+    if (!isValidCoord(r.latitude, r.longitude)) { skippedNoCoord++; return false; }
+    return true;
+  });
+
   let savedCount = 0;
-  if (records.length > 0) {
-    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(records); savedCount = records.length; } catch {}
+  if (validRecords.length > 0) {
+    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(validRecords); savedCount = validRecords.length; } catch {}
   }
-  return { saved: savedCount };
+  return { saved: savedCount, skippedNoCoord };
 }
 
 // === GMA Spots: Spothole ===
@@ -557,7 +615,7 @@ export async function fetchGmaSpotsInline(base44: any, body: any = {}): Promise<
     const freqKHz = Math.round(Number(s.freq || 0) / 1000);
     const call = s.dx_call || '';
     if (!freqKHz || !call) return null;
-    const spotTime = s.time_iso ? new Date(s.time_iso) : new Date();
+    const spotTime = sanitizeSpotTime(s.time_iso ? new Date(s.time_iso) : new Date());
     const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
     const sigRef = s.sig_refs?.[0];
     const reference = sigRef?.id || '';
@@ -587,9 +645,16 @@ export async function fetchGmaSpotsInline(base44: any, body: any = {}): Promise<
     };
   }).filter((r: any) => r !== null && r.call && r.frequency);
 
+  // Validate coordinates — skip records with invalid/partial coords
+  let skippedNoCoord = 0;
+  const validRecords = records.filter((r: any) => {
+    if (!isValidCoord(r.latitude, r.longitude)) { skippedNoCoord++; return false; }
+    return true;
+  });
+
   let savedCount = 0;
-  if (records.length > 0) {
-    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(records); savedCount = records.length; } catch {}
+  if (validRecords.length > 0) {
+    try { await base44.asServiceRole.entities.ActivitySpot.bulkCreate(validRecords); savedCount = validRecords.length; } catch {}
   }
 
   // DataSourceStatus
@@ -608,5 +673,5 @@ export async function fetchGmaSpotsInline(base44: any, body: any = {}): Promise<
     }
   } catch {}
 
-  return { saved: savedCount, warning: apiWarning };
+  return { saved: savedCount, warning: apiWarning, skippedNoCoord };
 }

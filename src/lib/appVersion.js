@@ -13,11 +13,21 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610100500";
+export const APP_BUILD = "202610110515";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.959-HF4: MOBIL-CRASH-FIX — ActivitySpot-Datensätze mit latitude gesetzt aber longitude=null verursachten 'Invalid LatLng object: (NaN, NaN)' → Leaflet-Crash → ErrorBoundary zeigte roten 'Mobil Fehler'-Banner — Karte komplett schwarz/leer",
+  "v0.959-HF4: MOBIL-CRASH-FIX — Backend-Wurzel: Alle Spot-Fetcher (SOTA/POTA/WWFF/GMA/DX/LLOTA) prüfen jetzt isValidCoord(lat,lng) vor Speichern — Datensätze mit partiellen/ungültigen Koordinaten werden übersprungen und gezählt (skippedNoCoord) — keine neuen Fehl-Daten mehr",
+  "v0.959-HF4: MOBIL-CRASH-FIX — Backend-Wurzel: spot_time wird auf jetzt geklemmt wenn >1h in der Zukunft (falsches Zeitparsing bei LLOTA-Spothole-Spots mit Datum bis 31.12.2026)",
+  "v0.959-HF4: MOBIL-CRASH-FIX — Datenbereinigung: 25 ActivitySpot-Datensätze mit longitude=null gelöscht (733→433), 0 Fehl-Datensätze verbleibend bestätigt",
+  "v0.959-HF4: MOBIL-CRASH-FIX — Frontend-Defense: isValidCoord(lat,lng) Helper (Number.isFinite + Bereichsprüfung + Null Island) in ALLEN Karten-Komponenten (MobilMapView, LiveMapView, RouteMapView, HuntingMap, MapMarkers, RepeaterLayer, PrivateNodeLayer, PublicPositionLayer, MobilActive) — filtert NaN/null/out-of-range/0,0 vor Leaflet — kein Crash mehr",
+  "v0.959-HF4: MOBIL-CRASH-FIX — Frontend-Defense: fitBounds/setView/L.latLngBounds prüfen alle Punkte durch isValidCoord bevor sie an Leaflet übergeben werden — Math.min/Max auf NaN (die primäre Crash-Ursache) ausgeschlossen",
+  "v0.959-HF4: MOBIL-CRASH-FIX — Frontend-Defense: PrivateNodeLayer filtert 0/0 und 50/-3 Platzhalterkoordinaten (isPlaceholderCoord) — Null Island und UK-Placeholder aus Karten-Rendering ausgeschlossen",
+  "v0.959-HF4: MOBIL-CRASH-FIX — Selbsttest: refreshHuntingData aggregiert skippedNoCoord über alle Fetcher — Warnung im Sync-Report wenn >0 Spots verworfen",
+  "v0.959-HF4: HUNTING-REFRESH — refreshHuntingData: 7 API-Fetches + LLOTA jetzt parallel (Promise.allSettled) statt sequenziell — 380s→9s — keine StartToClose-Timeouts mehr",
+  "v0.959-HF4: HUNTING-REFRESH — Koordinaten-Lookups batched: SOTA-Alerts 300 einzelne SotaPoint.filter→1 $in-Call, DX-Spots 100→4 $in-Calls, POTA/WWFF per-ref→1 $in-Call",
   "v0.959-HF3: WAVELOG-SYNC — permanent_sync: Per-QSO Log.update Schleifen (toRepair + toSend) durch bulkUpdate ersetzt — verhindert 'Rate limit exceeded' bei grossen QSO-Batches — 200 einzelne Update-Calls → 2 bulkUpdate Calls",
   "v0.959-HF3: WAVELOG-SYNC — permanent_sync: isSyncPaused pro User entfernt (2 Entity-Calls/User eingespart) — globale sync_paused AppSetting einmal vor Schleife geladen + setting.sync_paused direkt aus geladenem Setting geprüft",
   "v0.959-HF2: SYNC-MANUELL — manageSyncSchedule triggerSource: gleicher Code-Pfad wie geplante Läufe (shared sourceRunner) — manueller Start läuft mit 85s Timeout, interpretiert Ergebnis (success/skipped/pending/failed) und schreibt last_* in DailyRefreshSchedule + source_config + SyncLog — KEIN 500 mehr bei langen Quellen",
