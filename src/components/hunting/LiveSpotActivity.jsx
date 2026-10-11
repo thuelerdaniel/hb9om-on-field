@@ -48,6 +48,7 @@ function sourceColor(source) {
   if (s.includes('hb9iac')) return '#f97316';
   if (s.includes('holy')) return '#a855f7';
   if (s.includes('jo30') || s.includes('dxcluster')) return '#06b6d4';
+  if (s.includes('dxheat')) return '#ec4899';
   return '#9ca3af';
 }
 
@@ -59,6 +60,7 @@ function sourceLabel(source) {
   if (s.includes('hb9iac')) return 'HB9IAC-8';
   if (s.includes('holy')) return 'HolyCluster';
   if (s.includes('jo30') || s.includes('dxcluster')) return 'jo30.de';
+  if (s.includes('dxheat')) return 'DXHeat';
   return source.length > 12 ? source.slice(0, 10) + '…' : source;
 }
 
@@ -146,14 +148,18 @@ export default function LiveSpotActivity({ onSpotDetails, onLogQso, onCallClick,
         // Fallback: load directly from DxSpot entity (DB has fresh data from scheduled automation)
         const list = await base44.entities.DxSpot.filter({ is_active: true }, '-spot_time', 500);
         setSpots(list || []);
-        setWarning(data?.warning || null);
+        setWarning(null);
       }
     } catch {
       try {
         // Fix 12: Kein Limit — alle Spots laden
         const list = await base44.entities.DxSpot.filter({ is_active: true }, '-spot_time', 500);
         setSpots(list || []);
-      } catch { setWarning("Spots konnten nicht geladen werden"); }
+        setWarning(null); // Clear warning on successful fallback — prevents stale error banner
+      } catch {
+        // Transient failure — keep old spots, only show error on first load (no previous data)
+        setWarning(prev => prev || "Spots konnten nicht geladen werden");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

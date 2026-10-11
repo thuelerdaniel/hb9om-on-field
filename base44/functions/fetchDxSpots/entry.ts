@@ -77,77 +77,82 @@ export default async function(req: Request): Promise<Response> {
       stationPos = maidenheadToLatLon(stationLocator) || { lat: 46.5, lon: 6.5 };
     }
 
-    // === 1. jo30.de DX-Cluster (all spots) ===
-    let joSpots: any[] = [];
-    let apiWarning: string | null = null;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const resp = await fetch('https://dxc.jo30.de/dxcache/spots', {
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (resp.ok) {
-        const raw = await resp.json();
-        joSpots = Array.isArray(raw) ? raw : (raw.spots || raw.data || []);
-      } else {
-        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 300));
-        apiWarning = `jo30.de HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`;
-      }
-    } catch (e: any) {
-      apiWarning = `jo30.de ${e?.name === 'AbortError' ? 'Timeout nach 10s' : 'Netzwerkfehler: ' + (e?.message || 'nicht erreichbar')}`;
-    }
+    // === PARALLEL FETCH: jo30.de + Spothole + IZ3MEZ + DXHeat (10s max statt 40s sequenziell) ===
+    const [joResult, spotholeResult, izResult, dxheatResult] = await Promise.allSettled([
+      // 1. jo30.de DX-Cluster
+      (async () => {
+        try {
+          const resp = await fetch('https://dxc.jo30.de/dxcache/spots', {
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (resp.ok) {
+            const raw = await resp.json();
+            return { spots: Array.isArray(raw) ? raw : (raw.spots || raw.data || []), warning: null };
+          }
+          return { spots: [], warning: `jo30.de HTTP ${resp.status}` };
+        } catch (e: any) {
+          return { spots: [], warning: `jo30.de ${e?.name === 'TimeoutError' || e?.name === 'AbortError' ? 'Timeout' : 'nicht erreichbar'}` };
+        }
+      })(),
+      // 2. Spothole API (SIG-gefiltert + HolyCluster)
+      (async () => {
+        try {
+          const resp = await fetch(
+            `https://spothole.app/api/v2/spots?sig=${SPOTHOLE_SIGS}&source=Cluster,HolyCluster&limit=10000`,
+            { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(10000) }
+          );
+          if (resp.ok) {
+            const raw = await resp.json();
+            return { spots: Array.isArray(raw) ? raw : [], warning: null };
+          }
+          return { spots: [], warning: `Spothole HTTP ${resp.status}` };
+        } catch (e: any) {
+          return { spots: [], warning: `Spothole ${e?.name === 'TimeoutError' || e?.name === 'AbortError' ? 'Timeout' : 'nicht erreichbar'}` };
+        }
+      })(),
+      // 3. IZ3MEZ Web DX Cluster
+      (async () => {
+        try {
+          const resp = await fetch('https://web.cluster.iz3mez.it/spots.json', {
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (resp.ok) {
+            const raw = await resp.json();
+            return { spots: Array.isArray(raw) ? raw : [], warning: null };
+          }
+          return { spots: [], warning: `IZ3MEZ HTTP ${resp.status}` };
+        } catch (e: any) {
+          return { spots: [], warning: `IZ3MEZ ${e?.name === 'TimeoutError' || e?.name === 'AbortError' ? 'Timeout' : 'nicht erreichbar'}` };
+        }
+      })(),
+      // 4. DXHeat DX-Cluster (JSON API — additional worldwide cluster)
+      (async () => {
+        try {
+          const resp = await fetch('https://www.dxheat.com/source/spots/', {
+            headers: { 'Accept': 'application/json', 'User-Agent': 'HB9OM-OnField/1.0' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (resp.ok) {
+            const raw = await resp.json();
+            return { spots: Array.isArray(raw) ? raw : [], warning: null };
+          }
+          return { spots: [], warning: `DXHeat HTTP ${resp.status}` };
+        } catch (e: any) {
+          return { spots: [], warning: `DXHeat ${e?.name === 'TimeoutError' || e?.name === 'AbortError' ? 'Timeout' : 'nicht erreichbar'}` };
+        }
+      })(),
+    ]);
 
-    // === 2. Spothole API (SIG-gefiltert: SOTA, POTA, WWFF, etc.) ===
-    let spotholeSpots: any[] = [];
-    let spotholeWarning: string | null = null;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      // PUNKT 10: HolyCluster als zusätzliche Quelle zu Spothole hinzufügen
-      const resp = await fetch(
-        `https://spothole.app/api/v2/spots?sig=${SPOTHOLE_SIGS}&source=Cluster,HolyCluster&limit=10000`,
-        { headers: { 'Accept': 'application/json' }, signal: controller.signal }
-      );
-      clearTimeout(timeout);
-      if (resp.ok) {
-        spotholeSpots = await resp.json();
-        if (!Array.isArray(spotholeSpots)) spotholeSpots = [];
-      } else {
-        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 300));
-        spotholeWarning = `Spothole HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`;
-      }
-    } catch (e: any) {
-      spotholeWarning = `Spothole ${e?.name === 'AbortError' ? 'Timeout nach 10s' : 'Netzwerkfehler: ' + (e?.message || 'nicht erreichbar')}`;
-    }
-
-    // === 3. IZ3MEZ Web DX Cluster (HTTP JSON API — kein Telnet nötig) ===
-    let izSpots: any[] = [];
-    let izWarning: string | null = null;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const resp = await fetch('https://web.cluster.iz3mez.it/spots.json', {
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (resp.ok) {
-        izSpots = await resp.json();
-        if (!Array.isArray(izSpots)) izSpots = [];
-      } else {
-        const bodySnippet = await resp.text().catch(() => '').then(t => t.substring(0, 300));
-        izWarning = `IZ3MEZ HTTP ${resp.status} ${resp.statusText}${bodySnippet ? ' — ' + bodySnippet : ''}`;
-      }
-    } catch (e: any) {
-      izWarning = `IZ3MEZ ${e?.name === 'AbortError' ? 'Timeout nach 10s' : 'Netzwerkfehler: ' + (e?.message || 'nicht erreichbar')}`;
-    }
-
-    // Fix 4: ALLE Spots vor dem Neuladen löschen — verhindert Duplikat-Akkumulation
-    try {
-      await base44.asServiceRole.entities.DxSpot.deleteMany({});
-    } catch {}
+    const joSpots = joResult.status === 'fulfilled' ? joResult.value.spots : [];
+    const apiWarning = joResult.status === 'fulfilled' ? joResult.value.warning : 'jo30.de Fehler';
+    const spotholeSpots = spotholeResult.status === 'fulfilled' ? spotholeResult.value.spots : [];
+    const spotholeWarning = spotholeResult.status === 'fulfilled' ? spotholeResult.value.warning : 'Spothole Fehler';
+    const izSpots = izResult.status === 'fulfilled' ? izResult.value.spots : [];
+    const izWarning = izResult.status === 'fulfilled' ? izResult.value.warning : 'IZ3MEZ Fehler';
+    const dxheatSpots = dxheatResult.status === 'fulfilled' ? dxheatResult.value.spots : [];
+    const dxheatWarning = dxheatResult.status === 'fulfilled' ? dxheatResult.value.warning : 'DXHeat Fehler';
 
     const now = Date.now();
 
@@ -359,6 +364,53 @@ export default async function(req: Request): Promise<Response> {
       });
     }
 
+    // === 4c. DXHeat Spots normalisieren ===
+    const dxheatNormalized: any[] = [];
+    for (const s of dxheatSpots) {
+      const freqKHz = Number(s.Frequency || s.frequency || 0);
+      const call = s.DXCall || s.spotted;
+      if (!freqKHz || !call) continue;
+      // DXHeat: Time "15:34" + Date "11/10/26" (DD/MM/YY) → ISO UTC
+      let spotTime: Date;
+      try {
+        const dateStr = s.Date || '';
+        const timeStr = s.Time || '';
+        if (dateStr && timeStr) {
+          const [dd, mm, yy] = dateStr.split('/');
+          spotTime = new Date(`20${yy}-${mm}-${dd}T${timeStr}:00Z`);
+        } else { spotTime = new Date(); }
+      } catch { spotTime = new Date(); }
+      const ageSeconds = Math.max(0, Math.round((now - spotTime.getTime()) / 1000));
+      const comment = (s.Comment || '').trim();
+      const comments = comment ? [comment] : [];
+      const country = s.Continent_dx || '';
+      const countryCode = s.Flag || '';
+      const locator = (s.DXLocator || '').toUpperCase();
+      const activity = detectActivity(comments);
+      let dxPos: { lat: number; lon: number } | null = locator ? maidenheadToLatLon(locator) : null;
+      let distance = 0, azimuth = 0, finalLat: number | undefined, finalLng: number | undefined;
+      if (dxPos) {
+        distance = haversine(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
+        azimuth = bearing(stationPos.lat, stationPos.lon, dxPos.lat, dxPos.lon);
+        finalLat = Math.round(dxPos.lat * 10000) / 10000;
+        finalLng = Math.round(dxPos.lon * 10000) / 10000;
+      }
+      let confidence = 55;
+      if (s.Spotter) confidence += 20;
+      if (locator) confidence += 10;
+      if (country) confidence += 10;
+      if (activity) confidence += 10;
+      confidence = Math.min(100, confidence);
+      dxheatNormalized.push({
+        call: String(call).toUpperCase().trim(),
+        frequency: freqKHz, band: deriveBand(freqKHz), mode: s.Mode || '',
+        country, countryCode, source: 'DXCluster (DXHeat)', sources: ['DXCluster (DXHeat)'],
+        spotter: s.Spotter || '', age_seconds: ageSeconds, spot_time: spotTime.toISOString(),
+        confidence, distance, azimuth, locator, lat: finalLat, lng: finalLng,
+        comments, activity, activity_ref: undefined, is_active: true,
+      });
+    }
+
     // === 5. Merge: Spothole reichert jo30.de an ===
     const mergeMap = new Map<string, any>();
     for (const spot of joNormalized) {
@@ -399,6 +451,26 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
+    // DXHeat in Merge einbeziehen — reichert bestehende Spots mit Koordinaten an, fügt neue hinzu
+    for (const spot of dxheatNormalized) {
+      const key = `${spot.call}_${Math.round(spot.frequency)}`;
+      const existing = mergeMap.get(key);
+      if (existing) {
+        if (spot.lat && spot.lng && !existing.lat) {
+          existing.lat = spot.lat;
+          existing.lng = spot.lng;
+          existing.distance = spot.distance;
+          existing.azimuth = spot.azimuth;
+        }
+        if (spot.locator && !existing.locator) existing.locator = spot.locator;
+        if (spot.country && !existing.country) existing.country = spot.country;
+        if (spot.countryCode && !existing.countryCode) existing.countryCode = spot.countryCode;
+        if (!existing.sources.includes('DXCluster (DXHeat)')) existing.sources.push('DXCluster (DXHeat)');
+      } else {
+        mergeMap.set(key, spot);
+      }
+    }
+
     const merged = Array.from(mergeMap.values());
 
     // PUNKT 4: Enrich spots without coordinates via reference lookup
@@ -428,6 +500,7 @@ export default async function(req: Request): Promise<Response> {
       } catch {}
     }
 
+    // RACE-FIX: Create new spots FIRST, then delete old ones — prevents empty DB on timeout
     let savedCount = 0;
     if (merged.length > 0) {
       try {
@@ -440,10 +513,16 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
+    // Delete OLD spots (>5 min) AFTER new ones are saved — DB is never empty on timeout
+    try {
+      const cutoff = new Date(Date.now() - 5 * 60 * 1000);
+      await base44.asServiceRole.entities.DxSpot.deleteMany({ spot_time: { $lt: cutoff.toISOString() } });
+    } catch {}
+
     // No limit — return ALL saved DX spots (user requested no query limit)
     const latest = await base44.entities.DxSpot.list('-spot_time', 5000);
 
-    const warnings = [apiWarning, spotholeWarning, izWarning].filter(Boolean);
+    const warnings = [apiWarning, spotholeWarning, izWarning, dxheatWarning].filter(Boolean);
 
     // DataSourceStatus aktualisieren (jo30.de + Spothole)
     try {
@@ -472,6 +551,7 @@ export default async function(req: Request): Promise<Response> {
       await safeUpdate('DX-Cluster (jo30.de)', 'DXCLUSTER', 'https://dxc.jo30.de/dxcache/spots', joSpots.length > 0, joSpots.length, apiWarning);
       await safeUpdate('Spothole (SIG-Filter)', 'API', 'https://spothole.app/api/v2/spots', spotholeSpots.length > 0, spotholeSpots.length, spotholeWarning);
       await safeUpdate('DX-Cluster (IZ3MEZ)', 'DXCLUSTER', 'https://web.cluster.iz3mez.it/spots.json', izSpots.length > 0, izSpots.length, izWarning);
+      await safeUpdate('DX-Cluster (DXHeat)', 'DXCLUSTER', 'https://www.dxheat.com/source/spots/', dxheatSpots.length > 0, dxheatSpots.length, dxheatWarning);
 
       // v0.9044: Deactivate HB9 DX cluster sources (raw TCP not supported by platform)
       try {
@@ -489,14 +569,14 @@ export default async function(req: Request): Promise<Response> {
 
     return Response.json({
       success: true,
-      fetched: joSpots.length + spotholeSpots.length + izSpots.length,
+      fetched: joSpots.length + spotholeSpots.length + izSpots.length + dxheatSpots.length,
       saved: savedCount,
       spots: latest,
       warning: warnings.length > 0 ? warnings.join('; ') : null,
       stationLocator,
       stationPos: { lat: stationPos.lat, lon: stationPos.lon },
       usingGps: typeof body.station_lat === 'number',
-      sources: { jo30de: joSpots.length, spothole: spotholeSpots.length, iz3mez: izSpots.length },
+      sources: { jo30de: joSpots.length, spothole: spotholeSpots.length, iz3mez: izSpots.length, dxheat: dxheatSpots.length },
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

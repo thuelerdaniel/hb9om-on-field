@@ -13,11 +13,17 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610110515";
+export const APP_BUILD = "202610111735";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.959-HF5: DX-SPOT-STABILITÄT — fetchDxSpots: 4 API-Calls (jo30.de, Spothole, IZ3MEZ, DXHeat) jetzt parallel via Promise.allSettled — 40s→10s max — keine Platform-Timeouts mehr",
+  "v0.959-HF5: DX-SPOT-STABILITÄT — Race-Fix: Neue Spots werden ERST erstellt, dann alte (>5min) gelöscht — DB nie leer bei Timeout — keine 'Spots konnten nicht geladen werden' mehr",
+  "v0.959-HF5: DX-SPOT-STABILITÄT — Frontend: Warnung wird bei erfolgreichem Fallback gelöscht — keine stale Fehlerbanner mehr — bei transienten Fehlern bleiben alte Spots sichtbar",
+  "v0.959-HF5: DXHEAT-CLUSTER — Neue 4. DX-Cluster-Quelle: DXHeat (dxheat.com/source/spots/) — weltweite Spots mit DXLocator (Maidenhead) — reichert bestehende Spots mit Koordinaten an",
+  "v0.959-HF5: DXHEAT-CLUSTER — DXHeat-Spots mit detectActivity (SOTA/POTA/WWFF/IOTA aus Kommentaren) + Maidenhead→Koordinaten Konvertierung",
+  "v0.959-HF5: DXHEAT-CLUSTER — DataSourceStatus für DXHeat angelegt — Status/Spots/Warning in Admin-Ansicht sichtbar",
   "v0.959-HF4: MOBIL-CRASH-FIX — ActivitySpot-Datensätze mit latitude gesetzt aber longitude=null verursachten 'Invalid LatLng object: (NaN, NaN)' → Leaflet-Crash → ErrorBoundary zeigte roten 'Mobil Fehler'-Banner — Karte komplett schwarz/leer",
   "v0.959-HF4: MOBIL-CRASH-FIX — Backend-Wurzel: Alle Spot-Fetcher (SOTA/POTA/WWFF/GMA/DX/LLOTA) prüfen jetzt isValidCoord(lat,lng) vor Speichern — Datensätze mit partiellen/ungültigen Koordinaten werden übersprungen und gezählt (skippedNoCoord) — keine neuen Fehl-Daten mehr",
   "v0.959-HF4: MOBIL-CRASH-FIX — Backend-Wurzel: spot_time wird auf jetzt geklemmt wenn >1h in der Zukunft (falsches Zeitparsing bei LLOTA-Spothole-Spots mit Datum bis 31.12.2026)",
