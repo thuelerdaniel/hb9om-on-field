@@ -41,6 +41,9 @@ export default function IotaFilter({
   allBoundariesActive = false,
   activeBoundaryCount = 0,
   onClearBoundaries,
+  externalOpen,
+  onExternalClose,
+  hideTrigger = false,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_iota");

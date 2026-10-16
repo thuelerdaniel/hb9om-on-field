@@ -31,6 +31,9 @@ export default function RepeaterFilter({
   userPosition,
   leftOffsetClass = "left-3",
   defaultOpen = true,
+  externalOpen,
+  onExternalClose,
+  hideTrigger = false,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = localStorage.getItem("hb9om_filter_open_repeater");

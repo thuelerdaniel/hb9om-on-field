@@ -20,6 +20,9 @@ export default function AprsFilter({
   onFilterCountriesChange,
   leftOffsetClass = "left-16",
   defaultOpen = true,
+  externalOpen,
+  onExternalClose,
+  hideTrigger = false,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_aprs");

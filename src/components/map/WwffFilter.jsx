@@ -20,6 +20,9 @@ export default function WwffFilter({
   allBoundariesActive = false,
   activeBoundaryCount = 0,
   onClearBoundaries,
+  externalOpen,
+  onExternalClose,
+  hideTrigger = false,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_wwff");
@@ -29,6 +32,9 @@ export default function WwffFilter({
   const { containerRef } = useDraggablePosition("drag-wwff-filter");
 
   useEffect(() => { safeSetItem("hb9om_filter_open_wwff", String(isOpen)); }, [isOpen]);
+
+  useEffect(() => { if (externalOpen !== undefined) setIsOpen(externalOpen); }, [externalOpen]);
+  const handleClose = () => { setIsOpen(false); onExternalClose?.(); };
 
   const countries = useMemo(() => {
     const counts = {};

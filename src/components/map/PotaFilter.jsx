@@ -19,6 +19,9 @@ export default function PotaFilter({
   allBoundariesActive = false,
   activeBoundaryCount = 0,
   onClearBoundaries,
+  externalOpen,
+  onExternalClose,
+  hideTrigger = false,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem("hb9om_filter_open_pota");
@@ -28,6 +31,9 @@ export default function PotaFilter({
   const { containerRef } = useDraggablePosition("drag-pota-filter");
 
   useEffect(() => { safeSetItem("hb9om_filter_open_pota", String(isOpen)); }, [isOpen]);
+
+  useEffect(() => { if (externalOpen !== undefined) setIsOpen(externalOpen); }, [externalOpen]);
+  const handleClose = () => { setIsOpen(false); onExternalClose?.(); };
 
   const countries = useMemo(() => {
     const counts = {};
