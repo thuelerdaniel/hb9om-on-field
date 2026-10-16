@@ -78,7 +78,7 @@ export default function RouteMapView({ routeCoords, repeaters, rangeKm, gpsPosit
   return (
     <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700" style={{ height: "300px" }}>
       <MapContainer
-        center={routeCoords && routeCoords.length > 0 ? routeCoords[0] : [46.979, 7.458]}
+        center={routeCoords && routeCoords.length > 0 && isValidCoord(routeCoords[0][0], routeCoords[0][1]) ? routeCoords[0] : [46.979, 7.458]}
         zoom={9}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom
@@ -98,9 +98,12 @@ export default function RouteMapView({ routeCoords, repeaters, rangeKm, gpsPosit
           />
         )}
 
-        {/* Route als Polyline */}
+        {/* Route als Polyline — filter invalid coords to prevent Leaflet crash */}
         {routeCoords && routeCoords.length > 0 && (
-          <Polyline positions={routeCoords} pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.8 }} />
+          <Polyline
+            positions={routeCoords.filter(([lat, lon]) => isValidCoord(lat, lon))}
+            pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.8 }}
+          />
         )}
 
         {/* GPS-Position */}

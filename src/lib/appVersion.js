@@ -13,11 +13,18 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610161910";
+export const APP_BUILD = "202610161945";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "v0.959-HF6: MOBIL-FEHLER-DIAGNOSE — ErrorBoundary komplett überarbeitet: (a) loggt Fehlermeldung + Stacktrace in Browser-Konsole (console.group), (b) aufklappbare Details per Tap (Fehlername + Nachricht + Component-Stack), (c) Once-only: derselbe Fehler wird nur ONCE angezeigt — keine Banner-Flut bei wiederholtem Wurf nach 'Neu laden', (d) 'Bericht kopieren' Button kopiert vollständigen Fehlerbericht (Zeit, Komponente, Stack, Browser-Info) in die Zwischenablage",
+  "v0.959-HF6: MOBIL-LATLNG-FIX — RouteMapView: MapContainer center prüft jetzt isValidCoord(routeCoords[0]) — verhindert 'Invalid LatLng object' Crash bei NaN/ungültigen Startkoordinaten",
+  "v0.959-HF6: MOBIL-LATLNG-FIX — RouteMapView: Polyline positions werden vor Übergabe an Leaflet gefiltert (isValidCoord) — keine Crashes mehr bei invaliden Koordinaten in der Route",
+  "v0.959-HF6: MOBIL-LATLNG-FIX — LiveMapView: MapContainer center prüft jetzt isValidCoord(gpsPosition) — verhindert Crash bei NaN-GPS-Koordinaten (z.B. bei GPS-Denied mit truthy aber invalidem Position-Objekt)",
+  "v0.959-HF6: MOBIL-LATLNG-FIX — MobilMapView: Polyline positions werden gefiltert (isValidCoord) — keine Crashes bei invaliden Route-Koordinaten",
+  "v0.959-HF6: MOBIL-LATLNG-FIX — MobilMapView: Circle center prüft isValidCoord statt nur != null — verhindert NaN-Durchreichung an Leaflet",
+  "v0.959-HF6: MOBIL-LATLNG-FIX — MobilMapView: ownCoveragePolygon wird vor Leaflet-Rendering auf gültige Koordinaten gefiltert — keine Crashes durch invalide Coverage-Polygone",
   "v0.959-HF5: DX-SPOT-STABILITÄT — fetchDxSpots: 4 API-Calls (jo30.de, Spothole, IZ3MEZ, DXHeat) jetzt parallel via Promise.allSettled — 40s→10s max — keine Platform-Timeouts mehr",
   "v0.959-HF5: DX-SPOT-STABILITÄT — Race-Fix: Neue Spots werden ERST erstellt, dann alte (>5min) gelöscht — DB nie leer bei Timeout — keine 'Spots konnten nicht geladen werden' mehr",
   "v0.959-HF5: DX-SPOT-STABILITÄT — Frontend: Warnung wird bei erfolgreichem Fallback gelöscht — keine stale Fehlerbanner mehr — bei transienten Fehlern bleiben alte Spots sichtbar",

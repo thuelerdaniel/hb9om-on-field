@@ -227,8 +227,11 @@ export default function MobilMapView({
     if (!ownCoveragePolygon || ownCoveragePolygon.length === 0) return null;
     // Check if it's already [lat, lng] or [lon, lat] format
     if (Array.isArray(ownCoveragePolygon[0]) && ownCoveragePolygon[0].length >= 2) {
-      // Assume [lon, lat] from GeoJSON — convert to [lat, lon]
-      return ownCoveragePolygon.map(([lon, lat]) => [lat, lon]);
+      // Assume [lon, lat] from GeoJSON — convert to [lat, lon], filter invalid coords
+      const converted = ownCoveragePolygon
+        .map(([lon, lat]) => [lat, lon])
+        .filter(([lat, lon]) => isValidCoord(lat, lon));
+      return converted.length > 0 ? converted : null;
     }
     return null;
   }, [ownCoveragePolygon]);
@@ -264,9 +267,12 @@ export default function MobilMapView({
 
         {bounds && !autoZoom && <FitBounds bounds={bounds} />}
 
-        {/* Route polyline */}
+        {/* Route polyline — filter invalid coords to prevent Leaflet crash */}
         {routeCoords && routeCoords.length > 1 && (
-          <Polyline positions={routeCoords} pathOptions={{ color: "#3b82f6", weight: 4 }} />
+          <Polyline
+            positions={routeCoords.filter(([lat, lon]) => isValidCoord(lat, lon))}
+            pathOptions={{ color: "#3b82f6", weight: 4 }}
+          />
         )}
 
         {/* Own coverage polygon */}
@@ -315,8 +321,7 @@ export default function MobilMapView({
           !itmCoverageLeaflet &&
           !repeaterCoverageLeaflet &&
           recommendedRepeater &&
-          recommendedRepeater.lat != null &&
-          recommendedRepeater.lng != null && (
+          isValidCoord(recommendedRepeater.lat, recommendedRepeater.lng) && (
             <Circle
               center={[recommendedRepeater.lat, recommendedRepeater.lng]}
               radius={repeaterCoverageRadius}

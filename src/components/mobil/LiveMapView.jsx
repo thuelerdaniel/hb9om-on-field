@@ -73,7 +73,7 @@ export default function LiveMapView({ gpsPosition, accuracy, repeaters, recommen
   return (
     <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700" style={{ height: "40vh", minHeight: "200px" }}>
       <MapContainer
-        center={gpsPosition ? [gpsPosition.lat, gpsPosition.lon] : [46.979, 7.458]}
+        center={gpsPosition && isValidCoord(gpsPosition.lat, gpsPosition.lon) ? [gpsPosition.lat, gpsPosition.lon] : [46.979, 7.458]}
         zoom={12}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom
