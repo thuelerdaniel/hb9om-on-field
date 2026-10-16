@@ -183,7 +183,7 @@ export default function MobilMapView({
   // Effect: GPS-driven panTo — throttled (max 1x/3s), only if moved >10m, paused during user interaction.
   // Uses smooth panTo animation instead of hard fitBounds jump.
   useEffect(() => {
-    if (!autoZoom || !mapInstance || !gpsPosition) return;
+    if (!autoZoom || !mapInstance || !gpsPosition || !isValidCoord(gpsPosition.lat, gpsPosition.lon)) return;
     if (userInteractingRef.current) return;
 
     const now = Date.now();
