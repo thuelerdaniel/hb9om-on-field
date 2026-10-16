@@ -31,7 +31,8 @@ function FitBounds({ bounds }) {
   const map = useMap();
   useEffect(() => {
     if (bounds) {
-      map.fitBounds(bounds, { padding: [30, 30] });
+      // A single location has zero-area bounds; never let fitBounds choose Infinity.
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 18 });
     }
   }, [bounds, map]);
   return null;
@@ -164,7 +165,7 @@ export default function MobilMapView({
           [Math.min(...lats), Math.min(...lons)],
           [Math.max(...lats), Math.max(...lons)],
         ];
-        mapInstance.fitBounds(b, { padding: [50, 50], animate: true, duration: 0.5 });
+        mapInstance.fitBounds(b, { padding: [50, 50], maxZoom: 18, animate: true, duration: 0.5 });
       } else if (points.length === 1) {
         mapInstance.setView(points[0], 12, { animate: true, duration: 0.5 });
       }
@@ -252,6 +253,7 @@ export default function MobilMapView({
       <MapContainer
         center={[46.8, 8.3]}
         zoom={8}
+        maxZoom={19}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
       >
@@ -357,7 +359,7 @@ export default function MobilMapView({
                 </div>
               </Popup>
             </CircleMarker>
-            {accuracy != null && (
+            {Number.isFinite(accuracy) && accuracy > 0 && (
               <Circle
                 center={[gpsPosition.lat, gpsPosition.lon]}
                 radius={accuracy}

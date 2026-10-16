@@ -13,11 +13,12 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610162000";
+export const APP_BUILD = "202610162002";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "MOBIL-ZOOM-FIX: Einzelne oder identische Positionen erzeugten bei fitBounds ohne Zoom-Limit einen unendlichen Zoom und ungültige Pixelkoordinaten. Mobil-Karten haben jetzt feste Zoom-Obergrenzen, auch beim Auto-Zoom. GPS-Kreise werden nur mit endlichem, positivem Radius dargestellt.",
   "v0.959-HF8: MOBIL-PANTO-ROOT-CAUSE — MobilMapView: GPS-driven panTo prüfte nur !gpsPosition (null-check) aber NICHT isValidCoord — truthy {lat:NaN, lon:NaN} Position rief mapInstance.panTo([NaN,NaN]) → Map-Center wurde NaN → SVG-Renderer onAdd → _reset → _project → map.getBounds() → unproject(NaN) → new LatLng(NaN,NaN) Crash. Fix: isValidCoord zur panTo-Guard hinzugefügt",
   "v0.959-HF7: MOBIL-LATLNG-ROOT-CAUSE — LiveMapView: GPS-Accuracy-Circle hatte KEIN isValidCoord-Check (nur gpsPosition && accuracy != null) — bei truthy aber NaN-Position (z.B. GPS-Denied mit broken Position-Objekt) crashte Leaflet mit 'Invalid LatLng object: (NaN, NaN)' beim Circle.onAdd → _project → unproject. Fix: isValidCoord-Check hinzugefügt",
   "v0.959-HF7: MOBIL-LATLNG-ROOT-CAUSE — RouteMapView: Korridor-Polygon (Reichweite-Korridor) wurde ungefiltert an Leaflet übergeben — NaN-Koordinaten aus invaliden Route-Wegpunkten crashen Polyline. Fix: corridor.filter(isValidCoord) vor Übergabe",
