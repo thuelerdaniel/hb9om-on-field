@@ -33,6 +33,9 @@ export default function AprsFilter({
 
   useEffect(() => { safeSetItem("hb9om_filter_open_aprs", String(isOpen)); }, [isOpen]);
 
+  useEffect(() => { if (externalOpen !== undefined) setIsOpen(externalOpen); }, [externalOpen]);
+  const handleClose = () => { setIsOpen(false); onExternalClose?.(); };
+
   // null or all = no filter (show everything); array = filter by selected types
   const allOn = !filterTypes || filterTypes.length === ALL_TYPES.length;
   const noneOn = filterTypes && filterTypes.length === 0;
@@ -48,6 +51,7 @@ export default function AprsFilter({
 
   return (
     <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1005]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+      {!hideTrigger && (
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`bg-white shadow-lg rounded-lg p-2.5 transition-colors border flex items-center gap-1.5 ${
@@ -65,6 +69,7 @@ export default function AprsFilter({
         )}
         <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
+      )}
 
       {isOpen && (
         <div className="absolute top-12 left-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-72 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
@@ -72,7 +77,7 @@ export default function AprsFilter({
             <h3 className="font-semibold text-sm text-gray-900 flex items-center gap-1.5">
               <Wifi className="w-4 h-4 text-purple-600" /> APRS-Filter
             </h3>
-            <button onClick={() => setIsOpen(false)} className="p-0.5 hover:bg-gray-100 rounded text-gray-400">
+            <button onClick={handleClose} className="p-0.5 hover:bg-gray-100 rounded text-gray-400">
               <X className="w-4 h-4" />
             </button>
           </div>

@@ -38,6 +38,9 @@ export default function TotaFilter({
 
   useEffect(() => { safeSetItem("hb9om_filter_open_tota", String(isOpen)); }, [isOpen]);
 
+  useEffect(() => { if (externalOpen !== undefined) setIsOpen(externalOpen); }, [externalOpen]);
+  const handleClose = () => { setIsOpen(false); onExternalClose?.(); };
+
   const allOn = !filterTypes || filterTypes.length === TOTA_TYPE_IDS.length;
   const noneOn = filterTypes && filterTypes.length === 0;
 
@@ -63,6 +66,7 @@ export default function TotaFilter({
 
   return (
     <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1005]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+      {!hideTrigger && (
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`bg-white shadow-lg rounded-lg p-2.5 transition-colors border flex items-center gap-1.5 ${
@@ -84,6 +88,7 @@ export default function TotaFilter({
           }`}
         />
       </button>
+      )}
 
       {isOpen && (
         <div className="absolute top-12 left-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-72 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
@@ -92,7 +97,7 @@ export default function TotaFilter({
               <RadioTower className="w-4 h-4 text-orange-600" /> TOTA – Towers on the Air
             </h3>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={handleClose}
               className="p-0.5 hover:bg-gray-100 rounded text-gray-400"
             >
               <X className="w-4 h-4" />

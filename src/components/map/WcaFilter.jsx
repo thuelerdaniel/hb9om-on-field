@@ -19,6 +19,9 @@ export default function WcaFilter({
   allBoundariesActive = false,
   activeBoundaryCount = 0,
   onClearBoundaries,
+  externalOpen,
+  onExternalClose,
+  hideTrigger = false,
 }) {
   return (
     <UnifiedFilterShell
@@ -39,6 +42,9 @@ export default function WcaFilter({
       extractCountryCode={(p) => p.country_code || p.code?.split(/[/ -]/)[0] || "?"}
       extractCountryName={(p) => p.country || p.country_code || "?"}
       infoText="WCA (World Castle Award) — Burgen, Schlösser und Festungen weltweit. Daten von OpenStreetMap und Wikidata."
+      externalOpen={externalOpen}
+      onExternalClose={onExternalClose}
+      hideTrigger={hideTrigger}
     >
       <BoundaryToggleSection
         layerType="castle"

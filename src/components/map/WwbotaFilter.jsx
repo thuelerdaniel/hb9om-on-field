@@ -20,6 +20,9 @@ export default function WwbotaFilter({
   allBoundariesActive = false,
   activeBoundaryCount = 0,
   onClearBoundaries,
+  externalOpen,
+  onExternalClose,
+  hideTrigger = false,
 }) {
   return (
     <UnifiedFilterShell
@@ -40,6 +43,9 @@ export default function WwbotaFilter({
       extractCountryCode={(p) => p.country_code || p.code?.split(/[/ -]/)[0] || "?"}
       extractCountryName={(p) => p.country || p.country_code || "?"}
       infoText="WWBOTA (World Wide Bunkers on the Air) — Bunker und Befestigungsanlagen weltweit. Referenzdaten werden unabhängig von Live-Spots angezeigt."
+      externalOpen={externalOpen}
+      onExternalClose={onExternalClose}
+      hideTrigger={hideTrigger}
     >
       <BoundaryToggleSection
         layerType="wwbota"

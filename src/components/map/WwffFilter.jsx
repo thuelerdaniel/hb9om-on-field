@@ -48,6 +48,7 @@ export default function WwffFilter({
 
   return (
     <div ref={containerRef} className="fixed z-[1000]" style={{ left: `${leftPx}px`, bottom: `${bottomPx}px`, touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+      {!hideTrigger && (
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`bg-white shadow-lg rounded-lg p-2.5 transition-colors border flex items-center gap-1.5 ${
@@ -65,6 +66,7 @@ export default function WwffFilter({
         )}
         <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
+      )}
 
       {isOpen && (
         <div className="absolute bottom-12 left-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-72 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto">
@@ -72,7 +74,7 @@ export default function WwffFilter({
             <h3 className="font-semibold text-sm text-gray-900 flex items-center gap-1.5">
               <Trees className="w-4 h-4 text-purple-600" /> WWFF – Flora & Fauna
             </h3>
-            <button onClick={() => setIsOpen(false)} className="p-0.5 hover:bg-gray-100 rounded text-gray-400">
+            <button onClick={handleClose} className="p-0.5 hover:bg-gray-100 rounded text-gray-400">
               <X className="w-4 h-4" />
             </button>
           </div>

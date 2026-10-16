@@ -564,6 +564,13 @@ export default function Home() {
 
   // Left control panel state — which filter popup is opened from the panel
   const [openFilter, setOpenFilter] = useState(null);
+
+  // Esc closes filter popup
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') setOpenFilter(null); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
   // Incremented on map click to close the left panel
   const [panelCloseTrigger, setPanelCloseTrigger] = useState(0);
 
@@ -1709,8 +1716,9 @@ export default function Home() {
               setMapClickForPosition(false);
               mapRef.current?.flyTo([latlng.lat, latlng.lng], 13, { duration: 1 });
             } else {
-              // Close left panel on map tap
+              // Close left panel + filter popup on map tap
               setPanelCloseTrigger(t => t + 1);
+              setOpenFilter(null);
             }
           }}
         />
