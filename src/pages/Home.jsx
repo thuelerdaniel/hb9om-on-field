@@ -16,6 +16,7 @@ import LayerControl from "@/components/map/LayerControl";
 import MapControls from "@/components/map/MapControls";
 import MapPositionControls from "@/components/map/MapPositionControls";
 import DraggableTerrainToggle from "@/components/map/DraggableTerrainToggle";
+import LeftControlPanel from "@/components/map/LeftControlPanel";
 import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
 import CountryAggregateLayer from "@/components/map/CountryAggregateLayer";
@@ -560,6 +561,11 @@ export default function Home() {
 
   // Layer menu open state — lifted for external control (ViewportLimitHint action button)
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+
+  // Left control panel state — which filter popup is opened from the panel
+  const [openFilter, setOpenFilter] = useState(null);
+  // Incremented on map click to close the left panel
+  const [panelCloseTrigger, setPanelCloseTrigger] = useState(0);
 
   // Performance suggestion
   const [showPerfSuggestion, setShowPerfSuggestion] = useState(false);
@@ -1577,6 +1583,25 @@ export default function Home() {
   const tileConfig = TILE_CONFIGS[baseLayer] || TILE_CONFIGS.openfreemap_liberty;
   const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || forceOffline);
 
+  // Build filter triggers for the left control panel — one entry per active filter layer
+  const filterTriggers = useMemo(() => {
+    const triggers = [];
+    if (activeLayers.includes("repeater")) triggers.push({ type: "repeater", count: repeaters.length, visibleCount: visibleRepeaterCount });
+    if (activeLayers.includes("tota")) triggers.push({ type: "tota", count: totaViewportCount.total, visibleCount: totaViewportCount.visible });
+    if (activeLayers.includes("lighthouse")) triggers.push({ type: "lighthouse", count: lighthouseCount, visibleCount: filteredLighthouses.length });
+    if (activeLayers.includes("aprs")) triggers.push({ type: "aprs", count: aprsNodes.length, visibleCount: visibleAprsCount });
+    if (activeLayers.includes("brandmeister")) triggers.push({ type: "brandmeister", count: bmNodes.length, visibleCount: visibleBmCount });
+    const refTypes = ["sota", "pota", "hbff", "castle", "wwbota", "llota", "iota"];
+    for (const type of refTypes) {
+      if (activeLayers.includes(type)) {
+        const count = (mapData[type] || []).length;
+        const visibleCount = allMarkers.filter(m => m.layerType === type).length;
+        triggers.push({ type, count, visibleCount });
+      }
+    }
+    return triggers;
+  }, [activeLayers, repeaters, visibleRepeaterCount, totaViewportCount, lighthouseCount, filteredLighthouses, aprsNodes, visibleAprsCount, bmNodes, visibleBmCount, mapData, allMarkers]);
+
   // Calculate filter button positions — max 6 per row, second row if more.
   // Existing filter components use leftOffsetClass (row 0). New reference search
   // filters use inline px positioning and go to row 1 when total exceeds 6.
@@ -1683,6 +1708,9 @@ export default function Home() {
               setUserPosition([latlng.lat, latlng.lng]);
               setMapClickForPosition(false);
               mapRef.current?.flyTo([latlng.lat, latlng.lng], 13, { duration: 1 });
+            } else {
+              // Close left panel on map tap
+              setPanelCloseTrigger(t => t + 1);
             }
           }}
         />
@@ -1932,15 +1960,8 @@ export default function Home() {
         baseLayer={baseLayer}
       />
 
-      {/* v0.951: 3D Terrain Toggle — verschiebbar, Default im Daumenbereich */}
-      <DraggableTerrainToggle
-        enabled={terrain3DEnabled}
-        onToggle={() => setTerrain3DEnabled(!terrain3DEnabled)}
-        visible={tileConfig.type === "vector"}
-      />
-
-      {/* Position Controls (offline, GPS, center position, offline download) */}
-      <MapPositionControls
+      {/* Left Control Panel — alle linken Buttons in aufklappbarem Bereich */}
+      <LeftControlPanel
         onCenterPosition={handleCenterOnPosition}
         onGetGps={handleGetGps}
         isOffline={isOffline}
@@ -1949,20 +1970,18 @@ export default function Home() {
         onSetPositionViaMap={() => setMapClickForPosition(true)}
         setPositionActive={mapClickForPosition}
         gpsTrackingActive={gpsTrackingActive}
+        dragMode={dragMode}
+        onToggleDragMode={() => setDragMode(!dragMode)}
+        terrain3DEnabled={terrain3DEnabled}
+        onToggleTerrain3D={() => setTerrain3DEnabled(!terrain3DEnabled)}
+        terrain3DVisible={tileConfig.type === "vector"}
+        onOpenCoverage={() => setShowUserCoverageDialog(true)}
+        onOpenQso={() => setShowLogForm(true)}
+        filterTriggers={filterTriggers}
+        openFilter={openFilter}
+        onOpenFilter={setOpenFilter}
+        externalCloseTrigger={panelCloseTrigger}
       />
-
-      {/* Drag-Mode Toggle (Marker verschieben für Positionskorrektur) — verschiebbar (PUNKT 13) */}
-      {features.tools.filter !== false && (
-        <DraggableMapButton
-          storageKey="mapbtn_drag_mode"
-          defaultPos={{ x: 16, y: window.innerHeight - 230 - 44 - 40 }}
-          onClick={() => setDragMode(!dragMode)}
-          active={dragMode}
-          title={dragMode ? "Marker-Verschiebung aktiv — tippen zum Deaktivieren · Lang gedrückt: verschieben" : "Marker verschieben (Positionskorrektur) · Lang gedrückt: verschieben"}
-        >
-          <Move className="w-5 h-5" />
-        </DraggableMapButton>
-      )}
 
       {/* Filter buttons — positioned based on active layers (only if filter tool enabled) */}
       {features.tools.filter !== false && filterButtons.existing.map(btn => {
@@ -1998,7 +2017,10 @@ export default function Home() {
               radiusKm={repeaterRadiusKm}
               onRadiusKmChange={setRepeaterRadiusKm}
               userPosition={currentPosition}
-              leftOffsetClass={btn.offset}
+              leftOffsetClass="left-16"
+              hideTrigger={true}
+              externalOpen={openFilter === "repeater"}
+              onExternalClose={() => setOpenFilter(null)}
             />
           );
         }
@@ -2019,7 +2041,10 @@ export default function Home() {
                 setShowChTota(val);
                 safeSetItem("hb9om_show_ch_tota", String(val));
               }}
-              leftOffsetClass={btn.offset}
+              leftOffsetClass="left-16"
+              hideTrigger={true}
+              externalOpen={openFilter === "tota"}
+              onExternalClose={() => setOpenFilter(null)}
             />
           );
         }
@@ -2036,7 +2061,10 @@ export default function Home() {
               countries={aprsCountries}
               filterCountries={aprsFilterCountries}
               onFilterCountriesChange={setAprsFilterCountries}
-              leftOffsetClass={btn.offset}
+              leftOffsetClass="left-16"
+              hideTrigger={true}
+              externalOpen={openFilter === "aprs"}
+              onExternalClose={() => setOpenFilter(null)}
             />
           );
         }
@@ -2053,7 +2081,10 @@ export default function Home() {
               countries={bmCountries}
               filterCountries={bmFilterCountries}
               onFilterCountriesChange={setBmFilterCountries}
-              leftOffsetClass={btn.offset}
+              leftOffsetClass="left-16"
+              hideTrigger={true}
+              externalOpen={openFilter === "brandmeister"}
+              onExternalClose={() => setOpenFilter(null)}
             />
           );
         }
@@ -2078,6 +2109,10 @@ export default function Home() {
               allBoundariesActive={allBoundariesEnabled.has("lighthouse")}
               activeBoundaryCount={getBoundaryCount("lighthouse")}
               onClearBoundaries={() => handleClearBoundaries("lighthouse")}
+              leftOffsetClass="left-16"
+              hideTrigger={true}
+              externalOpen={openFilter === "lighthouse"}
+              onExternalClose={() => setOpenFilter(null)}
             />
           );
         }
@@ -2088,7 +2123,13 @@ export default function Home() {
       {features.tools.filter !== false && filterButtons.reference.map(btn => {
         const visibleCount = allMarkers.filter(m => m.layerType === btn.type).length;
         const filterKey = `ref-filter-${btn.type}`;
-        const commonProps = { leftPx: btn.leftPx, bottomPx: btn.bottomPx };
+        const commonProps = {
+          leftPx: 60,
+          bottomPx: btn.bottomPx,
+          hideTrigger: true,
+          externalOpen: openFilter === btn.type,
+          onExternalClose: () => setOpenFilter(null),
+        };
         if (btn.type === "sota") {
           return (
             <SotaFilter key={filterKey} {...commonProps}
@@ -2218,18 +2259,6 @@ export default function Home() {
         />
       )}
 
-      {/* User coverage button — "Meine Abdeckung berechnen" — verschiebbar (PUNKT 13) */}
-      {features.tools.own_coverage !== false && (
-        <DraggableMapButton
-          storageKey="mapbtn_coverage"
-          defaultPos={{ x: 16, y: window.innerHeight - 175 - 44 - 40 }}
-          onClick={() => setShowUserCoverageDialog(true)}
-          title="Meine Abdeckung berechnen · Lang gedrückt: verschieben"
-        >
-          <Radio className="w-5 h-5 text-orange-500" />
-        </DraggableMapButton>
-      )}
-
       {/* Loading indicator */}
       <RadioLoader isLoading={loading} onCancel={cancelLoading} message={loadingMessage} />
 
@@ -2312,11 +2341,6 @@ export default function Home() {
           repeater={repeaterCorrection}
           onClose={() => setRepeaterCorrection(null)}
         />
-      )}
-
-      {/* Neues QSO Button — verschiebbar (gleiche Komponente wie Hunting-Seite) */}
-      {features.tools.qso_add !== false && (
-        <DraggableQsoButton onClick={() => setShowLogForm(true)} />
       )}
 
       {/* Map click hint for coverage position — shown when mapClickForCoverage is active */}

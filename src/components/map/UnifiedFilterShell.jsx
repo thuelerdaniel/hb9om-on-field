@@ -49,6 +49,9 @@ export default function UnifiedFilterShell({
   positionMode = "fixed",
   defaultOpen = true,
   badgeCount = null,
+  externalOpen,
+  onExternalClose,
+  hideTrigger = false,
 }) {
   const [isOpen, setIsOpen] = useState(() => {
     const saved = safeGetItem(`hb9om_filter_open_${layerKey}`);
@@ -58,6 +61,16 @@ export default function UnifiedFilterShell({
   const { containerRef } = useDraggablePosition(`drag-${layerKey}-filter`);
 
   useEffect(() => { safeSetItem(`hb9om_filter_open_${layerKey}`, String(isOpen)); }, [isOpen, layerKey]);
+
+  // Sync with external open state (from left control panel)
+  useEffect(() => {
+    if (externalOpen !== undefined) setIsOpen(externalOpen);
+  }, [externalOpen]);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    onExternalClose?.();
+  };
 
   const countries = useMemo(() => {
     const counts = {};
