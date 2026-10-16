@@ -85,8 +85,8 @@ export default function LiveMapView({ gpsPosition, accuracy, repeaters, recommen
 
         <AutoCenter position={gpsPosition} />
 
-        {/* GPS Accuracy-Kreis */}
-        {gpsPosition && accuracy != null && (
+        {/* GPS Accuracy-Kreis — isValidCoord prevents NaN crash */}
+        {gpsPosition && accuracy != null && isValidCoord(gpsPosition.lat, gpsPosition.lon) && (
           <Circle
             center={[gpsPosition.lat, gpsPosition.lon]}
             radius={accuracy}

@@ -90,10 +90,10 @@ export default function RouteMapView({ routeCoords, repeaters, rangeKm, gpsPosit
 
         <FitBounds routeCoords={routeCoords} />
 
-        {/* Reichweite-Korridor */}
+        {/* Reichweite-Korridor — filter NaN coords to prevent Leaflet crash */}
         {corridor.length > 2 && (
           <Polyline
-            positions={corridor}
+            positions={corridor.filter(([lat, lon]) => isValidCoord(lat, lon))}
             pathOptions={{ color: "#3b82f6", weight: 1, opacity: 0.15, fillColor: "#3b82f6", fillOpacity: 0.08 }}
           />
         )}
