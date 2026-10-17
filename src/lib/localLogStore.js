@@ -54,18 +54,20 @@ export async function syncFromServer() {
   if (!isOnline()) return local;
 
   try {
-    // v0.9018 BUGFIX 2: Paginate to load ALL entries — not just the first 500.
-    // This ensures entries.length reflects the true total count.
+    // FLOOD-FIX: Use cursor-based pagination (options form) instead of skip-based.
+    // Skip-based pagination is O(n) per page — with 985k+ records it times out.
+    // Cursor-based is O(1) per page. The options form returns {items, next_cursor, has_more}.
     const allServerData = [];
     const PAGE_SIZE = 500;
-    let skip = 0;
     const MAX_PAGES = 20; // Safety limit: max 10000 entries
+    let cursor = undefined;
     for (let page = 0; page < MAX_PAGES; page++) {
-      const batch = await base44.entities.Log.list("-qso_date", PAGE_SIZE, skip);
-      if (!batch || batch.length === 0) break;
+      const result = await base44.entities.Log.filter({}, { sort: "-qso_date", limit: PAGE_SIZE, cursor });
+      const batch = result.items || [];
+      if (batch.length === 0) break;
       allServerData.push(...batch);
-      skip += batch.length;
-      if (batch.length < PAGE_SIZE) break;
+      cursor = result.next_cursor;
+      if (!result.has_more) break;
     }
     // v0.958: Deduplicate by ID — pagination (list with skip) may return the same
     // record on multiple pages, causing React duplicate-key warnings.

@@ -1,8 +1,8 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
 import { isInternalCall } from '../../shared/internalAuth.ts';
 import { dedupKey } from '../../shared/logDedup.ts';
 import { normalizeTime, resolveTime } from '../../shared/normalizeTime.ts';
-import { loadExistingLogMap, upsertLogs } from '../../shared/logUpsert.ts';
+import { loadExistingLogMap, upsertLogs, upsertLogsNative } from '../../shared/logUpsert.ts';
 
 // Wavelog API Proxy — v0.9022
 // Vermeidet Mixed-Content Blocking (App ist HTTPS, Wavelog-Server ist HTTP).
@@ -282,35 +282,32 @@ export default async function(req: Request): Promise<Response> {
 
         console.log(`[Wavelog] Parsed ${qsos.length} QSOs, ${parseErrors.length} parse errors`);
 
-        // v0.954: True upsert — prevents duplicates on repeated imports.
-        // Key: (operator_callsign, callsign, qso_date, time_start, log_type, club_callsign)
-        // Existing record → UPDATE; new → CREATE. Service role bypasses RLS.
+        // FLOOD-FIX: Use SDK's native upsert with normalized key fields.
+        // The old loadExistingLogMap loaded ALL records (impossible with 985k+ records).
+        // upsertLogsNative normalizes time_start to "HH:MM" and uses server-side dedup.
         const sr = base44.asServiceRole;
         for (const q of qsos) { if (!q.created_by_id) q.created_by_id = user.id; }
-        const existingMap = await loadExistingLogMap(sr);
-        const upsertResult = await upsertLogs(sr, qsos, existingMap);
+        const upsertResult = await upsertLogsNative(sr, qsos);
         const importedCount = upsertResult.created;
         const updatedCount = upsertResult.updated;
         let errorCount = upsertResult.errors;
         const importErrors = upsertResult.errorDetails;
-        const duplicateCount = updatedCount;
-        console.log(`[Wavelog] Upsert: ${importedCount} new, ${updatedCount} updated, ${errorCount} errors`);
+        const duplicateCount = updatedCount + upsertResult.skipped;
+        console.log(`[Wavelog] Upsert: ${importedCount} new, ${updatedCount} updated, ${upsertResult.skipped} skipped, ${errorCount} errors`);
 
-        // v0.9036: Only update last_fetch_id if NO DB errors — failed QSOs get retried next sync.
-        // Parse errors (no CALL field) don't count — those QSOs will never import anyway.
-        if (errorCount === 0) {
-          try {
-            const settings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
-            if (settings && settings.length > 0) {
-              await base44.entities.UserHuntingSettings.update(settings[0].id, {
-                wavelog_last_fetch_id: parseInt(lastfetchedid),
-              });
-            }
-          } catch (e: any) {
-            console.log('[Wavelog] Could not update last_fetch_id:', e.message);
+        // FLOOD-FIX: ALWAYS update last_fetch_id after successful Wavelog fetch.
+        // The old code only updated if errorCount === 0, which meant any DB error
+        // (e.g. from bulkCreate failing) left last_fetch_id at 0 → next run re-imported everything.
+        // The QSOs were already fetched from Wavelog — re-fetching them won't help.
+        try {
+          const settings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
+          if (settings && settings.length > 0) {
+            await base44.entities.UserHuntingSettings.update(settings[0].id, {
+              wavelog_last_fetch_id: parseInt(lastfetchedid),
+            });
           }
-        } else {
-          console.log(`[Wavelog] ${errorCount} DB errors — last_fetch_id NOT updated, will retry next sync`);
+        } catch (e: any) {
+          console.log('[Wavelog] Could not update last_fetch_id:', e.message);
         }
 
         return Response.json({
@@ -463,26 +460,22 @@ export default async function(req: Request): Promise<Response> {
           });
         }
 
-        // v0.954: True upsert — prevents duplicates on repeated full imports.
-        // Key: (operator_callsign, callsign, qso_date, time_start, log_type, club_callsign)
+        // FLOOD-FIX: Use SDK's native upsert with normalized key fields.
         const sr = base44.asServiceRole;
         for (const q of allQsos) { if (!q.created_by_id) q.created_by_id = user.id; }
-        const existingMap = await loadExistingLogMap(sr);
-        const upsertResult = await upsertLogs(sr, allQsos, existingMap);
+        const upsertResult = await upsertLogsNative(sr, allQsos);
         const importedCount = upsertResult.created;
         const updatedCount = upsertResult.updated;
         let errorCount = upsertResult.errors;
-        const duplicateCount = updatedCount;
-        console.log(`[Wavelog Full-Import] Upsert: ${importedCount} new, ${updatedCount} updated, ${errorCount} errors`);
+        const duplicateCount = updatedCount + upsertResult.skipped;
+        console.log(`[Wavelog Full-Import] Upsert: ${importedCount} new, ${updatedCount} updated, ${upsertResult.skipped} skipped, ${errorCount} errors`);
 
-        // Update wavelog_last_fetch_id only if no errors
-        if (errorCount === 0) {
-          try {
-            await base44.entities.UserHuntingSettings.update(settings.id, {
-              wavelog_last_fetch_id: lastFetchedId,
-            });
-          } catch {}
-        }
+        // FLOOD-FIX: ALWAYS update last_fetch_id after successful Wavelog fetch
+        try {
+          await base44.entities.UserHuntingSettings.update(settings.id, {
+            wavelog_last_fetch_id: lastFetchedId,
+          });
+        } catch {}
 
         // v0.9004: Save import progress to AppSetting for UI tracking
         const totalPages = Math.ceil(totalExported / 500) || 1;
@@ -637,24 +630,25 @@ export default async function(req: Request): Promise<Response> {
                 });
               }
 
-              // v0.954: True upsert — prevents duplicates on repeated syncs.
-              const syncUpsertResult = await upsertLogs(sr, qsos, await loadExistingLogMap(sr, { created_by_id: userId }));
+              // FLOOD-FIX: Use SDK's native upsert with normalized key fields.
+              // The old loadExistingLogMap loaded ALL user records — impossible with 985k+ records.
+              const syncUpsertResult = await upsertLogsNative(sr, qsos);
               importedCount += syncUpsertResult.created;
               const syncUpdatedCount = syncUpsertResult.updated;
               const syncErrorCount = syncUpsertResult.errors;
-              console.log(`[Wavelog Sync] Upsert for ${userId}: ${syncUpsertResult.created} new, ${syncUpdatedCount} updated, ${syncErrorCount} errors`);
+              const syncSkippedCount = syncUpsertResult.skipped;
+              console.log(`[Wavelog Sync] Upsert for ${userId}: ${syncUpsertResult.created} new, ${syncUpdatedCount} updated, ${syncSkippedCount} skipped, ${syncErrorCount} errors`);
 
-              // v0.9036: Only update last_fetch_id if NO DB errors — retry failed QSOs next sync
-              if (syncErrorCount === 0) {
-                try {
-                  await sr.entities.UserHuntingSettings.update(setting.id, {
-                    wavelog_last_fetch_id: parseInt(newLastFetchId),
-                  });
-                } catch (e: any) {
-                  console.log(`[Wavelog Sync] Could not update last_fetch_id: ${e.message}`);
-                }
-              } else {
-                console.log(`[Wavelog Sync] ${syncErrorCount} DB errors for ${userId} — last_fetch_id NOT updated, will retry`);
+              // FLOOD-FIX: ALWAYS update last_fetch_id after successful Wavelog fetch.
+              // The old code only updated if syncErrorCount === 0 — any DB error left
+              // last_fetch_id at its old value → next run re-imported the same QSOs → duplicates.
+              // The QSOs were already fetched from Wavelog — re-fetching won't help.
+              try {
+                await sr.entities.UserHuntingSettings.update(setting.id, {
+                  wavelog_last_fetch_id: parseInt(newLastFetchId),
+                });
+              } catch (e: any) {
+                console.log(`[Wavelog Sync] Could not update last_fetch_id: ${e.message}`);
               }
             }
           } catch (importErr: any) {
