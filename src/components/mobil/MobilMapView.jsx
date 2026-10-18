@@ -26,6 +26,7 @@ import { calculateRange } from "@/lib/equipmentRange";
 import { haversine, isValidCoord } from "@/lib/geoUtilsFrontend";
 import { useDraggableButton } from "@/hooks/useDraggableButton";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
+import MapLifecycleGuard from "@/components/map/MapLifecycleGuard";
 
 function FitBounds({ bounds }) {
   const map = useMap();
@@ -258,6 +259,7 @@ export default function MobilMapView({
         scrollWheelZoom={true}
       >
         <MapRefSetter onReady={setMapInstance} />
+        <MapLifecycleGuard />
         <MapInteractionTracker
           userInteractingRef={userInteractingRef}
           interactionTimeoutRef={interactionTimeoutRef}

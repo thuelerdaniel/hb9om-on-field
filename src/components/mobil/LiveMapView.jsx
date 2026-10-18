@@ -7,6 +7,7 @@ import L from "leaflet";
 import { getModeColor, getModeLabel, repeaterMatchesMode } from "@/lib/repeaterModes";
 import { isValidCoord } from "@/lib/geoUtilsFrontend";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
+import MapLifecycleGuard from "@/components/map/MapLifecycleGuard";
 
 // Auto-Zentrierung auf GPS-Position
 function AutoCenter({ position }) {
@@ -84,6 +85,7 @@ export default function LiveMapView({ gpsPosition, accuracy, repeaters, recommen
         />
 
         <AutoCenter position={gpsPosition} />
+        <MapLifecycleGuard />
 
         {/* GPS Accuracy-Kreis — isValidCoord prevents NaN crash */}
         {gpsPosition && accuracy != null && isValidCoord(gpsPosition.lat, gpsPosition.lon) && (

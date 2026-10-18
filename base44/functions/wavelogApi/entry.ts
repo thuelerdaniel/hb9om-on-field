@@ -580,6 +580,17 @@ export default async function(req: Request): Promise<Response> {
               const adif = importData.adif;
               const newLastFetchId = importData.lastfetchedid || lastFetchId;
 
+              // C2 FIX: Update water level (last_fetch_id + last_sync) BEFORE the upsert.
+              // Cursor advances even if the upsert fails/times out → no duplicate flood.
+              try {
+                await sr.entities.UserHuntingSettings.update(setting.id, {
+                  wavelog_last_fetch_id: parseInt(newLastFetchId),
+                  wavelog_last_sync: new Date().toISOString(),
+                });
+              } catch (e: any) {
+                console.log(`[Wavelog Sync] Could not update last_fetch_id: ${e.message}`);
+              }
+
               const eohIdx = adif.toUpperCase().indexOf('<EOH>');
               let adifData = adif;
               if (eohIdx >= 0) adifData = adif.substring(eohIdx + 5);
@@ -644,17 +655,19 @@ export default async function(req: Request): Promise<Response> {
               const syncSkippedCount = syncUpsertResult.skipped;
               console.log(`[Wavelog Sync] Upsert for ${userId}: ${syncUpsertResult.created} new, ${syncUpdatedCount} updated, ${syncSkippedCount} skipped, ${syncErrorCount} errors`);
 
-              // FLOOD-FIX: ALWAYS update last_fetch_id after successful Wavelog fetch.
-              // The old code only updated if syncErrorCount === 0 — any DB error left
-              // last_fetch_id at its old value → next run re-imported the same QSOs → duplicates.
-              // The QSOs were already fetched from Wavelog — re-fetching won't help.
+              // C3 DEDUP-ABSORICHERUNG: Self-test — count new vs duplicates, warn on deviation.
+              syncDuplicatesCount = syncUpdatedCount + syncSkippedCount;
+              if (importedCount > 50) {
+                dedupWarning = `WARNUNG: ${importedCount} neue QSOs in einem Delta-Sync — möglicher Dedup-Fehler`;
+                console.log(`[Wavelog Sync] ${dedupWarning}`);
+              }
+            } else {
+              // No new QSOs from Wavelog — still update last_sync timestamp
               try {
                 await sr.entities.UserHuntingSettings.update(setting.id, {
-                  wavelog_last_fetch_id: parseInt(newLastFetchId),
+                  wavelog_last_sync: new Date().toISOString(),
                 });
-              } catch (e: any) {
-                console.log(`[Wavelog Sync] Could not update last_fetch_id: ${e.message}`);
-              }
+              } catch {}
             }
           } catch (importErr: any) {
             console.log(`[Wavelog Sync] Import failed for ${userId}: ${importErr.message}`);
@@ -732,7 +745,7 @@ export default async function(req: Request): Promise<Response> {
             console.log(`[Wavelog Sync] Export failed for ${userId}: ${exportErr.message}`);
           }
 
-          results.push({ user_id: userId, imported: importedCount, exported: exportedCount, status: 'success' });
+          results.push({ user_id: userId, imported: importedCount, exported: exportedCount, duplicates: syncDuplicatesCount, dedup_warning: dedupWarning, status: 'success' });
         }
 
         return Response.json({
