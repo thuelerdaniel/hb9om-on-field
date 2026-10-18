@@ -13,11 +13,15 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610162002";
+export const APP_BUILD = "202610182007";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "18.10.2026: LOG-FLUT BEREINIGT — 614k Duplikate des defekten Wavelog-Service-Sync (07.-17.10.) via purgeWavelogFlood Backend-Funktion gelöscht. 3116 legitime QSOs bleiben. Spot-Check: R4ZZ/ZS3JDL/EA4GA/HB8TEST/HB9HXD/HB3YQT je 1 — kein echtes QSO verloren.",
+  "18.10.2026: WAVELOG-SYNC ROOT-CAUSE FIX — Wasserstand (wavelog_last_fetch_id + wavelog_last_sync) wird JETZT vor dem Upsert gesetzt, nicht danach. Cursor advanceiert auch bei Upsert-Fehler → keine Re-Import-Flut mehr. Dedup-Selbsttest warnt bei >50 neuen QSOs pro Delta-Sync.",
+  "18.10.2026: WAVELOG-SYNC PAUSIERT — HB3YNF auto_sync=false + sync_paused=true (Service-Rolle). Sync läuft nicht ungefixt an.",
+  "18.10.2026: KARTEN-CRASH FIX — MapLifecycleGuard in allen Karten (Home, Mobil, Route, Live, Hunting): map.stop() + map.off() bei Unmount verhindert '_leaflet_pos' TypeError beim Zoom-Transition-End nach Seitenwechsel.",
   "MOBIL-ZOOM-FIX: Einzelne oder identische Positionen erzeugten bei fitBounds ohne Zoom-Limit einen unendlichen Zoom und ungültige Pixelkoordinaten. Mobil-Karten haben jetzt feste Zoom-Obergrenzen, auch beim Auto-Zoom. GPS-Kreise werden nur mit endlichem, positivem Radius dargestellt.",
   "v0.959-HF8: MOBIL-PANTO-ROOT-CAUSE — MobilMapView: GPS-driven panTo prüfte nur !gpsPosition (null-check) aber NICHT isValidCoord — truthy {lat:NaN, lon:NaN} Position rief mapInstance.panTo([NaN,NaN]) → Map-Center wurde NaN → SVG-Renderer onAdd → _reset → _project → map.getBounds() → unproject(NaN) → new LatLng(NaN,NaN) Crash. Fix: isValidCoord zur panTo-Guard hinzugefügt",
   "v0.959-HF7: MOBIL-LATLNG-ROOT-CAUSE — LiveMapView: GPS-Accuracy-Circle hatte KEIN isValidCoord-Check (nur gpsPosition && accuracy != null) — bei truthy aber NaN-Position (z.B. GPS-Denied mit broken Position-Objekt) crashte Leaflet mit 'Invalid LatLng object: (NaN, NaN)' beim Circle.onAdd → _project → unproject. Fix: isValidCoord-Check hinzugefügt",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
+import MapLifecycleGuard from "@/components/map/MapLifecycleGuard";
 import L from "leaflet";
 import { base44 } from "@/api/base44Client";
 import { maidenheadToLatLon, isValidCoord } from "@/lib/geoUtilsFrontend";
@@ -136,6 +137,7 @@ export default function HuntingMap({ gpsPos, stationInfo, onSpotClick }) {
             style={{ background: "#0d1720" }}
           >
             <MapLibreTileLayer styleUrl="https://tiles.openfreemap.org/styles/liberty" attribution="OpenFreeMap © OpenMapTiles | Data from OpenStreetMap contributors" />
+            <MapLifecycleGuard />
 
             {/* Station QTH — roter Marker */}
             <Marker position={[stationPos.lat, stationPos.lon]} icon={stationIcon}>
