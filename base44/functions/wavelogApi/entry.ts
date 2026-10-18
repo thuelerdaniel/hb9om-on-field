@@ -560,6 +560,8 @@ export default async function(req: Request): Promise<Response> {
           const lastFetchId = setting.wavelog_last_fetch_id || 0;
           let importedCount = 0;
           let exportedCount = 0;
+          let syncDuplicatesCount = 0;
+          let dedupWarning: string | null = null;
 
           // Step A: Import new QSOs from Wavelog (delta load)
           try {
