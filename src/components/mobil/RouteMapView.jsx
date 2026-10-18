@@ -6,6 +6,7 @@ import L from "leaflet";
 import { getModeColor, getModeLabel, repeaterMatchesMode } from "@/lib/repeaterModes";
 import { isValidCoord } from "@/lib/geoUtilsFrontend";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
+import MapLifecycleGuard from "@/components/map/MapLifecycleGuard";
 
 // Auto-Zentrierung auf Route
 function FitBounds({ routeCoords }) {
@@ -89,6 +90,7 @@ export default function RouteMapView({ routeCoords, repeaters, rangeKm, gpsPosit
         />
 
         <FitBounds routeCoords={routeCoords} />
+        <MapLifecycleGuard />
 
         {/* Reichweite-Korridor — filter NaN coords to prevent Leaflet crash */}
         {corridor.length > 2 && (

@@ -11,6 +11,7 @@ import { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed } from "@/comp
 // Map components
 import MapTileLayer from "@/components/map/MapTileLayer";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
+import MapLifecycleGuard from "@/components/map/MapLifecycleGuard";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl from "@/components/map/LayerControl";
 import MapControls from "@/components/map/MapControls";
@@ -1701,6 +1702,7 @@ export default function Home() {
             tileKeyPrefix={tileConfig.tileKeyPrefix}
           />
         )}
+        <MapLifecycleGuard />
         <MapController
           onMapReady={handleMapReady}
           onZoomIn={handleZoomIn}
