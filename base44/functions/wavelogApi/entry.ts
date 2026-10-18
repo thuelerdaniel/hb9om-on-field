@@ -287,6 +287,22 @@ export default async function(req: Request): Promise<Response> {
         // upsertLogsNative normalizes time_start to "HH:MM" and uses server-side dedup.
         const sr = base44.asServiceRole;
         for (const q of qsos) { if (!q.created_by_id) q.created_by_id = user.id; }
+
+        // C2 FIX: Update water level (last_fetch_id) BEFORE the upsert — cursor advances
+        // even if the upsert fails/times out. The QSOs were already fetched from Wavelog;
+        // re-fetching them won't help. This prevents the duplicate flood at its root.
+        try {
+          const settings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
+          if (settings && settings.length > 0) {
+            await base44.entities.UserHuntingSettings.update(settings[0].id, {
+              wavelog_last_fetch_id: parseInt(lastfetchedid),
+              wavelog_last_sync: new Date().toISOString(),
+            });
+          }
+        } catch (e: any) {
+          console.log('[Wavelog] Could not update last_fetch_id:', e.message);
+        }
+
         const upsertResult = await upsertLogsNative(sr, qsos);
         const importedCount = upsertResult.created;
         const updatedCount = upsertResult.updated;
@@ -294,21 +310,6 @@ export default async function(req: Request): Promise<Response> {
         const importErrors = upsertResult.errorDetails;
         const duplicateCount = updatedCount + upsertResult.skipped;
         console.log(`[Wavelog] Upsert: ${importedCount} new, ${updatedCount} updated, ${upsertResult.skipped} skipped, ${errorCount} errors`);
-
-        // FLOOD-FIX: ALWAYS update last_fetch_id after successful Wavelog fetch.
-        // The old code only updated if errorCount === 0, which meant any DB error
-        // (e.g. from bulkCreate failing) left last_fetch_id at 0 → next run re-imported everything.
-        // The QSOs were already fetched from Wavelog — re-fetching them won't help.
-        try {
-          const settings = await base44.entities.UserHuntingSettings.filter({ user_id: user.id });
-          if (settings && settings.length > 0) {
-            await base44.entities.UserHuntingSettings.update(settings[0].id, {
-              wavelog_last_fetch_id: parseInt(lastfetchedid),
-            });
-          }
-        } catch (e: any) {
-          console.log('[Wavelog] Could not update last_fetch_id:', e.message);
-        }
 
         return Response.json({
           success: true,
@@ -463,19 +464,21 @@ export default async function(req: Request): Promise<Response> {
         // FLOOD-FIX: Use SDK's native upsert with normalized key fields.
         const sr = base44.asServiceRole;
         for (const q of allQsos) { if (!q.created_by_id) q.created_by_id = user.id; }
+
+        // C2 FIX: Update water level BEFORE the upsert — cursor advances even if upsert fails.
+        try {
+          await base44.entities.UserHuntingSettings.update(settings.id, {
+            wavelog_last_fetch_id: lastFetchedId,
+            wavelog_last_sync: new Date().toISOString(),
+          });
+        } catch {}
+
         const upsertResult = await upsertLogsNative(sr, allQsos);
         const importedCount = upsertResult.created;
         const updatedCount = upsertResult.updated;
         let errorCount = upsertResult.errors;
         const duplicateCount = updatedCount + upsertResult.skipped;
         console.log(`[Wavelog Full-Import] Upsert: ${importedCount} new, ${updatedCount} updated, ${upsertResult.skipped} skipped, ${errorCount} errors`);
-
-        // FLOOD-FIX: ALWAYS update last_fetch_id after successful Wavelog fetch
-        try {
-          await base44.entities.UserHuntingSettings.update(settings.id, {
-            wavelog_last_fetch_id: lastFetchedId,
-          });
-        } catch {}
 
         // v0.9004: Save import progress to AppSetting for UI tracking
         const totalPages = Math.ceil(totalExported / 500) || 1;
