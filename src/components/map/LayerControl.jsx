@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower, Droplets } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower, Droplets, SlidersHorizontal } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { LAYER_ESTIMATES, formatPointsShort } from "@/components/map/HeavyLoadConfirmDialog";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { useAppFeatures, layerIdToFeatureKey } from "@/lib/appFeatures";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 const LAYER_GROUPS = [
   {
@@ -127,7 +128,7 @@ const MAP_SCALES = [
   { id: "100000", label: "1:100'000" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry, externalIsOpen, onOpenChange, activityZonesEnabled, onToggleActivityZones, coverageRadiusKm, onCoverageRadiusChange }) {
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry, externalIsOpen, onOpenChange, activityZonesEnabled, onToggleActivityZones, coverageRadiusKm, onCoverageRadiusChange, hideTrigger = false }) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [showCountries, setShowCountries] = useState(false);
   const { containerRef } = useDraggablePosition("drag-layer-control");
@@ -145,6 +146,8 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e) => {
+      // Ignore clicks on the panel's "Ebenen" trigger — it toggles this popup itself
+      if (e.target && e.target.closest && e.target.closest('[data-layer-trigger="true"]')) return;
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setIsOpen(false);
       }
@@ -177,7 +180,14 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
     : (isSmallHeight ? 130 : 220);
 
   return (
-    <div ref={containerRef} className="absolute right-2 sm:right-3 z-[10003]" style={{ top: `${buttonTopPx}px`, WebkitTouchCallout: "none", userSelect: "none" }}>
+    <div
+      ref={containerRef}
+      className={`absolute z-[10003] ${hideTrigger ? "left-16 top-20" : "right-2 sm:right-3"}`}
+      style={hideTrigger
+        ? { WebkitTouchCallout: "none", userSelect: "none" }
+        : { top: `${buttonTopPx}px`, WebkitTouchCallout: "none", userSelect: "none" }}
+    >
+      {!hideTrigger && (
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-white shadow-lg rounded-lg p-2 hover:bg-gray-50 transition-colors border border-gray-200 min-w-[40px] min-h-[40px] flex items-center justify-center"
@@ -186,9 +196,10 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
       >
         <Layers className="w-5 h-5 text-gray-700" />
       </button>
+      )}
 
       {isOpen && (
-        <div ref={panelRef} className="absolute top-12 right-0 z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto overscroll-contain">
+        <div ref={panelRef} className={`absolute z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto overscroll-contain ${hideTrigger ? "top-0 left-2" : "top-12 right-0"}`}>
           {/* Hintergrundkarte */}
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide">Hintergrundkarte</h3>
@@ -209,6 +220,8 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             </div>
           </div>
 
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="layers.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           {/* Kartenmassstab – nur bei Swisstopo */}
           {baseLayer === "swisstopo" && (
           <div className="p-4 border-b border-gray-100">
@@ -353,6 +366,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
             )}
           </div>
           )}
+          </CollapsibleSection>
 
           {/* Aktivitätszonen Toggle — steuert Sichtbarkeit aller Aktivitäts-Layer */}
           <div className="p-4 border-b border-gray-100">

@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Trees, ChevronDown, X, Search, Info } from "lucide-react";
+import { Trees, ChevronDown, X, Search, Info, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 export default function WwffFilter({
   searchQuery,
@@ -97,6 +98,8 @@ export default function WwffFilter({
             </div>
           </div>
 
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="wwff.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           <BoundaryToggleSection
             layerType="hbff"
             allBoundariesActive={allBoundariesActive}
@@ -125,6 +128,7 @@ export default function WwffFilter({
               <span>{visibleCount} von {pointCount} Gebieten</span>
             </div>
           </div>
+          </CollapsibleSection>
         </div>
       )}
     </div>

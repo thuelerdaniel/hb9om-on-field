@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { RadioTower, Signal, ChevronDown, X, Search, Info } from "lucide-react";
+import { RadioTower, Signal, ChevronDown, X, Search, Info, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 const TOTA_TYPES = [
   { id: "tower", label: "Türme / Aussichtstürme", icon: RadioTower, color: "#f97316" },
@@ -198,7 +199,8 @@ export default function TotaFilter({
             </p>
           </div>
 
-          {/* Country/Continent multi-select filter */}
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="tota.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           <CountryContinentFilter
             countries={countries}
             selectedCountries={filterCountries}
@@ -220,6 +222,7 @@ export default function TotaFilter({
               wwtota.com (5300+ Türme in 17 Ländern).
             </p>
           </div>
+          </CollapsibleSection>
 
           <div className="p-3">
             <div className="flex items-center justify-between text-[11px] text-gray-500">

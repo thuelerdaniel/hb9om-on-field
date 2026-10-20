@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { ChevronDown, X, Search, Info } from "lucide-react";
+import { ChevronDown, X, Search, Info, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 // UnifiedFilterShell — PUNKT 8: Shared filter component for all reference layers.
 // Provides a consistent UI structure: search field, country dropdown, layer-specific
@@ -176,6 +177,8 @@ export default function UnifiedFilterShell({
             </div>
           </div>
 
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id={`${layerKey}.more`} title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           {children}
 
           <CountryContinentFilter
@@ -197,6 +200,7 @@ export default function UnifiedFilterShell({
               </div>
             </div>
           )}
+          </CollapsibleSection>
         </div>
       )}
     </div>

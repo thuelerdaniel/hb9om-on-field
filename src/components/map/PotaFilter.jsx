@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Trees, ChevronDown, X, Search, Info, MapPinned, Trash2 } from "lucide-react";
+import { Trees, ChevronDown, X, Search, Info, MapPinned, Trash2, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 export default function PotaFilter({
   searchQuery,
@@ -96,6 +97,8 @@ export default function PotaFilter({
             </div>
           </div>
 
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="pota.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           <CountryContinentFilter
             countries={countries}
             selectedCountries={filterCountries}
@@ -163,6 +166,7 @@ export default function PotaFilter({
               <span>{visibleCount} von {pointCount} Parks</span>
             </div>
           </div>
+          </CollapsibleSection>
         </div>
       )}
     </div>

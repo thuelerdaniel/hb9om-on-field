@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Droplets, ChevronDown, X, Search, Info } from "lucide-react";
+import { Droplets, ChevronDown, X, Search, Info, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 export default function LlotaFilter({
   searchQuery,
@@ -123,6 +124,8 @@ export default function LlotaFilter({
             </div>
           </div>
 
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="llota.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           <BoundaryToggleSection
             layerType="llota"
             allBoundariesActive={allBoundariesActive}
@@ -155,6 +158,7 @@ export default function LlotaFilter({
               </a>
             </div>
           </div>
+          </CollapsibleSection>
         </div>
       )}
     </div>

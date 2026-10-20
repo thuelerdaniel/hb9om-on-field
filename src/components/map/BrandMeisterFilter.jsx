@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Network, Search, ChevronDown, X, Hash, Radio, Zap } from "lucide-react";
+import { Network, Search, ChevronDown, X, Hash, Radio, Zap, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 // BrandMeister DMR node types — simpler than APRS since BrandMeister is a DMR network
 // (repeaters and hotspots), not a positioning system with diverse station types.
@@ -147,7 +148,8 @@ export default function BrandMeisterFilter({
             )}
           </div>
 
-          {/* Country/Continent multi-select filter */}
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="brandmeister.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           <CountryContinentFilter
             countries={countries}
             selectedCountries={filterCountries}
@@ -166,6 +168,7 @@ export default function BrandMeisterFilter({
               Jede Node hat eine eindeutige DMR-ID.
             </p>
           </div>
+          </CollapsibleSection>
 
           <div className="p-3">
             <div className="flex items-center justify-between text-[11px] text-gray-500">

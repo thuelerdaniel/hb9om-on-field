@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Mountain, ChevronDown, X, Search, Info } from "lucide-react";
+import { Mountain, ChevronDown, X, Search, Info, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 // Offizielle SOTA-Punkte-Tabelle (basierend auf Gipfelhöhe):
 // https://www.sotadata.org.uk/en/summits
@@ -219,6 +220,8 @@ export default function SotaFilter({
             </p>
           </div>
 
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="sota.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           <BoundaryToggleSection
             layerType="sota"
             allBoundariesActive={allBoundariesActive}
@@ -247,6 +250,7 @@ export default function SotaFilter({
               <span>{visibleCount} von {pointCount} Gipfeln</span>
             </div>
           </div>
+          </CollapsibleSection>
         </div>
       )}
     </div>

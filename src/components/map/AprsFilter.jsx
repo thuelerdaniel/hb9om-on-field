@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Wifi, Search, ChevronDown, X, Info } from "lucide-react";
+import { Wifi, Search, ChevronDown, X, Info, SlidersHorizontal } from "lucide-react";
 import { NODE_TYPE_LABELS, NODE_COLORS } from "@/components/map/PrivateNodeLayer";
 import { APRS_SYMBOLS } from "@/lib/aprsSymbols";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 const ALL_TYPES = Object.keys(NODE_TYPE_LABELS);
 
@@ -144,7 +145,8 @@ export default function AprsFilter({
             )}
           </div>
 
-          {/* Country/Continent multi-select filter */}
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="aprs.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           <CountryContinentFilter
             countries={countries}
             selectedCountries={filterCountries}
@@ -171,6 +173,7 @@ export default function AprsFilter({
               })}
             </div>
           </div>
+          </CollapsibleSection>
 
           <div className="p-3">
             <div className="flex items-center justify-between text-[11px] text-gray-500">

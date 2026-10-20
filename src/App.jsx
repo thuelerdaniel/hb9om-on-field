@@ -6,6 +6,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { UISettingsProvider } from '@/lib/UISettingsContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
@@ -131,10 +132,12 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>
           <QueryClientProvider client={queryClientInstance}>
-            <Router>
-              <AuthenticatedApp />
-            </Router>
-            <Toaster />
+            <UISettingsProvider>
+              <Router>
+                <AuthenticatedApp />
+              </Router>
+              <Toaster />
+            </UISettingsProvider>
           </QueryClientProvider>
         </AuthProvider>
       </ThemeProvider>

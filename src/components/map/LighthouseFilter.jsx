@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Anchor, ChevronDown, X, Search, Info, Radio } from "lucide-react";
+import { Anchor, ChevronDown, X, Search, Info, Radio, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 import BoundaryToggleSection from "@/components/map/BoundaryToggleSection";
+import CollapsibleSection from "@/components/map/CollapsibleSection";
 
 export default function LighthouseFilter({
   searchQuery,
@@ -167,6 +168,8 @@ export default function LighthouseFilter({
             </div>
           </div>
 
+          {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}
+          <CollapsibleSection id="lighthouse.more" title="Weitere Optionen" icon={SlidersHorizontal} defaultOpen={false}>
           <BoundaryToggleSection
             layerType="lighthouse"
             allBoundariesActive={allBoundariesActive}
@@ -176,7 +179,6 @@ export default function LighthouseFilter({
             accentColor="red"
           />
 
-          {/* Country/Continent multi-select filter */}
           <CountryContinentFilter
             countries={countries}
             selectedCountries={filterCountries}
@@ -184,7 +186,6 @@ export default function LighthouseFilter({
             accentColor="red"
           />
 
-          {/* Info section */}
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center gap-1.5 mb-1.5">
               <Info className="w-3.5 h-3.5 text-gray-400" />
@@ -198,6 +199,7 @@ export default function LighthouseFilter({
               registriert, nicht aktiv, Orange = ohne ILLW-Bezug.
             </p>
           </div>
+          </CollapsibleSection>
 
           <div className="p-3">
             <div className="flex items-center justify-between text-[11px] text-gray-500">
