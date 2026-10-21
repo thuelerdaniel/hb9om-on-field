@@ -5,7 +5,9 @@ import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
 import { FILTER_MODES } from "@/lib/repeaterModes";
 import { exportRepeatersPdf } from "@/lib/repeaterPdfExport";
-import { filterRepeatersForDisplay, cullToViewport, REPEATER_VIEWPORT_PADDING } from "@/lib/repeaterDisplayPipeline";
+import { toast } from "@/components/ui/use-toast";
+import PdfExportProgress from "@/components/map/PdfExportProgress";
+import { collectDisplayedRepeaters, REPEATER_VIEWPORT_PADDING } from "@/lib/repeaterDisplayPipeline";
 import { shouldShowHeavyLoadDialog, getRememberedDecision } from "@/components/map/HeavyLoadConfirmDialog";
 import { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed } from "@/components/map/VersionChangelogPopup";
 
@@ -602,6 +604,8 @@ export default function Home() {
   const [showOnlyLinked, setShowOnlyLinked] = useState(savedFilterState.showOnlyLinked || false);
   const [repeaterRadiusKm, setRepeaterRadiusKm] = useState(savedFilterState.repeaterRadiusKm || 0);
   const [repeaterExclusiveModes, setRepeaterExclusiveModes] = useState(savedFilterState.repeaterExclusiveModes || false);
+  // Running repeater PDF export (null = none) — drives the progress overlay
+  const [pdfExport, setPdfExport] = useState(null);
 
   // TOTA filters
   const [totaFilterTypes, setTotaFilterTypes] = useState(savedFilterState.totaFilterTypes ?? null);
@@ -1524,8 +1528,11 @@ export default function Home() {
 
   // PDF export of the repeater layer — lists exactly the repeaters the map is showing
   // right now: the shared display pipeline (country/continent/mode/search/radius/links),
-  // then viewport culling and the same marker cap as the map rendering.
-  const handleExportRepeatersPdf = () => {
+  // then viewport culling and the same marker cap as the map rendering. Runs in chunks
+  // with a progress overlay; every outcome is reported with a toast (never native
+  // dialogs — those can be suppressed by the browser and fail without a trace).
+  const handleExportRepeatersPdf = async () => {
+    if (pdfExport) return;
     let bounds = null;
     let center = null;
     const map = mapRef.current;
@@ -1543,32 +1550,34 @@ export default function Home() {
       }
     }
 
-    const filtered = filterRepeatersForDisplay({
-      repeaters,
-      filterModes: repeaterFilterModes,
-      exclusiveModes: repeaterExclusiveModes,
-      searchQuery: repeaterSearchQuery,
-      filterCountries: repeaterFilterCountries,
-      activeContinents,
-      activeCountries,
-      radiusKm: repeaterRadiusKm,
-      userPosition: fixedPosition || userPosition,
-      showOnlyLinked,
-      adminLinks,
-    });
-    const displayed = cullToViewport(filtered, bounds);
+    const displayed = collectDisplayedRepeaters({
+      repeaters, filterModes: repeaterFilterModes, exclusiveModes: repeaterExclusiveModes,
+      searchQuery: repeaterSearchQuery, filterCountries: repeaterFilterCountries,
+      activeContinents, activeCountries, radiusKm: repeaterRadiusKm,
+      userPosition: fixedPosition || userPosition, showOnlyLinked, adminLinks,
+    }, bounds);
 
-    exportRepeatersPdf(displayed, {
-      modes: repeaterFilterModes,
-      exclusive: repeaterExclusiveModes,
-      countries: repeaterFilterCountries,
-      continents: activeContinents,
-      search: repeaterSearchQuery,
-      radiusKm: repeaterRadiusKm,
-      onlyLinked: showOnlyLinked,
-      bounds,
-      center,
-    });
+    setPdfExport({ progress: 0, count: displayed.length });
+    try {
+      const res = await exportRepeatersPdf(displayed, {
+        modes: repeaterFilterModes, exclusive: repeaterExclusiveModes,
+        countries: repeaterFilterCountries, continents: activeContinents,
+        search: repeaterSearchQuery, radiusKm: repeaterRadiusKm,
+        onlyLinked: showOnlyLinked, bounds, center,
+      }, {
+        onProgress: (p) => setPdfExport(prev => (prev ? { ...prev, progress: p } : prev)),
+      });
+      if (!res.ok) {
+        const empty = res.reason === "empty";
+        toast({ variant: empty ? "default" : "destructive", title: empty ? "Keine Relais im Kartenausschnitt" : "PDF-Liste fehlgeschlagen", description: res.message });
+        return;
+      }
+      toast({ title: "PDF-Liste erstellt", description: `${res.count} Relais · ${res.pages} Seiten · Download gestartet (${res.filename})` });
+    } catch (err) {
+      toast({ variant: "destructive", title: "PDF-Liste fehlgeschlagen", description: String(err?.message || err) });
+    } finally {
+      setPdfExport(null);
+    }
   };
 
   // Unified aggregation markers — ALL layer types combined for CountryAggregateLayer.
@@ -2342,6 +2351,9 @@ export default function Home() {
 
       {/* Loading indicator */}
       <RadioLoader isLoading={loading} onCancel={cancelLoading} message={loadingMessage} />
+
+      {/* Progress of the repeater PDF list export */}
+      {pdfExport && <PdfExportProgress progress={pdfExport.progress} count={pdfExport.count} />}
 
       {/* Preload hint */}
       <PreloadHint activeLayers={activeLayers} isLoading={loading} />

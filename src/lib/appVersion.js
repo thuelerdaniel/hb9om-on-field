@@ -13,11 +13,16 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610211733";
+export const APP_BUILD = "202610211750";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "21.10.2026: RELAIS-PDF STILLER FEHLER BEHOBEN — Der PDF-Export meldete Sonderfälle bisher über eingebaute Browser-Dialoge: einen Hinweis bei leerem Kartenausschnitt und eine Rückfrage ab 1'000 Relais. In eingebetteten Ansichten (z.B. Vorschau) werden solche Dialoge vom Browser unterdrückt — der Hinweis erschien nie, die Rückfrage galt automatisch als «Nein» und der Export brach ohne jede Meldung ab. Beide Dialoge sind entfernt.",
+  "21.10.2026: RELAIS-PDF MELDET SICHTBAR — Erfolg, leerer Kartenausschnitt und Fehler erscheinen jetzt als Einblendung mit Anzahl Relais, Seitenzahl und Dateiname. Schlägt die Erstellung fehl, steht die Fehlermeldung im Klartext in der Einblendung statt nur in der Konsole.",
+  "21.10.2026: RELAIS-PDF IN BLÖCKEN — Die Erstellung läuft blockweise (alle 120 Zeilen eine Pause für den Browser) mit Fortschrittsanzeige in Prozent — die Oberfläche bleibt bedienbar, auch bei grossen Listen auf dem Handy.",
+  "21.10.2026: RELAIS-PDF ROBUST — Zahlenwerte werden vor der Ausgabe geprüft, ein einzelner fehlerhafter Datensatz kann den Export nicht mehr abbrechen. Kopf- und Fusszeile zeigen die aktuelle App-Version (vorher stand dort v0.87).",
+  "21.10.2026: BUILD — Build-Nummer auf 202610211750 nachgezogen (Versionsnummer unverändert, wird nur von Daniel gesetzt).",
   "21.10.2026: RELAIS-PDF = KARTENZUSTAND — Die PDF-Liste im Relais-Filter enthält jetzt genau die Relais, die in diesem Moment auf der Karte dargestellt werden. Vorher enthielt sie den gesamten geladenen Bestand (alle Länder) unabhängig vom Kartenausschnitt. Jetzt gilt dieselbe Pipeline wie für die Kartenanzeige (Land/Kontinent/Modus/Suche/Radius inkl. «Nur verlinkte Relais») plus aktueller Kartenausschnitt und dieselbe Marker-Obergrenze (3000). Kopfzeile nennt Anzahl, aktiven Filter, Kartenausschnitt und Zeitpunkt; Sortierung nach Entfernung zum Kartenzentrum (nächstes zuerst). Ohne dargestellte Relais erscheint ein Hinweis statt einer leeren Liste.",
   "21.10.2026: BUILD — Build-Nummer auf 202610211733 nachgezogen (Versionsnummer unverändert, wird nur von Daniel gesetzt).",
   "21.10.2026: BEDIEN-PANEL-GRIFF FIX — Der Auf-/Zu-Griff lag im geöffneten Zustand ÜBER dem Panel und verdeckte die obersten Rail-Buttons (Klick wurde abgefangen). Jetzt ist der Griff bei geöffnetem Panel der oberste Knopf IM Panel (eigener Platz mit Abstand, keine Überdeckung) und bei geschlossenem Panel wie gewohnt der schmale Griff am linken Rand. In keinem Zustand liegt noch etwas über Panel-Inhalt, Suchfeld, Legende, Zoom oder Ebenen-Menü.",

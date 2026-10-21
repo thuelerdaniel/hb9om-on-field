@@ -235,3 +235,9 @@ export function cullToViewport(repeaters, bounds, max = REPEATER_MAX_MARKERS) {
   }
   return result.length > max ? result.slice(0, max) : result;
 }
+
+// Full display pipeline in one call: filter (country/continent/mode/search/radius/links)
+// then viewport culling + marker cap. Exactly the repeaters the layer is drawing.
+export function collectDisplayedRepeaters(config, bounds) {
+  return cullToViewport(filterRepeatersForDisplay(config || {}), bounds);
+}

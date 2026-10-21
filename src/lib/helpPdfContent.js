@@ -1080,9 +1080,10 @@ export const SECTIONS = [
           { icon: "filter", text: "Modulationsarten ein-/ausschalten (FM, C4FM, DMR, etc.)" },
           { icon: "search", text: "Suchfeld: Rufzeichen, Ort, Land oder Frequenz eingeben" },
           { icon: "link2", text: "Verlinkungen ein-/ausschalten" },
-          { icon: "download", text: "PDF-Liste: enthaelt genau die Relais, die aktuell auf der Karte dargestellt werden (Filter + Kartenausschnitt)" }
+          { icon: "download", text: "PDF-Liste: enthaelt genau die Relais, die aktuell auf der Karte dargestellt werden (Filter + Kartenausschnitt)" },
+          { icon: "download", text: "Waehrend der Erstellung laeuft eine Fortschrittsanzeige; Erfolg, leerer Ausschnitt oder Fehler werden als Einblendung gemeldet" }
         ],
-        tip: "Tipp: Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais. Wahlen Sie ein Land, um nur Relais dieses Landes zu sehen. Wenn ein Land fehlt, wurden noch keine Relais abgefragt – Admins koennen die Daten aktualisieren. Die PDF-Liste zeigt immer nur die Relais des aktuellen Kartenausschnitts: Kopfzeile mit Anzahl, aktivem Filter, Kartenausschnitt und Zeitpunkt, sortiert nach Entfernung zum Kartenzentrum."
+        tip: "Tipp: Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais. Wahlen Sie ein Land, um nur Relais dieses Landes zu sehen. Wenn ein Land fehlt, wurden noch keine Relais abgefragt – Admins koennen die Daten aktualisieren. Die PDF-Liste zeigt immer nur die Relais des aktuellen Kartenausschnitts: Kopfzeile mit Anzahl, aktivem Filter, Kartenausschnitt und Zeitpunkt, sortiert nach Entfernung zum Kartenzentrum. Die Erstellung laeuft blockweise mit Fortschrittsanzeige — Ergebnisse und Fehler erscheinen als Einblendung, nicht mehr als Browser-Dialog."
       },
       {
         title: "Lade-Reihenfolge: Lokal zuerst, dann Server (alle Layer)",
