@@ -1081,8 +1081,8 @@ export const SECTIONS = [
           { icon: "search", text: "Suchfeld: Rufzeichen, Ort, Land oder Frequenz eingeben" },
           { icon: "link2", text: "Verlinkungen ein-/ausschalten" },
           { icon: "download", text: "PDF-Liste: enthaelt genau die Relais, die aktuell auf der Karte dargestellt werden (Filter + Kartenausschnitt)" },
-          { icon: "download", text: "Waehrend der Erstellung laeuft eine Fortschrittsanzeige; danach erscheint die Einblendung «PDF bereit» mit Dateiname und Anzahl Relais" },
-          { icon: "download", text: "Weg zur Datei: auf Desktop und Android startet der Download automatisch. Die Einblendung bietet zusaetzlich «Speichern / Teilen» (System-Dialog) und «Im Tab oeffnen» (PDF-Ansicht mit Teilen/Speichern)" },
+          { icon: "download", text: "Waehrend der Erstellung laeuft eine Fortschrittsanzeige; danach wird die Datei im Speicher abgelegt und die Einblendung «PDF bereit» erscheint — mit Dateiname, Anzahl Relais und den Links zur Datei" },
+          { icon: "download", text: "Weg zur Datei: beide Links in der Einblendung zeigen auf die gespeicherte Datei. «Speichern / Teilen» laedt sie herunter bzw. oeffnet die PDF-Ansicht (dort speichern/teilen), «Im Tab oeffnen» zeigt sie in einem neuen Tab. Diese Links funktionieren in jedem Browser, in In-App-Browsern und in der zum Startbildschirm hinzugefuegten App" },
           { icon: "download", text: "Wichtig auf iPhone/iPad und in der zum Startbildschirm hinzugefuegten App: Dort wird der automatische Download geblockt — bitte «Speichern / Teilen» oder «Im Tab oeffnen» verwenden" },
           { icon: "download", text: "Die Einblendung bleibt stehen, bis sie geschlossen wird — der Weg zur Datei ist jederzeit wiederholbar" }
         ],

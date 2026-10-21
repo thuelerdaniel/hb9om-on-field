@@ -130,7 +130,7 @@ function formatBounds(bounds) {
  * so the caller can always show a visible message.
  *
  * Getting the finished blob to the user is NOT part of this function — see
- * src/lib/pdfDelivery.js (automatic download + share/open paths on a fresh gesture).
+ * src/lib/pdfDelivery.js (file is stored and delivered as a real https link).
  */
 export async function exportRepeatersPdf(repeaters, filters = {}, options = {}) {
   const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;

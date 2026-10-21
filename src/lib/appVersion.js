@@ -13,11 +13,15 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610211805";
+export const APP_BUILD = "202610211815";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "21.10.2026: RELAIS-PDF URSACHE GEFUNDEN — Die beiden Knoepfe in der Einblendung liefen ueber eine lokal erzeugte blob:-Adresse und riefen Fenster bzw. den System-Teilen-Dialog per Skript auf. Genau das blockieren In-App-Browser, WebViews und die zum Startbildschirm hinzugefuegte App — der Klick blieb deshalb ohne jede Reaktion (kein neuer Tab, kein Download, keine Meldung).",
+  "21.10.2026: RELAIS-PDF UEBER ECHTE LINKS — Die fertige Datei wird jetzt beim Erzeugen in den Datei-Speicher abgelegt und kommt als echte https-Adresse zurueck. Beide Knoepfe sind reine Links auf diese Adresse: «Speichern / Teilen» laedt die Datei herunter bzw. oeffnet die PDF-Ansicht zum Speichern/Teilen, «Im Tab oeffnen» zeigt sie in einem neuen Tab. Blob-Adressen werden nicht mehr verwendet; der unzuverlaessige Automatik-Download nach der Erzeugung ist entfernt.",
+  "21.10.2026: RELAIS-PDF FORTSCHRITT & FEHLER — Die Fortschrittsanzeige zeigt beim Ablegen «PDF wird bereitgestellt…». Schlaegt das Ablegen fehl, erscheint eine rote Einblendung mit dem Klartext-Grund statt eines stillen Fehlschlags.",
+  "21.10.2026: BUILD — Build-Nummer auf 202610211815 nachgezogen (Versionsnummer unveraendert, wird nur von Daniel gesetzt).",
   "21.10.2026: RELAIS-PDF DOWNLOAD REPARIERT — Die Liste wurde erzeugt, aber die Datei kam nicht an. Ursache: Der automatische Download laeuft NACH der asynchronen Erstellung und damit ausserhalb der Nutzer-Geste — Safari/iOS, In-App-Browser und die zum Startbildschirm hinzugefuegte App blocken ihn still. Die Datei ist jetzt zusaetzlich ueber «Speichern / Teilen» (System-Dialog) und «Im Tab oeffnen» (PDF-Ansicht mit Teilen/Speichern) erreichbar.",
   "21.10.2026: RELAIS-PDF MELDUNG NEUTRAL — Statt «Download gestartet» heisst es jetzt «PDF bereit» mit Dateiname, Anzahl Relais und Seiten. Die Einblendung behauptet keinen angekommenen Download mehr und bleibt bis zum Schliessen stehen — der Weg zur Datei ist jederzeit wiederholbar.",
   "21.10.2026: RELAIS-PDF DOWNLOAD-WEGE — Desktop und Android laden wie bisher automatisch herunter. Auf iPhone/iPad und in der Standalone-App wird der unzuverlaessige Automatik-Download uebersprungen und direkt der System-Dialog angeboten.",

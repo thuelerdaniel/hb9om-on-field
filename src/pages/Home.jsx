@@ -2307,7 +2307,7 @@ export default function Home() {
       <RadioLoader isLoading={loading} onCancel={cancelLoading} message={loadingMessage} />
 
       {/* Progress of the repeater PDF list export */}
-      {pdfExport && <PdfExportProgress progress={pdfExport.progress} count={pdfExport.count} />}
+      {pdfExport && <PdfExportProgress progress={pdfExport.progress} count={pdfExport.count} uploading={pdfExport.uploading} />}
 
       {/* Preload hint */}
       <PreloadHint activeLayers={activeLayers} isLoading={loading} />
