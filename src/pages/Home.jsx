@@ -1973,6 +1973,8 @@ export default function Home() {
         onToggleContinent={handleToggleContinent}
         activeCountries={activeCountries}
         onToggleCountry={handleToggleCountry}
+        layerFilters={layerFilters}
+        liveCounts={liveCounts}
         externalIsOpen={layerMenuOpen}
         onOpenChange={setLayerMenuOpen}
         activityZonesEnabled={activityZonesEnabled}
