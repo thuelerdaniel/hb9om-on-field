@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
 import { FILTER_MODES } from "@/lib/repeaterModes";
 import { exportRepeatersPdf } from "@/lib/repeaterPdfExport";
+import { filterRepeatersForDisplay, cullToViewport, REPEATER_VIEWPORT_PADDING } from "@/lib/repeaterDisplayPipeline";
 import { shouldShowHeavyLoadDialog, getRememberedDecision } from "@/components/map/HeavyLoadConfirmDialog";
 import { hasSeenCurrentChangelog, isChangelogPermanentlyDismissed } from "@/components/map/VersionChangelogPopup";
 
@@ -1521,6 +1522,55 @@ export default function Home() {
     return result;
   }, [repeaters, repeaterFilterModes, repeaterExclusiveModes, repeaterFilterCountries, repeaterSearchQuery, activeContinents, activeCountries, repeaterRadiusKm, fixedPosition, userPosition]);
 
+  // PDF export of the repeater layer — lists exactly the repeaters the map is showing
+  // right now: the shared display pipeline (country/continent/mode/search/radius/links),
+  // then viewport culling and the same marker cap as the map rendering.
+  const handleExportRepeatersPdf = () => {
+    let bounds = null;
+    let center = null;
+    const map = mapRef.current;
+    if (map) {
+      try {
+        const b = map.getBounds();
+        if (b) {
+          bounds = b.pad(REPEATER_VIEWPORT_PADDING);
+          const c = map.getCenter();
+          if (c && Number.isFinite(c.lat) && Number.isFinite(c.lng)) center = [c.lat, c.lng];
+        }
+      } catch {
+        bounds = null;
+        center = null;
+      }
+    }
+
+    const filtered = filterRepeatersForDisplay({
+      repeaters,
+      filterModes: repeaterFilterModes,
+      exclusiveModes: repeaterExclusiveModes,
+      searchQuery: repeaterSearchQuery,
+      filterCountries: repeaterFilterCountries,
+      activeContinents,
+      activeCountries,
+      radiusKm: repeaterRadiusKm,
+      userPosition: fixedPosition || userPosition,
+      showOnlyLinked,
+      adminLinks,
+    });
+    const displayed = cullToViewport(filtered, bounds);
+
+    exportRepeatersPdf(displayed, {
+      modes: repeaterFilterModes,
+      exclusive: repeaterExclusiveModes,
+      countries: repeaterFilterCountries,
+      continents: activeContinents,
+      search: repeaterSearchQuery,
+      radiusKm: repeaterRadiusKm,
+      onlyLinked: showOnlyLinked,
+      bounds,
+      center,
+    });
+  };
+
   // Unified aggregation markers — ALL layer types combined for CountryAggregateLayer.
   // When zoomed out, country-level badges replace individual markers across every layer.
   const allAggregationMarkers = useMemo(() => {
@@ -2031,13 +2081,7 @@ export default function Home() {
               exclusiveModes={repeaterExclusiveModes}
               onExclusiveModesChange={setRepeaterExclusiveModes}
               modeCounts={repeaterModeCounts}
-              onExportPdf={() => exportRepeatersPdf(filteredRepeatersForExport, {
-                modes: repeaterFilterModes,
-                exclusive: repeaterExclusiveModes,
-                countries: repeaterFilterCountries,
-                search: repeaterSearchQuery,
-                radiusKm: repeaterRadiusKm,
-              })}
+              onExportPdf={handleExportRepeatersPdf}
               searchQuery={repeaterSearchQuery}
               onSearchQueryChange={setRepeaterSearchQuery}
               showLinks={showRepeaterLinks}

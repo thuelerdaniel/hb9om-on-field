@@ -233,10 +233,11 @@ export default function RepeaterFilter({
             <button
               onClick={onExportPdf}
               disabled={!onExportPdf || visibleCount === 0}
+              title="Erstellt eine PDF-Liste mit den Relais, die aktuell auf der Karte dargestellt werden (Kartenausschnitt + aktive Filter)"
               className="w-full mt-2 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
-              PDF herunterladen ({visibleCount})
+              PDF-Liste (Kartenausschnitt)
             </button>
           </div>
 

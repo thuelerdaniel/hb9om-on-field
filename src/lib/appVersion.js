@@ -13,11 +13,13 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610211405";
+export const APP_BUILD = "202610211733";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "21.10.2026: RELAIS-PDF = KARTENZUSTAND — Die PDF-Liste im Relais-Filter enthält jetzt genau die Relais, die in diesem Moment auf der Karte dargestellt werden. Vorher enthielt sie den gesamten geladenen Bestand (alle Länder) unabhängig vom Kartenausschnitt. Jetzt gilt dieselbe Pipeline wie für die Kartenanzeige (Land/Kontinent/Modus/Suche/Radius inkl. «Nur verlinkte Relais») plus aktueller Kartenausschnitt und dieselbe Marker-Obergrenze (3000). Kopfzeile nennt Anzahl, aktiven Filter, Kartenausschnitt und Zeitpunkt; Sortierung nach Entfernung zum Kartenzentrum (nächstes zuerst). Ohne dargestellte Relais erscheint ein Hinweis statt einer leeren Liste.",
+  "21.10.2026: BUILD — Build-Nummer auf 202610211733 nachgezogen (Versionsnummer unverändert, wird nur von Daniel gesetzt).",
   "21.10.2026: BEDIEN-PANEL-GRIFF FIX — Der Auf-/Zu-Griff lag im geöffneten Zustand ÜBER dem Panel und verdeckte die obersten Rail-Buttons (Klick wurde abgefangen). Jetzt ist der Griff bei geöffnetem Panel der oberste Knopf IM Panel (eigener Platz mit Abstand, keine Überdeckung) und bei geschlossenem Panel wie gewohnt der schmale Griff am linken Rand. In keinem Zustand liegt noch etwas über Panel-Inhalt, Suchfeld, Legende, Zoom oder Ebenen-Menü.",
   "21.10.2026: RELAIS-BESTAND BESTÄTIGT — Die Anzeige «21k» ist der korrekte, vollständige Gesamtbestand von 20'798 Relais (alle mit Koordinaten) — es ist KEINE Ladegrenze aktiv: der Lader holt alle Datensätze in 5'000er-Seiten bis zur letzten Seite, der Sicherheits-Deckel (80'000) liegt weit darüber. Die früheren «31'000+» stammten aus dem Bestand VOR der Koordinaten-Bereinigung (16'626 Datensätze ohne Koordinaten gelöscht) bzw. aus dem alten Batch-Zähler.",
   "21.10.2026: BUILD — Build-Nummer auf 202610211405 nachgezogen (Versionsnummer unverändert, wird nur von Daniel gesetzt).",

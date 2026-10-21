@@ -10,6 +10,18 @@ import { isValidCoord } from "@/lib/geoUtilsFrontend";
 import { isInContinents } from "@/lib/continents";
 import { isInCountries, getCountriesByContinent } from "@/lib/countries";
 import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
+// Shared filter pipeline — the same functions back the PDF export, so the PDF list
+// always matches the markers drawn here.
+import {
+  filterRepeatersForDisplay,
+  buildLinkSourceMap,
+  isLinkDisplayable as isLinkDisplayableFor,
+  parseLinkedString,
+  linkKey,
+  haversineKm,
+  REPEATER_MAX_MARKERS,
+  REPEATER_VIEWPORT_PADDING,
+} from "@/lib/repeaterDisplayPipeline";
 
 // Approximate coverage radius (km) by band — based on typical VHF/UHF propagation
 const COVERAGE_RADIUS_KM = {
@@ -22,40 +34,8 @@ const COVERAGE_RADIUS_KM = {
   "Other": 30,
 };
 
-function haversineKm(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// Build a canonical link key from two endpoints (callsign + frequency).
-// Used to match the same link across sources (RepeaterBook, USKA, admin).
-function linkKey(fromCall, fromFreq, toCall, toFreq) {
-  const a = (fromCall || '') + (fromFreq != null ? fromFreq : '');
-  const b = (toCall || '') + (toFreq != null ? toFreq : '');
-  return [a, b].sort().join('→');
-}
-
-// Parse a linked_callsigns entry like "HB9W 145.3250 MHz (2m)" → { callsign, frequency, band }
-// Returns null if the string doesn't contain a recognizable callsign.
-function parseLinkedString(str) {
-  const s = String(str).trim();
-  const match = s.match(/^(\S+)\s+([\d.]+)\s*MHz\s*(?:\(([^)]+)\))?/);
-  if (match) {
-    return {
-      callsign: match[1].split('/')[0],
-      frequency: parseFloat(match[2]),
-      band: match[3] || null,
-    };
-  }
-  // Fallback: just a callsign with no frequency
-  if (s.length >= 3 && /^[A-Z0-9]{3,}/.test(s.split(/\s+/)[0])) {
-    return { callsign: s.split(/\s+/)[0].split('/')[0], frequency: null, band: null };
-  }
-  return null;
-}
+// haversineKm, linkKey, parseLinkedString and the filter pipeline live in
+// src/lib/repeaterDisplayPipeline.js (shared with the PDF export).
 
 const LINE_DASH_ARRAYS = {
   solid: undefined,
@@ -68,145 +48,29 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   const [zoom, setZoom] = useState(map.getZoom());
   useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
 
-  // Build a map of linkKey → Set of sources ('repeaterbook', 'uska', 'admin').
-  // A link is only displayed if it's confirmed by 2+ sources — exception: admin links always shown.
-  const linkSourceMap = useMemo(() => {
-    const map = new Map();
-    // Source 1: RepeaterBook linked_callsigns
-    for (const r of repeaters) {
-      if (!r.linked_callsigns || r.linked_callsigns.length === 0) continue;
-      for (const linkedStr of r.linked_callsigns) {
-        const parsed = parseLinkedString(linkedStr);
-        if (!parsed) continue;
-        const key = linkKey(r.callsign, r.frequency, parsed.callsign, parsed.frequency);
-        if (!map.has(key)) map.set(key, new Set());
-        map.get(key).add('repeaterbook');
-      }
-    }
-    // Sources 2 & 3: USKA + admin from RepeaterLink entries
-    if (adminLinks) {
-      for (const l of adminLinks) {
-        if (l.status !== 'approved' || l.link_type !== 'permanent') continue;
-        const key = linkKey(l.from_callsign, l.from_frequency, l.to_callsign, l.to_frequency);
-        if (!map.has(key)) map.set(key, new Set());
-        const source = (l.description || '').includes('USKA') ? 'uska' : 'admin';
-        map.get(key).add(source);
-      }
-    }
-    return map;
-  }, [repeaters, adminLinks]);
+  // Link sources + displayability come from the shared display pipeline, so the map and
+  // the PDF export judge "verlinkte Relais" identically.
+  const linkSourceMap = useMemo(() => buildLinkSourceMap(repeaters, adminLinks), [repeaters, adminLinks]);
 
-  // A link is displayable if it's an admin link OR confirmed by 2+ sources.
-  const isLinkDisplayable = useCallback((key) => {
-    const sources = linkSourceMap.get(key);
-    if (!sources) return false;
-    if (sources.has('admin')) return true;
-    return sources.size >= 2;
-  }, [linkSourceMap]);
+  const isLinkDisplayable = useCallback((key) => isLinkDisplayableFor(key, linkSourceMap), [linkSourceMap]);
 
-  // Filter repeaters by continent, country, mode, search, and radius
-  const filteredRepeaters = useMemo(() => {
-    let result = repeaters;
-    // Exclude repeaters without valid coordinates — null, NaN, out of range, or Null Island
-    result = result.filter(r => isValidCoord(r.lat, r.lng));
-    // Per-layer country filter (multi-select) overrides global LayerControl country filter.
-    // When specific countries are selected in the RepeaterFilter, the global
-    // activeContinents/activeCountries from LayerControl are NOT applied — so the
-    // user can show "Schweiz" globally for SOTA/POTA but still see German + Austrian
-    // repeaters by selecting both in the RepeaterFilter.
-    if (!filterCountries || filterCountries.length === 0) {
-      if (activeContinents && activeContinents.length > 0) {
-        result = result.filter(r => r.lat != null && r.lng != null && isInContinents(r.lat, r.lng, activeContinents));
-      }
-      if (activeCountries && activeCountries.length > 0) {
-        result = result.filter(r => isInCountries({ ...r, layerType: 'repeater' }, activeCountries));
-      }
-    } else {
-      result = result.filter(r => filterCountries.includes(r.country_code));
-    }
-    // No modes selected = NO repeaters shown (user must actively choose at least one mode)
-    if (!filterModes || filterModes.length === 0) {
-      return [];
-    }
-    if (exclusiveModes) {
-      result = result.filter(r => {
-        const modes = r.modes || [];
-        if (modes.length === 0) {
-          return r.primary_mode && filterModes.includes(r.primary_mode);
-        }
-        return modes.every(m => filterModes.includes(m));
-      });
-    } else {
-      result = result.filter(r => filterModes.some(m => repeaterMatchesMode(r, m)));
-    }
-    if (searchQuery && searchQuery.length >= 2) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(r =>
-        (r.callsign || "").toLowerCase().includes(q) ||
-        (r.location_name || "").toLowerCase().includes(q) ||
-        (r.country || "").toLowerCase().includes(q) ||
-        String(r.frequency || "").includes(q)
-      );
-    }
-    // Radius filter from user position
-    if (radiusKm && radiusKm > 0 && userPosition) {
-      result = result.filter(r => {
-        if (r.lat == null || r.lng == null) return false;
-        return haversineKm(userPosition[0], userPosition[1], r.lat, r.lng) <= radiusKm;
-      });
-    }
-    // Only linked repeaters filter — show only repeaters with actual crosslinks.
-    // Uses the same coordinate-aware matching as the link line logic: a repeater
-    // counts as "linked" only if its callsign AND frequency AND coordinates match
-    // an approved admin link (or it has RepeaterBook crosslinks on its own record).
-    if (showOnlyLinked) {
-      const linkedIds = new Set();
-      // From RepeaterBook crosslinks — only count displayable links (2+ sources or admin)
-      for (const r of result) {
-        if (!r.linked_callsigns || r.linked_callsigns.length === 0) continue;
-        for (const linkedStr of r.linked_callsigns) {
-          const parsed = parseLinkedString(linkedStr);
-          if (!parsed) continue;
-          const srcKey = linkKey(r.callsign, r.frequency, parsed.callsign, parsed.frequency);
-          if (isLinkDisplayable(srcKey)) {
-            if (r.id) linkedIds.add(r.id);
-            break;
-          }
-        }
-      }
-      // From admin-managed links — admin links always count; USKA links need 2+ sources
-      if (adminLinks) {
-        for (const l of adminLinks) {
-          if (l.status !== "approved" || l.link_type !== "permanent") continue;
-          const isUSKA = (l.description || '').includes('USKA');
-          if (isUSKA) {
-            const srcKey = linkKey(l.from_callsign, l.from_frequency, l.to_callsign, l.to_frequency);
-            if (!isLinkDisplayable(srcKey)) continue;
-          }
-          // Find matching "from" repeaters
-          const allFrom = repeaters.filter(r => r.callsign === l.from_callsign);
-          for (const r of allFrom) {
-            if (l.from_frequency != null && Math.abs(r.frequency - l.from_frequency) > 0.001) continue;
-            if (l.from_lat != null && l.from_lng != null && r.lat != null && r.lng != null) {
-              if (Math.abs(r.lat - l.from_lat) > 0.001 || Math.abs(r.lng - l.from_lng) > 0.001) continue;
-            }
-            if (r.id) linkedIds.add(r.id);
-          }
-          // Find matching "to" repeaters
-          const allTo = repeaters.filter(r => r.callsign === l.to_callsign);
-          for (const r of allTo) {
-            if (l.to_frequency != null && Math.abs(r.frequency - l.to_frequency) > 0.001) continue;
-            if (l.to_lat != null && l.to_lng != null && r.lat != null && r.lng != null) {
-              if (Math.abs(r.lat - l.to_lat) > 0.001 || Math.abs(r.lng - l.to_lng) > 0.001) continue;
-            }
-            if (r.id) linkedIds.add(r.id);
-          }
-        }
-      }
-      result = result.filter(r => linkedIds.has(r.id));
-    }
-    return result;
-  }, [repeaters, filterModes, exclusiveModes, searchQuery, filterCountries, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks, isLinkDisplayable]);
+  // Filter repeaters by continent, country, mode, search, radius and links.
+  // Shared pipeline (src/lib/repeaterDisplayPipeline.js) — the SAME function backs the
+  // PDF export, so the exported list always matches what is drawn here.
+  const filteredRepeaters = useMemo(() => filterRepeatersForDisplay({
+    repeaters,
+    filterModes,
+    exclusiveModes,
+    searchQuery,
+    filterCountries,
+    activeContinents,
+    activeCountries,
+    radiusKm,
+    userPosition,
+    showOnlyLinked,
+    adminLinks,
+    linkSourceMap,
+  }), [repeaters, filterModes, exclusiveModes, searchQuery, filterCountries, radiusKm, userPosition, activeContinents, activeCountries, showOnlyLinked, adminLinks, linkSourceMap]);
 
   // Build callsign→repeaters map from ALL repeaters (not just filtered) so link lines
   // connect to targets even when the target is filtered out by mode/country/etc.
@@ -466,7 +330,7 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
 
   // Viewport culling
   const bounds = map.getBounds();
-  const paddedBounds = bounds.pad(0.3);
+  const paddedBounds = bounds.pad(REPEATER_VIEWPORT_PADDING);
   const visibleRepeaters = filteredRepeaters.filter(r =>
     isValidCoord(r.lat, r.lng) && paddedBounds.contains([r.lat, r.lng])
   );
@@ -478,7 +342,7 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   // were selected and the viewport contained more than 1000 repeaters.
   // Auto-switch to CircleMarker (canvas-rendered) when there are too many repeaters.
   // divIcon Marker rendering freezes the browser above ~500 markers.
-  const MAX = 3000;
+  const MAX = REPEATER_MAX_MARKERS;
   const cappedRepeaters = visibleRepeaters.length > MAX ? visibleRepeaters.slice(0, MAX) : visibleRepeaters;
   const useCircleMode = performanceMode || cappedRepeaters.length > 500;
 

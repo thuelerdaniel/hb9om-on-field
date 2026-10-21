@@ -1,4 +1,6 @@
 import { jsPDF } from "jspdf";
+import { CONTINENTS } from "@/lib/continents";
+import { COUNTRIES } from "@/lib/countries";
 
 const COLUMNS = [
   { header: "Rufzeichen", width: 65, key: "callsign" },
@@ -59,14 +61,67 @@ function formatRow(r) {
   ];
 }
 
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function countryLabel(code) {
+  const c = COUNTRIES.find(x => x.iso2 === code);
+  return c ? c.name : code;
+}
+
+function continentLabel(id) {
+  const c = CONTINENTS.find(x => x.id === id);
+  return c ? c.name : id;
+}
+
+// Rough map section as readable text: "Nord 47.81 / Sued 45.67 / West 5.12 / Ost 11.24".
+// bounds is a Leaflet LatLngBounds (already padded like the map). ASCII only — keeps
+// the PDF text extractable and avoids font encoding issues.
+function formatBounds(bounds) {
+  try {
+    if (!bounds || typeof bounds.getNorth !== "function") return "unbekannt";
+    if (typeof bounds.isValid === "function" && !bounds.isValid()) return "unbekannt";
+    const n = bounds.getNorth();
+    const s = bounds.getSouth();
+    const w = bounds.getWest();
+    const e = bounds.getEast();
+    if (![n, s, w, e].every(Number.isFinite)) return "unbekannt";
+    return `Nord ${n.toFixed(2)} / Sued ${s.toFixed(2)} / West ${w.toFixed(2)} / Ost ${e.toFixed(2)}`;
+  } catch {
+    return "unbekannt";
+  }
+}
+
+/**
+ * Export the repeaters that are currently drawn on the map.
+ *
+ * `repeaters` must already be the displayed list (same filter pipeline as the map +
+ * viewport culling + marker cap) — see src/lib/repeaterDisplayPipeline.js.
+ *
+ * filters: { modes, exclusive, countries, continents, search, radiusKm, onlyLinked,
+ *            bounds (Leaflet LatLngBounds), center ([lat, lng]) }
+ */
 export function exportRepeatersPdf(repeaters, filters = {}) {
   if (!repeaters || repeaters.length === 0) {
-    alert("Keine Relais fuer diesen Filter — PDF-Export nicht moeglich.");
+    alert(
+      "Keine Relais im aktuellen Kartenausschnitt.\n\n" +
+      "Die Liste enthält nur Relais, die gerade auf der Karte dargestellt werden. " +
+      "Im sichtbaren Bereich ist zurzeit kein Relais zu sehen.\n\n" +
+      "Mögliche Gründe:\n" +
+      "  - der Kartenausschnitt liegt ausserhalb der gefilterten Relais\n" +
+      "  - der Filter ist zu eng (Land, Kontinent, Modus, Suchtext oder Radius)\n\n" +
+      "Tipp: Karte verschieben oder zoomen bzw. den Filter erweitern und den Export erneut starten."
+    );
     return;
   }
 
   if (repeaters.length > 1000) {
-    if (!confirm(`Grosse Liste: ${repeaters.length} Relais. Download kann mehrere Sekunden dauern. Fortfahren?`)) {
+    if (!confirm(`Grosse Liste: ${repeaters.length} Relais im Kartenausschnitt. Download kann mehrere Sekunden dauern. Fortfahren?`)) {
       return;
     }
   }
@@ -75,38 +130,89 @@ export function exportRepeatersPdf(repeaters, filters = {}) {
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   const margin = 28;
-  const tableTop = 82;
   const footerY = pageHeight - 20;
   const rowHeight = 14;
-  const headerHeight = 18;
-  const usableHeight = pageHeight - tableTop - headerHeight - 40;
-  const rowsPerPage = Math.floor(usableHeight / rowHeight);
+  const tableHeaderHeight = 18;
+  const maxTextWidth = pageWidth - 2 * margin;
 
-  const sorted = [...repeaters].sort((a, b) => (a.frequency || 0) - (b.frequency || 0));
-  const totalPages = Math.ceil(sorted.length / rowsPerPage) || 1;
+  const center = Array.isArray(filters.center) && filters.center.length === 2 &&
+    Number.isFinite(filters.center[0]) && Number.isFinite(filters.center[1])
+    ? filters.center
+    : null;
+
+  // Sort: nearest to the map centre first (the list follows the map outwards from its
+  // middle). Without a map centre the list is alphabetical by callsign.
+  const sorted = repeaters
+    .map(r => ({
+      r,
+      dist: center && r.lat != null && r.lng != null ? distanceKm(center[0], center[1], r.lat, r.lng) : null,
+    }))
+    .sort((a, b) => {
+      if (a.dist != null && b.dist != null) return a.dist - b.dist;
+      return String(a.r.callsign || "").localeCompare(String(b.r.callsign || ""));
+    })
+    .map(x => x.r);
+
   const dateStr = new Date().toLocaleString("de-CH");
 
-  // Filter info string
+  // Filter info string — the filters that decide what is on the map
   const filterParts = [];
+  if (filters.continents?.length) {
+    filterParts.push(`Kontinent: ${filters.continents.map(continentLabel).join(", ")}`);
+  }
+  if (filters.countries?.length) {
+    filterParts.push(`Land: ${filters.countries.map(countryLabel).join(", ")}`);
+  }
   if (filters.modes?.length) {
     filterParts.push(`Modus: ${filters.modes.join(", ")}${filters.exclusive ? " (nur)" : ""}`);
   }
-  if (filters.countries?.length) filterParts.push(`Land: ${filters.countries.join(", ")}`);
+  if (filters.onlyLinked) filterParts.push("Nur verlinkte Relais");
   if (filters.search) filterParts.push(`Suche: "${filters.search}"`);
   if (filters.radiusKm) filterParts.push(`Radius: ${filters.radiusKm} km`);
   const filterStr = filterParts.join("  |  ") || "Kein Filter aktiv";
 
-  function drawPageHeader(pageNum) {
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 30, 30);
-    doc.text("HB9OM On Field — Relais-Liste", margin, 28);
+  const boundsStr = `Kartenausschnitt: ${formatBounds(filters.bounds)}`;
+  const sortStr = center
+    ? `Sortierung: Entfernung zum Kartenzentrum (naechstes zuerst) - Zentrum ${center[0].toFixed(3)}, ${center[1].toFixed(3)}`
+    : "Sortierung: Rufzeichen (A-Z)";
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Exportiert am ${dateStr}`, margin, 44);
-    doc.text(filterStr, margin, 58);
-    doc.text(`${sorted.length} Relais`, margin, 72);
+  // Header — title, timestamp, count, active filter, map section, sorting.
+  // Long filter lists wrap onto several lines; the table starts below them.
+  const headerLines = [
+    { text: "HB9OM On Field — Relais-Liste (aktueller Kartenausschnitt)", size: 15, bold: true, color: [30, 30, 30] },
+    { text: `Exportiert am ${dateStr}`, size: 10, color: [30, 30, 30] },
+    { text: `Relais im Kartenausschnitt: ${sorted.length}`, size: 11, bold: true, color: [30, 30, 30] },
+    { text: `Aktiver Filter: ${filterStr}`, size: 9, color: [80, 80, 80] },
+    { text: boundsStr, size: 9, color: [80, 80, 80] },
+    { text: sortStr, size: 9, color: [80, 80, 80] },
+  ];
+
+  const headerRenderLines = [];
+  for (const line of headerLines) {
+    doc.setFont("helvetica", line.bold ? "bold" : "normal");
+    doc.setFontSize(line.size);
+    for (const text of doc.splitTextToSize(String(line.text), maxTextWidth)) {
+      headerRenderLines.push({ text, size: line.size, bold: line.bold, color: line.color });
+    }
+  }
+  const lineStep = (l) => Math.max(11, l.size * 1.3);
+  const headerTop = 30;
+  const headerTotal = headerRenderLines.reduce((sum, l) => sum + lineStep(l), 0);
+  const tableTop = Math.round(headerTop + headerTotal + 2);
+
+  const usableHeight = pageHeight - tableTop - tableHeaderHeight - 40;
+  const rowsPerPage = Math.max(1, Math.floor(usableHeight / rowHeight));
+  const totalPages = Math.ceil(sorted.length / rowsPerPage) || 1;
+
+  function drawPageHeader(pageNum) {
+    let hy = headerTop;
+    for (const line of headerRenderLines) {
+      doc.setFontSize(line.size);
+      doc.setFont("helvetica", line.bold ? "bold" : "normal");
+      doc.setTextColor(line.color[0], line.color[1], line.color[2]);
+      doc.text(line.text, margin, hy);
+      hy += lineStep(line);
+    }
 
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
@@ -118,7 +224,7 @@ export function exportRepeatersPdf(repeaters, filters = {}) {
 
   function drawTableHeader(y) {
     doc.setFillColor(59, 130, 246);
-    doc.rect(margin, y, pageWidth - 2 * margin, headerHeight, "F");
+    doc.rect(margin, y, pageWidth - 2 * margin, tableHeaderHeight, "F");
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 255, 255);
@@ -135,7 +241,7 @@ export function exportRepeatersPdf(repeaters, filters = {}) {
       doc.text(headerText, x + 3, y + 13);
       x += col.width;
     }
-    return y + headerHeight;
+    return y + tableHeaderHeight;
   }
 
   function drawRow(rowData, y, rowIndex) {
@@ -193,10 +299,11 @@ export function exportRepeatersPdf(repeaters, filters = {}) {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);
   doc.text(`Relais-Liste vom ${dateStr}`, margin, 56);
-  doc.text(`${sorted.length} Relais  ·  ${filterStr}`, margin, 70);
+  doc.text(`${sorted.length} Relais im Kartenausschnitt  ·  ${filterStr}`, margin, 70);
+  doc.text(boundsStr, margin, 84);
 
   // Legend table header
-  const legendTop = 90;
+  const legendTop = 104;
   const legendHeaderHeight = 20;
   const legendRowHeight = 22;
   const colHeaderWidth = 90;
