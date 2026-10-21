@@ -108,9 +108,10 @@ export const SECTIONS = [
       },
       {
         title: "Bedien-Panel: alle Karten-Buttons an einem Ort",
-        body: "Alle Bedienelemente der Karte liegen im linken, aufklappbaren Panel – es gibt keine frei schwebenden Buttons mehr auf der Karte. Das Panel ist standardmässig zugeklappt; ein schmaler Griff am linken Rand klappt es auf und zu. Ein Tipp auf die Karte schliesst es wieder. Das Panel ist in Gruppen geordnet: Navigation/GPS, Zoom, Layer/Filter und kontextuelle Aktionen. Der Zustand (auf-/zugeklappt) wird pro Benutzer gespeichert.",
+        body: "Alle Bedienelemente der Karte liegen im linken, aufklappbaren Panel – es gibt keine frei schwebenden Buttons mehr auf der Karte. Das Panel ist standardmässig zugeklappt; ein schmaler Griff am linken Rand klappt es auf. Im geöffneten Panel ist der Zu-Griff der oberste Knopf im Panel selbst – er liegt nie über den anderen Buttons. Ein Tipp auf die Karte schliesst es wieder. Das Panel ist in Gruppen geordnet: Navigation/GPS, Zoom, Layer/Filter und kontextuelle Aktionen. Der Zustand (auf-/zugeklappt) wird pro Benutzer gespeichert.",
         steps: [
           { icon: "chevronRight", text: "Griff am linken Rand antippen – Panel klappt auf" },
+          { icon: "chevronLeft", text: "Oberster Knopf im Panel – klappt das Panel wieder zu (verdeckt keine Buttons)" },
           { icon: "locateFixed", text: "Gruppe Navigation/GPS: Offline, GPS, Position setzen, Zentrieren, Download" },
           { icon: "plus", text: "Gruppe Zoom: + und − vergrössern/verkleinern die Karte" },
           { icon: "ruler", text: "Gruppe Zoom: bei SwissTopo zusätzlich Massstab vergrössern/verkleinern" },

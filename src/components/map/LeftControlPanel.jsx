@@ -148,23 +148,22 @@ export default function LeftControlPanel({
 
   return (
     <>
-      {/* Toggle handle — always visible at left edge */}
-      <button
-        onClick={togglePanel}
-        className="fixed left-0 top-20 z-[1001] w-7 h-14 flex items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg rounded-r-lg border border-l-0 border-gray-200 dark:border-gray-600 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
-        title={isOpen ? "Panel schliessen" : "Bedienelemente öffnen"}
-        style={{ touchAction: "manipulation" }}
-      >
-        {isOpen ? (
-          <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-        ) : (
+      {/* Open handle — only while the panel is CLOSED. Open, the handle lives inside the
+          panel (as its first button), so it can never sit on top of the panel content. */}
+      {!isOpen && (
+        <button
+          onClick={togglePanel}
+          className="fixed left-0 top-20 z-[1001] w-7 h-14 flex items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg rounded-r-lg border border-l-0 border-gray-200 dark:border-gray-600 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
+          title="Bedienelemente öffnen"
+          style={{ touchAction: "manipulation" }}
+        >
           <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-        )}
-        {/* Badge dot when collapsed and dynamic buttons exist */}
-        {!isOpen && hasDynamicButtons && (
-          <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />
-        )}
-      </button>
+          {/* Badge dot when collapsed and dynamic buttons exist */}
+          {hasDynamicButtons && (
+            <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />
+          )}
+        </button>
+      )}
 
       {/* Panel — slides in from left */}
       <div
@@ -176,6 +175,15 @@ export default function LeftControlPanel({
         <div className="h-full w-14 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-lg border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-2 gap-1.5 overflow-y-auto overscroll-contain"
           style={{ scrollbarWidth: "thin" }}
         >
+          {/* Close handle — only while the panel is OPEN, as part of the panel layout
+              (own slot, own spacing). It is never stacked above the other rail buttons. */}
+          {isOpen && (
+            <PanelButton onClick={togglePanel} title="Bedienelemente schliessen">
+              <ChevronLeft className="w-5 h-5" />
+            </PanelButton>
+          )}
+          <Divider />
+
           {/* ── Gruppe: Navigation / GPS ── */}
           {showOffline && (
             <PanelButton

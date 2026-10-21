@@ -60,9 +60,11 @@ export async function loadAllPrivateNodes({ onBatch, maxRecords = MAX_RECORDS } 
 //   id is unique per record, so every page boundary is stable and no record
 //   is lost or duplicated.
 //
-// The Repeater entity can have 31000+ records — a single list() call is capped
-// at 10000. This loader fetches ALL records in batches so the country list and
-// counts are complete and consistent.
+// The Repeater entity currently holds ~20'800 records (all with coordinates) — a
+// single list() call is capped at 10000. This loader fetches ALL records in
+// batches so the country list and counts are complete and consistent.
+// REPEATER_MAX_RECORDS is only a safety cap, far above the real total (~20'800),
+// so the complete set is always returned — no active load limit.
 const REPEATER_BATCH_SIZE = 5000;
 const REPEATER_MAX_RECORDS = 80000;
 
@@ -152,7 +154,7 @@ export async function loadAllTotaPoints({ onBatch, maxRecords = TOTA_MAX_RECORDS
 }
 
 // Load repeaters for specific countries using server-side filtering.
-// Avoids loading all 31k repeaters into memory when only CH is needed.
+// Avoids loading every repeater into memory when only a few countries are needed.
 // SDK filter caps at 5000 per call — most countries have well under 5000 repeaters.
 export async function loadRepeatersByCountries(countryCodes) {
   if (!countryCodes || countryCodes.length === 0) {

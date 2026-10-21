@@ -127,9 +127,17 @@
         "button_positions": {
           "type": "object",
           "description": "Button-Positionen pro Geraet (baseKey -> {x, y})"
+        },
+        "left_panel_open": {
+          "type": "boolean",
+          "description": "Zustand des linken Bedien-Panels (offen/zugeklappt) \u2014 pro Benutzer gespeichert"
+        },
+        "sections": {
+          "type": "object",
+          "description": "Auf-/zugeklappte Filter- und Layer-Sektionen (sectionKey -> true/false) \u2014 pro Benutzer gespeichert"
         }
       },
-      "description": "UI-Einstellungen: Feldbreiten und Button-Positionen pro Geraet"
+      "description": "UI-Einstellungen: Feldbreiten, Button-Positionen, Panel-Zustand und eingeklappte Sektionen"
     },
     "draggable_button_positions": {
       "type": "object",

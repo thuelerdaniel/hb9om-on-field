@@ -13,11 +13,14 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610211200";
+export const APP_BUILD = "202610211405";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "21.10.2026: BEDIEN-PANEL-GRIFF FIX — Der Auf-/Zu-Griff lag im geöffneten Zustand ÜBER dem Panel und verdeckte die obersten Rail-Buttons (Klick wurde abgefangen). Jetzt ist der Griff bei geöffnetem Panel der oberste Knopf IM Panel (eigener Platz mit Abstand, keine Überdeckung) und bei geschlossenem Panel wie gewohnt der schmale Griff am linken Rand. In keinem Zustand liegt noch etwas über Panel-Inhalt, Suchfeld, Legende, Zoom oder Ebenen-Menü.",
+  "21.10.2026: RELAIS-BESTAND BESTÄTIGT — Die Anzeige «21k» ist der korrekte, vollständige Gesamtbestand von 20'798 Relais (alle mit Koordinaten) — es ist KEINE Ladegrenze aktiv: der Lader holt alle Datensätze in 5'000er-Seiten bis zur letzten Seite, der Sicherheits-Deckel (80'000) liegt weit darüber. Die früheren «31'000+» stammten aus dem Bestand VOR der Koordinaten-Bereinigung (16'626 Datensätze ohne Koordinaten gelöscht) bzw. aus dem alten Batch-Zähler.",
+  "21.10.2026: BUILD — Build-Nummer auf 202610211405 nachgezogen (Versionsnummer unverändert, wird nur von Daniel gesetzt).",
   "21.10.2026: RELAIS-LADEN REPARIERT — Relais werden wieder VOLLSTÄNDIG geladen (id-basierte Paginierung, alle Länder), nicht mehr viewport-begrenzt. Vorher enthielt der Layer nur die Relais im aktuellen Kartenausschnitt — ausländische Relais fehlten und die Länderliste im Filter war leer.",
   "21.10.2026: RELAIS-ZÄHLER KORRIGIERT — Layer-Menü und Lade-Dialog zeigten einen fest verdrahteten Wert (10k / 10'000 Punkte). Das Layer-Menü zeigt jetzt die tatsächlich geladene Anzahl (Bestand 20'800 Relais), der Bestätigungsdialog rechnet mit dem echten Bestand.",
   "21.10.2026: RELAIS-/TOTA-LÄNDERFILTER WIEDER ERREICHBAR — Jeder Layer-Eintrag mit eigenem Länder- und Kontinent-Filter hat jetzt ein Zahnrad im Ebenen-Menü, das die Länderauswahl direkt am Eintrag auf- und zuklappt. Der Zustand wird pro Benutzer gespeichert.",
@@ -664,7 +667,7 @@ export const DATA_SOURCES = [
   { name: "IOTA", url: "iota-world.org", count: "1.178 Gruppen", schedule: "täglich 03:00 UTC" },
   { name: "WWBOTA", url: "api.wwbota.net", count: "Bunker weltweit", schedule: "täglich 04:30 UTC" },
   { name: "Burgen/Schlösser", url: "OSM + Wikidata", count: "weltweit", schedule: "täglich 04:30 UTC" },
-  { name: "Repeater", url: "RepeaterBook + hearham.com", count: ">22.000 Relais", schedule: "täglich 05:00 UTC" },
+  { name: "Repeater", url: "RepeaterBook + hearham.com", count: "20.798 Relais (alle mit Koordinaten)", schedule: "täglich 05:00 UTC" },
   { name: "Leuchttürme", url: "Wikidata SPARQL + Fallback", count: "weltweit", schedule: "täglich 05:30 UTC" },
   { name: "APRS", url: "aprs.fi API (API-Key)", count: "Stationen weltweit", schedule: "täglich 06:00 UTC" },
   { name: "TOTA", url: "swiss_csv + wwtota.com", count: "Antennen/Türme", schedule: "täglich 06:30 UTC" },
