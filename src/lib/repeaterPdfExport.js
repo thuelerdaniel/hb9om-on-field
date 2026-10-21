@@ -112,23 +112,6 @@ function formatBounds(bounds) {
   }
 }
 
-// Trigger the download. Wrapped separately so a blocked download surfaces as an
-// error instead of a silent no-op.
-function downloadPdf(doc, filename) {
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Keep the object URL alive for a while — revoking too early aborts the download.
-  window.setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 60000);
-}
-
 /**
  * Export the repeaters that are currently drawn on the map.
  *
@@ -141,10 +124,13 @@ function downloadPdf(doc, filename) {
  *
  * The pages are drawn in chunks (the browser stays responsive in between), and the
  * function never uses native browser dialogs: it resolves with
- *   { ok: true, count, pages, filename }
+ *   { ok: true, count, pages, filename, blob }
  * or
  *   { ok: false, reason: "empty" | "error", message }
  * so the caller can always show a visible message.
+ *
+ * Getting the finished blob to the user is NOT part of this function — see
+ * src/lib/pdfDelivery.js (automatic download + share/open paths on a fresh gesture).
  */
 export async function exportRepeatersPdf(repeaters, filters = {}, options = {}) {
   const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
@@ -399,9 +385,9 @@ export async function exportRepeatersPdf(repeaters, filters = {}, options = {}) 
     onProgress?.(100);
 
     const filename = `repeaters_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.pdf`;
-    downloadPdf(doc, filename);
+    const blob = doc.output("blob");
 
-    return { ok: true, count: sorted.length, pages: totalPages + 1, filename };
+    return { ok: true, count: sorted.length, pages: totalPages + 1, filename, blob };
   } catch (err) {
     return {
       ok: false,

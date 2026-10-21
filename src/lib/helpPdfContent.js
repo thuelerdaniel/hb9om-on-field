@@ -1081,7 +1081,10 @@ export const SECTIONS = [
           { icon: "search", text: "Suchfeld: Rufzeichen, Ort, Land oder Frequenz eingeben" },
           { icon: "link2", text: "Verlinkungen ein-/ausschalten" },
           { icon: "download", text: "PDF-Liste: enthaelt genau die Relais, die aktuell auf der Karte dargestellt werden (Filter + Kartenausschnitt)" },
-          { icon: "download", text: "Waehrend der Erstellung laeuft eine Fortschrittsanzeige; Erfolg, leerer Ausschnitt oder Fehler werden als Einblendung gemeldet" }
+          { icon: "download", text: "Waehrend der Erstellung laeuft eine Fortschrittsanzeige; danach erscheint die Einblendung «PDF bereit» mit Dateiname und Anzahl Relais" },
+          { icon: "download", text: "Weg zur Datei: auf Desktop und Android startet der Download automatisch. Die Einblendung bietet zusaetzlich «Speichern / Teilen» (System-Dialog) und «Im Tab oeffnen» (PDF-Ansicht mit Teilen/Speichern)" },
+          { icon: "download", text: "Wichtig auf iPhone/iPad und in der zum Startbildschirm hinzugefuegten App: Dort wird der automatische Download geblockt — bitte «Speichern / Teilen» oder «Im Tab oeffnen» verwenden" },
+          { icon: "download", text: "Die Einblendung bleibt stehen, bis sie geschlossen wird — der Weg zur Datei ist jederzeit wiederholbar" }
         ],
         tip: "Tipp: Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais. Wahlen Sie ein Land, um nur Relais dieses Landes zu sehen. Wenn ein Land fehlt, wurden noch keine Relais abgefragt – Admins koennen die Daten aktualisieren. Die PDF-Liste zeigt immer nur die Relais des aktuellen Kartenausschnitts: Kopfzeile mit Anzahl, aktivem Filter, Kartenausschnitt und Zeitpunkt, sortiert nach Entfernung zum Kartenzentrum. Die Erstellung laeuft blockweise mit Fortschrittsanzeige — Ergebnisse und Fehler erscheinen als Einblendung, nicht mehr als Browser-Dialog."
       },

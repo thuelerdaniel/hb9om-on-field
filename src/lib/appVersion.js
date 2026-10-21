@@ -13,11 +13,16 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610211750";
+export const APP_BUILD = "202610211805";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "21.10.2026: RELAIS-PDF DOWNLOAD REPARIERT — Die Liste wurde erzeugt, aber die Datei kam nicht an. Ursache: Der automatische Download laeuft NACH der asynchronen Erstellung und damit ausserhalb der Nutzer-Geste — Safari/iOS, In-App-Browser und die zum Startbildschirm hinzugefuegte App blocken ihn still. Die Datei ist jetzt zusaetzlich ueber «Speichern / Teilen» (System-Dialog) und «Im Tab oeffnen» (PDF-Ansicht mit Teilen/Speichern) erreichbar.",
+  "21.10.2026: RELAIS-PDF MELDUNG NEUTRAL — Statt «Download gestartet» heisst es jetzt «PDF bereit» mit Dateiname, Anzahl Relais und Seiten. Die Einblendung behauptet keinen angekommenen Download mehr und bleibt bis zum Schliessen stehen — der Weg zur Datei ist jederzeit wiederholbar.",
+  "21.10.2026: RELAIS-PDF DOWNLOAD-WEGE — Desktop und Android laden wie bisher automatisch herunter. Auf iPhone/iPad und in der Standalone-App wird der unzuverlaessige Automatik-Download uebersprungen und direkt der System-Dialog angeboten.",
+  "21.10.2026: EINBLENDUNG SCHLIESSBAR — Der X-Knopf einer Einblendung war nie verdrahtet (wirkungslos). Jetzt schliesst er die Einblendung — noetig, weil die PDF-Einblendung absichtlich stehen bleibt, bis sie geschlossen wird.",
+  "21.10.2026: BUILD — Build-Nummer auf 202610211805 nachgezogen (Versionsnummer unveraendert, wird nur von Daniel gesetzt).",
   "21.10.2026: RELAIS-PDF STILLER FEHLER BEHOBEN — Der PDF-Export meldete Sonderfälle bisher über eingebaute Browser-Dialoge: einen Hinweis bei leerem Kartenausschnitt und eine Rückfrage ab 1'000 Relais. In eingebetteten Ansichten (z.B. Vorschau) werden solche Dialoge vom Browser unterdrückt — der Hinweis erschien nie, die Rückfrage galt automatisch als «Nein» und der Export brach ohne jede Meldung ab. Beide Dialoge sind entfernt.",
   "21.10.2026: RELAIS-PDF MELDET SICHTBAR — Erfolg, leerer Kartenausschnitt und Fehler erscheinen jetzt als Einblendung mit Anzahl Relais, Seitenzahl und Dateiname. Schlägt die Erstellung fehl, steht die Fehlermeldung im Klartext in der Einblendung statt nur in der Konsole.",
   "21.10.2026: RELAIS-PDF IN BLÖCKEN — Die Erstellung läuft blockweise (alle 120 Zeilen eine Pause für den Browser) mit Fortschrittsanzeige in Prozent — die Oberfläche bleibt bedienbar, auch bei grossen Listen auf dem Handy.",

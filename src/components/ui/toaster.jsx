@@ -23,11 +23,13 @@ export function Toaster() {
               )}
             </div>
             {action}
-            <ToastClose />
+            {/* Close button was never wired — needed for toasts that do not auto-dismiss
+                (e.g. the PDF toast with its action buttons). */}
+            <ToastClose onClick={() => props.onOpenChange?.(false)} />
           </Toast>
         );
       })}
       <ToastViewport />
     </ToastProvider>
   );
-} 
+}
