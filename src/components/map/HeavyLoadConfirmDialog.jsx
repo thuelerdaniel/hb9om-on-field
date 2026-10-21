@@ -217,6 +217,11 @@ export default function HeavyLoadConfirmDialog({ layers, onConfirm, onCancel }) 
           <p className="text-xs text-gray-400 dark:text-slate-500 leading-relaxed">
             <strong>Abbrechen</strong> aktiviert den Layer, lädt aber nur die sichtbaren Punkte im aktuellen Ausschnitt. So können Sie zuerst die Karte anpassen (zoomen/verschieben) und später mehr Daten laden.
           </p>
+          {layers.includes("repeater") && (
+            <p className="text-xs text-gray-400 dark:text-slate-500 leading-relaxed mt-2">
+              <strong>Amateurfunk-Relais</strong> werden immer vollständig geladen (alle Länder) — die Auswahl oben betrifft nur die übrigen Layer.
+            </p>
+          )}
         </div>
 
         {/* Footer */}
