@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower, Droplets, SlidersHorizontal } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower, Droplets, SlidersHorizontal, Settings } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
@@ -8,6 +8,8 @@ import { LAYER_ESTIMATES, formatPointsShort } from "@/components/map/HeavyLoadCo
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { useAppFeatures, layerIdToFeatureKey } from "@/lib/appFeatures";
 import CollapsibleSection from "@/components/map/CollapsibleSection";
+import CountryContinentFilter from "@/components/map/CountryContinentFilter";
+import { useUISettings } from "@/lib/UISettingsContext";
 
 const LAYER_GROUPS = [
   {
@@ -128,12 +130,21 @@ const MAP_SCALES = [
   { id: "100000", label: "1:100'000" }
 ];
 
-export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry, externalIsOpen, onOpenChange, activityZonesEnabled, onToggleActivityZones, coverageRadiusKm, onCoverageRadiusChange, hideTrigger = false }) {
+export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, onChangeBaseLayer, onSelectScale, lockedScale, mapOpacity, onChangeOpacity, activeContinents, onToggleContinent, activeCountries, onToggleCountry, externalIsOpen, onOpenChange, activityZonesEnabled, onToggleActivityZones, coverageRadiusKm, onCoverageRadiusChange, layerFilters = {}, liveCounts = {}, hideTrigger = false }) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [showCountries, setShowCountries] = useState(false);
   const { containerRef } = useDraggablePosition("drag-layer-control");
   const { features } = useAppFeatures();
+  const { ui, updateUI } = useUISettings();
   const panelRef = useRef(null);
+
+  // Layer-specific country/continent filter — opened by the gear on a layer entry.
+  // Open/closed state persisted per user in ui_settings.sections, like every other section.
+  const filterSections = (ui && ui.sections) || {};
+  const isLayerFilterOpen = (id) => filterSections[`layerfilter.${id}`] === true;
+  const toggleLayerFilter = (id) => updateUI({
+    sections: { ...filterSections, [`layerfilter.${id}`]: !isLayerFilterOpen(id) },
+  });
 
   // v0.9029: All layers always visible in panel — feature flags only control map activation, not panel visibility
   const visibleLayerGroups = LAYER_GROUPS;
@@ -432,38 +443,67 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
                   const Icon = group.icon;
                   return (
                     <div key={group.id} className="rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => onToggleLayer(group.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-all rounded-lg ${
-                          isActive
-                            ? "bg-gray-50 border border-gray-200"
-                            : "hover:bg-gray-50"
-                        }`}
-                      >
-                        <div
-                          className="w-5 h-5 flex-shrink-0 flex items-center justify-center"
-                          style={{ opacity: isActive ? 1 : 0.4 }}
-                          dangerouslySetInnerHTML={{ __html: getMarkerSvg(group.id, group.color) }}
-                        />
-                        <Icon className="w-4 h-4 flex-shrink-0" style={{ color: isActive ? group.color : '#9ca3af' }} />
-                        <span className={`flex-1 text-left ${isActive ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
-                          {group.label}
-                        </span>
-                        {LAYER_ESTIMATES[group.id] && (
-                          <span className="text-[10px] text-gray-400 dark:text-slate-500 flex items-center gap-1.5 mr-1">
-                            <span>{formatPointsShort(LAYER_ESTIMATES[group.id].points)}</span>
-                            <span>·</span>
-                            <span>{LAYER_ESTIMATES[group.id].mb} MB</span>
+                      <div className={`flex items-center rounded-lg transition-all ${
+                        isActive ? "bg-gray-50 border border-gray-200" : "hover:bg-gray-50"
+                      }`}>
+                        <button
+                          onClick={() => onToggleLayer(group.id)}
+                          className="flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 text-sm text-left"
+                        >
+                          <div
+                            className="w-5 h-5 flex-shrink-0 flex items-center justify-center"
+                            style={{ opacity: isActive ? 1 : 0.4 }}
+                            dangerouslySetInnerHTML={{ __html: getMarkerSvg(group.id, group.color) }}
+                          />
+                          <Icon className="w-4 h-4 flex-shrink-0" style={{ color: isActive ? group.color : '#9ca3af' }} />
+                          <span className={`flex-1 text-left ${isActive ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                            {group.label}
                           </span>
+                          {(() => {
+                            const est = LAYER_ESTIMATES[group.id];
+                            const live = liveCounts[group.id];
+                            // Live loaded count (authoritative) overrides the static estimate
+                            const points = live != null ? live : (est ? est.points : null);
+                            if (points == null) return null;
+                            return (
+                              <span className="text-[10px] text-gray-400 dark:text-slate-500 flex items-center gap-1.5 mr-1">
+                                <span>{formatPointsShort(points)}</span>
+                                {est && (<><span>·</span><span>{est.mb} MB</span></>)}
+                              </span>
+                            );
+                          })()}
+                          {isActive ? (
+                            <Eye className="w-4 h-4 text-gray-400" />
+                          ) : (
+                            <EyeOff className="w-4 h-4 text-gray-300" />
+                          )}
+                        </button>
+                        {layerFilters[group.id] && (
+                          <button
+                            onClick={() => toggleLayerFilter(group.id)}
+                            className={`mr-1.5 w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg transition-colors ${
+                              isLayerFilterOpen(group.id)
+                                ? "bg-gray-900 text-white"
+                                : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                            }`}
+                            title={`Länder-Filter für ${group.label}`}
+                          >
+                            <Settings className="w-4 h-4" />
+                          </button>
                         )}
-                        {isActive ? (
-                          <Eye className="w-4 h-4 text-gray-400" />
-                        ) : (
-                          <EyeOff className="w-4 h-4 text-gray-300" />
-                        )}
-                      </button>
+                      </div>
                       {isActive && (
                         <p className="px-3 pb-2 text-xs text-gray-400 ml-10">{group.description}</p>
+                      )}
+                      {layerFilters[group.id] && isLayerFilterOpen(group.id) && (
+                        <div className="mx-1 mb-1 rounded-lg border border-gray-200 overflow-hidden">
+                          <CountryContinentFilter
+                            countries={layerFilters[group.id].countries}
+                            selectedCountries={layerFilters[group.id].selectedCountries}
+                            onCountriesChange={layerFilters[group.id].onCountriesChange}
+                            accentColor={layerFilters[group.id].accentColor || "blue"}
+                          />
+                        </div>
                       )}
                     </div>
                   );

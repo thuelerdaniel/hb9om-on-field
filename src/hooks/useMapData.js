@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { loadCachedReferenceData, loadCachedRepeaters, loadCachedPrivateNodes, loadCachedTota } from "@/lib/offlineDataCache";
-import { loadAllTotaPoints } from "@/lib/paginatedLoader";
+import { loadAllTotaPoints, loadAllRepeaters } from "@/lib/paginatedLoader";
+
+// Layers that still load viewport-based via ViewportDataLoader → getReferencesInBounds.
+// Repeaters are NOT in this list: they are loaded completely (all countries) so the
+// layer-specific country filter can offer every country.
+const VIEWPORT_LAYERS = ["sota", "pota", "hbff", "wwbota", "castle", "lighthouse", "llota", "iota", "aprs", "brandmeister"];
 
 // Haversine distance in km between two lat/lng points
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -45,7 +50,7 @@ export function useMapData(activeLayers) {
   const cancelRef = useRef(false);
   const timeoutRef = useRef(null);
   // Track which datasets have been loaded from server to avoid duplicate fetches
-  const loadedRef = useRef({ privateNodes: false, adminLinks: false });
+  const loadedRef = useRef({ privateNodes: false, adminLinks: false, allRepeaters: false });
   // Track previous active layers to detect removals vs additions
   const prevLayersRef = useRef(activeLayers);
 
@@ -78,11 +83,12 @@ export function useMapData(activeLayers) {
   // PUNKT 2: Points are sorted by distance from map center (closest first) so the
   // rendering layer can display points near the center before those at the viewport edge.
   const onViewportData = useCallback((references, isFirstLoad, center) => {
-    // Handle repeaters separately — viewport-based, replace on each fetch
+    // Repeaters are intentionally NOT taken from viewport data: the full set is
+    // loaded once via loadAllRepeaters (id-based pagination). Overwriting it with a
+    // viewport subset would hide every country outside the current map view and
+    // empty the layer's country filter.
     if (Array.isArray(references.repeater)) {
-      setRepeaters(sortByDistanceFromCenter(
-        references.repeater.filter(r => r.lat != null && r.lng != null), center
-      ));
+      // ignored — full repeater set is authoritative
     }
     // Handle private nodes (APRS + BrandMeister) — viewport-based, replace on each fetch
     const aprsRefs = Array.isArray(references.aprs) ? references.aprs : null;
@@ -114,10 +120,9 @@ export function useMapData(activeLayers) {
   }, []);
 
   // Server loading — gated by activeLayers. Only loads data for layers the user has enabled.
-  // Repeaters, reference types, AND private nodes (APRS/BrandMeister) are all loaded
-  // viewport-based by ViewportDataLoader → getReferencesInBounds.
-  // This hook only loads admin links (when repeater layer is active) and clears data
-  // when layers are turned off.
+  // Repeaters are loaded COMPLETELY here (loadAllRepeaters, id-based pagination) so every
+  // country is present. Reference types and private nodes stay viewport-based via
+  // ViewportDataLoader → getReferencesInBounds. Admin links load with the repeater layer.
   useEffect(() => {
     let active = true;
     cancelRef.current = false;
@@ -140,6 +145,7 @@ export function useMapData(activeLayers) {
     if (!needRepeaters) {
       setRepeaters([]);
       loadedRef.current.adminLinks = false;
+      loadedRef.current.allRepeaters = false;
       setAdminLinks([]);
     }
 
@@ -174,6 +180,22 @@ export function useMapData(activeLayers) {
     }
 
     const tasks = [];
+    const needViewportRefs = activeLayers.some(l => VIEWPORT_LAYERS.includes(l));
+
+    // Load ALL repeaters (id-based pagination, deterministic) — not viewport-limited.
+    // This makes every country available on the map and in the layer's country filter.
+    if (needRepeaters && !loadedRef.current.allRepeaters) {
+      loadedRef.current.allRepeaters = true;
+      tasks.push((async () => {
+        try {
+          const all = await loadAllRepeaters();
+          if (cancelRef.current) return;
+          setRepeaters(all.filter(r => r.lat != null && r.lng != null));
+        } catch (e) { /* silent — keep whatever is loaded */ }
+        // Stop the spinner once repeaters are in when no viewport layer feeds onViewData
+        if (active && !cancelRef.current && !needViewportRefs) setLoading(false);
+      })());
+    }
 
     // Fetch admin-managed repeater links — only needed when repeater layer is active
     if (needRepeaters && !loadedRef.current.adminLinks) {
@@ -195,7 +217,7 @@ export function useMapData(activeLayers) {
       Promise.all(tasks).then(() => {
         if (active && !cancelRef.current) {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          // Don't stop loading for repeater-only — ViewportDataLoader handles it
+          // Don't stop loading for repeater-only — the repeater task stops it
           if (!needRepeaters) setLoading(false);
         }
       });

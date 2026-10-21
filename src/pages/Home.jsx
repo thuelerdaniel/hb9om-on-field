@@ -1590,6 +1590,28 @@ export default function Home() {
   const tileConfig = TILE_CONFIGS[baseLayer] || TILE_CONFIGS.openfreemap_liberty;
   const isOffline = typeof navigator !== "undefined" && (!navigator.onLine || forceOffline);
 
+  // Per-layer country/continent filter exposed directly on the layer entry (gear button
+  // in the Ebenen-Menü). Repeater and TOTA override the global country filter with their
+  // own, so that filter must be reachable from the layer itself.
+  const layerFilters = useMemo(() => ({
+    repeater: {
+      countries: repeaterCountries,
+      selectedCountries: repeaterFilterCountries,
+      onCountriesChange: setRepeaterFilterCountries,
+      accentColor: "blue",
+    },
+    tota: {
+      countries: totaCountries,
+      selectedCountries: totaFilterCountries,
+      onCountriesChange: setTotaFilterCountries,
+      accentColor: "orange",
+    },
+  }), [repeaterCountries, repeaterFilterCountries, totaCountries, totaFilterCountries]);
+
+  // Live loaded counts shown on layer entries (override the static estimate).
+  // Repeaters are loaded completely — this is the authoritative total.
+  const liveCounts = useMemo(() => ({ repeater: repeaters.length }), [repeaters]);
+
   // Build filter triggers for the left control panel — one entry per active filter layer
   const filterTriggers = useMemo(() => {
     const triggers = [];
@@ -1989,6 +2011,8 @@ export default function Home() {
         onOpenCoverage={() => setShowUserCoverageDialog(true)}
         onOpenQso={() => setShowLogForm(true)}
         filterTriggers={filterTriggers}
+        layerFilters={layerFilters}
+        liveCounts={liveCounts}
         openFilter={openFilter}
         onOpenFilter={(t) => { if (t) setLayerMenuOpen(false); setOpenFilter(t); }}
         externalCloseTrigger={panelCloseTrigger}

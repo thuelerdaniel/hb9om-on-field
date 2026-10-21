@@ -13,11 +13,18 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610182007";
+export const APP_BUILD = "202610211200";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "21.10.2026: RELAIS-LADEN REPARIERT — Relais werden wieder VOLLSTÄNDIG geladen (id-basierte Paginierung, alle Länder), nicht mehr viewport-begrenzt. Vorher enthielt der Layer nur die Relais im aktuellen Kartenausschnitt — ausländische Relais fehlten und die Länderliste im Filter war leer.",
+  "21.10.2026: RELAIS-ZÄHLER KORRIGIERT — Layer-Menü und Lade-Dialog zeigten einen fest verdrahteten Wert (10k / 10'000 Punkte). Das Layer-Menü zeigt jetzt die tatsächlich geladene Anzahl (Bestand 20'800 Relais), der Bestätigungsdialog rechnet mit dem echten Bestand.",
+  "21.10.2026: RELAIS-/TOTA-LÄNDERFILTER WIEDER ERREICHBAR — Jeder Layer-Eintrag mit eigenem Länder- und Kontinent-Filter hat jetzt ein Zahnrad im Ebenen-Menü, das die Länderauswahl direkt am Eintrag auf- und zuklappt. Der Zustand wird pro Benutzer gespeichert.",
+  "21.10.2026: VERSION-KONSISTENZ — Die Versionsnummer war doppelt definiert (appVersion.js = 0.951, constants.js = 0.952) — Splash und Release-Notes zeigten 0.952, Menü und Hilfe 0.951. Jetzt eine einzige Quelle in appVersion.js.",
+  "21.10.2026: BUILD — Build-Nummer auf 202610211200 nachgezogen (Versionsnummer unverändert, wird nur von Daniel gesetzt).",
+  "20.10.2026: KARTEN-UI — ALLE Karten-Buttons ins linke aufklappbare Bedien-Panel verschoben (inkl. Zoom +/− und Massstab bei SwissTopo). Ebenen-Menü und Legende werden über das Panel geöffnet.",
+  "20.10.2026: FILTER-UI — Alle Filter-/Layer-Popups gestaffelt: beim Öffnen nur Kernoptionen sichtbar; Länder-Filter, Grenzen, Radius, Verlinkungen und Info-Texte liegen in der eingeklappten Sektion «Weitere Optionen». Zustand pro Benutzer gespeichert.",
   "18.10.2026: LOG-FLUT BEREINIGT — 614k Duplikate des defekten Wavelog-Service-Sync (07.-17.10.) via purgeWavelogFlood Backend-Funktion gelöscht. 3116 legitime QSOs bleiben. Spot-Check: R4ZZ/ZS3JDL/EA4GA/HB8TEST/HB9HXD/HB3YQT je 1 — kein echtes QSO verloren.",
   "18.10.2026: WAVELOG-SYNC ROOT-CAUSE FIX — Wasserstand (wavelog_last_fetch_id + wavelog_last_sync) wird JETZT vor dem Upsert gesetzt, nicht danach. Cursor advanceiert auch bei Upsert-Fehler → keine Re-Import-Flut mehr. Dedup-Selbsttest warnt bei >50 neuen QSOs pro Delta-Sync.",
   "18.10.2026: WAVELOG-SYNC PAUSIERT — HB3YNF auto_sync=false + sync_paused=true (Service-Rolle). Sync läuft nicht ungefixt an.",

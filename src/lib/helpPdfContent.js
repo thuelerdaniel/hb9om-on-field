@@ -1042,6 +1042,16 @@ export const SECTIONS = [
     description: "Das Relais-Overlay zeigt Amateurfunk-Relais auf der Karte – farbcodiert nach Modulation (FM, C4FM, DMR, D-STAR etc.), mit Verlinkungen zwischen Relais, Laenderfilter, Distanzanzeige und Google-Maps-Navigation.",
     items: [
       {
+        title: "Alle Relais weltweit werden geladen",
+        body: "Beim Aktivieren des Relais-Layers lädt die App den kompletten Relais-Bestand (aktuell rund 20'800 Relais, alle Länder) — unabhängig davon, welcher Kartenausschnitt gerade sichtbar ist. So sind beim Herauszoomen und beim Verschieben in andere Länder sofort alle Relais vorhanden, und der Länder-Filter listet jedes verfügbare Land mit Anzahl. Die Zahl im Ebenen-Menü zeigt den tatsächlich geladenen Bestand.",
+        steps: [
+          { icon: "layers", text: "Relais-Layer im Ebenen-Menü aktivieren" },
+          { icon: "settings", text: "Vollständiges Laden im Lade-Dialog bestätigen" },
+          { icon: "globe", text: "Alle Länder sind auf der Karte und im Länder-Filter verfügbar" }
+        ],
+        tip: "Tipp: Das vollständige Laden dauert einige Sekunden. Die Karte bleibt währenddessen bedienbar."
+      },
+      {
         title: "Relais-Overlay aktivieren",
         body: "Oeffnen Sie das Ebenen-Menue (im linken Bedien-Panel) und aktivieren Sie die Ebene «Amateurfunk-Relais». Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart.",
         steps: [
@@ -1062,7 +1072,7 @@ export const SECTIONS = [
       },
       {
         title: "Relais-Filter verwenden",
-        body: "Wenn das Relais-Overlay aktiv ist, erscheint im linken Bedien-Panel ein Relais-Filter-Button. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten. Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais weltweit – Europa (DE, FR, IT, GB, ES, PL, etc.), Asien (JP, IN, MY, TH, KR, PH, ID, CN), Afrika (ZA, MA, KE), Nordamerika (US, CA, MX), Suedamerika (BR, AR, CL, CO), Ozeanien (AU, NZ) und Karibik.",
+        body: "Der Relais-Länderfilter ist an zwei Orten erreichbar: (1) im linken Bedien-Panel über den Relais-Filter-Button, (2) direkt am Layer-Eintrag «Amateurfunk-Relais» im Ebenen-Menü über das Zahnrad-Icon — dieses klappt die Länder- und Kontinent-Auswahl direkt unter dem Eintrag auf. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten. Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais weltweit – Europa (DE, FR, IT, GB, ES, PL, etc.), Asien (JP, IN, MY, TH, KR, PH, ID, CN), Afrika (ZA, MA, KE), Nordamerika (US, CA, MX), Suedamerika (BR, AR, CL, CO), Ozeanien (AU, NZ) und Karibik.",
         steps: [
           { icon: "radioTower", text: "Relais-Filter-Button (oben links) antippen" },
           { icon: "globe", text: "Land filtern (alle Laender oder einzelnes Land waehlen)" },
@@ -1088,6 +1098,7 @@ export const SECTIONS = [
         body: "Wenn Sie im Ebenen-Menue einen Laender-Filter aktivieren (z.B. nur Schweiz), gilt dieser fuer SOTA, POTA, Burgen, IOTA, Leuchttuerme und WWBOTA. Bei Layern mit eigenem Laender-Filter (Relais, TOTA) ueberschreibt der Layer-Filter den globalen Filter: Sie koennen global «nur Schweiz» fuer SOTA/POTA einstellen und im Relais-Filter trotzdem Deutschland auswaehlen.",
         steps: [
           { icon: "layers", text: "Global: Laender-Filter im Ebenen-Menue auf Schweiz setzen" },
+          { icon: "settings", text: "Relais-Eintrag: Zahnrad-Icon antippen — Länderauswahl klappt auf" },
           { icon: "radioTower", text: "Relais-Filter: Deutschland auswaehlen" },
           { icon: "check", text: "Deutsche Relais werden angezeigt, SOTA/POTA nur Schweizer Gipfel" },
           { icon: "globe", text: "Bei «Alle» im Layer-Filter gilt der globale Filter normal" }

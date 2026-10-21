@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { AlertTriangle, Clock, Database, MapPin, X, Check, Layers } from "lucide-react";
 
 // Geschätzte Datenmengen pro Layer-Typ beim weltweiten Laden.
+// repeater: 20'800 Relais (Entity-Bestand, id-basierte Paginierung — alle Länder).
+// Das Layer-Menü zeigt für Relais zusätzlich die tatsächlich geladene Anzahl.
 // Wird verwendet, um den User vor dem Laden vieler Daten zu warnen
 // und um im Layer-Menü die Punkte- und MB-Zahl anzuzeigen.
 export const LAYER_ESTIMATES = {
   sota:         { points: 180000, mb: 35,   seconds: 45, label: "SOTA-Summits" },
   pota:         { points: 89000,  mb: 18,   seconds: 30, label: "POTA-Parks" },
-  repeater:     { points: 10000,  mb: 2,    seconds: 15, label: "Amateurfunk-Relais" },
+  repeater:     { points: 20800,  mb: 4,    seconds: 20, label: "Amateurfunk-Relais" },
   aprs:         { points: 500,    mb: 0.1,  seconds: 3,  label: "APRS-Nodes (viewport-basiert)" },
   brandmeister: { points: 500,    mb: 0.1,  seconds: 3,  label: "BrandMeister-Nodes (viewport-basiert)" },
   castle:       { points: 30000,  mb: 6,    seconds: 12, label: "Burgen & Schlösser" },
