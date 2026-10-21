@@ -14,9 +14,6 @@ import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 import MapLifecycleGuard from "@/components/map/MapLifecycleGuard";
 import MapHeader from "@/components/map/MapHeader";
 import LayerControl from "@/components/map/LayerControl";
-import MapControls from "@/components/map/MapControls";
-import MapPositionControls from "@/components/map/MapPositionControls";
-import DraggableTerrainToggle from "@/components/map/DraggableTerrainToggle";
 import LeftControlPanel from "@/components/map/LeftControlPanel";
 import MapLegend from "@/components/map/MapLegend";
 import MapMarkers from "@/components/map/MapMarkers";
@@ -44,7 +41,6 @@ import DonationPopup from "@/components/DonationPopup";
 import MapCacheModal from "@/components/MapCacheModal";
 import LogEntryForm from "@/components/map/LogEntryForm";
 import DraggableQsoButton from "@/components/hunting/DraggableQsoButton";
-import DraggableMapButton, { resetDraggableMapButton } from "@/components/map/DraggableMapButton";
 import ChangeRequestDialog from "@/components/map/ChangeRequestDialog";
 import RepeaterLinkSuggestDialog from "@/components/map/RepeaterLinkSuggestDialog";
 import RepeaterCorrectionDialog from "@/components/map/RepeaterCorrectionDialog";
@@ -565,6 +561,9 @@ export default function Home() {
 
   // Left control panel state — which filter popup is opened from the panel
   const [openFilter, setOpenFilter] = useState(null);
+
+  // Legend visibility — controlled from the left control panel (kein freischwebender Button)
+  const [legendVisible, setLegendVisible] = useState(false);
 
   // Esc closes filter popup
   useEffect(() => {
@@ -1958,19 +1957,10 @@ export default function Home() {
         onToggleActivityZones={() => setActivityZonesEnabled(prev => !prev)}
         coverageRadiusKm={coverageRadiusKm}
         onCoverageRadiusChange={setCoverageRadiusKm}
+        hideTrigger={true}
       />
 
-      {/* Map Controls (zoom, scale) */}
-      <MapControls
-        lockedScale={lockedScale}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onScaleUp={handleScaleUp}
-        onScaleDown={handleScaleDown}
-        baseLayer={baseLayer}
-      />
-
-      {/* Left Control Panel — alle linken Buttons in aufklappbarem Bereich */}
+      {/* Left Control Panel — ALLE Karten-Buttons (Navigation/GPS, Zoom, Layer/Filter, Aktionen) */}
       <LeftControlPanel
         onCenterPosition={handleCenterOnPosition}
         onGetGps={handleGetGps}
@@ -1980,6 +1970,17 @@ export default function Home() {
         onSetPositionViaMap={() => setMapClickForPosition(true)}
         setPositionActive={mapClickForPosition}
         gpsTrackingActive={gpsTrackingActive}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        showScale={showScaleControl}
+        onScaleUp={handleScaleUp}
+        onScaleDown={handleScaleDown}
+        scaleLabel={lockedScale ? `1:${lockedScale / 1000}k` : "Auto"}
+        onOpenLayers={() => { setOpenFilter(null); setLayerMenuOpen(true); }}
+        layersOpen={layerMenuOpen}
+        legendVisible={legendVisible}
+        onToggleLegend={() => setLegendVisible(v => !v)}
+        showLegend={features.tools.legende !== false}
         dragMode={dragMode}
         onToggleDragMode={() => setDragMode(!dragMode)}
         terrain3DEnabled={terrain3DEnabled}
@@ -1989,7 +1990,7 @@ export default function Home() {
         onOpenQso={() => setShowLogForm(true)}
         filterTriggers={filterTriggers}
         openFilter={openFilter}
-        onOpenFilter={setOpenFilter}
+        onOpenFilter={(t) => { if (t) setLayerMenuOpen(false); setOpenFilter(t); }}
         externalCloseTrigger={panelCloseTrigger}
       />
 
@@ -2261,8 +2262,8 @@ export default function Home() {
         return null;
       })}
 
-      {/* Legend — only if enabled */}
-      {features.tools.legende !== false && (
+      {/* Legend — nur wenn über das linke Panel eingeblendet (kein freischwebender Button) */}
+      {features.tools.legende !== false && legendVisible && (
         <MapLegend
           activeLayers={activeLayers}
           markerCount={allMarkers.length}

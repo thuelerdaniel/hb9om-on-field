@@ -1,20 +1,20 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ChevronRight, ChevronLeft, LocateFixed, Crosshair, CloudOff, Cloud,
-  Download, MapPin, Move, Radio, Mountain, Plus, Filter,
+  Download, MapPin, Move, Radio, Mountain, Plus, Minus, Filter,
   Wifi, Satellite, Antenna, Droplets, Trees, Castle, Building2, Ship,
+  Layers, List, ChevronsUp, ChevronsDown,
   Zap, Radio as RadioIcon,
 } from "lucide-react";
-import { safeGetItem, safeSetItem } from "@/lib/safeStorage";
 import { useAppFeatures } from "@/lib/appFeatures";
+import { useUISettings } from "@/lib/UISettingsContext";
 
 // Collapsible panel at the left edge of the map.
-// Contains ALL left-side control buttons (GPS, Offline, 3D, Coverage, QSO, Filters).
+// Contains ALL left-side map controls, grouped:
+//   Navigation/GPS · Zoom · Layer/Filter · Kontextuelle Aktionen
 // Default collapsed with a toggle handle. Tap on map closes (via parent callback).
-// State persisted in localStorage (hb9om_left_panel_open).
+// State persisted per user in UserHuntingSettings.ui_settings (left_panel_open).
 // Min 44px touch targets, scrollable, dark/light mode, semi-transparent background.
-
-const STORAGE_KEY = "hb9om_left_panel_open";
 
 // Filter trigger config — icon + color per layer type
 const FILTER_CONFIG = {
@@ -32,12 +32,13 @@ const FILTER_CONFIG = {
   iota: { icon: MapPin, color: "#3498db", label: "IOTA" },
 };
 
-function PanelButton({ onClick, active, activeClass, title, children, disabled, loading }) {
+function PanelButton({ onClick, active, activeClass, title, children, disabled, loading, dataLayerTrigger }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled || loading}
       title={title}
+      data-layer-trigger={dataLayerTrigger ? "true" : undefined}
       className={`w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg shadow-sm border transition-colors ${
         active
           ? (activeClass || "bg-blue-500 border-blue-600 text-white")
@@ -49,8 +50,12 @@ function PanelButton({ onClick, active, activeClass, title, children, disabled, 
   );
 }
 
+function Divider() {
+  return <div className="w-8 h-px bg-gray-200 dark:bg-gray-600 my-0.5" />;
+}
+
 export default function LeftControlPanel({
-  // Position controls
+  // Navigation / GPS
   onCenterPosition,
   onGetGps,
   isOffline,
@@ -59,7 +64,21 @@ export default function LeftControlPanel({
   onSetPositionViaMap,
   setPositionActive,
   gpsTrackingActive,
-  // Tools
+  // Zoom
+  onZoomIn,
+  onZoomOut,
+  // Massstab (nur SwissTopo)
+  showScale,
+  onScaleUp,
+  onScaleDown,
+  scaleLabel,
+  // Layer / Filter
+  onOpenLayers,
+  layersOpen,
+  legendVisible,
+  onToggleLegend,
+  showLegend = true,
+  // Tools (kontextuelle Aktionen)
   dragMode,
   onToggleDragMode,
   terrain3DEnabled,
@@ -74,25 +93,25 @@ export default function LeftControlPanel({
   // External close (called when map is clicked)
   externalCloseTrigger,
 }) {
-  const [isOpen, setIsOpen] = useState(() => safeGetItem(STORAGE_KEY) === "true");
+  const { ui, updateUI } = useUISettings();
   const [gpsLoading, setGpsLoading] = useState(false);
   const { features } = useAppFeatures();
 
-  // Persist open/closed state
-  useEffect(() => {
-    safeSetItem(STORAGE_KEY, String(isOpen));
-  }, [isOpen]);
+  // Panel open/closed — default collapsed, persisted per user
+  const isOpen = ui.left_panel_open === true;
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
 
   // Close panel when map is clicked (external trigger)
   useEffect(() => {
-    if (externalCloseTrigger > 0) {
-      setIsOpen(false);
+    if (externalCloseTrigger > 0 && isOpenRef.current) {
+      updateUI({ left_panel_open: false });
     }
-  }, [externalCloseTrigger]);
+  }, [externalCloseTrigger, updateUI]);
 
   const togglePanel = useCallback(() => {
-    setIsOpen(prev => !prev);
-  }, []);
+    updateUI({ left_panel_open: !isOpenRef.current });
+  }, [updateUI]);
 
   const handleGpsClick = useCallback(() => {
     setGpsLoading(true);
@@ -120,6 +139,12 @@ export default function LeftControlPanel({
 
   // Check if any dynamic buttons are visible (for badge on handle)
   const hasDynamicButtons = activeFilterTriggers.length > 0;
+
+  // Group visibility
+  const hasNavGroup = showOffline || showGps || showSetPosition || showCenter || showDownload;
+  const hasScaleGroup = !!showScale && !!(onScaleUp && onScaleDown);
+  const hasLayerFilterGroup = !!onOpenLayers || activeFilterTriggers.length > 0 || (showLegend && !!onToggleLegend);
+  const hasContextGroup = showDragMode || showCoverage || terrain3DVisible || showQso;
 
   return (
     <>
@@ -151,7 +176,7 @@ export default function LeftControlPanel({
         <div className="h-full w-14 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-lg border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-2 gap-1.5 overflow-y-auto overscroll-contain"
           style={{ scrollbarWidth: "thin" }}
         >
-          {/* Position Controls Section */}
+          {/* ── Gruppe: Navigation / GPS ── */}
           {showOffline && (
             <PanelButton
               onClick={onToggleOffline}
@@ -204,12 +229,70 @@ export default function LeftControlPanel({
             </PanelButton>
           )}
 
-          {/* Divider */}
-          {(showOffline || showGps || showSetPosition || showCenter || showDownload) && (
-            <div className="w-8 h-px bg-gray-200 dark:bg-gray-600 my-0.5" />
+          {/* ── Gruppe: Zoom ── */}
+          {hasNavGroup && <Divider />}
+
+          <PanelButton onClick={onZoomIn} title="Vergrössern (Zoom +)">
+            <Plus className="w-5 h-5" />
+          </PanelButton>
+          <PanelButton onClick={onZoomOut} title="Verkleinern (Zoom −)">
+            <Minus className="w-5 h-5" />
+          </PanelButton>
+
+          {hasScaleGroup && (
+            <>
+              <PanelButton onClick={onScaleUp} title={`Massstab vergrössern — mehr Details${scaleLabel ? ` (aktuell ${scaleLabel})` : ""}`}>
+                <ChevronsUp className="w-5 h-5" />
+              </PanelButton>
+              <PanelButton onClick={onScaleDown} title={`Massstab verkleinern — weniger Details${scaleLabel ? ` (aktuell ${scaleLabel})` : ""}`}>
+                <ChevronsDown className="w-5 h-5" />
+              </PanelButton>
+            </>
           )}
 
-          {/* Tools Section */}
+          {/* ── Gruppe: Layer / Filter ── */}
+          <Divider />
+
+          {onOpenLayers && (
+            <PanelButton
+              onClick={onOpenLayers}
+              active={layersOpen}
+              dataLayerTrigger
+              title={layersOpen ? "Ebenen-Menü schliessen" : "Ebenen-Menü öffnen"}
+            >
+              <Layers className="w-5 h-5" />
+            </PanelButton>
+          )}
+
+          {activeFilterTriggers.map(ft => {
+            const Icon = ft.config.icon;
+            const isActive = openFilter === ft.type;
+            return (
+              <PanelButton
+                key={ft.type}
+                onClick={() => onOpenFilter(isActive ? null : ft.type)}
+                active={isActive}
+                activeClass="bg-white dark:bg-gray-700 border-2"
+                title={`${ft.config.label}-Filter ${isActive ? 'schliessen' : 'öffnen'}`}
+              >
+                <Icon className="w-5 h-5" style={{ color: ft.config.color }} />
+              </PanelButton>
+            );
+          })}
+
+          {showLegend && onToggleLegend && (
+            <PanelButton
+              onClick={onToggleLegend}
+              active={legendVisible}
+              title={legendVisible ? "Legende ausblenden" : "Legende einblenden"}
+            >
+              <List className="w-5 h-5" />
+            </PanelButton>
+          )}
+
+          {/* ── Gruppe: Kontextuelle Aktionen ── */}
+          {hasLayerFilterGroup && hasContextGroup && <Divider />}
+
           {showDragMode && (
             <PanelButton
               onClick={onToggleDragMode}
@@ -240,42 +323,18 @@ export default function LeftControlPanel({
             </PanelButton>
           )}
 
-          {/* Divider before filters */}
-          {(showDragMode || showCoverage || terrain3DVisible) && activeFilterTriggers.length > 0 && (
-            <div className="w-8 h-px bg-gray-200 dark:bg-gray-600 my-0.5" />
-          )}
-
-          {/* Filter Triggers Section */}
-          {activeFilterTriggers.map(ft => {
-            const Icon = ft.config.icon;
-            const isActive = openFilter === ft.type;
-            return (
-              <PanelButton
-                key={ft.type}
-                onClick={() => onOpenFilter(isActive ? null : ft.type)}
-                active={isActive}
-                activeClass="bg-white dark:bg-gray-700 border-2"
-                title={`${ft.config.label}-Filter ${isActive ? 'schliessen' : 'öffnen'}`}
-              >
-                <Icon className="w-5 h-5" style={{ color: ft.config.color }} />
-              </PanelButton>
-            );
-          })}
-
-          {/* Divider before QSO */}
-          {activeFilterTriggers.length > 0 && showQso && (
-            <div className="w-8 h-px bg-gray-200 dark:bg-gray-600 my-0.5" />
-          )}
-
           {/* QSO Button — prominent green */}
           {showQso && (
-            <button
-              onClick={onOpenQso}
-              title="QSO loggen"
-              className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg shadow-sm border-2 border-[#8cff00] bg-[#8cff00] text-black hover:bg-[#7df000] transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
+            <>
+              <Divider />
+              <button
+                onClick={onOpenQso}
+                title="QSO loggen"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg shadow-sm border-2 border-[#8cff00] bg-[#8cff00] text-black hover:bg-[#7df000] transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </>
           )}
         </div>
       </div>

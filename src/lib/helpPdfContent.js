@@ -71,14 +71,16 @@ export const UI_ICONS = [
   { icon: "move", color: [11, 30, 51], name: "Marker verschieben", desc: "Drag & Drop-Modus: Marker an korrekte Position ziehen." },
   { icon: "wifi", color: [217, 119, 6], name: "Offline-Modus", desc: "Schaltet den Offline-Modus ein/aus. Gelb = aktiv." },
   { icon: "download", color: [11, 30, 51], name: "Karten herunterladen", desc: "Kartenausschnitte für die Offline-Nutzung speichern." },
-  { icon: "layers", color: [11, 30, 51], name: "Ebenen-Menü", desc: "Layer ein-/ausschalten, Hintergrundkarte wählen." },
-  { icon: "radio", color: [17, 24, 39], name: "Neues QSO", desc: "Öffnet das QSO-Logbuch-Formular (schwarzer Button unten rechts)." },
+  { icon: "layers", color: [11, 30, 51], name: "Ebenen-Menü", desc: "Layer ein-/ausschalten, Hintergrundkarte wählen – Button im linken Bedien-Panel." },
+  { icon: "radio", color: [17, 24, 39], name: "Neues QSO", desc: "Öffnet das QSO-Logbuch-Formular (grüner + Button im linken Bedien-Panel)." },
   { icon: "barChart3", color: [5, 150, 105], name: "Statistik", desc: "Wechselt zur Statistik-Ansicht im Logbuch." },
   { icon: "clipboardList", color: [59, 130, 246], name: "Meine Anträge", desc: "Zeigt eingereichte Positions-Korrekturen und deren Status." },
   { icon: "search", color: [100, 116, 139], name: "Suchfeld", desc: "Suche nach Referenz-Code, Name oder Ort (oben Mitte)." },
   { icon: "mountain", color: [249, 115, 22], name: "3D-Gelände-Toggle", desc: "Schaltet die Hauptkarte in 3D-Modus (Terrain + 45° Neigung). Orange = aktiv." },
   { icon: "helpCircle", color: [59, 130, 246], name: "Hilfe", desc: "Öffnet diese Hilfe-Anleitung." },
-  { icon: "plus", color: [100, 116, 139], name: "Zoom rein/raus", desc: "Karte vergrössern/verkleinern (rechts oben)." },
+  { icon: "list", color: [11, 30, 51], name: "Legende", desc: "Blendet die Karten-Legende ein/aus – Button im linken Bedien-Panel." },
+  { icon: "sliders", color: [11, 30, 51], name: "Weitere Optionen", desc: "Eingeklappte Sektion in jedem Filter-Popup – tippen zum Auf-/Zuklappen." },
+  { icon: "plus", color: [100, 116, 139], name: "Zoom rein/raus", desc: "Karte vergrössern/verkleinern – im linken Bedien-Panel (Gruppe «Zoom»)." },
   { icon: "bookOpen", color: [100, 116, 139], name: "Logbuch (Nav)", desc: "Navigation unten: Wechsel zum QSO-Logbuch." },
   { icon: "settings", color: [100, 116, 139], name: "Einstell. (Nav)", desc: "Navigation unten: Wechsel zu den Einstellungen." },
   { icon: "logOut", color: [100, 116, 139], name: "Abmelden (Nav)", desc: "Navigation unten: Von der App abmelden." }
@@ -98,11 +100,36 @@ export const SECTIONS = [
         screenLayout: "mapOverview",
         layoutLabels: [
           { num: 1, label: "Suchfeld", desc: "Oben Mitte – Suche nach Referenz-Code, Name oder Ort" },
-          { num: 2, label: "Werkzeug-Leiste links", desc: "GPS, Pin, Move, Wifi, Download, Layers – vertikal angeordnet" },
-          { num: 3, label: "Kartenbereich", desc: "Zeigt Referenz-Marker in verschiedenen Farben und Formen" },
-          { num: 4, label: "Neues QSO", desc: "Schwarzer Button unten rechts – öffnet das QSO-Formular" },
+          { num: 2, label: "Bedien-Panel links", desc: "Zugeklappt (schmaler Griff). Enthält ALLE Karten-Buttons: Navigation/GPS, Zoom, Layer/Filter und Aktionen" },
+          { num: 3, label: "Kartenbereich", desc: "Zeigt Referenz-Marker in Farben und Formen – frei von schwebenden Buttons" },
+          { num: 4, label: "Neues QSO", desc: "Grüner + Button im Bedien-Panel – öffnet das QSO-Formular" },
           { num: 5, label: "Navigation", desc: "Ganz unten: Karte, Logbuch, Einstellungen, Abmelden" }
         ]
+      },
+      {
+        title: "Bedien-Panel: alle Karten-Buttons an einem Ort",
+        body: "Alle Bedienelemente der Karte liegen im linken, aufklappbaren Panel – es gibt keine frei schwebenden Buttons mehr auf der Karte. Das Panel ist standardmässig zugeklappt; ein schmaler Griff am linken Rand klappt es auf und zu. Ein Tipp auf die Karte schliesst es wieder. Das Panel ist in Gruppen geordnet: Navigation/GPS, Zoom, Layer/Filter und kontextuelle Aktionen. Der Zustand (auf-/zugeklappt) wird pro Benutzer gespeichert.",
+        steps: [
+          { icon: "chevronRight", text: "Griff am linken Rand antippen – Panel klappt auf" },
+          { icon: "locateFixed", text: "Gruppe Navigation/GPS: Offline, GPS, Position setzen, Zentrieren, Download" },
+          { icon: "plus", text: "Gruppe Zoom: + und − vergrössern/verkleinern die Karte" },
+          { icon: "ruler", text: "Gruppe Zoom: bei SwissTopo zusätzlich Massstab vergrössern/verkleinern" },
+          { icon: "layers", text: "Gruppe Layer/Filter: Ebenen-Menü, Layer-Filter, Legende" },
+          { icon: "move", text: "Gruppe Aktionen: Marker verschieben, Abdeckung, 3D-Gelände, QSO loggen" },
+          { icon: "x", text: "Tipp auf die Karte schliesst das Panel wieder" }
+        ],
+        tip: "Tipp: Zustand des Panels und der eingeklappten Filter-Abschnitte werden pro Benutzer gespeichert und beim nächsten Öffnen wiederhergestellt."
+      },
+      {
+        title: "Filter-Popups: nur die wichtigsten Optionen",
+        body: "Beim Öffnen eines Layer-Filters (SOTA, POTA, WWFF, LLOTA, IOTA, Relais, TOTA, APRS, BrandMeister, Leuchttürme, WCA, WWBOTA) sind nur die wichtigsten Optionen sichtbar – zum Beispiel Aktivitäts-Typen, Bänder oder die Suche. Alle weiteren Informationen und erweiterten Optionen (Länder-Filter, Grenzen, Radius, Verlinkungen, Symbol-Legenden, Info-Texte) liegen in der Sektion «Weitere Optionen», die standardmässig eingeklappt ist. Tippen Sie auf «Weitere Optionen», um sie auf- und wieder zuzuklappen. Der Zustand pro Filter wird pro Benutzer gespeichert.",
+        steps: [
+          { icon: "filter", text: "Layer-Filter über das linke Bedien-Panel öffnen" },
+          { icon: "check", text: "Nur die Kernoptionen sind sichtbar (Typen, Bänder, Suche)" },
+          { icon: "chevronDown", text: "«Weitere Optionen» antippen – Länder, Grenzen und Info werden sichtbar" },
+          { icon: "chevronUp", text: "Erneut antippen – Sektion klappt wieder zu" }
+        ],
+        tip: "Tipp: Die persönliche Auswahl (welche Sektion offen ist) bleibt beim nächsten Öffnen erhalten."
       },
       {
         title: "Karte navigieren",
@@ -127,9 +154,9 @@ export const SECTIONS = [
       },
       {
         title: "Layer ein-/ausschalten",
-        body: "Über das Ebenen-Menü (rechts oben) können Sie Referenz-Typen ein- und ausschalten und die Hintergrundkarte wechseln. Das Menü öffnet sich immer ganz oben und liegt über allen anderen Elementen.",
+        body: "Über das Ebenen-Menü im linken Bedien-Panel können Sie Referenz-Typen ein- und ausschalten und die Hintergrundkarte wechseln. Das Menü öffnet sich rechts neben dem Panel und liegt über allen anderen Elementen. Die weiterführenden Abschnitte (Kartenmassstab, Transparenz, Kontinent- und Länder-Filter) liegen in der eingeklappten Sektion «Weitere Optionen».",
         steps: [
-          { icon: "layers", text: "Auf das Layer-Icon (rechts oben) tippen" },
+          { icon: "layers", text: "Im linken Bedien-Panel auf das Ebenen-Icon tippen" },
           { icon: "eye", text: "Gewünschte Referenz-Typen ein-/ausschalten (SOTA, POTA, WWFF, etc.)" },
           { icon: "mapPin", text: "Hintergrundkarte wählen (Strassenkarte, Satellit, SwissTopo)" },
           { icon: "check", text: "Menü schliessen – Änderungen sind sofort sichtbar" }
@@ -167,9 +194,9 @@ export const SECTIONS = [
       },
       {
         title: "3D-Gelände in der Hauptkarte",
-        body: "Mit dem 3D-Toggle (Berg-Icon, oben rechts) schalten Sie die Hauptkarte in den 3D-Modus: Gelände-Relief mit 45°-Neigung auf der MapLibre-GL-Basiskarte. Alle Layer, Marker, Popups und Filter bleiben voll bedienbar. Der Modus wird in localStorage gespeichert und beim nächsten Start wiederhergestellt.",
+        body: "Mit dem 3D-Toggle (Berg-Icon im linken Bedien-Panel) schalten Sie die Hauptkarte in den 3D-Modus: Gelände-Relief mit 45°-Neigung auf der MapLibre-GL-Basiskarte. Alle Layer, Marker, Popups und Filter bleiben voll bedienbar. Der Modus wird in localStorage gespeichert und beim nächsten Start wiederhergestellt.",
         steps: [
-          { icon: "mountain", text: "Berg-Icon oben rechts antippen — Karte kippt in 3D" },
+          { icon: "mountain", text: "Berg-Icon im linken Bedien-Panel antippen — Karte kippt in 3D" },
           { icon: "move", text: "Mit gedrückter Maus/Finger die Karte neigen und drehen" },
           { icon: "layers", text: "Layer, Marker und Filter funktionieren wie in 2D" },
           { icon: "mountain", text: "Erneut tippen — zurück in 2D (ohne Reload)" }
@@ -190,10 +217,10 @@ export const SECTIONS = [
       },
       {
         title: "Kartenmassstab wählen",
-        body: "Im Ebenen-Menü unter «Kartenmassstab» können Sie einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000. Bei SwissTopo-Karte wird automatisch die entsprechende offizielle Landeskarte verwendet.",
+        body: "Bei SwissTopo-Karte erscheinen im linken Bedien-Panel zwei zusätzliche Buttons (Doppelpfeil aufwärts/abwärts) zum Vergrössern und Verkleinern des Massstabs. Im Ebenen-Menü unter «Weitere Optionen» → «Kartenmassstab» können Sie zusätzlich einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000.",
         steps: [
-          { icon: "layers", text: "Ebenen-Menü öffnen (Layer-Icon)" },
-          { icon: "chevronDown", text: "Bereich «Kartenmassstab» aufklappen" },
+          { icon: "layers", text: "Ebenen-Menü im linken Bedien-Panel öffnen" },
+          { icon: "chevronDown", text: "Sektion «Weitere Optionen» → «Kartenmassstab» aufklappen" },
           { icon: "ruler", text: "Massstab wählen: 1:10'000 (LK10) bis 1:100'000 (PK100)" },
           { icon: "ruler", text: "Bei «Dynamisch (Auto)» passt sich die Karte dem Zoom an" }
         ],
@@ -203,7 +230,7 @@ export const SECTIONS = [
         title: "GPS-Position anzeigen",
         body: "Klicken Sie auf den GPS-Button, um Ihre aktuelle Position auf der Karte anzuzeigen. Die Karte zoomt automatisch so heraus, dass der Radiuskreis vollständig sichtbar ist. Die Pin-Nadel ist rot bei GPS-Position und blau bei fixierter Position.",
         steps: [
-          { icon: "locateFixed", text: "GPS-Button (Standort-Icon links) antippen" },
+          { icon: "locateFixed", text: "GPS-Button (Standort-Icon im linken Bedien-Panel) antippen" },
           { icon: "mapPin", text: "Karte zoomt automatisch heraus, Radiuskreis wird sichtbar" },
           { icon: "mapPin", text: "Pin-Nadel anklicken für Koordinaten-Popup" },
           { icon: "globe", text: "Im Popup: Maidenhead-Locator, WGS84 und LV95 Koordinaten" },
@@ -227,7 +254,7 @@ export const SECTIONS = [
         title: "Position fixieren (ohne GPS)",
         body: "Wenn Sie kein GPS haben oder die Position frei wählen möchten, können Sie die Position auf der Karte festlegen. Die fixierte Position (blau) ersetzt die GPS-Position für die Referenzsuche im QSO-Formular.",
         steps: [
-          { icon: "mapPin", text: "Pin-Button (links) antippen" },
+          { icon: "mapPin", text: "Pin-Button im linken Bedien-Panel antippen" },
           { icon: "mapPin", text: "Auf die gewünschte Stelle der Karte tippen" },
           { icon: "locateFixed", text: "Position erscheint blau, Karte zoomt heraus" },
           { icon: "globe", text: "Popup mit Koordinaten und Radius-Steuerung" },
@@ -253,7 +280,7 @@ export const SECTIONS = [
         title: "Marker verschieben / korrigieren",
         body: "Alle Benutzer können den Drag & Drop-Modus aktivieren, um Marker an die korrekte Position zu verschieben. Administratoren: Die neuen Koordinaten werden sofort gespeichert. Normale Benutzer: Die Verschiebung öffnet einen Dialog für einen Änderungsantrag.",
         steps: [
-          { icon: "move", text: "Move-Icon (links neben der Karte) aktivieren" },
+          { icon: "move", text: "Move-Icon im linken Bedien-Panel aktivieren" },
           { icon: "move", text: "Marker an die korrekte Position ziehen" },
           { icon: "save", text: "Als Admin: Position wird sofort gespeichert" },
           { icon: "pencil", text: "Als Benutzer: Dialog mit Kommentarfeld öffnet sich" },
@@ -265,7 +292,7 @@ export const SECTIONS = [
         title: "Offline-Modus aktivieren",
         body: "Klicken Sie auf das Wifi-Icon, um den Offline-Modus manuell zu aktivieren oder zu deaktivieren. Im Offline-Modus werden Kartenkacheln aus dem Cache geladen und alle Referenzpunkte aus dem lokalen Speicher angezeigt. QSOs können weiterhin erfasst werden. Der Offline-Modus kann auch in den Einstellungen unter «Offline-Modus & lokaler Speicher» ein- und ausgeschaltet werden.",
         steps: [
-          { icon: "wifi", text: "Wifi-Icon (links neben der Karte) antippen" },
+          { icon: "wifi", text: "Wifi-Icon im linken Bedien-Panel antippen" },
           { icon: "wifiOff", text: "Symbol wird gelb – Offline-Modus aktiv" },
           { icon: "database", text: "Referenzdaten aus lokalem Speicher werden angezeigt" },
           { icon: "radio", text: "QSOs können offline erfasst werden" },
@@ -292,7 +319,7 @@ export const SECTIONS = [
         title: "Offline-Karten herunterladen",
         body: "Mit dem Download-Icon können Sie Kartenausschnitte für die Offline-Nutzung herunterladen. Wählen Sie die Zoom-Stufen und laden Sie die Kacheln herunter. In den Einstellungen unter «Offline-Modus & lokaler Speicher» im Bereich «Offline-Karten» sehen Sie alle gespeicherten Gebiete.",
         steps: [
-          { icon: "download", text: "Download-Icon (links) antippen" },
+          { icon: "download", text: "Download-Icon im linken Bedien-Panel antippen" },
           { icon: "mapPin", text: "Gebiet auf der Karte auswählen" },
           { icon: "layers", text: "Zoom-Stufen auswählen" },
           { icon: "download", text: "Download starten – Fortschritt wird angezeigt" },
@@ -1016,9 +1043,9 @@ export const SECTIONS = [
     items: [
       {
         title: "Relais-Overlay aktivieren",
-        body: "Oeffnen Sie das Ebenen-Menue (Layer-Icon rechts oben) und aktivieren Sie die Ebene «Amateurfunk-Relais». Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart.",
+        body: "Oeffnen Sie das Ebenen-Menue (im linken Bedien-Panel) und aktivieren Sie die Ebene «Amateurfunk-Relais». Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart.",
         steps: [
-          { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
+          { icon: "layers", text: "Ebenen-Icon im linken Bedien-Panel antippen" },
           { icon: "radioTower", text: "«Amateurfunk-Relais» aktivieren" },
           { icon: "eye", text: "Relais erscheinen als farbige Kreise auf der Karte" }
         ]
@@ -1029,13 +1056,13 @@ export const SECTIONS = [
         steps: [
           { icon: "eye", text: "Farbe des Kreises pruefen" },
           { icon: "signal", text: "Rot = FM, Gruen = C4FM, Blau = DMR, Violett = D-STAR" },
-          { icon: "layers", text: "Legende unten links zeigt alle aktiven Farben" }
+          { icon: "layers", text: "Legende (Panel-Button) zeigt alle aktiven Farben" }
         ],
         tip: "Tipp: Ein Relais kann mehrere Modulationsarten unterstuetzen (z.B. FM + Fusion + EchoLink). Die Hauptfarbe zeigt die digitale Modulation."
       },
       {
         title: "Relais-Filter verwenden",
-        body: "Wenn das Relais-Overlay aktiv ist, erscheint oben links ein Relais-Filter-Button. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten. Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais weltweit – Europa (DE, FR, IT, GB, ES, PL, etc.), Asien (JP, IN, MY, TH, KR, PH, ID, CN), Afrika (ZA, MA, KE), Nordamerika (US, CA, MX), Suedamerika (BR, AR, CL, CO), Ozeanien (AU, NZ) und Karibik.",
+        body: "Wenn das Relais-Overlay aktiv ist, erscheint im linken Bedien-Panel ein Relais-Filter-Button. Tippen Sie darauf, um nach Land, Modulationsart zu filtern, Relais zu suchen und Verlinkungen ein-/auszuschalten. Der Laenderfilter zeigt alle verfuegbaren Laender mit Anzahl Relais weltweit – Europa (DE, FR, IT, GB, ES, PL, etc.), Asien (JP, IN, MY, TH, KR, PH, ID, CN), Afrika (ZA, MA, KE), Nordamerika (US, CA, MX), Suedamerika (BR, AR, CL, CO), Ozeanien (AU, NZ) und Karibik.",
         steps: [
           { icon: "radioTower", text: "Relais-Filter-Button (oben links) antippen" },
           { icon: "globe", text: "Land filtern (alle Laender oder einzelnes Land waehlen)" },
@@ -1221,9 +1248,9 @@ export const SECTIONS = [
         title: "APRS – Amateur Radio Positioning",
         body: "Die Ebene «APRS – Amateur Radio Positioning» zeigt APRS-Stationen weltweit auf der Karte: Digipeater, IGates, Hotspots, AllStar- und EchoLink-Nodes sowie Wetterstationen. Die Daten stammen von APRS.fi. Die APRS-Datenbank waechst inkrementell: Bei jeder Aktualisierung werden nur neue Rufzeichen abgefragt und vorhandene Stationen werden aktualisiert. So wird die Datenbank mit jeder Abfrage groesser und spaeter muessen nur noch Aenderungen abgefragt werden. Jeder Node-Typ wird mit dem entsprechenden APRS-Standard-Symbol dargestellt – farbig nach Typ. Ueber den APRS-Filter (Wifi-Icon oben links) koennen einzelne Node-Typen ein- und ausgeschaltet werden.",
         steps: [
-          { icon: "layers", text: "Layer-Icon (rechts oben) antippen" },
+          { icon: "layers", text: "Ebenen-Icon im linken Bedien-Panel antippen" },
           { icon: "wifi", text: "«APRS – Amateur Radio Positioning» aktivieren" },
-          { icon: "wifi", text: "APRS-Filter (Wifi-Icon oben links) fuer Node-Typ-Filter" },
+          { icon: "wifi", text: "APRS-Filter (Wifi-Icon im linken Bedien-Panel) fuer Node-Typ-Filter" },
           { icon: "mapPin", text: "Symbole nach APRS-Standard: Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetter)" },
           { icon: "mapPin", text: "Popup antippen fuer Node-Details" }
         ],
@@ -1233,8 +1260,8 @@ export const SECTIONS = [
         title: "Kontinent-Filter",
         body: "Im Ebenen-Menue gibt es einen Kontinent-Filter, mit dem Sie Overlay-Ebenen nach Kontinent ein- und ausblenden koennen. Waehlen Sie «Ganze Welt» (Standard) oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.). Der Filter wirkt sich auf alle Referenz-Ebenen aus (SOTA, POTA, WWFF, etc.).",
         steps: [
-          { icon: "layers", text: "Ebenen-Menue oeffnen (Layer-Icon rechts oben)" },
-          { icon: "globe", text: "Bereich «Kontinent-Filter» aufklappen" },
+          { icon: "layers", text: "Ebenen-Menue im linken Bedien-Panel oeffnen" },
+          { icon: "globe", text: "Sektion «Weitere Optionen» → «Kontinent-Filter» aufklappen" },
           { icon: "globe", text: "«Ganze Welt» oder einzelne Kontinente waehlen" },
           { icon: "check", text: "Marker ausserhalb der Auswahl werden ausgeblendet" }
         ],
@@ -1492,7 +1519,7 @@ export const SETUP_CHECKLIST = [
       { text: "Offline-Karten für Einsatzgebiete herunterladen (Download-Icon auf Karte)", mandatory: false },
       { text: "Referenzdaten pro Layer herunterladen (Einstellungen → Offline-Modus → «Alle laden»)", mandatory: false },
       { text: "Relais- und APRS-Daten lokal speichern (Einstellungen → Offline-Modus)", mandatory: false },
-      { text: "Offline-Modus aktivieren und testen (Wifi-Icon auf Karte)", mandatory: false }
+      { text: "Offline-Modus aktivieren und testen (Wifi-Icon im linken Bedien-Panel)", mandatory: false }
     ]
   },
   {
