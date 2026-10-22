@@ -11,6 +11,13 @@ import { generateAprsCallsignSeed } from '../../shared/aprsCallsignSeed.ts';
 
 const APRS_API_BASE = 'https://api.aprs.fi/api/get';
 const DISCOVERY_BATCH = 200; // Reduced from 600 to avoid timeout
+// v0.961 (KRITISCH 2): Anzahl bestehender Stationen, die pro Lauf aufgefrischt werden.
+// Ohne diese Auffrischung wurden Bestandsdaten nie wieder angefasst (AprsStation stand seit
+// 14.10. still), weil nur nach NEUEN Kandidaten gesucht wurde.
+// 600 deckt den aktuellen Stationsbestand vollständig ab — jede Station wird bei jedem Lauf
+// aufgefrischt (last_heard, Position, Comment). Wächst der Bestand darüber hinaus, sorgt die
+// Sortierung "älteste zuerst" für eine faire Rotation.
+const REFRESH_BATCH = 600;
 const API_BATCH_SIZE = 20;  // aprs.fi API hard limit: 20 names per request
 const BATCH_DELAY_MS = 200;
 
@@ -96,33 +103,9 @@ async function queryAprsFiBatch(callsigns: string[], apiKey: string): Promise<an
   return [];
 }
 
-// Firehose fetch: queries aprs.fi for ALL recent APRS packets (what=apr).
-// This discovers stations that are NOT in the seed list — the seed list only
-// covers known Swiss/regional callsigns, but many digipeaters/I-gates worldwide
-// are missed. The firehose captures whatever is currently transmitting.
-// Filters for stationary symbols only (FIXED_SYMBOLS whitelist).
-async function queryAprsFiFirehose(apiKey: string): Promise<any[]> {
-  const url = `${APRS_API_BASE}?what=apr&format=json&apikey=${apiKey}`;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const resp = await fetch(url, {
-        headers: { 'User-Agent': 'HB9OM-OnField/1.0', Accept: 'application/json' },
-        signal: AbortSignal.timeout(60000),
-      });
-      if (!resp.ok) return [];
-      const data = await resp.json();
-      if (data.code === 'ratelimit') {
-        await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
-        continue;
-      }
-      if (data.result !== 'ok' || !data.entries) return [];
-      return data.entries;
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
+// v0.961: queryAprsFiFirehose (what=apr) wurde ENTFERNT — aprs.fi weist die Abfrage als
+// ungültig ab ("result":"fail","code":"invalid-query", geprüft 22.10.2026) und sie hat
+// nie Daten geliefert. Entdeckung läuft ausschliesslich über die Seed-Liste + Auffrischung.
 
 export default async function (req: Request): Promise<Response> {
   try {
@@ -180,10 +163,21 @@ export default async function (req: Request): Promise<Response> {
       if (s.callsign) existingMap.set(s.callsign.toUpperCase(), s);
     }
 
+    // v0.961 (KRITISCH 2): Zusätzlich zu den Entdeckungs-Kandidaten werden pro Lauf die am
+    // längsten nicht aufgefrischten BESTANDS-Stationen abgefragt (älteste zuerst). Damit wird
+    // jede Station innerhalb weniger Läufe wieder aktualisiert (last_heard, Position, Comment).
+    const refreshCallsigns = existingStations
+      .slice()
+      .sort((a, b) => String(a.updated_date || '').localeCompare(String(b.updated_date || '')))
+      .map(s => s.callsign)
+      .filter(Boolean)
+      .slice(0, REFRESH_BATCH);
+    const queryList = [...new Set([...refreshCallsigns, ...callsignsToQuery])];
+
     // 5. Query aprs.fi API in batches of 20
     const freshData = new Map<string, any>();
-    for (let i = 0; i < callsignsToQuery.length; i += API_BATCH_SIZE) {
-      const batch = callsignsToQuery.slice(i, i + API_BATCH_SIZE);
+    for (let i = 0; i < queryList.length; i += API_BATCH_SIZE) {
+      const batch = queryList.slice(i, i + API_BATCH_SIZE);
       const entries = await queryAprsFiBatch(batch, apiKey);
       for (const entry of entries) {
         if (!entry.lat || !entry.lng) continue;
@@ -216,7 +210,7 @@ export default async function (req: Request): Promise<Response> {
           is_swiss: entry.name.toUpperCase().startsWith('HB9') || entry.name.toUpperCase().startsWith('HB9'),
         });
       }
-      if (i + API_BATCH_SIZE < callsignsToQuery.length) {
+      if (i + API_BATCH_SIZE < queryList.length) {
         await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
       }
     }
@@ -243,99 +237,33 @@ export default async function (req: Request): Promise<Response> {
       }
     }
 
+    // v0.961: Schreibfehler werden gezählt und gemeldet. Vorher verschwanden sie in stillen
+    // catch-Blöcken — ein Lauf meldete "updated 0, created 0" ohne jeden Hinweis darauf,
+    // ob nichts gefunden wurde oder ob das Schreiben scheiterte.
     let updated = 0;
+    let created = 0;
+    let writeErrors = 0;
+    let writeErrorMsg = '';
     for (let i = 0; i < toUpdate.length; i += 500) {
       const batch = toUpdate.slice(i, i + 500);
       try {
         await base44.asServiceRole.entities.AprsStation.bulkUpdate(batch);
         updated += batch.length;
-      } catch {}
+      } catch (e: any) { writeErrors++; writeErrorMsg = String(e?.message || e).slice(0, 200); }
     }
 
-    let created = 0;
     for (let i = 0; i < toCreate.length; i += 500) {
       const batch = toCreate.slice(i, i + 500);
       try {
         await base44.asServiceRole.entities.AprsStation.bulkCreate(batch);
         created += batch.length;
-      } catch {}
+      } catch (e: any) { writeErrors++; writeErrorMsg = String(e?.message || e).slice(0, 200); }
     }
 
-    // 6b. Firehose fetch: query aprs.fi for ALL recent APRS packets.
-    // This discovers stations NOT in the seed list — digipeaters, I-gates, weather stations
-    // that are currently transmitting but weren't in our curated callsign list.
-    let firehoseCreated = 0;
-    let firehoseUpdated = 0;
-    let firehoseSkipped = 0;
-    try {
-      const firehoseEntries = await queryAprsFiFirehose(apiKey);
-      const firehoseData = new Map<string, any>();
-      for (const entry of firehoseEntries) {
-        if (!entry.name) continue;
-        if (!entry.lat || !entry.lng) continue;
-        if (parseFloat(entry.lat) === 0 && parseFloat(entry.lng) === 0) continue;
-        // Extract symbol: aprs.fi returns entry.symbol as 2-char code (e.g. "/#")
-        let symbol = entry.symbol || '';
-        if (symbol && symbol.length === 1) symbol = '/' + symbol;
-        if (!symbol) {
-          // Derive from entry type or comment
-          const c = (entry.comment || '').toLowerCase();
-          if (entry.type === 'w' || c.includes('weather')) symbol = '/_';
-          else if (c.includes('igate')) symbol = '/I';
-          else if (c.includes('digi')) symbol = '/#';
-          else if (entry.type === 'd') symbol = '/#';
-          else symbol = deriveSymbolFromCallsign(entry.name);
-          if (!symbol) { firehoseSkipped++; continue; } // Skip entries with no recognizable symbol
-        }
-        if (!FIXED_SYMBOLS.has(symbol)) { firehoseSkipped++; continue; } // Skip mobile/non-stationary
-        firehoseData.set(entry.name.toUpperCase(), {
-          callsign: entry.name,
-          lat: parseFloat(entry.lat),
-          lng: parseFloat(entry.lng),
-          symbol,
-          symbol_description: SYMBOL_DESCRIPTIONS[symbol] || 'Unbekannt',
-          station_type: classifyStation(symbol, entry.comment),
-          comment: (entry.comment || '').substring(0, 1000),
-          last_heard: entry.lasttime ? new Date(entry.lasttime * 1000).toISOString() : (entry.time ? new Date(entry.time * 1000).toISOString() : new Date().toISOString()),
-          source_callsign: entry.srccall && entry.srccall !== entry.name ? entry.srccall : '',
-          is_swiss: entry.name.toUpperCase().startsWith('HB9') || entry.name.toUpperCase().startsWith('HB0'),
-        });
-      }
-
-      // Upsert firehose data — update existing, create new
-      const fhToUpdate: any[] = [];
-      const fhToCreate: any[] = [];
-      for (const [cs, data] of firehoseData) {
-        if (existingMap.has(cs)) {
-          const existing = existingMap.get(cs);
-          if (existing.lat != null && existing.lng != null) {
-            const distKm = haversineKm(existing.lat, existing.lng, data.lat, data.lng);
-            if (distKm > 1) continue; // Skip — possibly mobile
-          }
-          // Only update if symbol is missing (don't overwrite good data)
-          if (existing.symbol) continue;
-          fhToUpdate.push({ id: existing.id, ...data });
-        } else {
-          fhToCreate.push(data);
-        }
-      }
-      for (let i = 0; i < fhToUpdate.length; i += 500) {
-        const batch = fhToUpdate.slice(i, i + 500);
-        try {
-          await base44.asServiceRole.entities.AprsStation.bulkUpdate(batch);
-          firehoseUpdated += batch.length;
-        } catch {}
-      }
-      for (let i = 0; i < fhToCreate.length; i += 500) {
-        const batch = fhToCreate.slice(i, i + 500);
-        try {
-          await base44.asServiceRole.entities.AprsStation.bulkCreate(batch);
-          firehoseCreated += batch.length;
-        } catch {}
-      }
-    } catch {}
-
-    const totalCount = updated + created + firehoseUpdated + firehoseCreated;
+    // 6b. Firehose ENTFERNT (v0.961, KRITISCH 2): Die Abfrage what=apr wird von aprs.fi als
+    // ungültig abgewiesen ("result":"fail","code":"invalid-query") und hat nie Daten geliefert —
+    // die Prüfung 22.10.2026 bestätigt das. Der Block kostete bis zu 60s pro Lauf.
+    const totalCount = updated + created;
 
     // 7. Persist new offset for next run
     try {
@@ -357,6 +285,8 @@ export default async function (req: Request): Promise<Response> {
           count: totalCount,
           updated,
           created,
+          refreshed: refreshCallsigns.length,
+          write_errors: writeErrors,
           status: 'success',
           seed_offset: newOffset,
           seed_list_size: seedList.length,
@@ -370,11 +300,11 @@ export default async function (req: Request): Promise<Response> {
       count: totalCount,
       updated,
       created,
-      firehose_updated: firehoseUpdated,
-      firehose_created: firehoseCreated,
-      firehose_skipped: firehoseSkipped,
+      refreshed_callsigns: refreshCallsigns.length,
       skipped_mobile: skippedMobile,
-      total_queried: callsignsToQuery.length,
+      total_queried: queryList.length,
+      write_errors: writeErrors,
+      write_error: writeErrorMsg || undefined,
       fresh_data_found: freshData.size,
       seed_list_size: seedList.length,
       seed_offset: newOffset,

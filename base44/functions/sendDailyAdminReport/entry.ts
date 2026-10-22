@@ -7,6 +7,16 @@ import { isInternalCall, getInternalSecret } from '../../shared/internalAuth.ts'
 //
 // Triggered by runDailySyncBatch after Monday batch completion, or manually by admins.
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// v0.961 (Punkt 5a): Quellen, bei denen 0 Einträge ein ERFOLGREICHER Lauf sind.
+// LLOTA-Spots: llota.app antwortet mit HTTP 200, es sind einfach keine Aktivierungen aktiv.
+const ZERO_IS_OK = new Set(['llota_spots']);
+
+// v0.961 (Punkt 5d): Monats-Cache-Quellen (Burgen über Overpass) — Daten ändern sich kaum,
+// der Cache wird nur alle 30 Tage neu geholt. Im Report mit Cache-Datum ausweisen.
+const MONTHLY_CACHE = new Set(['castle_overpass']);
+
 function todayUTC(): string {
   return new Date().toISOString().split('T')[0];
 }
@@ -75,12 +85,24 @@ export default async function(req: Request): Promise<Response> {
     // --- 1. Collect source results ---
     const allSchedules = await base44.asServiceRole.entities.DailyRefreshSchedule.list("display_order", 100);
 
+    // v0.961 (Punkt 5b): Wochentag + Plan-Prüfung. Quellen, die laut weekly_days heute gar
+    // nicht dran sind (z. B. Montags-Quellen an einem Donnerstag), sind kein Problem.
+    const todayDayName = DAY_NAMES[new Date().getUTCDay()];
+    const isPlannedToday = (s: any) => {
+      if (s.enabled === false) return false;
+      if (s.weekly_enabled === false) return true;
+      const days = Array.isArray(s.weekly_days) ? s.weekly_days : [];
+      return days.length === 0 || days.includes(todayDayName);
+    };
+    const formatDay = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('de-CH') : '—');
+
     // For weekly mode, don't block on incomplete sources — the scheduler only calls
     // this after all sources are done (or deadline reached).
     // For manual/daily mode, check if sources are still incomplete.
     if (mode === 'daily' && body.scheduled === true) {
       const incompleteSources = (allSchedules || []).filter(s => {
         if (!s.enabled) return false;
+        if (!isPlannedToday(s)) return false; // v0.961: heute nicht geplant → nicht "ausstehend"
         if (s.last_status === 'pending' || s.last_status === 'running') return true;
         if (!s.last_run_time || !isToday(s.last_run_time)) return true;
         return false;
@@ -95,10 +117,14 @@ export default async function(req: Request): Promise<Response> {
     }
 
     const todaySources = (allSchedules || []).filter(s => s.last_run_time && isToday(s.last_run_time));
-    const pendingSources = (allSchedules || []).filter(s => !s.last_run_time || !isToday(s.last_run_time));
+    // v0.961 (Punkt 5b+e): Nicht geplante und deaktivierte Quellen werden getrennt geführt —
+    // sie sind kein Problem und keine "übersprungene" Quelle im Sinne eines Fehlers.
+    const unplannedSources = (allSchedules || []).filter(s => !isPlannedToday(s));
+    const pendingSources = (allSchedules || []).filter(s => s.enabled !== false && isPlannedToday(s) && (!s.last_run_time || !isToday(s.last_run_time)));
 
     const successCount = todaySources.filter(s => (s.last_status === 'success' && s.last_count > 0) || s.last_status === 'skipped').length;
-    const warningCount = todaySources.filter(s => s.last_status === 'success' && (s.last_count == null || s.last_count === 0)).length;
+    // 0 Einträge zählt nur dann als Warnung, wenn 0 für diese Quelle nicht normal ist (5a)
+    const warningCount = todaySources.filter(s => s.last_status === 'success' && (s.last_count == null || s.last_count === 0) && !ZERO_IS_OK.has(s.source)).length;
     const failedCount = todaySources.filter(s => s.last_status === 'failed').length;
     const totalCount = todaySources.length;
     const overallStatus = failedCount > 0 ? (failedCount < totalCount ? 'partial' : 'failed') : (warningCount > 0 ? 'partial' : 'success');
@@ -187,25 +213,55 @@ export default async function(req: Request): Promise<Response> {
     const reportSubtitle = mode === 'weekly' ? `Wochen-Sync · ${today}` : `Täglicher Daten-Report · ${today}`;
 
     // Source results table
+    const renderedSources: any[] = [];
     const sourceRows = (allSchedules || []).map(s => {
       const rawStatus = s.last_status || 'pending';
       const ran = s.last_run_time && isToday(s.last_run_time);
       let displayStatus = rawStatus;
       let warningNote = '';
-      if (!ran) {
-        // v0.959-HF2: didn't run today — show the actual last status + date, not a stale FAILED.
-        const lastDate = s.last_run_time ? new Date(s.last_run_time).toISOString().slice(0, 10) : 'nie';
-        displayStatus = rawStatus === 'skipped' ? 'skipped' : (rawStatus === 'success' ? 'success' : rawStatus);
-        warningNote = `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">ℹ letzter Lauf ${lastDate} — ${s.last_error || rawStatus || 'nicht ausgeführt'}</div>`;
-      } else if (rawStatus === 'skipped') {
-        warningNote = '<div style="font-size:11px;color:#9ca3af;margin-top:2px;">⏭ Übersprungen (Daten aktuell)</div>';
-      } else if (rawStatus === 'success' && (s.last_count == null || s.last_count === 0)) {
+      // v0.961 (Punkt 5): Anzeige-Regeln überarbeitet (Details siehe ZERO_IS_OK/MONTHLY_CACHE)
+      if (s.enabled === false) {
+        displayStatus = 'skipped';
+        warningNote = '<div style="font-size:11px;color:#9ca3af;margin-top:2px;">⏸ deaktiviert — nicht im Sync-Plan</div>';
+      } else if (!isPlannedToday(s)) {
+        const plan = (Array.isArray(s.weekly_days) && s.weekly_days.length > 0) ? s.weekly_days.join(', ') : 'täglich';
+        displayStatus = 'skipped';
+        warningNote = `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">🗓 heute nicht geplant (läuft ${plan}) · nächster Lauf ${formatDay(s.next_run_utc)}</div>`;
+      } else if (MONTHLY_CACHE.has(s.source)) {
+        displayStatus = 'skipped';
+        const cacheTs = s.last_run_time ? new Date(s.last_run_time) : null;
+        const nextDue = cacheTs ? new Date(cacheTs.getTime() + 30 * 24 * 3600 * 1000).toLocaleDateString('de-CH') : '—';
+        warningNote = `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">🗄 Monats-Cache — letzte Aktualisierung ${formatDay(s.last_run_time)}, nächste Fälligkeit ${nextDue}</div>`;
+      } else if (ran && rawStatus === 'success' && (s.last_count == null || s.last_count === 0) && ZERO_IS_OK.has(s.source)) {
+        // Erfolgreicher Fetch mit 0 Einträgen ist bei Spots normal (keine Aktivierung aktiv)
+        warningNote = '<div style="font-size:11px;color:#9ca3af;margin-top:2px;">✓ 0 Einträge — aktuell keine Aktivierung aktiv (kein Fehler)</div>';
+      } else if (ran && rawStatus === 'success' && (s.last_count == null || s.last_count === 0)) {
         displayStatus = 'skipped';
         warningNote = '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">⚠ 0 Einträge — Quelle möglicherweise nicht erreichbar</div>';
-      } else if (rawStatus === 'pending' && ran) {
+      } else if (ran && rawStatus === 'skipped') {
+        warningNote = '<div style="font-size:11px;color:#9ca3af;margin-top:2px;">⏭ Übersprungen (Daten aktuell)</div>';
+      } else if (ran && rawStatus === 'pending') {
         displayStatus = 'partial';
-        warningNote = '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">⏳ Chunked — wird in nächstem Tick fortgesetzt</div>';
+        warningNote = '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">⏳ Chunked — wird im nächsten Lauf fortgesetzt</div>';
+      } else if (!ran) {
+        // v0.959-HF2: didn't run today — show the actual last status + date, not a stale FAILED.
+        displayStatus = rawStatus === 'skipped' ? 'skipped' : (rawStatus === 'success' ? 'success' : rawStatus);
+        warningNote = `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">ℹ letzter Lauf ${formatDay(s.last_run_time)} — ${s.last_error || rawStatus || 'nicht ausgeführt'}</div>`;
       }
+      renderedSources.push({
+        source: s.source,
+        label: s.label || s.source,
+        display_status: displayStatus,
+        enabled: s.enabled !== false,
+        planned_today: isPlannedToday(s),
+        count: s.last_count != null ? s.last_count : null,
+        duration_ms: s.last_duration_ms || 0,
+        last_run: s.last_run_time || null,
+        next_run: s.next_run_utc || null,
+        note: warningNote.replace(/<[^>]*>/g, '').trim(),
+        error: s.last_error || null,
+        is_problem: false,
+      });
       const duration = s.last_duration_ms ? `${(s.last_duration_ms / 1000).toFixed(1)}s` : '—';
       const count = s.last_count != null ? s.last_count : '—';
       const isFailed = rawStatus === 'failed' || rawStatus === 'timeout';
@@ -224,10 +280,20 @@ export default async function(req: Request): Promise<Response> {
 
     // Problems section
     const problemSources = (allSchedules || []).filter(s => {
+      // v0.961 (Punkt 5): deaktivierte, heute nicht geplante und Monats-Cache-Quellen sind
+      // keine Probleme; ebenso sind 0 Einträge bei Spot-Quellen (ZERO_IS_OK) normal.
+      if (s.enabled === false) return false;
+      if (!isPlannedToday(s)) return false;
+      if (MONTHLY_CACHE.has(s.source)) return false;
       const ran = s.last_run_time && isToday(s.last_run_time);
       if (!ran) return false;
-      return s.last_status === 'failed' || (s.last_status === 'success' && (s.last_count == null || s.last_count === 0));
+      if (s.last_status === 'failed' || s.last_status === 'timeout') return true;
+      if (s.last_status === 'success' && (s.last_count == null || s.last_count === 0)) return !ZERO_IS_OK.has(s.source);
+      return false;
     });
+    for (const rs of renderedSources) {
+      rs.is_problem = problemSources.some(p => p.source === rs.source);
+    }
     const problemsHtml = problemSources.length > 0 ? `
     <div style="padding:16px;border-bottom:1px solid #eee;">
       <h2 style="margin:0 0 10px;font-size:15px;color:#dc2626;">⚠️ Probleme (${problemSources.length})</h2>
@@ -328,7 +394,8 @@ export default async function(req: Request): Promise<Response> {
       </div>
       ${failedCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:6px;font-size:12px;color:#dc2626;">⚠️ ${failedCount} Quelle(n) fehlgeschlagen — siehe Probleme unten.</div>` : ''}
       ${warningCount > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border-radius:6px;font-size:12px;color:#f59e0b;">⚠️ ${warningCount} Quelle(n) mit 0 Einträgen — Quelle möglicherweise nicht erreichbar.</div>` : ''}
-      ${pendingSources.length > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#f3f4f6;border-radius:6px;font-size:12px;color:#6b7280;">⏭️ ${pendingSources.length} Quelle(n) übersprungen / nicht ausgeführt.</div>` : ''}
+      ${pendingSources.length > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#f3f4f6;border-radius:6px;font-size:12px;color:#6b7280;">⏭️ ${pendingSources.length} Quelle(n) heute fällig, aber noch nicht ausgeführt.</div>` : ''}
+      ${unplannedSources.length > 0 ? `<div style="margin-top:8px;padding:8px 12px;background:#f3f4f6;border-radius:6px;font-size:12px;color:#6b7280;">🗓 ${unplannedSources.length} Quelle(n) heute planmässig nicht dran (Wochenplan) bzw. deaktiviert — kein Problem.</div>` : ''}
     </div>
 
     <!-- Source Results Table -->
@@ -420,6 +487,27 @@ export default async function(req: Request): Promise<Response> {
     </div>
   </div>
 </body></html>`;
+
+    // v0.961: dry_run — rendert den Report vollständig, versendet aber keine E-Mail
+    // (für Prüfung/Beleg der Anzeige-Regeln).
+    if (body.dry_run === true) {
+      return Response.json({
+        status: 'dry_run',
+        mode,
+        overall_status: overallStatus,
+        day: todayDayName,
+        sources_total: totalCount,
+        sources_success: successCount,
+        sources_warning: warningCount,
+        sources_failed: failedCount,
+        sources_pending: pendingSources.length,
+        sources_unplanned: unplannedSources.length,
+        problems: problemSources.map(s => s.source),
+        sources: renderedSources,
+        html,
+        html_length: html.length,
+      });
+    }
 
     // --- 5. Get admin users ---
     const allUsers = await base44.asServiceRole.entities.User.list();

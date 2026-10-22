@@ -19,13 +19,19 @@ const SOURCES = [
   { source: 'aprs', label: 'APRS.fi', function_name: 'fetchAprsFi', function_payload: { scheduled: true }, order: 8 },
   // Repeater: individual regions (sequential scraping to avoid platform timeouts)
   // Each region can be triggered separately, like lighthouse regions.
-  ...REPEATER_REGIONS.map((r, i) => ({
+  // v0.961: world_sa wird von Hearham bedient (RepeaterBook liefert dort keine Koordinaten
+  // mehr) — deshalb hier herausgefiltert und unten separat geführt.
+  ...REPEATER_REGIONS.filter(r => r.id !== 'world_sa').map((r, i) => ({
     source: `repeater_${r.id}`,
     label: r.label,
     function_name: 'fetchRepeaters',
     function_payload: { region: r.id, scheduled: true },
     order: 90 + i,
   })),
+  // v0.961 (KRITISCH 1 + 3): USA und Süd-/Mittelamerika über Hearham — die einzige Quelle,
+  // die für diese Regionen derzeit Koordinaten liefert (RepeaterBook-App-Token: 401 auth_missing).
+  { source: 'repeater_usa_hearham', label: 'Relais USA (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'usa', scheduled: true }, order: 93 },
+  { source: 'repeater_world_sa', label: 'Relais Süd-/Mittelamerika (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'south_america', scheduled: true }, order: 96 },
   // Hearham API repeaters — alternative source for regions with poor RepeaterBook coverage
   { source: 'repeater_canada_hearham', label: 'Relais Kanada (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'canada', scheduled: true }, order: 96 },
   { source: 'repeater_asia_hearham', label: 'Relais Asien (Hearham)', function_name: 'fetchHearhamRepeaters', function_payload: { region: 'asia', scheduled: true }, order: 97 },
@@ -94,14 +100,24 @@ function fixedTimeForSource(source: string): string {
   return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
 }
 
-// Convert HH:MM UTC to today's ISO datetime
-function timeToIsoUTC(hhmm: string): string {
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Convert HH:MM UTC to the next occurrence as ISO datetime.
+// v0.961 (Punkt 5c): weekly_days wird berücksichtigt — eine nur montags laufende Quelle
+// wurde vorher mit dem nächsten Tag (z. B. Donnerstag) angezeigt, obwohl sie da nicht läuft.
+function timeToIsoUTC(hhmm: string, allowedDays?: string[]): string {
   const now = new Date();
   const [h, m] = hhmm.split(':').map(Number);
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m, 0, 0));
   // If the time has already passed today, schedule for tomorrow
   if (d.getTime() < Date.now()) {
     d.setUTCDate(d.getUTCDate() + 1);
+  }
+  if (allowedDays && allowedDays.length > 0) {
+    for (let guard = 0; guard < 8; guard++) {
+      if (allowedDays.includes(DAY_NAMES[d.getUTCDay()])) break;
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
   }
   return d.toISOString();
 }
@@ -140,7 +156,6 @@ export default async function(req: Request): Promise<Response> {
     const schedule = [];
     for (const src of sortedSources) {
       const scheduledTime = fixedTimeForSource(src.source);
-      const nextRunIso = timeToIsoUTC(scheduledTime);
 
       // Find existing record for this source
       const existing = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: src.source });
@@ -158,6 +173,12 @@ export default async function(req: Request): Promise<Response> {
       // v0.959: Repeater Oceania disabled — RepeaterBook has 0 coverage for AU/NZ/PG/FJ.
       // 0 entries every run, source is effectively dead. Disabled like WWBOTA.
       const isDisabledSource = src.source === 'repeater_world_oceania';
+      // v0.961: next_run_utc richtet sich nach weekly_days (Montags-Quelle → nächster Montag).
+      // Tägliche Quellen (APRS, LLOTA-Spots) haben keine Wochentagsbindung.
+      const nextRunIso = timeToIsoUTC(
+        scheduledTime,
+        isDailySource || isDisabledSource ? undefined : (isThursdaySource ? ['Monday', 'Thursday'] : ['Monday']),
+      );
       const recordData = {
         source: src.source,
         label: src.label,
@@ -168,11 +189,10 @@ export default async function(req: Request): Promise<Response> {
         function_payload: src.function_payload,
         scheduled_time_utc: scheduledTime,
         next_run_utc: nextRunIso,
-        last_status: 'pending',
-        last_count: 0,
-        last_duration_ms: 0,
-        last_error: '',
-        last_error_detail: '',
+        // v0.961 (Punkt 4): KEIN Status-Reset mehr. Dieser Job läuft täglich 22:00 UTC und hat
+        // bisher last_status/last_count/last_duration/last_error ALLER Quellen auf pending/0
+        // zurückgesetzt — dadurch standen erfolgreiche Montags-Läufe am Donnerstag als "pending"
+        // da. Der letzte echte Lauf bleibt jetzt sichtbar (inkl. Fehlern).
         display_order: src.order,
       };
 

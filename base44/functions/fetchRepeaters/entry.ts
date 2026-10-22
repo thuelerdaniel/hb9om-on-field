@@ -238,17 +238,28 @@ export default async function(req) {
     let isNARegion = region === 'na_us' || region === 'na_ca';
     let naHasMore = false;
     let naStatesProcessed = 0;
+    let cycleSavedTotal = 0;   // v0.961: Treffer des laufenden Chunk-Zyklus (Bestandsschutz)
+    let prunedCount = 0;
+    let pruneNote = '';
 
     // --- Step 0: v0.9046 — Save existing coords/tone/dcs BEFORE delete ---
     // Two maps: by source_id (exact match) and by callsign (cross-band fallback)
     const existingBySourceId = new Map<string, any>();
     const existingByCallsign = new Map<string, any>();
+    // v0.961 (KRITISCH 1): Ids des aktuellen Regions-Bestands. Sie werden HIER gesammelt,
+    // damit das Aufräumen erst NACH einem vollständigen Durchlauf passiert — nie davor.
+    const existingPrunableIds: string[] = [];
+    let existingRegionTotal = 0;
     try {
       const filter = region === 'all' ? {} : { country_code: { $in: regionCountryCodes } };
       for (let attempt = 0; attempt < 50; attempt++) {
         const existing = await base44.asServiceRole.entities.Repeater.filter(filter, "-created_date", 5000, attempt * 5000);
         if (!existing || existing.length === 0) break;
         for (const r of existing) {
+          existingRegionTotal++;
+          // v0.961: json-import-Datensätze sind geschützt und werden nie aufgeräumt
+          if (r.source_id !== 'json-import') existingPrunableIds.push(r.id);
+          else jsonProtected++;
           // v0.9046: DON'T skip json-import — their coords are valuable fallback for same callsign
           const sourceKey = r.source_id || `${r.callsign}_${r.frequency}`;
           existingBySourceId.set(sourceKey, { lat: r.lat, lng: r.lng, dcs: r.dcs || '', tone: r.tone || '', locator: r.locator || '' });
@@ -261,55 +272,13 @@ export default async function(req) {
       }
     } catch {}
 
-    // --- Step 1: Delete existing repeaters for this region ---
-    currentStep = 'delete_existing';
-    if (region === 'all') {
-      // Full refresh: delete ALL repeaters
-      try {
-        for (let attempt = 0; attempt < 50; attempt++) {
-          const existing = await base44.asServiceRole.entities.Repeater.list("-created_date", 5000);
-          if (!existing || existing.length === 0) break;
-          const toDeleteIds = existing.filter(r => r.source_id !== "json-import").map(r => r.id);
-          jsonProtected += existing.length - toDeleteIds.length;
-          if (toDeleteIds.length > 0) {
-            await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: toDeleteIds } });
-          }
-          deletedCount += toDeleteIds.length;
-        }
-      } catch (delErr: any) {
-        return Response.json({
-          status: 'failed',
-          error: `Bestehende Relais konnten nicht gelöscht werden: ${delErr.message || delErr}`,
-          step: currentStep,
-          duration_ms: Date.now() - startTime,
-        }, { status: 500 });
-      }
-    } else {
-      // Region update: delete only repeaters from this region's countries
-      try {
-        for (let attempt = 0; attempt < 50; attempt++) {
-          const existing = await base44.asServiceRole.entities.Repeater.filter(
-            { country_code: { $in: regionCountryCodes } },
-            "id", 5000, attempt * 5000
-          );
-          if (!existing || existing.length === 0) break;
-          const toDeleteIds = existing.filter(r => r.source_id !== "json-import").map(r => r.id);
-          jsonProtected += existing.length - toDeleteIds.length;
-          if (toDeleteIds.length > 0) {
-            await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: toDeleteIds } });
-          }
-          deletedCount += toDeleteIds.length;
-          if (existing.length < 5000) break;
-        }
-      } catch (delErr: any) {
-        return Response.json({
-          status: 'failed',
-          error: `Bestehende Relais für Region ${region} konnten nicht gelöscht werden: ${delErr.message || delErr}`,
-          step: currentStep,
-          duration_ms: Date.now() - startTime,
-        }, { status: 500 });
-      }
-    }
+    // --- Step 1 ENTFERNT (v0.961, KRITISCH 1) ---
+    // Vorher wurden ALLE Regionseinträge gelöscht, BEVOR die Daten geholt wurden. Ein
+    // Teil-Chunk-Lauf (z. B. 3 von 50 US-Staaten, has_more=true) hat damit den kompletten
+    // Regionalbestand vernichtet und nur durch die paar geholten Staaten ersetzt.
+    // Bestandsdaten werden jetzt ausschliesslich am Ende eines VOLLSTÄNDIGEN Durchlaufs
+    // aufgeräumt (siehe Step 3b) — Teil-Läufe sind reine Upserts.
+    currentStep = 'fetch';
 
     // --- Load JSON-import protection set ---
     let protectionSet = new Set<string>();
@@ -375,6 +344,7 @@ export default async function(req) {
       // PUNKT 8: Für NA-Regionen (US/CA) — Chunked Sync mit Zeitbudget
       // Lese gespeicherten State-Offset aus AppSetting
       let naStateOffset = 0;
+      let naCycleSaved = 0;
       if (isNARegion) {
         const offsetKey = `na_repeater_offset_${region}`;
         try {
@@ -383,25 +353,14 @@ export default async function(req) {
             naStateOffset = parseInt(settings[0].value) || 0;
           }
         } catch {}
-        // Wenn Offset=0, ist dies der erste Aufruf — lösche bestehende Region-Relais
-        if (naStateOffset === 0) {
-          try {
-            for (let attempt = 0; attempt < 50; attempt++) {
-              const existing = await base44.asServiceRole.entities.Repeater.filter(
-                { country_code: { $in: regionCountryCodes } },
-                "id", 5000, attempt * 5000
-              );
-              if (!existing || existing.length === 0) break;
-              const toDeleteIds = existing.filter(r => r.source_id !== "json-import").map(r => r.id);
-              jsonProtected += existing.length - toDeleteIds.length;
-              if (toDeleteIds.length > 0) {
-                await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: toDeleteIds } });
-              }
-              deletedCount += toDeleteIds.length;
-              if (existing.length < 5000) break;
-            }
-          } catch {}
-        }
+        // v0.961: Trefferzahl des laufenden Zyklus (Quellenschutz beim Aufräumen)
+        try {
+          const savedRows = await base44.asServiceRole.entities.AppSetting.filter({ key: `${offsetKey}_saved` });
+          if (savedRows.length > 0 && savedRows[0].value) naCycleSaved = parseInt(savedRows[0].value) || 0;
+        } catch {}
+        // v0.961: Der Vorab-Löschvorgang (früher nur bei Offset=0) ist ENTFERNT. Genau er hat
+        // bei jedem Zyklusstart den kompletten Bestand gelöscht, obwohl nur 3 Staaten geholt
+        // wurden. Aufgeräumt wird ausschliesslich nach einem vollständigen Durchlauf (Step 3b).
       }
 
       const naStartTime = Date.now();
@@ -545,10 +504,14 @@ export default async function(req) {
         if (isNARegion) naStatesProcessed += chunk.length;
       }
 
-      // PUNKT 8: Speichere State-Offset für NA-Regionen (für nächsten Aufruf)
+      // PUNKT 8 / v0.961: State-Offset UND gesammelte Trefferzahl persistieren, damit der
+      // Folgelauf an der letzten Staatengruppe weitermacht und der Quellenschutz die
+      // Gesamttreffer des Zyklus kennt (self-healing über mehrere Läufe).
       if (isNARegion) {
         const offsetKey = `na_repeater_offset_${region}`;
         const newOffset = naHasMore ? (naStateOffset + naStatesProcessed) : 0;
+        const newCycleSaved = naHasMore ? (naCycleSaved + totalSaved) : 0;
+        cycleSavedTotal = naCycleSaved + totalSaved;
         try {
           const settings = await base44.asServiceRole.entities.AppSetting.filter({ key: offsetKey });
           if (settings.length > 0) {
@@ -556,9 +519,44 @@ export default async function(req) {
           } else {
             await base44.asServiceRole.entities.AppSetting.create({ key: offsetKey, value: String(newOffset) });
           }
+          const savedSettings = await base44.asServiceRole.entities.AppSetting.filter({ key: `${offsetKey}_saved` });
+          if (savedSettings.length > 0) {
+            await base44.asServiceRole.entities.AppSetting.update(savedSettings[0].id, { value: String(newCycleSaved) });
+          } else {
+            await base44.asServiceRole.entities.AppSetting.create({ key: `${offsetKey}_saved`, value: String(newCycleSaved) });
+          }
         } catch {}
       }
     }
+
+    // --- Step 3b (v0.961, KRITISCH 1): Bestand NUR nach vollständigem Durchlauf aufräumen ---
+    // Teil-Läufe (has_more) sind reine Upserts. Zusätzlich Quellenschutz: Wenn die neuen
+    // Daten den bisherigen Bestand nicht mindestens zur Hälfte abdecken, wird NICHT gelöscht
+    // (verhindert Datenverlust, wenn eine Quelle plötzlich keine Koordinaten mehr liefert).
+    currentStep = 'prune_stale';
+    const runComplete = !(isNARegion && naHasMore);
+    const cycleCoverage = isNARegion ? Math.max(cycleSavedTotal, totalSaved) : totalSaved;
+    const coverageFloor = Math.max(50, Math.floor(existingPrunableIds.length * 0.5));
+    if (existingPrunableIds.length === 0) {
+      pruneNote = 'Kein Vor-Bestand vorhanden — nichts aufzuräumen';
+    } else if (!runComplete) {
+      pruneNote = `Teil-Lauf (has_more=true) — Bestand von ${existingPrunableIds.length} Einträgen bleibt vollständig erhalten (reine Upserts)`;
+    } else if (cycleCoverage < coverageFloor) {
+      pruneNote = `Quellenschutz: neue Daten (${cycleCoverage}) decken den Bestand (${existingPrunableIds.length}) nicht — Löschung übersprungen`;
+    } else {
+      for (let i = 0; i < existingPrunableIds.length; i += 500) {
+        const batch = existingPrunableIds.slice(i, i + 500);
+        try {
+          await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: batch } });
+          prunedCount += batch.length;
+        } catch {}
+      }
+      pruneNote = `Vollständiger Durchlauf — ${prunedCount} überholte Regionseinträge aufgeräumt`;
+    }
+    deletedCount = prunedCount;
+
+    // --- Step 4: Store stable count metadata in ReferenceData ---
+    currentStep = 'store_count';
 
     // --- Step 4: Store stable count metadata in ReferenceData ---
     currentStep = 'store_count';
@@ -602,34 +600,43 @@ export default async function(req) {
       }
     } catch {}
 
-    // BUG 1: Update DailyRefreshSchedule with success status
+    // v0.961: Status/Counter schreibt der shared sourceRunner, wenn er den Lauf gestartet hat
+    // (_runner) — sonst würde ein Teil-Chunk als 'success' statt 'pending' gebucht.
+    if (body._runner !== true) {
     try {
       const scheduleSource = `repeater_${region}`;
       const scheduleRecords = await base44.asServiceRole.entities.DailyRefreshSchedule.filter({ source: scheduleSource });
       if (scheduleRecords && scheduleRecords.length > 0) {
         await base44.asServiceRole.entities.DailyRefreshSchedule.update(scheduleRecords[0].id, {
-          last_status: 'success',
+          last_status: naHasMore ? 'pending' : 'success',
           last_count: totalSaved,
           last_run_time: new Date().toISOString(),
           last_duration_ms: Date.now() - startTime,
-          last_error: '',
+          last_error: naHasMore ? pruneNote : '',
           last_error_detail: '',
         });
       }
     } catch {}
+    }
 
     return Response.json({
       status: 'success',
       region,
       total_saved: totalSaved,
       with_coordinates: withCoords,
-      deleted: deletedCount,
+      deleted: prunedCount,
       countries: Object.keys(countryBreakdown).length,
       country_breakdown: countryBreakdown,
       json_protected: jsonProtected,
       duration_ms: Date.now() - startTime,
       has_more: isNARegion ? naHasMore : false,
       na_states_processed: isNARegion ? naStatesProcessed : 0,
+      na_next_offset: isNARegion && naHasMore ? (naStateOffset + naStatesProcessed) : 0,
+      existing_before: existingRegionTotal,
+      prune: pruneNote,
+      progress_note: naHasMore
+        ? `Teil-Lauf: ${naStatesProcessed} Einträge in diesem Chunk, Fortsetzung ab Position ${naStateOffset + naStatesProcessed} von ${regionCountries.length} — Bestand bleibt erhalten`
+        : (pruneNote || undefined),
     });
   } catch (error: any) {
     const errMsg = `Schwerwiegender Fehler beim Relais-Update (Schritt: ${currentStep}): ${error.message || error}`;

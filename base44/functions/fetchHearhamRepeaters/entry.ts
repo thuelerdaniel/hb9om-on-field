@@ -14,10 +14,17 @@ import { loadProtectionSet, filterProtected } from '../../shared/syncProtection.
 // - asia:   Lat -10 to 80, Lng 25 to 180
 // - africa: Lat -35 to 37, Lng -20 to 55
 
-const REGION_BOUNDS: Record<string, { north: number; south: number; east: number; west: number; country: string; cc: string }> = {
-  canada: { north: 83, south: 41, east: -52, west: -141, country: 'Canada', cc: 'CA' },
-  asia: { north: 80, south: -10, east: 180, west: 25, country: '', cc: '' },
-  africa: { north: 37, south: -35, east: 55, west: -20, country: '', cc: '' },
+const REGION_BOUNDS: Record<string, { north: number; south: number; east: number; west: number; country: string; cc: string; onlyCountry?: string; label: string }> = {
+  canada: { north: 83, south: 41, east: -52, west: -141, country: 'Canada', cc: 'CA', label: 'Kanada' },
+  asia: { north: 80, south: -10, east: 180, west: 25, country: '', cc: '', label: 'Asien' },
+  africa: { north: 37, south: -35, east: 55, west: -20, country: '', cc: '', label: 'Afrika' },
+  // v0.961 (KRITISCH 1 + 3): USA und Süd-/Mittelamerika über Hearham.
+  // RepeaterBook liefert für diese Regionen seit dem Verlust des App-Tokens keine Koordinaten
+  // mehr (API 401 auth_missing, HTML-Listen ohne Koordinaten) — Hearham liefert Koordinaten.
+  // onlyCountry: innerhalb des Suchrahmens zählen nur Treffer mit dieser Länderkennung
+  // (der US-Rahmen umfasst auch Kanada/Mexiko, Alaska/Hawaii bleiben enthalten).
+  usa: { north: 75, south: 15, east: -50, west: -180, country: 'United States', cc: 'US', onlyCountry: 'US', label: 'USA' },
+  south_america: { north: 13, south: -56, east: -34, west: -82, country: '', cc: '', label: 'Süd-/Mittelamerika' },
 };
 
 function bandFromFreq(freqMHz: number): string {
@@ -60,7 +67,7 @@ export default async function (req: Request): Promise<Response> {
     const region = body.region || 'canada';
     const bounds = REGION_BOUNDS[region];
     if (!bounds) {
-      return Response.json({ error: `Unknown region: ${region}. Valid: canada, asia, africa` }, { status: 400 });
+      return Response.json({ error: `Unknown region: ${region}. Valid: ${Object.keys(REGION_BOUNDS).join(', ')}` }, { status: 400 });
     }
 
     // Fetch all repeaters from Hearham API
@@ -110,6 +117,8 @@ export default async function (req: Request): Promise<Response> {
       }
       // Detect country per-repeater instead of blindly assigning region's country.
       const { country, cc } = detectRepeaterCountry(callsign, lat, lng, locationName);
+      // v0.961: Regionen mit Länderfilter (usa) nehmen nur Treffer des eigenen Landes
+      if (bounds.onlyCountry && cc !== bounds.onlyCountry) continue;
 
       regionRepeaters.push({
         callsign,
@@ -147,21 +156,36 @@ export default async function (req: Request): Promise<Response> {
     // Also delete legacy null-coord repeaters tagged with this region's country_code.
     const oldHearham = await base44.asServiceRole.entities.Repeater.filter({ source: 'Hearham' });
     let jsonProtected = 0;
+    let oldInRegion = 0;
     const toDelete = (oldHearham || []).filter((r: any) => {
       // Protect JSON-imported repeaters from sync deletion
       if (r.source_id === "json-import") { jsonProtected++; return false; }
       // Delete repeaters with coords in the region's bounding box
       if (r.lat != null && r.lng != null) {
-        return r.lat >= bounds.south && r.lat <= bounds.north &&
+        const inBox = r.lat >= bounds.south && r.lat <= bounds.north &&
                r.lng >= bounds.west && r.lng <= bounds.east;
+        if (!inBox) return false;
+        if (bounds.onlyCountry && r.country_code !== bounds.onlyCountry) return false;
+        oldInRegion++;
+        return true;
       }
       // Also delete legacy null-coord repeaters tagged with this region's country_code
-      if (bounds.cc && r.country_code === bounds.cc) return true;
+      if (bounds.cc && r.country_code === bounds.cc) { oldInRegion++; return true; }
       return false;
     });
-    for (let i = 0; i < toDelete.length; i += 100) {
-      const batch = toDelete.slice(i, i + 100);
-      await Promise.all(batch.map((r: any) => base44.asServiceRole.entities.Repeater.delete(r.id)));
+    // v0.961: Quellenschutz — wird der bisherige Bestand nicht mindestens zur Hälfte neu
+    // gedeckt, wird NICHT gelöscht (sonst löscht ein leerer Fetch die ganze Region).
+    let deletionSkipped = '';
+    const coverageFloor = Math.max(10, Math.floor(oldInRegion * 0.5));
+    if (toDelete.length > 0 && deduped.length < coverageFloor) {
+      deletionSkipped = `Quellenschutz: neue Daten (${deduped.length}) decken den Bestand (${oldInRegion}) nicht — Löschung übersprungen`;
+    } else {
+      for (let i = 0; i < toDelete.length; i += 500) {
+        const batch = toDelete.slice(i, i + 500).map((r: any) => r.id);
+        try {
+          await base44.asServiceRole.entities.Repeater.deleteMany({ id: { $in: batch } });
+        } catch {}
+      }
     }
 
     // Load JSON-import protection set and filter out protected records
@@ -179,16 +203,22 @@ export default async function (req: Request): Promise<Response> {
     );
 
     // Bulk create new repeaters (only records with valid coordinates)
-    for (let i = 0; i < withValidCoords.length; i += 100) {
-      const batch = withValidCoords.slice(i, i + 100);
-      await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
+    // v0.961: 500er-Batches statt 100er — der USA-Import umfasst ~10k Datensätze.
+    for (let i = 0; i < withValidCoords.length; i += 500) {
+      const batch = withValidCoords.slice(i, i + 500);
+      try {
+        await base44.asServiceRole.entities.Repeater.bulkCreate(batch);
+      } catch {}
     }
 
     return Response.json({
       status: 'success',
-      label: `Relais ${region === 'canada' ? 'Kanada' : region === 'asia' ? 'Asien' : 'Afrika'} (Hearham)`,
+      label: `Relais ${bounds.label} (Hearham)`,
       count: withValidCoords.length,
       json_protected: jsonProtected,
+      existing_before: oldInRegion,
+      deleted: deletionSkipped ? 0 : toDelete.length,
+      prune: deletionSkipped || `${toDelete.length} überholte Hearham-Einträge aufgeräumt`,
       source: 'Hearham API',
       region,
       timestamp: new Date().toISOString(),
