@@ -1123,7 +1123,7 @@ export const SECTIONS = [
       },
       {
         title: "Zusaetzliche Relais-Quellen weltweit",
-        body: "RepeaterBook ist die Hauptquelle und deckt 120+ Laender weltweit ab (alle Kontinente). Der ARRL Repeater Directory wird seit 2025 von RepeaterBook gespeist. Zusaetzliche Datenquellen: WIA Australia (CSV, VK1-VK8), dstarusers.org (D-STAR weltweit, 40+ Laender), ukrepeater.net (UK-Relais mit Koordinaten), USKA (Schweizer Crosslinks), FM-Funknetz.de (Talkgroups weltweit). Referenz-Quellen: iz8wnh.it (weltweite Relais-Karte mit CSV-Export), OpenRepeater.org (freie API, Schwerpunkt MENA/Asien/Afrika), SARL (Suedafrika), MARTS (Malaysia/IARU Region 3).",
+        body: "RepeaterBook ist die Hauptquelle und deckt 120+ Laender weltweit ab (alle Kontinente). Fuer die USA liefert RepeaterBook keine Koordinaten mehr, fuer Sued-/Mittelamerika nur wenige Eintraege — diese Regionen kommen aus Hearham (USA rund 13'000 Relais, Sued-/Mittelamerika rund 80, alle mit Koordinaten). Der ARRL Repeater Directory wird seit 2025 von RepeaterBook gespeist. Zusaetzliche Datenquellen: WIA Australia (CSV, VK1-VK8), dstarusers.org (D-STAR weltweit, 40+ Laender), ukrepeater.net (UK-Relais mit Koordinaten), USKA (Schweizer Crosslinks), FM-Funknetz.de (Talkgroups weltweit). Referenz-Quellen: iz8wnh.it (weltweite Relais-Karte mit CSV-Export), OpenRepeater.org (freie API, Schwerpunkt MENA/Asien/Afrika), SARL (Suedafrika), MARTS (Malaysia/IARU Region 3).",
         steps: [
           { icon: "radioTower", text: "RepeaterBook: 120+ Laender weltweit (alle Kontinente)" },
           { icon: "link2", text: "USKA: Schweizer Crosslinks und EchoLink-Nodes" },

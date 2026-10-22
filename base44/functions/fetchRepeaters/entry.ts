@@ -238,6 +238,8 @@ export default async function(req) {
     let isNARegion = region === 'na_us' || region === 'na_ca';
     let naHasMore = false;
     let naStatesProcessed = 0;
+    // v0.961: nächster Staat-Offset in der äusseren Scope (für die Antwort).
+    let naNextOffset = 0;
     let cycleSavedTotal = 0;   // v0.961: Treffer des laufenden Chunk-Zyklus (Bestandsschutz)
     let prunedCount = 0;
     let pruneNote = '';
@@ -510,6 +512,7 @@ export default async function(req) {
       if (isNARegion) {
         const offsetKey = `na_repeater_offset_${region}`;
         const newOffset = naHasMore ? (naStateOffset + naStatesProcessed) : 0;
+        naNextOffset = newOffset;
         const newCycleSaved = naHasMore ? (naCycleSaved + totalSaved) : 0;
         cycleSavedTotal = naCycleSaved + totalSaved;
         try {
@@ -631,11 +634,11 @@ export default async function(req) {
       duration_ms: Date.now() - startTime,
       has_more: isNARegion ? naHasMore : false,
       na_states_processed: isNARegion ? naStatesProcessed : 0,
-      na_next_offset: isNARegion && naHasMore ? (naStateOffset + naStatesProcessed) : 0,
+      na_next_offset: isNARegion && naHasMore ? naNextOffset : 0,
       existing_before: existingRegionTotal,
       prune: pruneNote,
       progress_note: naHasMore
-        ? `Teil-Lauf: ${naStatesProcessed} Einträge in diesem Chunk, Fortsetzung ab Position ${naStateOffset + naStatesProcessed} von ${regionCountries.length} — Bestand bleibt erhalten`
+        ? `Teil-Lauf: ${naStatesProcessed} Einträge in diesem Chunk, Fortsetzung ab Position ${naNextOffset} von ${regionCountries.length} — Bestand bleibt erhalten`
         : (pruneNote || undefined),
     });
   } catch (error: any) {

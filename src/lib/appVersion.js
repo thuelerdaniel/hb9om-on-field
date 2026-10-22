@@ -13,11 +13,18 @@ export const APP_VERSION = "0.951";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610211815";
+export const APP_BUILD = "202610220645";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "22.10.2026: APRS-DATEN WIEDER AKTUELL — Bisher hat der Lauf nur neu entdeckte Stationen geschrieben; bestehende Datensätze behielten ihren Stand vom Seed (last_heard z.B. 14.10.). Jetzt werden pro Lauf 300 Bestands-Stationen direkt aus der Datenbank aufgefrischt (älteste zuerst). Der Lauf startet zweimal täglich (06:30 und 18:30 UTC) — damit ist jede Station innerhalb von 12 Stunden wieder frisch. Zusätzlich verschwundene Schreibfehler: Fehler beim Speichern werden jetzt gemeldet statt still verschluckt.",
+  "22.10.2026: RELAIS-TEIL-LAUFSCHUTZ — Der US-Teil-Lauf (3 Staaten pro Tick) hat vorab die regionalen Einträge gelöscht, obwohl nur ein Bruchteil geholt wurde. Jetzt wird ausschliesslich nach einem vollständigen Durchlauf aufgeräumt, und zusätzlich nur, wenn die neuen Daten den Bestand mindestens zur Hälfte abdecken. Teil-Läufe sind reine Aktualisierungen und melden das im Status.",
+  "22.10.2026: US-RELAIS AUS HEARHAM — RepeaterBook liefert für die USA keine Koordinaten mehr. Die Region «USA» lädt jetzt aus Hearham (bis ~10'000 Relais mit Koordinaten pro Lauf); der Bestand wird nur ersetzt, wenn die neue Datenmenge ihn wirklich abdeckt.",
+  "22.10.2026: SÜD-/MITTELAMERIKA — Hearham liefert 77 Relais für Süd- und Mittelamerika (RepeaterBook nur 1 mit Koordinaten). Quelle umgestellt.",
+  "22.10.2026: SYNC-STATUS BLEIBT STEHEN — Der Orchestrator setzte beim Erstellen des Tagesplans Status, Anzahl und Dauer jeder Quelle auf «pending» zurück — Erfolge vom selben Tag waren damit gelöscht. Jetzt bleiben die letzten Ergebnisse stehen, und Wochentag sowie Wochentage werden zusammen geprüft: Montags-Quellen werden nicht mehr fälschlich schon am Donnerstag als «heute fällig» geführt.",
+  "22.10.2026: TAGESREPORT KLARER — 0 Einträge bei Spot-Quellen (gerade keine Aktivierung aktiv) gelten nicht mehr als Fehler, deaktivierte und heute nicht geplante Quellen werden neutral ausgewiesen, Monats-Cache-Quellen zeigen ihr Cache-Datum, und Status/Anzahl/Dauer werden zuverlässig geschrieben.",
+  "22.10.2026: BUILD — Build-Nummer auf 202610220645 nachgezogen (Versionsnummer unverändert, wird nur von Daniel gesetzt).",
   "21.10.2026: RELAIS-PDF URSACHE GEFUNDEN — Die beiden Knoepfe in der Einblendung liefen ueber eine lokal erzeugte blob:-Adresse und riefen Fenster bzw. den System-Teilen-Dialog per Skript auf. Genau das blockieren In-App-Browser, WebViews und die zum Startbildschirm hinzugefuegte App — der Klick blieb deshalb ohne jede Reaktion (kein neuer Tab, kein Download, keine Meldung).",
   "21.10.2026: RELAIS-PDF UEBER ECHTE LINKS — Die fertige Datei wird jetzt beim Erzeugen in den Datei-Speicher abgelegt und kommt als echte https-Adresse zurueck. Beide Knoepfe sind reine Links auf diese Adresse: «Speichern / Teilen» laedt die Datei herunter bzw. oeffnet die PDF-Ansicht zum Speichern/Teilen, «Im Tab oeffnen» zeigt sie in einem neuen Tab. Blob-Adressen werden nicht mehr verwendet; der unzuverlaessige Automatik-Download nach der Erzeugung ist entfernt.",
   "21.10.2026: RELAIS-PDF FORTSCHRITT & FEHLER — Die Fortschrittsanzeige zeigt beim Ablegen «PDF wird bereitgestellt…». Schlaegt das Ablegen fehl, erscheint eine rote Einblendung mit dem Klartext-Grund statt eines stillen Fehlschlags.",
@@ -683,9 +690,9 @@ export const DATA_SOURCES = [
   { name: "IOTA", url: "iota-world.org", count: "1.178 Gruppen", schedule: "täglich 03:00 UTC" },
   { name: "WWBOTA", url: "api.wwbota.net", count: "Bunker weltweit", schedule: "täglich 04:30 UTC" },
   { name: "Burgen/Schlösser", url: "OSM + Wikidata", count: "weltweit", schedule: "täglich 04:30 UTC" },
-  { name: "Repeater", url: "RepeaterBook + hearham.com", count: "20.798 Relais (alle mit Koordinaten)", schedule: "täglich 05:00 UTC" },
+  { name: "Repeater", url: "Hearham (US + Süd-/Mittelamerika), RepeaterBook (EU/UK), UKRepeater, USKA", count: "30'051 Relais (alle mit Koordinaten)", schedule: "Mo (US/Südamerika) · Mo+Do (EU/UK)" },
   { name: "Leuchttürme", url: "Wikidata SPARQL + Fallback", count: "weltweit", schedule: "täglich 05:30 UTC" },
-  { name: "APRS", url: "aprs.fi API (API-Key)", count: "Stationen weltweit", schedule: "täglich 06:00 UTC" },
+  { name: "APRS", url: "aprs.fi API (API-Key)", count: "594 Stationen (jede innerhalb 12h aufgefrischt)", schedule: "zweimal täglich 06:30/18:30 UTC" },
   { name: "TOTA", url: "swiss_csv + wwtota.com", count: "Antennen/Türme", schedule: "täglich 06:30 UTC" },
   { name: "LLOTA", url: "llota.app", count: "8.357 Seen/Lagunen", schedule: "wöchentlich Mo" },
   { name: "FM-Funknetz", url: "fm-funknetz.de", count: "Talkgruppen", schedule: "täglich 06:30 UTC" },

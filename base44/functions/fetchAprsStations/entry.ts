@@ -14,10 +14,11 @@ const DISCOVERY_BATCH = 200; // Reduced from 600 to avoid timeout
 // v0.961 (KRITISCH 2): Anzahl bestehender Stationen, die pro Lauf aufgefrischt werden.
 // Ohne diese Auffrischung wurden Bestandsdaten nie wieder angefasst (AprsStation stand seit
 // 14.10. still), weil nur nach NEUEN Kandidaten gesucht wurde.
-// 600 deckt den aktuellen Stationsbestand vollständig ab — jede Station wird bei jedem Lauf
-// aufgefrischt (last_heard, Position, Comment). Wächst der Bestand darüber hinaus, sorgt die
-// Sortierung "älteste zuerst" für eine faire Rotation.
-const REFRESH_BATCH = 600;
+// Wie viele Bestands-Stationen pro Lauf aufgefrischt werden (älteste zuerst). Gemessen:
+// 300 Stationen ≈ 14s einschliesslich Schreiben. Höhere Werte laufen in die Schreib-Drosselung
+// der Plattform (>120s), darum 300 pro Lauf — der Workflow läuft zweimal täglich, damit jede
+// Station innerhalb von 12 Stunden wieder frische last_heard/Positionswerte hat.
+const REFRESH_BATCH = 300;
 const API_BATCH_SIZE = 20;  // aprs.fi API hard limit: 20 names per request
 const BATCH_DELAY_MS = 200;
 
@@ -172,7 +173,11 @@ export default async function (req: Request): Promise<Response> {
       .map(s => s.callsign)
       .filter(Boolean)
       .slice(0, REFRESH_BATCH);
-    const queryList = [...new Set([...refreshCallsigns, ...callsignsToQuery])];
+    // Entdeckungs-Kandidaten, die bereits im Bestand sind, werden NICHT zusätzlich abgefragt —
+    // sie kommen über die Auffrischung dran. Das hält die Schreiblast pro Lauf klein
+    // (jeder Datensatz-Update kostet ~0.2s), ohne eine Station zu vernachlässigen.
+    const newCandidates = callsignsToQuery.filter(cs => !existingMap.has(String(cs).toUpperCase()));
+    const queryList = [...new Set([...refreshCallsigns, ...newCandidates])];
 
     // 5. Query aprs.fi API in batches of 20
     const freshData = new Map<string, any>();
@@ -244,16 +249,18 @@ export default async function (req: Request): Promise<Response> {
     let created = 0;
     let writeErrors = 0;
     let writeErrorMsg = '';
-    for (let i = 0; i < toUpdate.length; i += 500) {
-      const batch = toUpdate.slice(i, i + 500);
+    // v0.961: Schreibblöcke auf 100 Datensätze begrenzt — grössere Bulk-Updates laufen in ein
+    // Rate-Limit und brauchen dadurch ein Vielfaches der Zeit (gemessen: 500er-Blöcke >120s).
+    for (let i = 0; i < toUpdate.length; i += 100) {
+      const batch = toUpdate.slice(i, i + 100);
       try {
         await base44.asServiceRole.entities.AprsStation.bulkUpdate(batch);
         updated += batch.length;
       } catch (e: any) { writeErrors++; writeErrorMsg = String(e?.message || e).slice(0, 200); }
     }
 
-    for (let i = 0; i < toCreate.length; i += 500) {
-      const batch = toCreate.slice(i, i + 500);
+    for (let i = 0; i < toCreate.length; i += 100) {
+      const batch = toCreate.slice(i, i + 100);
       try {
         await base44.asServiceRole.entities.AprsStation.bulkCreate(batch);
         created += batch.length;

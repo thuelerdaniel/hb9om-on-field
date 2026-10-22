@@ -1,23 +1,4 @@
 {
-  "name": "Daily APRS Station Sync",
-  "description": "Inkrementelle APRS-Station-Synchronisation \u00fcber aprs.fi API. L\u00e4uft t\u00e4glich um 06:30 UTC (nach dem Haupt-Batch). Verarbeitet 600 Callsigns pro Lauf \u2192 17.925 Seed in ~30 Tagen.",
-  "trigger": {
-    "condition": null,
-    "config": {
-      "trigger_type": "scheduled",
-      "events": [],
-      "schedule_mode": "recurring",
-      "cron_expression": "30 6 * * *",
-      "one_time_date": null,
-      "timezone": "UTC",
-      "interval_value": null,
-      "interval_unit": null,
-      "interval_anchor": null,
-      "ends_type": "never",
-      "ends_on_date": null,
-      "ends_after_count": null
-    }
-  },
   "definition": {
     "document": {
       "dsl": "1.0.0",
@@ -37,6 +18,25 @@
         }
       }
     ]
+  },
+  "description": "Inkrementelle APRS-Station-Synchronisation \u00fcber aprs.fi API. L\u00e4uft zweimal t\u00e4glich (06:30 und 18:30 UTC). Jeder Lauf frischt 300 Bestands-Stationen aus der Datenbank auf (last_heard, Position, Comment) und sucht zus\u00e4tzlich 200 Seed-Callsigns nach neuen Stationen ab \u2192 jede Station ist innerhalb von 12 Stunden wieder aktuell.",
+  "name": "Daily APRS Station Sync",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "30 6,18 * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
   },
   "x-base44-migrated-from-automation": {
     "legacy_payload_function": "fetchAprsStations"
