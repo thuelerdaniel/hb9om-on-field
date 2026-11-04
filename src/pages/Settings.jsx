@@ -22,6 +22,7 @@ import MyStationSection from "@/components/settings/MyStationSection";
 import MonthlyBackup from "@/components/settings/MonthlyBackup";
 import FieldWidthSettings from "@/components/settings/FieldWidthSettings";
 import WavelogSettings from "@/components/settings/WavelogSettings";
+import AprsSettings from "@/components/settings/AprsSettings";
 import SetupWizard from "@/components/SetupWizard";
 
 // Lazy-load admin-only component — reduces bundle size for non-admin users
@@ -766,6 +767,11 @@ export default function Settings() {
         <CollapsibleSection title="Clubrufzeichen" icon={Users} defaultOpen={false}>
         {/* Club Callsign Manager — admin only, but component handles its own visibility */}
         <ClubCallsignManager />
+        </CollapsibleSection>
+
+        <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">APRS & Karte</h2></div>
+        <CollapsibleSection title="APRS" icon={Wifi} defaultOpen={false} helpAnchor="#aprs-einstellungen" helpLabel="Hilfe zu APRS">
+          <AprsSettings />
         </CollapsibleSection>
 
         <div className="pt-2"><h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-1">Karte & Anzeige</h2></div>

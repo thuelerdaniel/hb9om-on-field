@@ -538,6 +538,15 @@ const SECTIONS = [
         ]
       },
       {
+        anchor: "aprs-einstellungen",
+        title: "APRS-Einstellungen (pro Nutzer)",
+        body: "In den Einstellungen gibt es den eigenen Menüpunkt «APRS». Dort erfassen Sie Ihren persönlichen aprs.fi API-Key als Passwortfeld (Anzeige «aktiv» oder «nicht gesetzt»), speichern ihn und löschen ihn wieder. Mit «Key testen» prüft der Server den gespeicherten Key gegen api.aprs.fi und meldet gültig, ungültig oder Rate-Limit — der Key selbst wird nie angezeigt. Ohne Key erscheint der Hinweis, dass nur APRS-IS-Daten ohne aprs.fi-Detailabfrage angezeigt werden, mit Link zur Key-Erstellung. Im selben Menüpunkt legen Sie den Standard-Radius (50, 100, 200 oder 500 km, Standard 200 km), die Zentrum-Präferenz (eigene Position oder Kartenmitte) und das Einblenden mobiler Stationen fest; diese Vorgaben gelten beim Öffnen der Karte für den APRS-Layer.",
+        example: "Einstellungen → APRS → Key einfügen → «Key speichern» → «Key testen» → Standard-Radius 100 km → Zentrum «Kartenmitte».",
+        links: [
+          { label: "APRS.fi API-Key erstellen", url: "https://aprs.fi/page/api" },
+        ]
+      },
+      {
         anchor: "repeaterbook-konfiguration",
         title: "RepeaterBook API-Token konfigurieren",
         body: "Seit März 2026 blockiert RepeaterBook automatische Logins per Cloudflare-Anti-Bot-Schutz. Statt Benutzername/Passwort wird ein API-Token verwendet. Generieren Sie den Token im RepeaterBook Dashboard unter repeaterbook.com/user/api_apps.php. Voraussetzung: Die App «HB9OM On Field» muss bei RepeaterBook freigeschaltet sein (Freischalt-Formular: repeaterbook.com/api_request.php). Geben Sie den Token (rbuapp_...) in den Einstellungen ein und testen Sie ihn mit «Token testen». Bei Erfolg ist der automatische Sync aktiviert. Bei ungültigem Token: Sync stoppt, Fehlermeldung wird angezeigt. Ohne Token: Sync deaktiviert, manueller JSON-Export als Fallback (Admin → JSON Repeater Import). Demo-Konto: Eingabe gesperrt, Club-Token wird verwendet.",

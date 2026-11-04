@@ -13,11 +13,15 @@ export const APP_VERSION = "1.0";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202611041020";
+export const APP_BUILD = "202611041030";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "04.11.2026: APRS-EINSTELLUNGEN PRO NUTZER — Neuer Menüpunkt «APRS» in den Einstellungen: persönlicher aprs.fi API-Key als Passwortfeld mit Status «aktiv»/«nicht gesetzt», Speichern und Löschen.",
+  "04.11.2026: KEY TESTEN — «Key testen» prüft den gespeicherten Key gegen api.aprs.fi und meldet gültig, ungültig oder Rate-Limit; der Key wird dabei nie im Klartext angezeigt.",
+  "04.11.2026: OHNE KEY — Hinweis im Menüpunkt, dass nur APRS-IS-Daten ohne aprs.fi-Detailabfrage angezeigt werden, mit Link zur Key-Erstellung auf aprs.fi.",
+  "04.11.2026: KARTEN-VOREINSTELLUNGEN — Im APRS-Menüpunkt: Standard-Radius 50/100/200/500 km (Standard 200), Zentrum eigene Position oder Kartenmitte, mobile Stationen ein-/ausblenden. Die Vorgaben wirken beim Öffnen der Karte auf den APRS-Layer.",
   "04.11.2026: APRS DIREKT VON APRS-IS — APRS-Daten kommen nicht mehr über aprs.fi, sondern direkt aus dem APRS-IS-Netz (Port 14580). Der 200-km-Radius um Bern wird alle 5 Minuten gelesen; gespeichert werden Position, Tempo, Kurs, Höhe, Kommentar, Symbol und die empfangene Paketart.",
   "04.11.2026: MOBILE STATIONEN — Mobile Stationen werden nicht mehr ausgefiltert und sind im APRS-Layer sichtbar. Tempo und Kurs stammen aus dem Paket (CSE/SPD) oder werden aus der Bewegung zwischen zwei Läufen berechnet.",
   "04.11.2026: BEWEGUNGSSPUREN — Neuer Schalter im APRS-Filter zeigt die letzten Positionen mobiler Stationen als Spur (72-Stunden-Historie, max. 40 Stationen je Kartenausschnitt).",

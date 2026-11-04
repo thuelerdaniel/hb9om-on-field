@@ -642,6 +642,22 @@ export const SECTIONS = [
         tip: "Tipp: Der API-Key ist kostenlos und wird sofort nach der Anmeldung mit dem APRS-Rufzeichen ausgestellt. Der Test-Button erscheint erst, wenn ein Key eingegeben wurde."
       },
       {
+        title: "APRS-Einstellungen (pro Nutzer)",
+        body: "Der Menüpunkt «APRS» in den Einstellungen fasst alles Persönliche zum APRS-Layer zusammen. Der persönliche aprs.fi API-Key wird als Passwortfeld erfasst, mit Status «aktiv» oder «nicht gesetzt» angezeigt und kann gespeichert oder gelöscht werden. «Key testen» prüft den gespeicherten Key gegen api.aprs.fi und meldet gültig, ungültig oder Rate-Limit; der Key selbst wird nie angezeigt. Ohne Key erscheint ein Hinweis, dass nur APRS-IS-Daten ohne aprs.fi-Detailabfrage angezeigt werden, samt Link zur Key-Erstellung. Im selben Menüpunkt werden der Standard-Radius (50, 100, 200 oder 500 km, Standard 200 km), die Zentrum-Präferenz (eigene Position oder Kartenmitte) und das Einblenden mobiler Stationen festgelegt. Diese Vorgaben wirken beim Öffnen der Karte auf den APRS-Layer.",
+        steps: [
+          { icon: "settings", text: "Einstellungen → «APRS» öffnen" },
+          { icon: "keyRound", text: "API-Key einfügen und «Key speichern»" },
+          { icon: "search", text: "«Key testen» — gültig, ungültig oder Rate-Limit" },
+          { icon: "crosshair", text: "Standard-Radius 50/100/200/500 km wählen" },
+          { icon: "mapPin", text: "Zentrum: eigene Position oder Kartenmitte" },
+          { icon: "wifi", text: "Mobile Stationen ein- oder ausblenden" }
+        ],
+        links: [
+          { label: "APRS.fi API-Key erstellen", url: "https://aprs.fi/page/api" }
+        ],
+        tip: "Tipp: Ohne Key bleiben die APRS-IS-Positionen sichtbar, nur die aprs.fi-Detailabfrage entfällt."
+      },
+      {
         title: "RepeaterBook API-Token konfigurieren",
         body: "Seit Maerz 2026 blockiert RepeaterBook automatische Logins per Cloudflare-Anti-Bot-Schutz. Statt Benutzername/Passwort wird ein API-Token (rbuapp_...) verwendet. Der Token wird im RepeaterBook Dashboard unter repeaterbook.com/user/api_apps.php generiert. Voraussetzung: Die App muss bei RepeaterBook freigeschaltet sein (Freischalt-Formular: repeaterbook.com/api_request.php). Geben Sie den Token in den Einstellungen ein und testen Sie ihn. Bei Erfolg ist der automatische Sync aktiviert. Ohne Token: Sync deaktiviert, manueller JSON-Export als Fallback. Demo-Konto: Eingabe gesperrt, Club-Token wird verwendet.",
         steps: [

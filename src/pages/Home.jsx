@@ -604,6 +604,9 @@ export default function Home() {
   const [aprsFilterCountries, setAprsFilterCountries] = useState(savedFilterState.aprsFilterCountries || []);
   const [aprsRadiusKm, setAprsRadiusKm] = useState(savedFilterState.aprsRadiusKm || 0);
   const [showAprsTracks, setShowAprsTracks] = useState(savedFilterState.showAprsTracks || false);
+  // Pro-User APRS-Voreinstellungen (Einstellungen → APRS): Zentrum und mobile Stationen
+  const [aprsCenterPref, setAprsCenterPref] = useState("own");
+  const [aprsShowMobile, setAprsShowMobile] = useState(true);
 
   // BrandMeister filters
   const [bmFilterTypes, setBmFilterTypes] = useState(savedFilterState.bmFilterTypes ?? null);
@@ -707,6 +710,13 @@ export default function Home() {
         setIsAdmin(me?.role === "admin");
         // Sync feature flags from User entity (User entity wins)
         syncFeaturesFromUser();
+        // APRS-Voreinstellungen aus den persönlichen Einstellungen anwenden.
+        // Ein bereits gespeicherter Filter-Radius des Nutzers hat Vorrang.
+        setAprsCenterPref(me?.aprs_center === "map" ? "map" : "own");
+        setAprsShowMobile(me?.aprs_show_mobile !== false);
+        if (savedFilterState.aprsRadiusKm === undefined) {
+          setAprsRadiusKm(typeof me?.aprs_radius_km === "number" ? me.aprs_radius_km : 200);
+        }
       } catch {}
     })();
   }, []);
@@ -1415,18 +1425,24 @@ export default function Home() {
   const aprsLiveNodes = useAprsLive();
   const aprsNodes = useMemo(() => {
     const liveCalls = new Set(aprsLiveNodes.map(n => n.callsign));
-    const base = privateNodes.filter(n => {
+    let base = privateNodes.filter(n => {
       const src = (n.source || "").toLowerCase();
       return (src.includes("aprs") || !src.includes("brandmeister")) && !liveCalls.has(n.callsign);
     }).concat(aprsLiveNodes);
+    // Mobile Stationen ausblenden, wenn in den Einstellungen abgeschaltet
+    if (!aprsShowMobile) {
+      base = base.filter(n => (n.node_type || n.station_type) !== "mobile");
+    }
     if (!aprsRadiusKm) return base;
     const pos = fixedPosition || userPosition;
-    const center = pos
+    const ownCenter = pos
       ? { lat: Array.isArray(pos) ? pos[0] : pos.lat, lng: Array.isArray(pos) ? pos[1] : (pos.lng ?? pos.lon) }
-      : mapRef.current ? { lat: mapRef.current.getCenter().lat, lng: mapRef.current.getCenter().lng } : null;
+      : null;
+    const mapCenter = mapRef.current ? { lat: mapRef.current.getCenter().lat, lng: mapRef.current.getCenter().lng } : null;
+    const center = aprsCenterPref === "map" ? (mapCenter || ownCenter) : (ownCenter || mapCenter);
     if (!center) return base;
     return base.filter(n => haversine(center.lat, center.lng, n.lat, n.lng) <= aprsRadiusKm);
-  }, [privateNodes, aprsLiveNodes, aprsRadiusKm, fixedPosition, userPosition]);
+  }, [privateNodes, aprsLiveNodes, aprsRadiusKm, fixedPosition, userPosition, aprsCenterPref, aprsShowMobile]);
 
   const bmNodes = useMemo(() => privateNodes.filter(n => {
     const src = (n.source || "").toLowerCase();

@@ -26,6 +26,25 @@
       "type": "string",
       "description": "Pers\u00f6nlicher APRS.fi API-Key"
     },
+    "aprs_radius_km": {
+      "type": "number",
+      "default": 200,
+      "description": "APRS Standard-Radius beim \u00d6ffnen der Karte (50/100/200/500 km)"
+    },
+    "aprs_center": {
+      "type": "string",
+      "enum": [
+        "own",
+        "map"
+      ],
+      "default": "own",
+      "description": "APRS Zentrum-Pr\u00e4ferenz: own = eigene GPS-Position, map = Kartenmitte"
+    },
+    "aprs_show_mobile": {
+      "type": "boolean",
+      "default": true,
+      "description": "Mobile APRS-Stationen auf der Karte einblenden"
+    },
     "brandmeister_api_key": {
       "type": "string",
       "description": "Pers\u00f6nlicher BrandMeister API-Key (nur Admins)"
