@@ -210,7 +210,7 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
       )}
 
       {isOpen && (
-        <div ref={panelRef} className={`absolute z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1rem)] max-h-[72vh] overflow-y-auto overscroll-contain ${hideTrigger ? "top-0 left-2" : "top-12 right-0"}`}>
+        <div ref={panelRef} className={`absolute z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto overscroll-contain ${hideTrigger ? "top-0 left-2" : "top-12 right-0"}`}>
           {/* Kopfzeile — seit v1.0 öffnet die untere Menüleiste das Menü,
               darum hier ein sichtbarer Schliessen-Knopf */}
           <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-3 py-2 flex items-center justify-between">

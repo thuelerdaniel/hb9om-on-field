@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { RadioTower, Signal, ChevronDown, X, Search, Info, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
+import LayerFilterSearch from "@/components/map/LayerFilterSearch";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 import CollapsibleSection from "@/components/map/CollapsibleSection";
@@ -17,6 +18,7 @@ export default function TotaFilter({
   onFilterTypesChange,
   searchQuery,
   onSearchQueryChange,
+  onLocate,
   pointCount,
   visibleCount,
   points = [],
@@ -36,6 +38,19 @@ export default function TotaFilter({
     return defaultOpen;
   });
   const { containerRef } = useDraggablePosition("drag-tota-filter");
+
+  // Vorschläge für die Live-Suche (Punkt F)
+  const searchItems = useMemo(
+    () => points.map(p => ({
+      id: p.id || p.code,
+      label: p.name || p.code,
+      sub: [p.code, p.subtype].filter(Boolean).join(" · "),
+      lat: p.lat,
+      lng: p.lng,
+      searchValue: p.name || p.code,
+    })),
+    [points]
+  );
 
   useEffect(() => { safeSetItem("hb9om_filter_open_tota", String(isOpen)); }, [isOpen]);
 
@@ -106,24 +121,14 @@ export default function TotaFilter({
           </div>
 
           <div className="p-3 border-b border-gray-100">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => onSearchQueryChange(e.target.value)}
-                placeholder="Name, Code, Kategorie..."
-                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => onSearchQueryChange("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded text-gray-400"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+            <LayerFilterSearch
+              value={searchQuery}
+              onChange={onSearchQueryChange}
+              items={searchItems}
+              placeholder="Name, Code, Kategorie..."
+              accent="orange"
+              onLocate={onLocate}
+            />
           </div>
 
           <div className="p-3 border-b border-gray-100">

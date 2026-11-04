@@ -3,14 +3,80 @@ import { clampToParent } from "@/lib/viewportClamp";
 
 const LONG_PRESS_MS = 500;
 const MOVE_THRESHOLD = 10;
+const EDGE = 12;
+
+// Gerätetyp — Position wird getrennt pro Handy / Tablet / PC gespeichert (Punkt G).
+function deviceKey() {
+  if (typeof window === "undefined") return "desktop";
+  const w = window.innerWidth;
+  if (w < 640) return "mobile";
+  if (w < 1024) return "tablet";
+  return "desktop";
+}
+
+// Das grosse Kind ist das Popup. Bei hideTrigger ist der Container nur ein
+// unsichtbarer Anker — dann ist das Popup sein einziges grosses Kind.
+function findPopup(container) {
+  let best = null;
+  for (const child of container.children) {
+    if (!child.getBoundingClientRect || child.offsetHeight < 120) continue;
+    if (!best || child.offsetWidth * child.offsetHeight > best.offsetWidth * best.offsetHeight) {
+      best = child;
+    }
+  }
+  return best;
+}
+
+// Zentriert das Popup im Elternbereich (Karte/Viewport) — horizontal + vertikal.
+// Gibt false zurück, wenn (noch) kein Popup sichtbar ist.
+function centerPopup(container) {
+  const popup = findPopup(container);
+  if (!popup) return false;
+
+  const parent = container.offsetParent || document.body;
+  const par = parent.getBoundingClientRect();
+  const cr = container.getBoundingClientRect();
+  const pr = popup.getBoundingClientRect();
+
+  // Abstand Popup → Container (bleibt beim Verschieben erhalten)
+  const dx = pr.left - cr.left;
+  const dy = pr.top - cr.top;
+
+  const w = Math.min(pr.width, par.width - EDGE * 2);
+  const h = Math.min(pr.height, par.height - EDGE * 2);
+
+  let left = par.left + (par.width - w) / 2 - dx;
+  let top = par.top + (par.height - h) / 2 - dy;
+
+  // Nie aus dem Bildschirm ragen
+  left = Math.max(par.left + EDGE, Math.min(left, par.left + par.width - w - EDGE));
+  top = Math.max(par.top + EDGE, Math.min(top, par.top + par.height - h - EDGE));
+
+  container.style.left = `${Math.round(left - par.left)}px`;
+  container.style.top = `${Math.round(top - par.top)}px`;
+  container.style.right = "auto";
+  container.style.bottom = "auto";
+  container.style.transform = "none";
+  return true;
+}
+
+function applyPos(container, pos) {
+  container.style.left = `${pos.left}px`;
+  container.style.top = `${pos.top}px`;
+  container.style.right = "auto";
+  container.style.bottom = "auto";
+  container.style.transform = "none";
+}
 
 /**
- * Makes an absolutely-positioned element draggable via long-press.
- * Normal taps/clicks still work — drag only starts after holding 500ms.
- * Position is saved to localStorage and restored on mount.
+ * Macht ein Popup/Fenster per Langdruck verschiebbar.
  *
- * @param {string} storageKey - unique localStorage key for this element
- * @returns {{ containerRef: React.RefObject }} attach to the outer draggable div
+ * Punkt G (v1.0): Ohne eigene Verschiebung öffnet jedes Popup ZENTRIERT im
+ * Viewport — horizontal und vertikal. Eine vom Benutzer gewählte Position wird
+ * gespeichert und beim nächsten Öffnen wiederhergestellt, getrennt pro Gerätetyp
+ * (Handy / Tablet / PC). Berührt grosse Touch-Ziele, Klicks funktionieren normal.
+ *
+ * @param {string} storageKey - eindeutiger Schlüssel (Gerätetyp wird angehängt)
  */
 export function useDraggablePosition(storageKey) {
   const containerRef = useRef(null);
@@ -19,31 +85,58 @@ export function useDraggablePosition(storageKey) {
   const startPos = useRef({ x: 0, y: 0 });
   const offset = useRef({ x: 0, y: 0 });
   const dragEnded = useRef(false);
+  // true = Benutzer hat selbst verschoben → Position wird NICHT neu zentriert
+  const hasCustomPos = useRef(false);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Restore saved position
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const pos = JSON.parse(saved);
-        container.style.left = `${pos.left}px`;
-        container.style.top = `${pos.top}px`;
-        container.style.right = "auto";
-        container.style.bottom = "auto";
-        container.style.transform = "none";
-      }
-    } catch {}
+    let device = deviceKey();
+    const keyFor = (d) => `${storageKey}|${d}`;
+    let key = keyFor(device);
 
-    // Clamp to parent bounds after restore — ensures button is visible
-    // even if viewport changed since last save (orientation, resize).
-    // Save clamped position so there's no jump on next load.
-    requestAnimationFrame(() => {
-      const clamped = clampToParent(container);
-      try { localStorage.setItem(storageKey, JSON.stringify(clamped)); } catch {}
+    const save = (pos) => {
+      try { localStorage.setItem(keyFor(device), JSON.stringify(pos)); } catch {}
+    };
+    const read = (d) => {
+      try {
+        const raw = localStorage.getItem(keyFor(d));
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    };
+
+    const center = () => {
+      if (centerPopup(container)) {
+        const parent = container.offsetParent || document.body;
+        const par = parent.getBoundingClientRect();
+        const cr = container.getBoundingClientRect();
+        save({ left: Math.round(cr.left - par.left), top: Math.round(cr.top - par.top) });
+      }
+    };
+
+    // 1) Gespeicherte Position dieses Geräts wiederherstellen, sonst zentrieren
+    const saved = read(device);
+    if (saved) {
+      hasCustomPos.current = true;
+      applyPos(container, saved);
+      requestAnimationFrame(() => {
+        try { save(clampToParent(container)); } catch {}
+      });
+    } else {
+      hasCustomPos.current = false;
+      requestAnimationFrame(() => {
+        if (!saved) center();
+      });
+    }
+
+    // 2) Popup öffnet/schliesst → ohne eigene Position immer neu zentrieren.
+    //    Wird ein Popup erst später geöffnet (isOpen), greift genau dieser Pfad.
+    const observer = new MutationObserver(() => {
+      if (hasCustomPos.current) return;
+      requestAnimationFrame(() => { if (!hasCustomPos.current) center(); });
     });
+    observer.observe(container, { childList: true });
 
     const onStart = (clientX, clientY) => {
       startPos.current = { x: clientX, y: clientY };
@@ -52,7 +145,7 @@ export function useDraggablePosition(storageKey) {
       longPressTimer.current = setTimeout(() => {
         dragging.current = true;
         container.style.zIndex = "1100";
-        container.style.opacity = "0.85";
+        container.style.opacity = "0.9";
       }, LONG_PRESS_MS);
     };
 
@@ -76,21 +169,21 @@ export function useDraggablePosition(storageKey) {
       if (dragging.current) {
         dragging.current = false;
         dragEnded.current = true;
+        hasCustomPos.current = true;
         container.style.zIndex = "";
         container.style.opacity = "";
         setTimeout(() => { dragEnded.current = false; }, 300);
         const rect = container.getBoundingClientRect();
         const parent = container.offsetParent || document.body;
         const parentRect = parent.getBoundingClientRect();
-        const pos = {
+        save({
           left: Math.round(rect.left - parentRect.left),
           top: Math.round(rect.top - parentRect.top),
-        };
-        try { localStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
+        });
       }
     };
 
-    // Touch handlers
+    // Touch-Eingaben
     const onTouchStart = (e) => {
       if (e.touches.length !== 1) return;
       onStart(e.touches[0].clientX, e.touches[0].clientY);
@@ -100,9 +193,7 @@ export function useDraggablePosition(storageKey) {
       if (!dragging.current) {
         const dx = Math.abs(e.touches[0].clientX - startPos.current.x);
         const dy = Math.abs(e.touches[0].clientY - startPos.current.y);
-        if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
-          clearTimeout(longPressTimer.current);
-        }
+        if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) clearTimeout(longPressTimer.current);
         return;
       }
       e.preventDefault();
@@ -110,19 +201,12 @@ export function useDraggablePosition(storageKey) {
     };
     const onTouchEnd = () => onEnd();
 
-    // Mouse handlers (desktop)
-    const onMouseDown = (e) => {
-      if (e.button !== 0) return;
-      onStart(e.clientX, e.clientY);
-    };
-    const onMouseMove = (e) => {
-      if (!dragging.current) return;
-      e.preventDefault();
-      onMove(e.clientX, e.clientY);
-    };
+    // Maus (Desktop)
+    const onMouseDown = (e) => { if (e.button !== 0) return; onStart(e.clientX, e.clientY); };
+    const onMouseMove = (e) => { if (!dragging.current) return; e.preventDefault(); onMove(e.clientX, e.clientY); };
     const onMouseUp = () => onEnd();
 
-    // Suppress click after drag
+    // Klick nach dem Ziehen unterdrücken
     const onClickCapture = (e) => {
       if (dragEnded.current) {
         e.stopPropagation();
@@ -131,7 +215,7 @@ export function useDraggablePosition(storageKey) {
       }
     };
 
-    // Prevent context menu on long-press
+    // Kontextmenü bei Langdruck verhindern
     const onContextMenu = (e) => {
       if (dragging.current || dragEnded.current) e.preventDefault();
     };
@@ -145,22 +229,30 @@ export function useDraggablePosition(storageKey) {
     container.addEventListener("click", onClickCapture, true);
     container.addEventListener("contextmenu", onContextMenu);
 
-    // Viewport clamping on resize/orientation change — keep button visible
-    // v0.957: Use requestAnimationFrame for resize to ensure layout has settled
-    const handleResize = () => {
+    // Grössen-/Ausrichtungswechsel: neuer Gerätetyp → dessen Position (oder Zentrum)
+    const handleViewportChange = () => {
       requestAnimationFrame(() => {
-        const clamped = clampToParent(container);
-        try { localStorage.setItem(storageKey, JSON.stringify(clamped)); } catch {}
+        const nextDevice = deviceKey();
+        if (nextDevice !== device) {
+          device = nextDevice;
+          key = keyFor(device);
+          const restored = read(device);
+          hasCustomPos.current = !!restored;
+          if (restored) {
+            applyPos(container, restored);
+            try { save(clampToParent(container)); } catch {}
+            return;
+          }
+        }
+        if (hasCustomPos.current) {
+          try { save(clampToParent(container)); } catch {}
+        } else {
+          center();
+        }
       });
     };
-    const handleOrientationChange = () => {
-      setTimeout(() => {
-        const clamped = clampToParent(container);
-        try { localStorage.setItem(storageKey, JSON.stringify(clamped)); } catch {}
-      }, 150);
-    };
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("orientationchange", handleOrientationChange);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("orientationchange", handleViewportChange);
 
     return () => {
       container.removeEventListener("touchstart", onTouchStart);
@@ -171,8 +263,9 @@ export function useDraggablePosition(storageKey) {
       document.removeEventListener("mouseup", onMouseUp);
       container.removeEventListener("click", onClickCapture, true);
       container.removeEventListener("contextmenu", onContextMenu);
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("orientationchange", handleOrientationChange);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("orientationchange", handleViewportChange);
+      observer.disconnect();
       clearTimeout(longPressTimer.current);
     };
   }, [storageKey]);

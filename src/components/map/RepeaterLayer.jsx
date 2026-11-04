@@ -5,11 +5,9 @@ import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
 import DraggablePopup from "@/components/map/DraggablePopup";
 import CoveragePolygon, { CoverageCircle } from "@/components/map/CoveragePolygon";
-import { getModeColor, repeaterMatchesMode, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
+import { getModeColor } from "@/lib/repeaterModes";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { isValidCoord } from "@/lib/geoUtilsFrontend";
-import { isInContinents } from "@/lib/continents";
-import { isInCountries, getCountriesByContinent } from "@/lib/countries";
 import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
 // Shared filter pipeline — the same functions back the PDF export, so the PDF list
 // always matches the markers drawn here.
@@ -44,7 +42,7 @@ const LINE_DASH_ARRAYS = {
   dotted: "3 6",
 };
 
-function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, onRepeaterUpdate, activeContinents, activeCountries, isAdmin }) {
+function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, onRepeaterUpdate, activeContinents, activeCountries, focusRepeaterId, isAdmin }) {
   const map = useMap();
   // v1.0: Viewport kommt aus dem stabilen Hook (200 ms Debounce + ein Frame).
   // Vorher wurde der Kartenausschnitt bei jedem Render frisch aus der Karte gelesen —
@@ -493,6 +491,9 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
             key={`rep-${r.id || idx}`}
             position={[r.lat, r.lng]}
             icon={getRepeaterIcon(color)}
+            eventHandlers={focusRepeaterId && r.id === focusRepeaterId ? {
+              add: (e) => { setTimeout(() => { try { e.target.openPopup(); } catch {} }, 350); },
+            } : undefined}
           >
             <DraggablePopup autoPan={false}>
               {popupContent}
@@ -524,6 +525,7 @@ function arePropsEqual(prev, next) {
     prev.onRepeaterUpdate === next.onRepeaterUpdate &&
     prev.activeContinents === next.activeContinents &&
     prev.activeCountries === next.activeCountries &&
+    prev.focusRepeaterId === next.focusRepeaterId &&
     prev.isAdmin === next.isAdmin
   );
 }

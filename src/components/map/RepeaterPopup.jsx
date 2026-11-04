@@ -36,7 +36,9 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
   const [calcResult, setCalcResult] = useState(null);
   const [showCorrection, setShowCorrection] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const [expanded, setExpanded] = useState(true);
+  // Punkt C: Standard = kompakt (Rufzeichen + Modulationsfarbe).
+  // Details (Frequenz, Modi, Verlinkungen, Notstrom …) erst auf «Mehr Informationen».
+  const [expanded, setExpanded] = useState(false);
 
   // JSON-imported repeaters have no external source link — show "JSON" badge instead
   const isJsonImport = repeater.source_id === "json-import";
@@ -149,15 +151,16 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
       {/* Essential info — always visible */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div>
-          <div className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-            <Radio className="w-3.5 h-3.5" style={{ color: MODE_COLORS[repeater.primary_mode] || "#6b7280" }} />
+          {/* Rufzeichen deutlich größer und kontrastreicher (Punkt C) */}
+          <div className="font-extrabold text-lg leading-tight text-gray-900 flex items-center gap-1.5">
+            <Radio className="w-4 h-4 flex-shrink-0" style={{ color: MODE_COLORS[repeater.primary_mode] || "#6b7280" }} />
             {repeater.callsign}
           </div>
           {repeater.location_name && (
-            <div className="text-[11px] text-gray-500 mt-0.5">{repeater.location_name}</div>
+            <div className="text-[11px] font-medium text-gray-700 mt-0.5">{repeater.location_name}</div>
           )}
           {repeater.country && (
-            <div className="text-[10px] text-gray-400 mt-0.5">{repeater.country}</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">{repeater.country}</div>
           )}
         </div>
         <span
@@ -168,68 +171,25 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
         </span>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-2 mb-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-gray-400 uppercase">Frequenz</span>
-          <span className="font-mono font-bold text-sm text-gray-900">
-            {repeater.frequency.toFixed(4)} MHz
-          </span>
-        </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-[10px] text-gray-400 uppercase">Offset</span>
-          <span className="font-mono text-[11px] text-gray-600">
-            {repeater.offset_mhz > 0 ? "+" : ""}{repeater.offset_mhz?.toFixed(2) || "0.00"} MHz
-          </span>
-        </div>
-        {repeater.tone && (
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-gray-400 uppercase">Zugang</span>
-            <span className="font-mono text-[11px] text-gray-600">{repeater.tone}</span>
-          </div>
-        )}
-      </div>
-
+      {/* Kompakt: nur Modulationsart als Farbe/Badge — Details aufklappbar */}
       <div className="flex flex-wrap gap-1 mb-2">
-        {(repeater.modes || []).map((mode, i) => (
+        {repeater.primary_mode && (
           <span
-            key={i}
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+            className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{
-              color: MODE_COLORS[mode] || "#6b7280",
-              backgroundColor: (MODE_COLORS[mode] || "#6b7280") + "15",
+              color: MODE_COLORS[repeater.primary_mode] || "#374151",
+              backgroundColor: (MODE_COLORS[repeater.primary_mode] || "#6b7280") + "1f",
             }}
           >
-            {MODE_LABELS[mode] || mode}
-          </span>
-        ))}
-        {repeater.fm_funknetz && (
-          <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1"
-            style={{ color: "#16a34a", backgroundColor: "#16a34a15" }}
-            title="Auf FM-Funknetz.de anhörbar"
-          >
-            <Headphones className="w-2.5 h-2.5" />
-            FM-Funknetz
+            {MODE_LABELS[repeater.primary_mode] || repeater.primary_mode}
           </span>
         )}
-        {repeater.echolink_node && (
-          <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1"
-            style={{ color: "#4f46e5", backgroundColor: "#4f46e515" }}
-            title={`EchoLink-Node ${repeater.echolink_node}`}
-          >
-            <Link2 className="w-2.5 h-2.5" />
-            EchoLink {repeater.echolink_node}
+        {repeater.band && (
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+            {repeater.band}
           </span>
         )}
       </div>
-
-      {repeater.band && (
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
-          <Signal className="w-3 h-3" />
-          <span>Band: <span className="font-medium text-gray-700">{repeater.band}</span></span>
-        </div>
-      )}
 
       {repeater.coords_from_locator && (
         <div className="flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400 mb-1.5 bg-amber-50 dark:bg-amber-900/20 rounded px-1.5 py-1 border border-amber-200 dark:border-amber-800/50" title={
@@ -286,6 +246,63 @@ export default function RepeaterPopup({ repeater, linkedRepeaters = [], userPosi
       {/* Detailed info — only when expanded */}
       {expanded && (
         <>
+          {/* Details (Punkt C): Frequenz, Offset, Zugang, alle Modi, Band */}
+          <div className="bg-gray-50 rounded-lg p-2 mb-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-gray-500 uppercase">Frequenz</span>
+              <span className="font-mono font-bold text-sm text-gray-900">
+                {repeater.frequency.toFixed(4)} MHz
+              </span>
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-[10px] text-gray-500 uppercase">Offset</span>
+              <span className="font-mono text-[11px] text-gray-700">
+                {repeater.offset_mhz > 0 ? "+" : ""}{repeater.offset_mhz?.toFixed(2) || "0.00"} MHz
+              </span>
+            </div>
+            {repeater.tone && (
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[10px] text-gray-500 uppercase">Zugang</span>
+                <span className="font-mono text-[11px] text-gray-700">{repeater.tone}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-1 mb-2">
+            {(repeater.modes || []).map((mode, i) => (
+              <span
+                key={i}
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                style={{
+                  color: MODE_COLORS[mode] || "#6b7280",
+                  backgroundColor: (MODE_COLORS[mode] || "#6b7280") + "15",
+                }}
+              >
+                {MODE_LABELS[mode] || mode}
+              </span>
+            ))}
+            {repeater.fm_funknetz && (
+              <span
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                style={{ color: "#16a34a", backgroundColor: "#16a34a15" }}
+                title="Auf FM-Funknetz.de anhörbar"
+              >
+                <Headphones className="w-2.5 h-2.5" />
+                FM-Funknetz
+              </span>
+            )}
+            {repeater.echolink_node && (
+              <span
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                style={{ color: "#4f46e5", backgroundColor: "#4f46e515" }}
+                title={`EchoLink-Node ${repeater.echolink_node}`}
+              >
+                <Link2 className="w-2.5 h-2.5" />
+                EchoLink {repeater.echolink_node}
+              </span>
+            )}
+          </div>
+
           {repeater.fm_funknetz_tgs && repeater.fm_funknetz_tgs.length > 0 && (
             <div className="mb-2 border-t border-gray-100 pt-2 mt-2">
               <div className="text-[10px] text-gray-400 uppercase mb-1 flex items-center gap-1">

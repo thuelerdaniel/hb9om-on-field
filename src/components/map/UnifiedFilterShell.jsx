@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ChevronDown, X, Search, Info, SlidersHorizontal } from "lucide-react";
 import CountryContinentFilter from "@/components/map/CountryContinentFilter";
+import LayerFilterSearch from "@/components/map/LayerFilterSearch";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
 import { safeSetItem, safeGetItem } from "@/lib/safeStorage";
 import CollapsibleSection from "@/components/map/CollapsibleSection";
@@ -34,6 +35,7 @@ export default function UnifiedFilterShell({
   layerKey,
   searchQuery,
   onSearchQueryChange,
+  onLocate,
   pointCount = 0,
   visibleCount = 0,
   points = [],
@@ -60,6 +62,19 @@ export default function UnifiedFilterShell({
     return defaultOpen;
   });
   const { containerRef } = useDraggablePosition(`drag-${layerKey}-filter`);
+
+  // Vorschläge für die Live-Suche (Punkt F)
+  const searchItems = useMemo(
+    () => points.map(p => ({
+      id: p.id || p.code,
+      label: p.code || p.name,
+      sub: p.name,
+      lat: p.lat,
+      lng: p.lng,
+      searchValue: p.code || p.name,
+    })),
+    [points]
+  );
 
   useEffect(() => { safeSetItem(`hb9om_filter_open_${layerKey}`, String(isOpen)); }, [isOpen, layerKey]);
 
@@ -155,28 +170,14 @@ export default function UnifiedFilterShell({
           </div>
 
           <div className="p-3 border-b border-gray-100">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => onSearchQueryChange(e.target.value)}
-                placeholder="Referenz, Name..."
-                className={`w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 ${
-                  accentColor === "orange" ? "focus:ring-orange-300"
-                  : accentColor === "brown" ? "focus:ring-amber-300"
-                  : accentColor === "red" ? "focus:ring-red-300"
-                  : accentColor === "green" ? "focus:ring-green-300"
-                  : accentColor === "purple" ? "focus:ring-purple-300"
-                  : "focus:ring-blue-300"
-                }`}
-              />
-              {searchQuery && (
-                <button onClick={() => onSearchQueryChange("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded text-gray-400">
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+            <LayerFilterSearch
+              value={searchQuery}
+              onChange={onSearchQueryChange}
+              items={searchItems}
+              placeholder="Referenz, Name..."
+              accent={accentColor === "orange" ? "orange" : accentColor === "purple" ? "purple" : "blue"}
+              onLocate={onLocate}
+            />
           </div>
 
           {/* Weitere Optionen — Accordion, per Default eingeklappt (Zustand pro User persistiert) */}

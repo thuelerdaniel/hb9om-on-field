@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Radio, Search, Link2, ChevronDown, X, Globe, MapPin, Signal, ExternalLink, Check, SlidersHorizontal, Download } from "lucide-react";
 import { MODE_COLORS, MODE_LABELS, FILTER_MODES, FEATURE_MODES } from "@/lib/repeaterModes";
 import CollapsibleSection from "@/components/map/CollapsibleSection";
+import LayerFilterSearch from "@/components/map/LayerFilterSearch";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
 import { useDraggablePosition } from "@/hooks/useDraggablePosition";
@@ -16,6 +17,9 @@ export default function RepeaterFilter({
   onFilterModesChange,
   searchQuery,
   onSearchQueryChange,
+  repeaters = [],
+  onLocate,
+  onSelectRepeater,
   showLinks,
   onShowLinksChange,
   showCoverage,
@@ -43,6 +47,28 @@ export default function RepeaterFilter({
   });
   const [showCountryPanel, setShowCountryPanel] = useState(false);
   const { containerRef } = useDraggablePosition("drag-repeater-filter");
+
+  // Punkt D: Live-Vorschläge nach Rufzeichen ODER Ort — Auswahl springt zur Karte
+  // und öffnet das Popup des Relais.
+  const searchItems = useMemo(
+    () => repeaters.map(r => ({
+      id: r.id || `${r.callsign}-${r.frequency}`,
+      label: r.callsign,
+      sub: [r.location_name, r.country, r.frequency != null ? `${r.frequency.toFixed(4)} MHz` : null]
+        .filter(Boolean).join(" · "),
+      lat: r.lat,
+      lng: r.lng,
+      searchValue: r.callsign,
+      repeater: r,
+    })),
+    [repeaters]
+  );
+
+  const handleSelect = (item) => {
+    onSearchQueryChange(item.searchValue || item.label || "");
+    if (item.lat != null && item.lng != null) onLocate?.(item.lat, item.lng, 15);
+    onSelectRepeater?.(item.repeater);
+  };
 
   useEffect(() => { safeSetItem("hb9om_filter_open_repeater", String(isOpen)); }, [isOpen]);
 
@@ -143,24 +169,18 @@ export default function RepeaterFilter({
 
           {/* Search — always visible */}
           <div className="p-3 border-b border-gray-100">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => onSearchQueryChange(e.target.value)}
-                placeholder="Rufzeichen, Ort, Frequenz..."
-                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => onSearchQueryChange("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded text-gray-400"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+            <LayerFilterSearch
+              value={searchQuery}
+              onChange={onSearchQueryChange}
+              items={searchItems}
+              placeholder="Rufzeichen, Ort, Frequenz..."
+              accent="blue"
+              maxSuggestions={10}
+              onLocate={(lat, lng, zoom) => {
+                onLocate?.(lat, lng, zoom);
+              }}
+              onSelectItem={handleSelect}
+            />
           </div>
 
           {/* Mode filters — always visible (essential) */}

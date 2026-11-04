@@ -13,12 +13,21 @@ export const APP_VERSION = "1.0";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202611040830";
+export const APP_BUILD = "202611041000";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
   "04.11.2026: VERSION 1.0 — erste stabile Hauptversion.",
+  "04.11.2026: EBENEN-FENSTER ZENTRIERT — Das Ebenen-Menü öffnet mittig im Bildschirm (horizontal und vertikal) und belegt höchstens 85 % der Höhe mit internem Scroll. Es ragt nie unten aus dem Bild; Verschieben bleibt möglich.",
+  "04.11.2026: ALLE FILTER-FENSTER ZENTRIERT — SOTA, POTA, WWFF, Burgen, WWBOTA, IOTA, TOTA, LLOTA, Leuchttürme, APRS, BrandMeister und Relais öffnen zentriert. Eine selbst gewählte Position wird gespeichert und beim nächsten Öffnen wiederhergestellt — getrennt pro Gerät (Handy / Tablet / PC). Ohne eigene Verschiebung: wieder zentriert.",
+  "04.11.2026: LESBARKEIT ALLER BESCHRIFTUNGEN — Karten-Beschriftungen und Popup-Texte haben jetzt dunklen Text mit weissem Halo, Mindestschriftgrössen und halbtransparente Textflächen. Gilt in allen Layern und auf heller wie dunkler (Satellit) Basiskarte; der «ca.»-Kreis der Parkgrenzen ist deutlich dunkler und grösser.",
+  "04.11.2026: RELAIS-POPUP KOMPAKT — Standard sind nur Rufzeichen (deutlich grösser, kontrastreich) und Modulationsfarbe. Frequenz, Offset, Zugang, alle Modi, Standort-Hinweise, Verlinkungen und Notstrom erscheinen erst nach «Mehr Informationen».",
+  "04.11.2026: RELAIS-SUCHE — Das Suchfeld im Relais-Filter zeigt beim Tippen Live-Vorschläge (Rufzeichen oder Ort, mit Standort und Frequenz). Eine Auswahl übernimmt den Filter, springt auf der Karte zum Relais und öffnet dessen Popup.",
+  "04.11.2026: LAYER-SUCHEN — Alle Filter-Suchfelder (SOTA, POTA, WWFF, Burgen, IOTA, TOTA, LLOTA, Relais) arbeiten gleich: Live-Filterung beim Tippen, Vorschlagsliste, Auswahl springt zum Punkt auf der Karte.",
+  "04.11.2026: PDF SPEICHERN/TEILEN — Die erzeugte PDF-Liste liegt als echte https-Adresse im Datei-Speicher. «Speichern / Teilen» nutzt den System-Teilen-Dialog nur als Zusatz und öffnet sonst die https-Adresse; die Adresse steht zusätzlich als kopierbarer Text in der Einblendung. Die Einblendung bleibt offen, bis sie geschlossen wird.",
+  "04.11.2026: EINHEITLICHES THEME — Karten-Popups, Tooltips und Einblendungen folgen dem gleichen Farbschema wie Dialoge und Filter-Fenster, inklusive Dark Mode (dunkle Fläche, helle Schrift, gleiche Rahmen).",
+  "04.11.2026: BUILD — Build-Nummer auf 202611041000 nachgezogen (Versionsnummer 1.0 unverändert).",
   "04.11.2026: EBENEN-BUTTON UNTEN — Das Ebenen-Menü (Layer-Stack-Symbol) sitzt jetzt in der unteren Menüleiste zwischen «Karte» und «Hunting» und ist damit auf jeder Seite erreichbar. Die untere Leiste bleibt auch bei 390 px Breite vollständig bedienbar (Icons und Beschriftungen kompakt, nichts abgeschnitten).",
   "04.11.2026: PANEL-GRIFF MITTE LINKS — Der Griff zum Öffnen des seitlichen Bedien-Panels liegt jetzt vertikal zentriert am linken Rand statt oben links. Bei geöffnetem Panel ist der Zu-Griff weiterhin der oberste Knopf IM Panel — er verdeckt keinen Inhalt.",
   "04.11.2026: KARTE STABIL — Ursache des Flackerns gefunden: Jede Pan-Bewegung löste ein Neu-Filtern, Neu-Sortieren und damit ein Neu-Anlegen von mehreren hundert Markern aus. Jetzt gilt: Viewport erst 200 ms nach dem Gestus (Debounce) und gebündelt in einem Frame, Marker-Bestand bleibt beim Ziehen stehen (kein Clear/Neuaufbau), Massenmarker werden auf dem Canvas gezeichnet, und es werden keine Daten beim Pannen nachgeladen.",

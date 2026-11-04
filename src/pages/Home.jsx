@@ -1251,6 +1251,16 @@ export default function Home() {
     }
   }, [lockedScale]);
 
+  // Punkt F: Auswahl in einem Layer-Filter-Suchfeld springt auf der Karte zum Treffer
+  const locateOnMap = useCallback((lat, lng, zoom = 15) => {
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      mapRef.current?.flyTo([lat, lng], zoom, { duration: 1 });
+    }
+  }, []);
+
+  // Punkt D: aus dem Relais-Filter gewähltes Relais — Popup wird geöffnet
+  const [focusRepeaterId, setFocusRepeaterId] = useState(null);
+
   // Search result selection
   const handleSearchSelect = useCallback((result) => {
     if (result.lat != null && result.lng != null) {
@@ -1802,6 +1812,7 @@ export default function Home() {
             onRepeaterUpdate={updateRepeater}
             activeContinents={activeContinents}
             activeCountries={activeCountries}
+            focusRepeaterId={focusRepeaterId}
             isAdmin={isAdmin}
           />
         )}
@@ -2034,6 +2045,14 @@ export default function Home() {
               filterCountries={repeaterFilterCountries}
               onFilterCountriesChange={setRepeaterFilterCountries}
               countries={repeaterCountries}
+              repeaters={repeaters}
+              onLocate={locateOnMap}
+              onSelectRepeater={(r) => {
+                if (!r?.id) return;
+                setFocusRepeaterId(r.id);
+                // Popup nur einmal öffnen — danach wieder freigeben
+                setTimeout(() => setFocusRepeaterId(null), 4000);
+              }}
               repeaterCount={repeaters.length}
               visibleCount={visibleRepeaterCount}
               radiusKm={repeaterRadiusKm}
@@ -2050,6 +2069,7 @@ export default function Home() {
           return (
             <TotaFilter
               key="tota-filter"
+              onLocate={locateOnMap}
               filterTypes={totaFilterTypes}
               onFilterTypesChange={setTotaFilterTypes}
               searchQuery={totaSearchQuery}
@@ -2149,6 +2169,7 @@ export default function Home() {
           leftPx: 60,
           bottomPx: btn.bottomPx,
           hideTrigger: true,
+          onLocate: locateOnMap,
           externalOpen: openFilter === btn.type,
           onExternalClose: () => setOpenFilter(null),
         };
