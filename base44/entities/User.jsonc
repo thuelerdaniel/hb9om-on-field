@@ -45,6 +45,23 @@
       "default": true,
       "description": "Mobile APRS-Stationen auf der Karte einblenden"
     },
+    "aprs_display_hours": {
+      "type": "number",
+      "default": 24,
+      "enum": [
+        6,
+        12,
+        24,
+        48
+      ],
+      "enumColors": [
+        "yellow",
+        "green",
+        "blue",
+        "purple"
+      ],
+      "description": "Anzeigedauer des APRS-Layers in Stunden \u2014 Stationen ohne Positionsmeldung innerhalb dieser Frist werden nicht dargestellt (Datensatz bleibt erhalten)"
+    },
     "brandmeister_api_key": {
       "type": "string",
       "description": "Pers\u00f6nlicher BrandMeister API-Key (nur Admins)"
