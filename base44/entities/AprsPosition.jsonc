@@ -1,0 +1,103 @@
+{
+  "name": "AprsPosition",
+  "type": "object",
+  "properties": {
+    "callsign": {
+      "type": "string",
+      "description": "Rufzeichen der APRS-Station (z. B. HB9ABC-9)"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad der letzten Position"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad der letzten Position"
+    },
+    "symbol": {
+      "type": "string",
+      "description": "APRS-Symbol, 2 Zeichen (Tabelle + Code, z. B. '/>' fuer Auto)"
+    },
+    "station_type": {
+      "type": "string",
+      "enum": [
+        "mobile",
+        "fixed",
+        "wx",
+        "igate",
+        "digi",
+        "object",
+        "balloon",
+        "other"
+      ],
+      "default": "other",
+      "enumColors": [
+        "blue",
+        "gray",
+        "purple",
+        "teal",
+        "green",
+        "orange",
+        "pink",
+        "gray"
+      ],
+      "description": "Kategorie der Station (aus Symbol und Kommentar abgeleitet)"
+    },
+    "comment": {
+      "type": "string",
+      "description": "APRS-Kommentar der Station (max 200 Zeichen)"
+    },
+    "speed": {
+      "type": "number",
+      "description": "Geschwindigkeit in km/h (aus Paket oder aus Bewegung abgeleitet)"
+    },
+    "course": {
+      "type": "number",
+      "description": "Kurs in Grad (0-359)"
+    },
+    "altitude": {
+      "type": "number",
+      "description": "Hoehe in Metern (aus /A=-Kommentar)"
+    },
+    "last_heard": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt des letzten empfangenen Pakets"
+    },
+    "first_heard": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt des ersten empfangenen Pakets"
+    },
+    "last_sample_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt des letzten gespeicherten Historien-Samples (begrenzt die Samplerate)"
+    },
+    "packet_count": {
+      "type": "number",
+      "default": 1,
+      "description": "Anzahl empfangener Pakete seit erstem Hoeren"
+    },
+    "source": {
+      "type": "string",
+      "default": "aprs-is",
+      "description": "Datenquelle (aprs-is)"
+    },
+    "last_format": {
+      "type": "string",
+      "description": "Zuletzt empfangenes Paketformat (uncompressed, compressed, mice)"
+    }
+  },
+  "required": [
+    "callsign",
+    "lat",
+    "lng"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

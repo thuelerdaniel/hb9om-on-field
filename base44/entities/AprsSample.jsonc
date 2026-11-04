@@ -1,0 +1,55 @@
+{
+  "name": "AprsSample",
+  "type": "object",
+  "properties": {
+    "callsign": {
+      "type": "string",
+      "description": "Rufzeichen der APRS-Station"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Breitengrad zum Zeitpunkt des Samples"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Laengengrad zum Zeitpunkt des Samples"
+    },
+    "speed": {
+      "type": "number",
+      "description": "Geschwindigkeit in km/h"
+    },
+    "course": {
+      "type": "number",
+      "description": "Kurs in Grad"
+    },
+    "altitude": {
+      "type": "number",
+      "description": "Hoehe in Metern"
+    },
+    "station_type": {
+      "type": "string",
+      "description": "Kategorie der Station zum Zeitpunkt des Samples"
+    },
+    "symbol": {
+      "type": "string",
+      "description": "APRS-Symbol (2 Zeichen)"
+    },
+    "heard": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt des Samples (Retention: 72 Stunden)"
+    }
+  },
+  "required": [
+    "callsign",
+    "lat",
+    "lng",
+    "heard"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

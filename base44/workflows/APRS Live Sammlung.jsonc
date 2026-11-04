@@ -1,0 +1,40 @@
+{
+  "name": "APRS Live Sammlung",
+  "description": "Sammelt alle 3 Minuten APRS-Positionen im 200-km-Radius direkt von APRS-IS (inkl. mobiler Stationen) und schreibt aktuelle Position plus rollierende Historie.",
+  "trigger": {
+    "config": {
+      "trigger_type": "scheduled",
+      "cron_expression": "*/3 * * * *",
+      "timezone": "UTC"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "aprs_live_sammlung",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "collect_aprs": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "collectAprs",
+            "args": {
+              "duration_ms": 50000,
+              "radius_km": 200,
+              "lat": 46.8,
+              "lng": 8.2
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "APRS-Positionen sammeln",
+            "description": "APRS-IS, 200 km, inkl. mobil"
+          }
+        }
+      }
+    ]
+  }
+}
