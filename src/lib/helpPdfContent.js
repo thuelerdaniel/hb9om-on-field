@@ -674,6 +674,17 @@ export const SECTIONS = [
         tip: "Tipp: Ohne eigenen Key bleibt alles bis auf die Live-Detailabfrage sichtbar; die Popups kennzeichnen das mit einem Hinweis."
       },
       {
+        title: "APRS-Anzeigedauer",
+        body: "Der APRS-Layer zeigt nur Stationen, deren letzte Positionsmeldung (last_heard, UTC) innerhalb der eingestellten Frist liegt. Wählbar sind in Einstellungen → APRS 6, 12, 24 oder 48 Stunden, Standard 24 Stunden. Nach Ablauf der Frist verschwindet der Punkt von der Karte und erscheint auch nicht mehr im Zähler des Layer-Popups, in der Suche, in den Bewegungsspuren oder in PDF-Listen — alle diese Ansichten werden aus derselben gefilterten Stationsliste abgeleitet. Die Datensätze selbst werden nicht gelöscht; Archiv und Datenaufbewahrung laufen separat weiter. Verglichen wird in UTC, exakt 24 Stunden (bzw. die gewählte Frist) gilt bereits als abgelaufen. Das Popup zeigt die letzte Meldung als «zuletzt gehört: vor X Std. Y Min.» mit Uhrzeit in UTC.",
+        steps: [
+          { icon: "settings", text: "Einstellungen → APRS → Anzeigedauer wählen (6/12/24/48 Std.)" },
+          { icon: "clock", text: "Station mit Meldung innerhalb der Frist bleibt sichtbar" },
+          { icon: "mapPin", text: "Ältere Stationen verschwinden spätestens beim nächsten Abgleich (2 Minuten)" },
+          { icon: "database", text: "Datensätze bleiben gespeichert — nur die Anzeige wird gefiltert" }
+        ],
+        tip: "Tipp: Das Popup nennt im Kopf immer «zuletzt gehört: vor …» mit Uhrzeit in UTC, damit die Frist direkt prüfbar ist."
+      },
+      {
         title: "RepeaterBook API-Token konfigurieren",
         body: "Seit Maerz 2026 blockiert RepeaterBook automatische Logins per Cloudflare-Anti-Bot-Schutz. Statt Benutzername/Passwort wird ein API-Token (rbuapp_...) verwendet. Der Token wird im RepeaterBook Dashboard unter repeaterbook.com/user/api_apps.php generiert. Voraussetzung: Die App muss bei RepeaterBook freigeschaltet sein (Freischalt-Formular: repeaterbook.com/api_request.php). Geben Sie den Token in den Einstellungen ein und testen Sie ihn. Bei Erfolg ist der automatische Sync aktiviert. Ohne Token: Sync deaktiviert, manueller JSON-Export als Fallback. Demo-Konto: Eingabe gesperrt, Club-Token wird verwendet.",
         steps: [

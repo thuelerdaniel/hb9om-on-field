@@ -127,6 +127,9 @@ export default function AprsFilter({
                 </button>
               ))}
             </div>
+            <p className="text-[10px] text-gray-500 mt-2">
+              Anzeigedauer gemäss Einstellungen → APRS (Standard 24 Std.). Ältere Stationen werden ausgeblendet, nicht gelöscht.
+            </p>
             <label className="flex items-center gap-2 mt-2.5 cursor-pointer">
               <input
                 type="checkbox"

@@ -557,6 +557,15 @@ const SECTIONS = [
         ]
       },
       {
+        anchor: "aprs-anzeigedauer",
+        title: "APRS-Anzeigedauer",
+        body: "Der APRS-Layer zeigt nur Stationen, deren letzte Positionsmeldung innerhalb der eingestellten Frist liegt (Einstellungen → APRS: 6, 12, 24 oder 48 Stunden, Standard 24 Stunden). Nach Ablauf der Frist verschwindet der Punkt von der Karte — er erscheint auch nicht mehr im Zähler des Layer-Popups, in der Suche, in den Bewegungsspuren oder in PDF-Listen. Die Datensätze selbst bleiben unverändert in der Datenbank; Archiv und Datenaufbewahrung laufen separat weiter. Zeitstempel werden als UTC geführt und verglichen, exakt 24 Stunden (bzw. die gewählte Frist) gilt bereits als abgelaufen. Das Popup nennt die letzte Meldung als «zuletzt gehört: vor X Std. Y Min.» samt Uhrzeit in UTC.",
+        example: "Einstellungen → APRS → Anzeigedauer 12 Std. → Station mit Meldung vor 11 Std. bleibt sichtbar, Station mit 13 Std. verschwindet beim nächsten Abgleich (spätestens 2 Minuten).",
+        links: [
+          { label: "Einstellungen öffnen", url: "/settings" },
+        ]
+      },
+      {
         anchor: "repeaterbook-konfiguration",
         title: "RepeaterBook API-Token konfigurieren",
         body: "Seit März 2026 blockiert RepeaterBook automatische Logins per Cloudflare-Anti-Bot-Schutz. Statt Benutzername/Passwort wird ein API-Token verwendet. Generieren Sie den Token im RepeaterBook Dashboard unter repeaterbook.com/user/api_apps.php. Voraussetzung: Die App «HB9OM On Field» muss bei RepeaterBook freigeschaltet sein (Freischalt-Formular: repeaterbook.com/api_request.php). Geben Sie den Token (rbuapp_...) in den Einstellungen ein und testen Sie ihn mit «Token testen». Bei Erfolg ist der automatische Sync aktiviert. Bei ungültigem Token: Sync stoppt, Fehlermeldung wird angezeigt. Ohne Token: Sync deaktiviert, manueller JSON-Export als Fallback (Admin → JSON Repeater Import). Demo-Konto: Eingabe gesperrt, Club-Token wird verwendet.",

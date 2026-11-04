@@ -13,11 +13,17 @@ export const APP_VERSION = "1.0";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202611041120";
+export const APP_BUILD = "202611041140";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "04.11.2026: APRS-ANZEIGEDAUER — Der APRS-Layer zeigt nur noch Stationen, deren letzte Positionsmeldung innerhalb der eingestellten Frist liegt. Nach Ablauf verschwindet der Punkt; Datensätze werden nicht gelöscht (Archiv/Retention bleibt separat).",
+  "04.11.2026: EINSTELLUNGEN → APRS — Neues Feld «Anzeigedauer» mit 6 / 12 / 24 / 48 Std., Standard 24 Std., pro Nutzer gespeichert. Wirkt beim nächsten Abgleich (spätestens 2 Minuten), ohne Neuladen.",
+  "04.11.2026: ZÄHLER UND LISTEN — Der Zähler im APRS-Popup, die Suche, die Bewegungsspuren und die PDF-Liste verwenden dieselbe gefilterte Stationsliste; ältere Stationen erscheinen dort nicht mehr.",
+  "04.11.2026: POPUP-KOPF — Zeigt «zuletzt gehört: vor X Std. Y Min.» mit Uhrzeit in UTC; Grenzfall exakt 24 Std. gilt als abgelaufen.",
+  "04.11.2026: TESTNACHWEIS — Station 23 Std. alt sichtbar, 24 und 25 Std. alt ausgeblendet (Testdatensätze, nach der Prüfung entfernt).",
+  "04.11.2026: BUILD — Build-Nummer auf 202611041140 nachgezogen (Versionsnummer 1.0 unverändert, wird nur von Daniel gesetzt).",
   "04.11.2026: APRS-DATENKONZEPT — Zweistufig: Sammler direkt aus APRS-IS (alle 5 Minuten, 200 km um die Schweiz) speichert jetzt alle Paketfelder — Kommentar, Pfad, PHG, Status, Symbol, Quell- und Zielrufzeichen, Tempo, Kurs, Höhe, Wetter (Temperatur, Druck, Feuchte, Wind, Regen) und Paketzeit.",
   "04.11.2026: APRS-DETAIL BEIM KLICK — Neues Popup lädt auf Wunsch api.aprs.fi nach: gebündelt bis 20 Rufzeichen pro Anfrage, Timeout 4 Sekunden, 5 Minuten Zwischenspeicher, Nachfassen mit wachsender Wartezeit, eigener User-Agent und ausschliesslich der eigene Key aus den Einstellungen.",
   "04.11.2026: APRS-REGELN EINGEHALTEN — Kein Massen- oder Archivabruf, nur bei Bedarf mit Zwischenspeicher; Popup mit Quellenangabe und Rücklink zu aprs.fi.",

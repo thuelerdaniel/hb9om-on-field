@@ -8,6 +8,7 @@ import PasswordInput from "@/components/settings/PasswordInput";
 // (Radius, Zentrum, mobile Stationen) ebenfalls — sie werden auf der Karte angewendet.
 
 const RADIUS_OPTIONS = [50, 100, 200, 500];
+const DISPLAY_HOURS_OPTIONS = [6, 12, 24, 48];
 
 export default function AprsSettings() {
   const [apiKey, setApiKey] = useState("");
@@ -15,6 +16,7 @@ export default function AprsSettings() {
   const [radiusKm, setRadiusKm] = useState(200);
   const [center, setCenter] = useState("own");
   const [showMobile, setShowMobile] = useState(true);
+  const [displayHours, setDisplayHours] = useState(24);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -33,6 +35,7 @@ export default function AprsSettings() {
         setRadiusKm(me.aprs_radius_km ?? 200);
         setCenter(me.aprs_center || "own");
         setShowMobile(me.aprs_show_mobile !== false);
+        setDisplayHours(typeof me.aprs_display_hours === "number" ? me.aprs_display_hours : 24);
       } catch (e) {
         // ohne Anmeldung bleiben die Defaults stehen
       }
@@ -255,6 +258,26 @@ export default function AprsSettings() {
         label="Mobile Stationen einblenden"
         description="Fahrzeuge, Handgeräte und tragbare Stationen auf der Karte zeigen"
       />
+
+      <div className="pt-3 border-t border-gray-100 dark:border-slate-700">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Anzeigedauer</span>
+        <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
+          Nur Stationen mit einer Positionsmeldung innerhalb dieser Frist werden angezeigt. Ältere Einträge bleiben in der Datenbank, verschwinden aber von der Karte (auch aus Zähler, Suche und PDF-Liste).
+        </p>
+        <div className="grid grid-cols-4 gap-1.5">
+          {DISPLAY_HOURS_OPTIONS.map(h => (
+            <button
+              key={h}
+              onClick={() => { setDisplayHours(h); savePreferences({ aprs_display_hours: h }); }}
+              className={`py-2 rounded-lg text-xs font-medium transition-colors ${
+                displayHours === h ? "bg-purple-600 text-white" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              {h} Std.
+            </button>
+          ))}
+        </div>
+      </div>
 
       {prefsSaved && (
         <p className="text-[11px] text-green-600 flex items-center gap-1">

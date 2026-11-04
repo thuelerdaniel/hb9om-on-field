@@ -28,11 +28,11 @@ function fmtAgo(iso) {
   if (!iso) return null;
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t)) return null;
-  const min = Math.round((Date.now() - t) / 60000);
+  const min = Math.max(0, Math.round((Date.now() - t) / 60000));
   if (min < 1) return "gerade eben";
-  if (min < 60) return `vor ${min} min`;
+  if (min < 60) return `vor ${min} Min.`;
   const h = Math.floor(min / 60);
-  if (h < 24) return `vor ${h} h ${min % 60} min`;
+  if (h < 24) return `vor ${h} Std. ${min % 60} Min.`;
   return `vor ${Math.floor(h / 24)} Tagen`;
 }
 
@@ -107,7 +107,9 @@ export default function AprsStationPopup({ node, userPosition }) {
             {node.callsign}
           </div>
           <div className="text-[10px] text-gray-500 mt-0.5">
-            {fmtUhr(lasttime)}{lasttime ? ` · ${fmtAgo(lasttime)}` : ""}
+            {lasttime
+              ? `zuletzt gehört: ${fmtAgo(lasttime)} · ${fmtUhr(lasttime)}`
+              : "zuletzt gehört: unbekannt"}
           </div>
         </div>
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap"
