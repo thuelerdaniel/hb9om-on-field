@@ -547,6 +547,16 @@ const SECTIONS = [
         ]
       },
       {
+        anchor: "aprs-daten",
+        title: "APRS-Daten: Sammler und Detailabfrage",
+        body: "Die APRS-Ebene arbeitet zweistufig. Sammler (gratis, ohne Key): Der Server liest alle 5 Minuten direkt aus dem APRS-IS-Netz die Pakete im 200-km-Radius um die Schweiz und speichert alle Paketfelder — Kommentar, Pfad, PHG, Status, Symbol, Quell- und Zielrufzeichen, Tempo, Kurs, Höhe, Wetter (Temperatur, Luftdruck, Feuchte, Wind, Regen) sowie Empfangs- und Paketzeit. Detailabfrage (eigener Key): Beim Öffnen eines Popups fragt der Server api.aprs.fi nach — höchstens 20 Rufzeichen gebündelt, Timeout 4 Sekunden, 5 Minuten Zwischenspeicher, höfliches Nachfassen bei Überlast, eigener User-Agent und Key ausschliesslich aus Ihren Einstellungen. Die Regeln von aprs.fi sind eingehalten: kein Massen- oder Archivabruf, nur bei Bedarf mit Zwischenspeicher, Quellenangabe mit Rücklink im Popup. Ohne eigenen Key werden keine API-Aufrufe ausgelöst — dann zeigt das Popup nur die eigenen APRS-IS-Daten.",
+        example: "Klick auf HB3YQD-3 → Rufzeichen, Typ, letzte Meldung, Tempo/Kurs/Höhe, Kommentar, Pfad, Wetter → «Auf aprs.fi öffnen».",
+        links: [
+          { label: "aprs.fi (Quelle der Detaildaten)", url: "https://aprs.fi/" },
+          { label: "aprs.fi API-Bedingungen", url: "https://aprs.fi/page/api" },
+        ]
+      },
+      {
         anchor: "repeaterbook-konfiguration",
         title: "RepeaterBook API-Token konfigurieren",
         body: "Seit März 2026 blockiert RepeaterBook automatische Logins per Cloudflare-Anti-Bot-Schutz. Statt Benutzername/Passwort wird ein API-Token verwendet. Generieren Sie den Token im RepeaterBook Dashboard unter repeaterbook.com/user/api_apps.php. Voraussetzung: Die App «HB9OM On Field» muss bei RepeaterBook freigeschaltet sein (Freischalt-Formular: repeaterbook.com/api_request.php). Geben Sie den Token (rbuapp_...) in den Einstellungen ein und testen Sie ihn mit «Token testen». Bei Erfolg ist der automatische Sync aktiviert. Bei ungültigem Token: Sync stoppt, Fehlermeldung wird angezeigt. Ohne Token: Sync deaktiviert, manueller JSON-Export als Fallback (Admin → JSON Repeater Import). Demo-Konto: Eingabe gesperrt, Club-Token wird verwendet.",

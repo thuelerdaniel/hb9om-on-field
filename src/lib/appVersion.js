@@ -13,11 +13,17 @@ export const APP_VERSION = "1.0";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202611041030";
+export const APP_BUILD = "202611041120";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "04.11.2026: APRS-DATENKONZEPT — Zweistufig: Sammler direkt aus APRS-IS (alle 5 Minuten, 200 km um die Schweiz) speichert jetzt alle Paketfelder — Kommentar, Pfad, PHG, Status, Symbol, Quell- und Zielrufzeichen, Tempo, Kurs, Höhe, Wetter (Temperatur, Druck, Feuchte, Wind, Regen) und Paketzeit.",
+  "04.11.2026: APRS-DETAIL BEIM KLICK — Neues Popup lädt auf Wunsch api.aprs.fi nach: gebündelt bis 20 Rufzeichen pro Anfrage, Timeout 4 Sekunden, 5 Minuten Zwischenspeicher, Nachfassen mit wachsender Wartezeit, eigener User-Agent und ausschliesslich der eigene Key aus den Einstellungen.",
+  "04.11.2026: APRS-REGELN EINGEHALTEN — Kein Massen- oder Archivabruf, nur bei Bedarf mit Zwischenspeicher; Popup mit Quellenangabe und Rücklink zu aprs.fi.",
+  "04.11.2026: APRS-POPUP — Rufzeichen, Typ, letzte Meldung, Tempo/Kurs/Höhe, Kommentar, Status, Digipeater-Pfad, Wetter und Schaltfläche «Auf aprs.fi öffnen».",
+  "04.11.2026: OHNE KEY — Es werden keine API-Aufrufe ausgelöst; das Popup zeigt nur die eigenen APRS-IS-Daten und weist darauf hin.",
+  "04.11.2026: BUILD — Build-Nummer auf 202611041120 nachgezogen (Versionsnummer 1.0 unverändert, wird nur von Daniel gesetzt).",
   "04.11.2026: APRS-EINSTELLUNGEN PRO NUTZER — Neuer Menüpunkt «APRS» in den Einstellungen: persönlicher aprs.fi API-Key als Passwortfeld mit Status «aktiv»/«nicht gesetzt», Speichern und Löschen.",
   "04.11.2026: KEY TESTEN — «Key testen» prüft den gespeicherten Key gegen api.aprs.fi und meldet gültig, ungültig oder Rate-Limit; der Key wird dabei nie im Klartext angezeigt.",
   "04.11.2026: OHNE KEY — Hinweis im Menüpunkt, dass nur APRS-IS-Daten ohne aprs.fi-Detailabfrage angezeigt werden, mit Link zur Key-Erstellung auf aprs.fi.",

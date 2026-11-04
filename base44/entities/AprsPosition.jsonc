@@ -59,6 +59,35 @@
       "type": "number",
       "description": "Hoehe in Metern (aus /A=-Kommentar)"
     },
+    "srccall": {
+      "type": "string",
+      "description": "Quelle aus dem Paketkopf (SRC des Pakets SRC>DST,PATH)"
+    },
+    "dstcall": {
+      "type": "string",
+      "description": "Ziel-Adresse aus dem Paketkopf (DST), z. B. APDR16 oder APRS"
+    },
+    "path": {
+      "type": "string",
+      "description": "Digipeater-Pfad aus dem Paketkopf (z. B. WIDE1-1,WIDE2-1)"
+    },
+    "phg": {
+      "type": "string",
+      "description": "PHG-Angabe der Station (Power/Height/Gain/Directivity, z. B. 5130)"
+    },
+    "status": {
+      "type": "string",
+      "description": "Status-Text der Station (aus einem Status-Paket, max 120 Zeichen)"
+    },
+    "wx": {
+      "type": "object",
+      "description": "Wetterdaten aus dem Paket (wind_dir, wind_kmh, gust_kmh, temp_c, rain_1h_mm, rain_24h_mm, rain_midnight_mm, humidity, pressure_hpa)"
+    },
+    "aprs_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitstempel aus dem Paket (bei / und @ Paketen), sonst leer"
+    },
     "last_heard": {
       "type": "string",
       "format": "date-time",

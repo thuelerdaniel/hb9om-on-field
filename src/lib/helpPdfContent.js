@@ -658,6 +658,22 @@ export const SECTIONS = [
         tip: "Tipp: Ohne Key bleiben die APRS-IS-Positionen sichtbar, nur die aprs.fi-Detailabfrage entfällt."
       },
       {
+        title: "APRS-Daten: Sammler und Detailabfrage",
+        body: "Die APRS-Ebene arbeitet zweistufig. Sammler (ohne Key): Der Server liest alle 5 Minuten direkt aus dem APRS-IS-Netz (Serverfilter r/46.8/8.2/200) und speichert alle Paketfelder — Kommentar, Pfad, PHG, Status, Symbol, Quell- und Zielrufzeichen, Tempo, Kurs, Höhe, Wetter (Temperatur, Luftdruck, Feuchte, Wind, Regen) sowie Empfangszeit und Paketzeit. Detailabfrage (nur mit eigenem Key): Beim Öffnen eines Popups fragt der Server api.aprs.fi nach — höchstens 20 Rufzeichen pro Anfrage gebündelt, Timeout 4 Sekunden, 5 Minuten Zwischenspeicher, höfliches Nachfassen mit wachsender Wartezeit bei Überlast, eigener User-Agent «HB9OM-On-Field/1.0 (+https://hb9om.ch)» und der Key ausschliesslich aus den persönlichen Einstellungen. Damit sind die Regeln von aprs.fi eingehalten: kein Massen- oder Archivabruf, nur bei Bedarf mit Zwischenspeicher, Quellenangabe mit Rücklink im Popup, Key pro Nutzer. Ohne eigenen Key werden keine API-Aufrufe ausgelöst — das Popup zeigt dann ausschliesslich die eigenen APRS-IS-Daten.",
+        steps: [
+          { icon: "search", text: "Station auf der Karte antippen — Popup öffnet sich" },
+          { icon: "radio", text: "Rufzeichen, Typ, letzte Meldung, Tempo/Kurs/Höhe" },
+          { icon: "wifi", text: "Kommentar, Status, Digipeater-Pfad (PHG), Wetter" },
+          { icon: "navigation", text: "«Auf aprs.fi öffnen» führt zur Quellenangabe" },
+          { icon: "refreshCw", text: "Details maximal alle 5 Minuten — kein Abruf beim Kartenziehen" }
+        ],
+        links: [
+          { label: "aprs.fi — Quelle der Detaildaten", url: "https://aprs.fi/" },
+          { label: "aprs.fi API-Bedingungen", url: "https://aprs.fi/page/api" }
+        ],
+        tip: "Tipp: Ohne eigenen Key bleibt alles bis auf die Live-Detailabfrage sichtbar; die Popups kennzeichnen das mit einem Hinweis."
+      },
+      {
         title: "RepeaterBook API-Token konfigurieren",
         body: "Seit Maerz 2026 blockiert RepeaterBook automatische Logins per Cloudflare-Anti-Bot-Schutz. Statt Benutzername/Passwort wird ein API-Token (rbuapp_...) verwendet. Der Token wird im RepeaterBook Dashboard unter repeaterbook.com/user/api_apps.php generiert. Voraussetzung: Die App muss bei RepeaterBook freigeschaltet sein (Freischalt-Formular: repeaterbook.com/api_request.php). Geben Sie den Token in den Einstellungen ein und testen Sie ihn. Bei Erfolg ist der automatische Sync aktiviert. Ohne Token: Sync deaktiviert, manueller JSON-Export als Fallback. Demo-Konto: Eingabe gesperrt, Club-Token wird verwendet.",
         steps: [

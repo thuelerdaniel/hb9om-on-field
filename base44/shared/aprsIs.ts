@@ -26,8 +26,15 @@ export type AprsPacket = {
   speed: number | null;  // km/h
   course: number | null; // Grad
   altitude: number | null; // Meter
-  heard: string;         // ISO
+  heard: string;         // ISO (Empfangszeit = lasttime)
   format: string;        // uncompressed | compressed | mice
+  srccall: string;       // Quelle aus dem Paketkopf
+  dstcall: string;       // Ziel-Adresse aus dem Paketkopf
+  path: string;          // Digipeater-Pfad
+  phg: string | null;    // PHG-Angabe (Power/Height/Gain/Directivity)
+  status: string | null; // Status-Text der Station (aus Status-Paket)
+  wx: Record<string, number> | null; // Wetterfelder aus dem Paket
+  aprs_time: string | null; // Zeitstempel aus dem Paket (/ und @)
 };
 
 const DIGIT_TABLE: Record<string, number> = {};
@@ -100,6 +107,98 @@ function parseCourseSpeed(comment: string): { speed: number | null; course: numb
   return { speed: null, course: null };
 }
 
+/** PHG-Angabe aus dem Kommentar (z. B. /PHG5130 → "5130"). */
+function parsePhg(comment: string): string | null {
+  const m = (comment || "").match(/PHG(\d{4})/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Wetterdaten aus dem Kommentar lesen (APRS-Wetterformat):
+ * DDD/SSS gGGG tTTT rRRR pPPP P... hHH bPPPPP — Einheiten werden umgerechnet.
+ * Nur ausgewertet bei Wetter-Symbol ("_") oder wenn ein Wetterblock erkennbar ist.
+ */
+function parseWx(symbol: string, comment: string): Record<string, number> | null {
+  const c = comment || "";
+  const isWxSymbol = (symbol || "")[1] === "_";
+  const looksWx = /\d{3}\/\d{3}(g\d{3}|t-?\d{3})/.test(c);
+  if (!isWxSymbol && !looksWx) return null;
+
+  const start = c.search(/\d{3}\/\d{3}/);
+  if (start < 0) return null;
+  let s = c.slice(start);
+  const wx: Record<string, number> = {};
+
+  const dir = s.match(/^(\d{3})\/(\d{3})/);
+  if (dir) {
+    wx.wind_dir = parseInt(dir[1], 10);
+    wx.wind_kmh = Math.round(parseInt(dir[2], 10) * KNOTS_TO_KMH * 10) / 10;
+    s = s.slice(7);
+  }
+  const gust = s.match(/^g(\d{3})/);
+  if (gust) {
+    wx.gust_kmh = Math.round(parseInt(gust[1], 10) * KNOTS_TO_KMH * 10) / 10;
+    s = s.slice(4);
+  }
+  const temp = s.match(/^t(-?\d{3}|\.{3})/);
+  if (temp) {
+    if (temp[1] !== "...") wx.temp_c = Math.round(((parseInt(temp[1], 10) - 32) * 5 / 9) * 10) / 10;
+    s = s.slice(temp[0].length);
+  }
+  const rain1 = s.match(/^r(\d{3})/);
+  if (rain1) {
+    wx.rain_1h_mm = Math.round(parseInt(rain1[1], 10) * 2.54 * 10) / 10;
+    s = s.slice(4);
+  }
+  const rain24 = s.match(/^p(\d{3})/);
+  if (rain24) {
+    wx.rain_24h_mm = Math.round(parseInt(rain24[1], 10) * 2.54 * 10) / 10;
+    s = s.slice(4);
+  }
+  const rainMid = s.match(/^P(\d{3})/);
+  if (rainMid) {
+    wx.rain_midnight_mm = Math.round(parseInt(rainMid[1], 10) * 2.54 * 10) / 10;
+    s = s.slice(4);
+  }
+  const hum = s.match(/^h(\d{2})/);
+  if (hum) {
+    wx.humidity = parseInt(hum[1], 10);
+    s = s.slice(3);
+  }
+  const baro = s.match(/^b(\d{5})/);
+  if (baro) wx.pressure_hpa = parseInt(baro[1], 10) / 10;
+
+  return Object.keys(wx).length ? wx : null;
+}
+
+/**
+ * Zeitstempel aus / und @ Paketen (7 Zeichen): DDHHMMz (UTC) oder HHMMSSh.
+ * Ohne gültigen Stempel bleibt das Feld leer.
+ */
+function parseAprsTimestamp(stamp: string, now = new Date()): string | null {
+  if (!stamp || stamp.length < 7) return null;
+  const digits = stamp.slice(0, 6);
+  if (!/^\d{6}$/.test(digits)) return null;
+  const kind = stamp[6];
+  let d: Date;
+  if (kind === "z") {
+    const day = parseInt(digits.slice(0, 2), 10);
+    const hh = parseInt(digits.slice(2, 4), 10);
+    const mm = parseInt(digits.slice(4, 6), 10);
+    d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day, hh, mm));
+    if (d.getTime() > now.getTime() + 2 * 864e5) d.setUTCMonth(d.getUTCMonth() - 1);
+  } else if (kind === "h") {
+    const hh = parseInt(digits.slice(0, 2), 10);
+    const mm = parseInt(digits.slice(2, 4), 10);
+    const ss = parseInt(digits.slice(4, 6), 10);
+    d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hh, mm, ss));
+    if (d.getTime() > now.getTime() + 36e5) d.setUTCDate(d.getUTCDate() - 1);
+  } else {
+    return null;
+  }
+  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+}
+
 /** Uncompressed: DDMM.hhN/DDDMM.hhW */
 function parseUncompressed(body: string): Partial<AprsPacket> | null {
   const m = body.match(/^(\d{2})(\d{2}\.\d{2})([NS])(.)(\d{3})(\d{2}\.\d{2})([EW])(.)(.*)$/s);
@@ -120,6 +219,8 @@ function parseUncompressed(body: string): Partial<AprsPacket> | null {
     altitude: parseAltitudeFromComment(comment, weather),
     station_type: classifyStation(symbol, comment),
     format: "uncompressed",
+    phg: parsePhg(comment),
+    wx: parseWx(symbol, comment),
   };
 }
 
@@ -172,6 +273,8 @@ function parseCompressed(body: string): Partial<AprsPacket> | null {
     altitude: fromComment ?? altitude,
     station_type: classifyStation(symbol, comment),
     format: "compressed",
+    phg: parsePhg(comment),
+    wx: parseWx(symbol, comment),
   };
 }
 
@@ -187,16 +290,22 @@ export function parseAprsLine(line: string): AprsPacket | null {
   const header = trimmed.slice(0, colon);
   const payload = trimmed.slice(colon + 1);
   const source = header.split(">")[0].trim().toUpperCase();
-  const dest = (header.split(">")[1] || "").split(",")[0].trim().toUpperCase();
+  const headerFields = (header.split(">")[1] || "").split(",").map((f) => f.trim());
+  const dest = (headerFields[0] || "").toUpperCase();
+  const path = headerFields.slice(1).filter(Boolean).join(",");
   if (!source || !payload) return null;
 
   const dt = payload[0];
   let body = payload.slice(1);
   let result: Partial<AprsPacket> | null = null;
+  let aprsTime: string | null = null;
 
   if (dt === "!" || dt === "=" || dt === "/" || dt === "@") {
     let posBody = body;
-    if (dt === "/" || dt === "@") posBody = body.slice(7); // Zeitstempel überspringen
+    if (dt === "/" || dt === "@") {
+      aprsTime = parseAprsTimestamp(body.slice(0, 7));
+      posBody = body.slice(7); // Zeitstempel überspringen
+    }
     // Uncompressed beginnt immer mit zwei Ziffern (Gradangabe),
     // Compressed mit dem Symbol-Tabellenzeichen.
     result = /^\d/.test(posBody) ? parseUncompressed(posBody) : parseCompressed(posBody);
@@ -224,6 +333,13 @@ export function parseAprsLine(line: string): AprsPacket | null {
     altitude: result.altitude ?? null,
     heard: new Date().toISOString(),
     format: result.format || "unknown",
+    srccall: source,
+    dstcall: dest,
+    path,
+    phg: result.phg ?? null,
+    status: null,
+    wx: result.wx ?? null,
+    aprs_time: aprsTime,
   };
 }
 
@@ -258,6 +374,7 @@ export async function readAprsStream(opts: {
   const started = Date.now();
   const packets: AprsPacket[] = [];
   const seen = new Set<string>();
+  const statusByCall = new Map<string, string>();
   let socket: any = null;
 
   try {
@@ -275,6 +392,13 @@ export async function readAprsStream(opts: {
         rest.text = rest.text.slice(idx + 1);
         stats.lines++;
         if (line && !line.startsWith("#")) {
+          // Status-Pakete (">…") tragen keine Position — Text nur merken und
+          // der Positionsmeldung derselben Station anhängen.
+          const cIdx = line.indexOf(":");
+          if (cIdx > 0 && line[cIdx + 1] === ">") {
+            const src = line.slice(0, cIdx).split(">")[0].trim().toUpperCase();
+            if (src) statusByCall.set(src, line.slice(cIdx + 2).slice(0, 120).trim());
+          }
           const p = parseAprsLine(line);
           if (!p) {
             const payload = line.slice(line.indexOf(":") + 1);
@@ -346,6 +470,9 @@ export async function readAprsStream(opts: {
       /* ignore */
     }
   }
+
+  // Status-Text nachträglich anhängen (Reihenfolge im Stream ist beliebig)
+  for (const p of packets) p.status = statusByCall.get(p.callsign) || null;
 
   stats.parsed = packets.length;
   stats.duration_ms = Date.now() - started;

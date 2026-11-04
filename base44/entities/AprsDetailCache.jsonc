@@ -1,0 +1,37 @@
+{
+  "name": "AprsDetailCache",
+  "type": "object",
+  "properties": {
+    "callsign": {
+      "type": "string",
+      "description": "Rufzeichen der abgefragten APRS-Station"
+    },
+    "loc": {
+      "type": "object",
+      "description": "Antwort von api.aprs.fi (what=loc) fuer dieses Rufzeichen"
+    },
+    "wx": {
+      "type": "object",
+      "description": "Wetterantwort von api.aprs.fi (what=wx) fuer dieses Rufzeichen"
+    },
+    "found": {
+      "type": "boolean",
+      "default": false,
+      "description": "True wenn aprs.fi Daten zu diesem Rufzeichen geliefert hat"
+    },
+    "fetched_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt der Abfrage (Cache 5 Minuten)"
+    }
+  },
+  "required": [
+    "callsign"
+  ],
+  "rls": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}
