@@ -104,8 +104,8 @@ const SECTIONS = [
     items: [
       {
         title: "Bildschirm-Aufbau der Karte",
-        body: "Die Kartenansicht ist der Hauptbildschirm der App. Oben in der Mitte befindet sich das Suchfeld für Referenzen. An der linken Seite sind die Werkzeug-Buttons vertikal angeordnet: GPS-Position (blau), Position fixieren (blau), Marker verschieben (navy), Offline-Modus (gelb), Karten herunterladen (navy) und Ebenen-Menü (navy). Der schwarze Button «Neues QSO» unten rechts öffnet das QSO-Formular. Ganz unten befindet sich die Navigation mit den Tabs Karte, Logbuch, Einstellungen und Abmelden.",
-        example: "Suchfeld oben → Werkzeug-Buttons links → Marker in der Mitte → «Neues QSO» unten rechts → Navigation ganz unten."
+        body: "Die Kartenansicht ist der Hauptbildschirm der App. Oben in der Mitte befindet sich das Suchfeld für Referenzen. An der linken Seite ist das Bedien-Panel vertikal angeordnet; sein Griff sitzt seit v1.0 MITTIG am linken Rand. Darin liegen GPS-Position, Position fixieren, Marker verschieben, Offline-Modus, Karten herunterladen, Zoom, Layer-Filter, Legende und der grüne Button «QSO loggen». Das Ebenen-Menü öffnet seit v1.0 der Button «Ebenen» in der unteren Menüleiste. Ganz unten befindet sich die Navigation mit Karte, Ebenen, Hunting, Logbuch, Mobil, Einstellungen und Abmelden.",
+        example: "Suchfeld oben → Panel-Griff mittig links antippen → Werkzeug-Buttons → «Ebenen» in der unteren Menüleiste → Navigation ganz unten."
       },
       {
         title: "Karte navigieren",
@@ -119,12 +119,12 @@ const SECTIONS = [
       },
       {
         title: "Layer ein-/ausschalten",
-        body: "Über das Ebenen-Menü (rechts oben, Layer-Icon) können Sie verschiedene Referenz-Typen ein- und ausschalten: SOTA, POTA, WWFF, WWBOTA, WCA/COTA, IOTA, WLOTA/ARLHS, BLN – Natur Zonen (nur in CH), Gefahren & Störquellen (nur in CH), Amateurfunk-Relais und APRS. Ausserdem können Sie die Hintergrundkarte wechseln (Strassenkarte, Satellit, SwissTopo). Das Menü öffnet sich immer ganz oben und liegt über allen anderen Elementen.",
+        body: "Über das Ebenen-Menü (Button «Ebenen» in der unteren Menüleiste, zwischen «Karte» und «Hunting») können Sie verschiedene Referenz-Typen ein- und ausschalten: SOTA, POTA, WWFF, WWBOTA, WCA/COTA, IOTA, WLOTA/ARLHS, BLN – Natur Zonen (nur in CH), Gefahren & Störquellen (nur in CH), Amateurfunk-Relais und APRS. Ausserdem können Sie die Hintergrundkarte wechseln (Strassenkarte, Satellit, SwissTopo). Das Menü liegt über allen anderen Elementen und belegt maximal rund 72 % der Bildschirmhöhe — es scrollt intern, die Karte bleibt sichtbar. Der Button ist auf jeder Seite erreichbar; von einer anderen Seite wechselt die App zur Karte und öffnet das Menü.",
         example: "Nur SOTA-Gipfel anzeigen: Alle anderen Layer ausschalten, nur SOTA aktiv lassen."
       },
       {
         title: "Bestätigung bei vielen Datenpunkten",
-        body: "Wenn Sie einen Layer aktivieren, dessen geschätzte Ladezeit 7 Sekunden oder mehr beträgt (z.B. SOTA mit ~180'000 Gipfeln, POTA mit ~89'000 Parks, Burgen, Relais oder APRS-Nodes), erscheint ein Bestätigungsdialog vor dem Laden. Der Dialog zeigt eine Schätzung der Anzahl Punkte, der Datenmenge in MB und der voraussichtlichen Ladezeit. Im Ebenen-Menü wird bei jedem Layer die Anzahl Punkte und die Grösse in MB in kleiner Schrift angezeigt. So können Sie entscheiden, ob Sie das Laden bestätigen und die Wartezeit in Kauf nehmen möchten, oder ob Sie abbrechen und zuerst die Karte anpassen (zoomen, verschieben) möchten. Bei Abbruch wird der Layer aktiviert, aber nur der sichtbare Kartenausschnitt geladen — das ist deutlich schneller. Layer mit einer geschätzten Ladezeit unter 7 Sekunden (z.B. WWFF, WWBOTA, IOTA, Leuchttürme) werden ohne Dialog direkt geladen.",
+        body: "Wenn Sie einen Layer aktivieren, dessen geschätzte Ladezeit 7 Sekunden oder mehr beträgt (z.B. SOTA mit ~180'000 Gipfeln, POTA mit ~89'000 Parks, Burgen, Relais oder APRS-Nodes), erscheint ein Bestätigungsdialog vor dem Laden. Der Dialog zeigt eine Schätzung der Anzahl Punkte, der Datenmenge in MB und der voraussichtlichen Ladezeit; er liegt über Karte, Panel und Menüleiste und belegt höchstens 75 % der Bildschirmhöhe. Im Ebenen-Menü wird bei jedem Layer die Anzahl Punkte und die Grösse in MB in kleiner Schrift angezeigt. So können Sie entscheiden, ob Sie das Laden bestätigen oder zuerst die Karte anpassen (zoomen, verschieben). Während des Ladens bleibt die Karte bedienbar: oben läuft eine schmale Fortschrittsleiste mit Abbrechen-Knopf, die keine Klicks abfängt. Bereits geladene Ausschnitte werden nicht erneut geladen, weitere Daten holt die App im Leerlauf im Hintergrund nach. Layer mit einer geschätzten Ladezeit unter 7 Sekunden (z.B. WWFF, WWBOTA, IOTA, Leuchttürme) werden ohne Dialog direkt geladen.",
         example: "SOTA aktivieren → Dialog zeigt «~180'000 Punkte, ~35 MB, ~45 Sekunden» → Abbrechen → nur sichtbare Gipfel laden → hineinzoomen für mehr Details."
       },
       {
@@ -282,7 +282,7 @@ const SECTIONS = [
       },
       {
         title: "Layer-Filter überschreibt globalen Länder-Filter",
-        body: "Wenn Sie im Ebenen-Menü (rechts oben) einen Länder-Filter aktivieren (z.B. nur Schweiz), gilt dieser für SOTA, POTA, Burgen, IOTA, Leuchttürme und WWBOTA. Bei Layern mit einem eigenen Länder-Filter (Relais, TOTA) überschreibt der jeweilige Layer-Filter den globalen Filter: Sie können also global «nur Schweiz» für SOTA/POTA einstellen und im Relais-Filter trotzdem Deutschland auswählen — die deutschen Relais werden dann angezeigt, obwohl der globale Filter auf Schweiz steht. Ist im Layer-Filter «Alle» ausgewählt, gilt der globale Länder-Filter normal.",
+        body: "Wenn Sie im Ebenen-Menü (Button «Ebenen» in der unteren Menüleiste) einen Länder-Filter aktivieren (z.B. nur Schweiz), gilt dieser für SOTA, POTA, Burgen, IOTA, Leuchttürme und WWBOTA. Bei Layern mit einem eigenen Länder-Filter (Relais, TOTA) überschreibt der jeweilige Layer-Filter den globalen Filter: Sie können also global «nur Schweiz» für SOTA/POTA einstellen und im Relais-Filter trotzdem Deutschland auswählen — die deutschen Relais werden dann angezeigt, obwohl der globale Filter auf Schweiz steht. Ist im Layer-Filter «Alle» ausgewählt, gilt der globale Länder-Filter normal.",
         example: "Global: Schweiz → Relais-Filter: Deutschland → deutsche Relais werden angezeigt, SOTA/POTA nur Schweizer Gipfel."
       },
       {

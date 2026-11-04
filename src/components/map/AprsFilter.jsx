@@ -51,7 +51,7 @@ export default function AprsFilter({
   };
 
   return (
-    <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1005]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+    <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1200]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       {!hideTrigger && (
       <button
         onClick={() => setIsOpen(!isOpen)}

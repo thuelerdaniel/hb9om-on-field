@@ -107,7 +107,7 @@ export default function RepeaterFilter({
   const hasActiveAdvanced = !isAllSelected || showCoverage || showOnlyLinked || (radiusKm > 0);
 
   return (
-    <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1005]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+    <div ref={containerRef} className={`absolute top-16 ${leftOffsetClass} z-[1200]`} style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       {/* Toggle button */}
       {!hideTrigger && (
       <button

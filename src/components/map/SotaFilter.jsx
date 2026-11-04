@@ -117,7 +117,7 @@ export default function SotaFilter({
   const allPointsOn = filterPoints.length === 0 || filterPoints.length === SOTA_POINTS.length;
 
   return (
-    <div ref={containerRef} className="fixed z-[1000]" style={{ left: `${leftPx}px`, bottom: `${bottomPx}px`, touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
+    <div ref={containerRef} className="fixed z-[1200]" style={{ left: `${leftPx}px`, bottom: `${bottomPx}px`, touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}>
       {!hideTrigger && (
       <button
         onClick={() => setIsOpen(!isOpen)}

@@ -1,11 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { X, Gift, Check, Eye, AlertTriangle } from "lucide-react";
 import { APP_VERSION } from "@/lib/constants";
+import { Z } from "@/lib/zLayers";
 
 const STORAGE_KEY = "hb9om_changelog_seen";
 const DISMISS_KEY = "hb9om_changelog_dismissed";
 
 export const VERSION_CHANGELOG = [
+  {
+    version: "1.0",
+    title: "Release 1.0: Navigation unten, stabile Karte, Dialoge über allem, Hintergrund-Laden",
+    changes: [
+      "NAVIGATION — Ebenen-Menü (Layer-Stack-Icon) neu in der unteren Menüleiste zwischen «Karte» und «Hunting»; von jeder Seite aus erreichbar. Die untere Leiste bleibt auch bei 390 px Breite vollständig bedienbar (kompakte Icons und Beschriftungen, nichts abgeschnitten).",
+      "NAVIGATION — Der Griff zum Öffnen des seitlichen Bedien-Panels sitzt jetzt vertikal zentriert am linken Rand (vorher oben links). Bei geöffnetem Panel ist der Zu-Griff weiterhin der oberste Knopf IM Panel und verdeckt keinen Inhalt.",
+      "KARTE STABIL — Ursache des Flackerns: Bei jeder Pan-Bewegung wurden die Marker neu gefiltert, neu sortiert und dadurch mehrere hundert Marker neu angelegt. Jetzt: Viewport erst 200 ms nach dem Gestus und in einem einzigen Frame, Marker-Bestand bleibt beim Ziehen stehen, Massenmarker laufen über den Canvas-Renderer (automatisch ab 400 Referenz- bzw. 200 Relais-Markern).",
+      "KARTE STABIL — Keine Datenabfragen beim Pannen: Bereits geladene Kartenausschnitte werden nicht neu angefordert; der Kartenzustand wird gebündelt gespeichert statt bei jeder Bewegung.",
+      "DIALOGE IMMER OBEN — Verbindliche Ebenen-Skala: Bestätigungen und Dialoge liegen über Leaflet, Bedien-Panel, Filter-Popups und unterer Menüleiste; Toasts liegen auch über Dialogen, damit ihre Aktions-Knöpfe immer klickbar sind.",
+      "HINTERGRUND-LADEN — Kein blockierender Vollbild-Loader: schmaler, abbrechbarer Ladehinweis am oberen Rand, der keine Klicks abfängt. Die Karte bleibt während des Ladens zoombar und verschiebbar; bekannte Gebiete werden im Leerlauf im Hintergrund vorab geladen.",
+      "KOMPAKTE POPUPS — «Was ist neu» und das Ebenen-Menü belegen maximal ~72 % der Bildschirmhöhe, scrollen intern und haben kleinere Abstände — die Karte bleibt sichtbar.",
+      "HILFE & PDFs — Hilfe-Seite, PDF-Hilfe und Release Notes auf v1.0 mit den neuen Bedienorten (Ebenen-Button unten, Panel-Griff mittig links, Hintergrund-Laden, kompakte Dialoge).",
+      "DATEN — USA-Relais aus Hearham: 13'075 Relais, alle mit Koordinaten. Süd-/Mittelamerika 77 Relais. Gesamtbestand 30'051 Relais.",
+      "DATEN — Kein Datenverlust bei Teil-Läufen: Regionale Einträge werden nur nach einem vollständigen Durchlauf aufgeräumt und nur, wenn die neuen Daten den Bestand mindestens zur Hälfte abdecken.",
+      "DATEN — APRS-Stationen zweimal täglich aufgefrischt (300 Bestands-Stationen pro Lauf, älteste zuerst) — jede Station innerhalb von 12 Stunden aktuell.",
+      "SYNC — Status, Anzahl und Dauer bleiben stehen (kein Zurücksetzen auf «pending»); Wochen-Tag und Wochentage werden gemeinsam geprüft; der Tagesreport weist deaktivierte und nicht geplante Quellen neutral aus, 0-Spots gelten nicht als Fehler.",
+      "RELAIS-PDF — Die Liste entspricht genau dem Kartenzustand (Filter + Ausschnitt), kommt als echte https-Adresse und wird blockweise erzeugt (Oberfläche bleibt bedienbar).",
+      "LOGBUCH — Wavelog-Sync repariert: Zeit-Padding (HH:MM:SS), Upsert statt Skip-Dedup, Flut-Bereinigung (614k Duplikate entfernt), Offline-Queue und defensive Flag-Reparatur gegen doppelte Uploads.",
+      "MOBIL — Abstürze durch ungültige Koordinaten (NaN) in allen Karten behoben; Fehleranzeige mit Stacktrace, «Bericht kopieren» und Once-only-Logging.",
+    ],
+  },
   {
     version: "0.951",
     title: "Release 0.951: WWFF/LLOTA-Grenzen + 3D-Toggle in Hauptkarte + QRZ-Club-Upload",
@@ -450,6 +472,10 @@ export function resetChangelog() {
 
 export default function VersionChangelogPopup({ onClose }) {
   const [visible, setVisible] = useState(true);
+  // v1.0: standardmässig nur die aktuelle Version zeigen — ältere auf Wunsch.
+  const [showAll, setShowAll] = useState(false);
+  const entries = showAll ? VERSION_CHANGELOG : VERSION_CHANGELOG.slice(0, 1);
+  const olderCount = VERSION_CHANGELOG.length - 1;
 
   const handleClose = () => {
     setVisible(false);
@@ -466,75 +492,84 @@ export default function VersionChangelogPopup({ onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300"
-      style={{ opacity: visible ? 1 : 0 }}
+      className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+      style={{ opacity: visible ? 1 : 0, zIndex: Z.DIALOG_TOP }}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full mx-3 max-h-[72vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-6 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-              <Gift className="w-5 h-5 text-white" />
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+              <Gift className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h2 className="text-white font-bold text-lg">Was ist neu in v{APP_VERSION}?</h2>
-              <p className="text-slate-400 text-xs">Massgebliche Anpassungen seit v0.75</p>
+              <h2 className="text-white font-bold text-base leading-tight">Was ist neu in v{APP_VERSION}?</h2>
+              <p className="text-slate-400 text-[10px] leading-tight">Änderungen seit v0.75</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="text-white/50 hover:text-white transition-colors"
+            className="text-white/50 hover:text-white transition-colors p-1"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {VERSION_CHANGELOG.map((entry, idx) => (
-            <div key={idx}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-mono font-bold">
+        {/* Content — interner Scroll, kompakte Abstände */}
+        <div className="flex-1 overflow-y-auto px-4 py-3">
+          {entries.map((entry, idx) => (
+            <div key={idx} className={idx > 0 ? "mt-4" : ""}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-[10px] font-mono font-bold">
                   v{entry.version}
                 </span>
-                <h3 className="font-semibold text-slate-900 dark:text-white text-sm">{entry.title}</h3>
+                <h3 className="font-semibold text-slate-900 dark:text-white text-xs leading-snug">{entry.title}</h3>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {entry.changes.map((change, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
-                    <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                  <li key={i} className="flex items-start gap-1.5 text-[12px] leading-snug text-slate-700 dark:text-slate-300">
+                    <Check className="w-3 h-3 text-green-500 flex-shrink-0 mt-[3px]" />
                     <span>{change}</span>
                   </li>
                 ))}
               </ul>
             </div>
           ))}
+
+          {!showAll && olderCount > 0 && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="mt-3 w-full text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 py-1.5 border-t border-slate-200 dark:border-slate-700"
+            >
+              Ältere Versionen anzeigen ({olderCount})
+            </button>
+          )}
         </div>
 
-        {/* Data sources note */}
-        <div className="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-100 dark:border-amber-900">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
-              <strong>Hinweis:</strong> Es sind noch nicht alle Datenquellen eingefügt und abgefragt. Es ist möglich, dass für bestimmte Kontinente oder Länder noch keine Informationen verfügbar sind. Die Datenbank wird laufend erweitert.
+        {/* Data sources note — kompakt */}
+        <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-100 dark:border-amber-900 flex-shrink-0">
+          <div className="flex items-start gap-1.5">
+            <AlertTriangle className="w-3 h-3 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-[10px] text-amber-800 dark:text-amber-200 leading-snug">
+              Noch nicht alle Datenquellen sind eingebunden — einzelne Länder können lückenhaft sein. Die Datenbank wird laufend erweitert.
             </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-col gap-2">
+        {/* Footer — kompakt */}
+        <div className="border-t border-slate-200 dark:border-slate-700 px-4 py-2.5 flex flex-col gap-1 flex-shrink-0">
           <button
             onClick={handleClose}
-            className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg py-2.5 font-medium text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg py-2 font-medium text-xs hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5"
           >
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5" />
             Verstanden
           </button>
           <button
             onClick={handleDontShowAgain}
-            className="w-full text-slate-500 dark:text-slate-400 text-xs hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex items-center justify-center gap-1.5"
+            className="w-full text-slate-500 dark:text-slate-400 text-[10px] hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex items-center justify-center gap-1"
           >
-            <Eye className="w-3.5 h-3.5" />
+            <Eye className="w-3 h-3" />
             Nicht mehr anzeigen (in Hilfe reaktivierbar)
           </button>
         </div>

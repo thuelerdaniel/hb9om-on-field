@@ -71,7 +71,7 @@ export const UI_ICONS = [
   { icon: "move", color: [11, 30, 51], name: "Marker verschieben", desc: "Drag & Drop-Modus: Marker an korrekte Position ziehen." },
   { icon: "wifi", color: [217, 119, 6], name: "Offline-Modus", desc: "Schaltet den Offline-Modus ein/aus. Gelb = aktiv." },
   { icon: "download", color: [11, 30, 51], name: "Karten herunterladen", desc: "Kartenausschnitte für die Offline-Nutzung speichern." },
-  { icon: "layers", color: [11, 30, 51], name: "Ebenen-Menü", desc: "Layer ein-/ausschalten, Hintergrundkarte wählen – Button im linken Bedien-Panel." },
+  { icon: "layers", color: [11, 30, 51], name: "Ebenen (Nav)", desc: "Layer ein-/ausschalten, Hintergrundkarte wählen – Button in der unteren Menüleiste, zwischen «Karte» und «Hunting»." },
   { icon: "radio", color: [17, 24, 39], name: "Neues QSO", desc: "Öffnet das QSO-Logbuch-Formular (grüner + Button im linken Bedien-Panel)." },
   { icon: "barChart3", color: [5, 150, 105], name: "Statistik", desc: "Wechselt zur Statistik-Ansicht im Logbuch." },
   { icon: "clipboardList", color: [59, 130, 246], name: "Meine Anträge", desc: "Zeigt eingereichte Positions-Korrekturen und deren Status." },
@@ -100,24 +100,26 @@ export const SECTIONS = [
         screenLayout: "mapOverview",
         layoutLabels: [
           { num: 1, label: "Suchfeld", desc: "Oben Mitte – Suche nach Referenz-Code, Name oder Ort" },
-          { num: 2, label: "Bedien-Panel links", desc: "Zugeklappt (schmaler Griff). Enthält ALLE Karten-Buttons: Navigation/GPS, Zoom, Layer/Filter und Aktionen" },
+          { num: 2, label: "Bedien-Panel links", desc: "Zugeklappt (schmaler Griff, vertikal mittig am linken Rand). Enthält alle Karten-Buttons: Navigation/GPS, Zoom, Layer-Filter und Aktionen" },
           { num: 3, label: "Kartenbereich", desc: "Zeigt Referenz-Marker in Farben und Formen – frei von schwebenden Buttons" },
           { num: 4, label: "Neues QSO", desc: "Grüner + Button im Bedien-Panel – öffnet das QSO-Formular" },
-          { num: 5, label: "Navigation", desc: "Ganz unten: Karte, Logbuch, Einstellungen, Abmelden" }
+          { num: 5, label: "Navigation", desc: "Ganz unten: Karte, Ebenen, Hunting, Logbuch, Mobil, Einstellungen, Abmelden" }
         ]
       },
       {
         title: "Bedien-Panel: alle Karten-Buttons an einem Ort",
-        body: "Alle Bedienelemente der Karte liegen im linken, aufklappbaren Panel – es gibt keine frei schwebenden Buttons mehr auf der Karte. Das Panel ist standardmässig zugeklappt; ein schmaler Griff am linken Rand klappt es auf. Im geöffneten Panel ist der Zu-Griff der oberste Knopf im Panel selbst – er liegt nie über den anderen Buttons. Ein Tipp auf die Karte schliesst es wieder. Das Panel ist in Gruppen geordnet: Navigation/GPS, Zoom, Layer/Filter und kontextuelle Aktionen. Der Zustand (auf-/zugeklappt) wird pro Benutzer gespeichert.",
+        body: "Alle Bedienelemente der Karte liegen im linken, aufklappbaren Panel – es gibt keine frei schwebenden Buttons mehr auf der Karte. Das Panel ist standardmässig zugeklappt; ein schmaler Griff MITTIG am linken Rand klappt es auf. Im geöffneten Panel ist der Zu-Griff der oberste Knopf im Panel selbst – er liegt nie über den anderen Buttons. Ein Tipp auf die Karte schliesst es wieder. Das Panel ist in Gruppen geordnet: Navigation/GPS, Zoom, Layer-Filter und kontextuelle Aktionen. Das Ebenen-Menü liegt seit v1.0 nicht mehr im Panel, sondern in der unteren Menüleiste. Der Zustand (auf-/zugeklappt) wird pro Benutzer gespeichert.",
         steps: [
-          { icon: "chevronRight", text: "Griff am linken Rand antippen – Panel klappt auf" },
+          { icon: "chevronRight", text: "Griff mittig am linken Rand antippen – Panel klappt auf" },
           { icon: "chevronLeft", text: "Oberster Knopf im Panel – klappt das Panel wieder zu (verdeckt keine Buttons)" },
           { icon: "locateFixed", text: "Gruppe Navigation/GPS: Offline, GPS, Position setzen, Zentrieren, Download" },
           { icon: "plus", text: "Gruppe Zoom: + und − vergrössern/verkleinern die Karte" },
           { icon: "ruler", text: "Gruppe Zoom: bei SwissTopo zusätzlich Massstab vergrössern/verkleinern" },
-          { icon: "layers", text: "Gruppe Layer/Filter: Ebenen-Menü, Layer-Filter, Legende" },
+          { icon: "layers", text: "Gruppe Layer/Filter: Layer-Filter und Legende (das Ebenen-Menü liegt in der unteren Menüleiste)" },
           { icon: "move", text: "Gruppe Aktionen: Marker verschieben, Abdeckung, 3D-Gelände, QSO loggen" },
-          { icon: "x", text: "Tipp auf die Karte schliesst das Panel wieder" }
+          { icon: "x", text: "Tipp auf die Karte schliesst das Panel wieder" },
+          { icon: "download", text: "Hintergrund-Laden: Beim Aktivieren grosser Layer bleibt die Karte bedienbar — oben läuft eine schmale, abbrechbare Fortschrittsleiste" },
+          { icon: "layers", text: "Dialoge und Bestätigungen liegen immer über Karte, Panel und Menüleiste" }
         ],
         tip: "Tipp: Zustand des Panels und der eingeklappten Filter-Abschnitte werden pro Benutzer gespeichert und beim nächsten Öffnen wiederhergestellt."
       },
@@ -155,9 +157,9 @@ export const SECTIONS = [
       },
       {
         title: "Layer ein-/ausschalten",
-        body: "Über das Ebenen-Menü im linken Bedien-Panel können Sie Referenz-Typen ein- und ausschalten und die Hintergrundkarte wechseln. Das Menü öffnet sich rechts neben dem Panel und liegt über allen anderen Elementen. Die weiterführenden Abschnitte (Kartenmassstab, Transparenz, Kontinent- und Länder-Filter) liegen in der eingeklappten Sektion «Weitere Optionen».",
+        body: "Über das Ebenen-Menü können Sie Referenz-Typen ein- und ausschalten und die Hintergrundkarte wechseln. Seit v1.0 sitzt der Ebenen-Button in der unteren Menüleiste zwischen «Karte» und «Hunting» — er ist damit auf jeder Seite erreichbar (von anderen Seiten wechselt die App zur Karte und öffnet das Menü). Das Menü liegt über allen anderen Elementen. Die weiterführenden Abschnitte (Kartenmassstab, Transparenz, Kontinent- und Länder-Filter) liegen in der eingeklappten Sektion «Weitere Optionen».",
         steps: [
-          { icon: "layers", text: "Im linken Bedien-Panel auf das Ebenen-Icon tippen" },
+          { icon: "layers", text: "In der unteren Menüleiste auf «Ebenen» tippen" },
           { icon: "eye", text: "Gewünschte Referenz-Typen ein-/ausschalten (SOTA, POTA, WWFF, etc.)" },
           { icon: "mapPin", text: "Hintergrundkarte wählen (Strassenkarte, Satellit, SwissTopo)" },
           { icon: "check", text: "Menü schliessen – Änderungen sind sofort sichtbar" }
@@ -220,7 +222,7 @@ export const SECTIONS = [
         title: "Kartenmassstab wählen",
         body: "Bei SwissTopo-Karte erscheinen im linken Bedien-Panel zwei zusätzliche Buttons (Doppelpfeil aufwärts/abwärts) zum Vergrössern und Verkleinern des Massstabs. Im Ebenen-Menü unter «Weitere Optionen» → «Kartenmassstab» können Sie zusätzlich einen festen Massstab auswählen: 1:10'000, 1:25'000, 1:50'000 oder 1:100'000.",
         steps: [
-          { icon: "layers", text: "Ebenen-Menü im linken Bedien-Panel öffnen" },
+          { icon: "layers", text: "Ebenen-Menü über den Button «Ebenen» in der unteren Menüleiste öffnen" },
           { icon: "chevronDown", text: "Sektion «Weitere Optionen» → «Kartenmassstab» aufklappen" },
           { icon: "ruler", text: "Massstab wählen: 1:10'000 (LK10) bis 1:100'000 (PK100)" },
           { icon: "ruler", text: "Bei «Dynamisch (Auto)» passt sich die Karte dem Zoom an" }
@@ -403,9 +405,9 @@ export const SECTIONS = [
     items: [
       {
         title: "Neues QSO erfassen",
-        body: "Klicken Sie auf der Karte auf den schwarzen Button «Neues QSO» unten rechts. Im Formular geben Sie Rufzeichen, Datum, Zeit, Frequenz, Band, Mode und RST ein. Nach dem Speichern bleibt das Formular offen, damit Sie direkt das nächste QSO erfassen können. Das Formular kann nur über das X-Icon oben rechts geschlossen werden.",
+        body: "Tippen Sie im linken Bedien-Panel auf den grünen Plus-Button «QSO loggen» (unterste Gruppe). Im Formular geben Sie Rufzeichen, Datum, Zeit, Frequenz, Band, Mode und RST ein. Nach dem Speichern bleibt das Formular offen, damit Sie direkt das nächste QSO erfassen können. Das Formular kann nur über das X-Icon oben rechts geschlossen werden.",
         steps: [
-          { icon: "radio", text: "Schwarzen Button «Neues QSO» (unten rechts) antippen" },
+          { icon: "radio", text: "Grünen Plus-Button «QSO loggen» im linken Bedien-Panel antippen" },
           { icon: "pencil", text: "Rufzeichen eingeben (z.B. HB9XYZ)" },
           { icon: "search", text: "QRZ-Button für automatische Datenabfrage" },
           { icon: "clock", text: "Datum und Startzeit (UTC) bestätigen" },
@@ -1044,7 +1046,7 @@ export const SECTIONS = [
     items: [
       {
         title: "Alle Relais weltweit werden geladen",
-        body: "Beim Aktivieren des Relais-Layers lädt die App den kompletten Relais-Bestand (aktuell rund 20'800 Relais, alle Länder) — unabhängig davon, welcher Kartenausschnitt gerade sichtbar ist. So sind beim Herauszoomen und beim Verschieben in andere Länder sofort alle Relais vorhanden, und der Länder-Filter listet jedes verfügbare Land mit Anzahl. Die Zahl im Ebenen-Menü zeigt den tatsächlich geladenen Bestand.",
+        body: "Beim Aktivieren des Relais-Layers lädt die App den kompletten Relais-Bestand (aktuell rund 30'000 Relais, alle Länder) im Hintergrund — unabhängig davon, welcher Kartenausschnitt gerade sichtbar ist. Die Karte bleibt während des Ladens bedienbar; der Hinweis oben zeigt den Fortschritt und lässt sich abbrechen. So sind beim Herauszoomen und beim Verschieben in andere Länder sofort alle Relais vorhanden, und der Länder-Filter listet jedes verfügbare Land mit Anzahl. Die Zahl im Ebenen-Menü zeigt den tatsächlich geladenen Bestand.",
         steps: [
           { icon: "layers", text: "Relais-Layer im Ebenen-Menü aktivieren" },
           { icon: "settings", text: "Vollständiges Laden im Lade-Dialog bestätigen" },
@@ -1054,9 +1056,9 @@ export const SECTIONS = [
       },
       {
         title: "Relais-Overlay aktivieren",
-        body: "Oeffnen Sie das Ebenen-Menue (im linken Bedien-Panel) und aktivieren Sie die Ebene «Amateurfunk-Relais». Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart.",
+        body: "Oeffnen Sie das Ebenen-Menue (Button «Ebenen» in der unteren Menüleiste) und aktivieren Sie die Ebene «Amateurfunk-Relais». Relais werden als farbige Kreise auf der Karte angezeigt – farbcodiert nach Modulationsart.",
         steps: [
-          { icon: "layers", text: "Ebenen-Icon im linken Bedien-Panel antippen" },
+          { icon: "layers", text: "Button «Ebenen» in der unteren Menüleiste antippen" },
           { icon: "radioTower", text: "«Amateurfunk-Relais» aktivieren" },
           { icon: "eye", text: "Relais erscheinen als farbige Kreise auf der Karte" }
         ]
@@ -1265,7 +1267,7 @@ export const SECTIONS = [
         title: "APRS – Amateur Radio Positioning",
         body: "Die Ebene «APRS – Amateur Radio Positioning» zeigt APRS-Stationen weltweit auf der Karte: Digipeater, IGates, Hotspots, AllStar- und EchoLink-Nodes sowie Wetterstationen. Die Daten stammen von APRS.fi. Die APRS-Datenbank waechst inkrementell: Bei jeder Aktualisierung werden nur neue Rufzeichen abgefragt und vorhandene Stationen werden aktualisiert. So wird die Datenbank mit jeder Abfrage groesser und spaeter muessen nur noch Aenderungen abgefragt werden. Jeder Node-Typ wird mit dem entsprechenden APRS-Standard-Symbol dargestellt – farbig nach Typ. Ueber den APRS-Filter (Wifi-Icon oben links) koennen einzelne Node-Typen ein- und ausgeschaltet werden.",
         steps: [
-          { icon: "layers", text: "Ebenen-Icon im linken Bedien-Panel antippen" },
+          { icon: "layers", text: "Button «Ebenen» in der unteren Menüleiste antippen" },
           { icon: "wifi", text: "«APRS – Amateur Radio Positioning» aktivieren" },
           { icon: "wifi", text: "APRS-Filter (Wifi-Icon im linken Bedien-Panel) fuer Node-Typ-Filter" },
           { icon: "mapPin", text: "Symbole nach APRS-Standard: Stern (Digipeater), Haus (Hotspot), Quadrat mit W (Wetter)" },
@@ -1277,7 +1279,7 @@ export const SECTIONS = [
         title: "Kontinent-Filter",
         body: "Im Ebenen-Menue gibt es einen Kontinent-Filter, mit dem Sie Overlay-Ebenen nach Kontinent ein- und ausblenden koennen. Waehlen Sie «Ganze Welt» (Standard) oder einzelne Kontinente (Europa, Nordamerika, Asien, etc.). Der Filter wirkt sich auf alle Referenz-Ebenen aus (SOTA, POTA, WWFF, etc.).",
         steps: [
-          { icon: "layers", text: "Ebenen-Menue im linken Bedien-Panel oeffnen" },
+          { icon: "layers", text: "Ebenen-Menue ueber den Button «Ebenen» in der unteren Menueleiste oeffnen" },
           { icon: "globe", text: "Sektion «Weitere Optionen» → «Kontinent-Filter» aufklappen" },
           { icon: "globe", text: "«Ganze Welt» oder einzelne Kontinente waehlen" },
           { icon: "check", text: "Marker ausserhalb der Auswahl werden ausgeblendet" }

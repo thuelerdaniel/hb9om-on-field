@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { AlertTriangle, Clock, Database, MapPin, X, Check, Layers } from "lucide-react";
+import { Z } from "@/lib/zLayers";
 
 // Geschätzte Datenmengen pro Layer-Typ beim weltweiten Laden.
 // repeater: 20'800 Relais (Entity-Bestand, id-basierte Paginierung — alle Länder).
@@ -121,9 +122,13 @@ export default function HeavyLoadConfirmDialog({ layers, onConfirm, onCancel }) 
   };
 
   return (
-    <div className="fixed inset-0 z-[10002] bg-black/50 flex items-center justify-center p-4" onClick={handleCancel}>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4"
+      style={{ zIndex: Z.DIALOG_TOP }}
+      onClick={handleCancel}
+    >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[75vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

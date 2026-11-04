@@ -28,7 +28,7 @@ export default function ReferenceSearchFilter({
   return (
     <div
       ref={popRef}
-      className="fixed z-[1000]"
+      className="fixed z-[1200]"
       style={{ left: `${leftPx}px`, bottom: `${bottomPx}px` }}
     >
       <button

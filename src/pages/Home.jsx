@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Plus, Move, Radio, MapPin, Loader2 } from "lucide-react";
-import { MapContainer, useMap, useMapEvents, Circle } from "react-leaflet";
+import { MapContainer, Circle } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 import { useMapData } from "@/hooks/useMapData";
 import { FILTER_MODES } from "@/lib/repeaterModes";

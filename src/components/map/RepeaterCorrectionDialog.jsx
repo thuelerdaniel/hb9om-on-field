@@ -82,7 +82,7 @@ export default function RepeaterCorrectionDialog({ repeater, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">

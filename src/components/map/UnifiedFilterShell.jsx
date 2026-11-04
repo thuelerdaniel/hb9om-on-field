@@ -88,9 +88,11 @@ export default function UnifiedFilterShell({
     return Object.values(counts).sort((a, b) => b.count - a.count);
   }, [points, extractCountryCode, extractCountryName]);
 
+  // z-[1200]: Filter-Popups liegen über der unteren Menüleiste (1100) und den
+  // Karten-Panes, aber unter Dialogen (10002) — v1.0-Dialog-Skala in src/lib/zLayers.js.
   const containerClass = positionMode === "absolute"
-    ? `absolute top-16 ${leftOffsetClass} z-[1005]`
-    : "fixed z-[1000]";
+    ? `absolute top-16 ${leftOffsetClass} z-[1200]`
+    : "fixed z-[1200]";
   const containerStyle = positionMode === "fixed"
     ? { left: `${leftPx}px`, bottom: `${bottomPx}px`, touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }
     : { touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" };

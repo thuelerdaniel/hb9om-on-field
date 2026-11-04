@@ -116,23 +116,28 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
     debounceRef.current = setTimeout(() => loadVisible(), DEBOUNCE_MS);
   }, [loadVisible]);
 
-  // Neue Layer-Auswahl → alter Bereich gilt nicht mehr (andere Typen).
+  // Immer die aktuelle Ladefunktion — die Effekte unten hängen nur an den Daten,
+  // nicht an der Identität der Funktion (sonst lädt jeder Layer-Toggle neu).
+  const loadRef = useRef(loadVisible);
+  loadRef.current = loadVisible;
+
+  // Neue Layer-Auswahl der Referenz-Typen → alter Bereich gilt nicht mehr.
   useEffect(() => {
     if (abortRef.current) abortRef.current.aborted = true;
     fetchedRef.current = null;
     isFirstLoadRef.current = true;
     if (idleCancelRef.current) idleCancelRef.current();
-    loadVisible({ force: true });
-  }, [typesKey, loadVisible]);
+    loadRef.current({ force: true });
+  }, [typesKey]);
 
   // Reload when reloadTrigger changes (e.g. when FirstTimeSetup modal closes)
   useEffect(() => {
     if (reloadTrigger) {
       isFirstLoadRef.current = true;
       fetchedRef.current = null;
-      loadVisible({ force: true });
+      loadRef.current({ force: true });
     }
-  }, [reloadTrigger, loadVisible]);
+  }, [reloadTrigger]);
 
   useMapEvents({
     moveend: handleMapChange,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 
-import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower, Droplets, SlidersHorizontal, Settings } from "lucide-react";
+import { Layers, Eye, EyeOff, Mountain, Trees, Castle, Anchor, Building, MapPin, Ruler, Zap, Radio, Wifi, Network, Globe2, RadioTower, Droplets, SlidersHorizontal, Settings, X } from "lucide-react";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { CONTINENTS } from "@/lib/continents";
 import { COUNTRIES, getCountriesByContinent } from "@/lib/countries";
@@ -210,7 +210,22 @@ export default function LayerControl({ activeLayers, onToggleLayer, baseLayer, o
       )}
 
       {isOpen && (
-        <div ref={panelRef} className={`absolute z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto overscroll-contain ${hideTrigger ? "top-0 left-2" : "top-12 right-0"}`}>
+        <div ref={panelRef} className={`absolute z-[1010] bg-white rounded-xl shadow-2xl border border-gray-100 w-80 max-w-[calc(100vw-1rem)] max-h-[72vh] overflow-y-auto overscroll-contain ${hideTrigger ? "top-0 left-2" : "top-12 right-0"}`}>
+          {/* Kopfzeile — seit v1.0 öffnet die untere Menüleiste das Menü,
+              darum hier ein sichtbarer Schliessen-Knopf */}
+          <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-3 py-2 flex items-center justify-between">
+            <h3 className="font-semibold text-xs text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-blue-600" /> Ebenen
+            </h3>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="p-1 rounded hover:bg-gray-100 text-gray-400"
+              title="Ebenen-Menü schliessen"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Hintergrundkarte */}
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900 uppercase tracking-wide">Hintergrundkarte</h3>
