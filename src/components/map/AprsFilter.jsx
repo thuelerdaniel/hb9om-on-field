@@ -19,6 +19,11 @@ export default function AprsFilter({
   countries = [],
   filterCountries = [],
   onFilterCountriesChange,
+  radiusKm = 0,
+  onRadiusChange,
+  showTracks = false,
+  onShowTracksChange,
+  liveCount = 0,
   leftOffsetClass = "left-16",
   defaultOpen = true,
   externalOpen,
@@ -102,6 +107,35 @@ export default function AprsFilter({
                 </button>
               )}
             </div>
+          </div>
+
+          <div className="p-3 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Radius (Kartenmitte/GPS)</h4>
+              <span className="text-[10px] text-purple-600 font-medium">{liveCount} live</span>
+            </div>
+            <div className="grid grid-cols-5 gap-1">
+              {[0, 50, 100, 200, 500].map((r) => (
+                <button
+                  key={r}
+                  onClick={() => onRadiusChange?.(r)}
+                  className={`py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
+                    radiusKm === r ? "bg-purple-600 text-white" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {r === 0 ? "Alle" : `${r}`}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2 mt-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTracks}
+                onChange={(e) => onShowTracksChange?.(e.target.checked)}
+                className="w-3.5 h-3.5 accent-purple-600"
+              />
+              <span className="text-[11px] text-gray-700">Bewegungsspuren mobiler Stationen</span>
+            </label>
           </div>
 
           <div className="p-3 border-b border-gray-100">

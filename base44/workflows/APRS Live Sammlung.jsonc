@@ -1,13 +1,23 @@
 {
-  "name": "APRS Live Sammlung",
-  "description": "Sammelt alle 3 Minuten APRS-Positionen im 200-km-Radius direkt von APRS-IS (inkl. mobiler Stationen) und schreibt aktuelle Position plus rollierende Historie.",
   "trigger": {
+    "condition": null,
     "config": {
       "trigger_type": "scheduled",
-      "cron_expression": "*/3 * * * *",
-      "timezone": "UTC"
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
     }
   },
+  "name": "APRS Live Sammlung",
+  "description": "Sammelt alle 5 Minuten APRS-Positionen im 200-km-Radius direkt von APRS-IS (inkl. mobiler Stationen) und schreibt Position plus rollierende Historie.",
   "definition": {
     "document": {
       "dsl": "1.0.0",

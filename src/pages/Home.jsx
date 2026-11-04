@@ -56,6 +56,9 @@ import PublicPositionLayer from "@/components/map/PublicPositionLayer";
 import RepeaterFilter from "@/components/map/RepeaterFilter";
 import TotaFilter from "@/components/map/TotaFilter";
 import AprsFilter from "@/components/map/AprsFilter";
+import AprsTrackLayer from "@/components/map/AprsTrackLayer";
+import { useAprsLive } from "@/hooks/useAprsLive";
+import { haversine } from "@/lib/geoUtilsFrontend";
 import BrandMeisterFilter from "@/components/map/BrandMeisterFilter";
 import LighthouseFilter from "@/components/map/LighthouseFilter";
 import LighthouseLayer from "@/components/map/LighthouseLayer";
@@ -599,6 +602,8 @@ export default function Home() {
   const [aprsFilterTypes, setAprsFilterTypes] = useState(savedFilterState.aprsFilterTypes ?? null);
   const [aprsSearchQuery, setAprsSearchQuery] = useState(savedFilterState.aprsSearchQuery || "");
   const [aprsFilterCountries, setAprsFilterCountries] = useState(savedFilterState.aprsFilterCountries || []);
+  const [aprsRadiusKm, setAprsRadiusKm] = useState(savedFilterState.aprsRadiusKm || 0);
+  const [showAprsTracks, setShowAprsTracks] = useState(savedFilterState.showAprsTracks || false);
 
   // BrandMeister filters
   const [bmFilterTypes, setBmFilterTypes] = useState(savedFilterState.bmFilterTypes ?? null);
@@ -670,6 +675,7 @@ export default function Home() {
       repeaterExclusiveModes,
       totaFilterTypes, totaSearchQuery, totaFilterCountries,
       aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
+      aprsRadiusKm, showAprsTracks,
       bmFilterTypes, bmSearchQuery, bmFilterCountries,
       lighthouseSearchQuery, lighthouseFilterCountries,
       onlyIllwActive, illwYear,
@@ -684,6 +690,7 @@ export default function Home() {
       repeaterExclusiveModes,
       totaFilterTypes, totaSearchQuery, totaFilterCountries,
       aprsFilterTypes, aprsSearchQuery, aprsFilterCountries,
+      aprsRadiusKm, showAprsTracks,
       bmFilterTypes, bmSearchQuery, bmFilterCountries,
       lighthouseSearchQuery, lighthouseFilterCountries,
       onlyIllwActive, illwYear]);
@@ -1404,10 +1411,22 @@ export default function Home() {
   }, [repeaters]);
 
   // Build private node country lists for APRS and BrandMeister
-  const aprsNodes = useMemo(() => privateNodes.filter(n => {
-    const src = (n.source || "").toLowerCase();
-    return src.includes("aprs") || !src.includes("brandmeister");
-  }), [privateNodes]);
+  // Live-Positionen aus APRS-IS überlagern die bestehenden APRS-Stationen.
+  const aprsLiveNodes = useAprsLive();
+  const aprsNodes = useMemo(() => {
+    const liveCalls = new Set(aprsLiveNodes.map(n => n.callsign));
+    const base = privateNodes.filter(n => {
+      const src = (n.source || "").toLowerCase();
+      return (src.includes("aprs") || !src.includes("brandmeister")) && !liveCalls.has(n.callsign);
+    }).concat(aprsLiveNodes);
+    if (!aprsRadiusKm) return base;
+    const pos = fixedPosition || userPosition;
+    const center = pos
+      ? { lat: Array.isArray(pos) ? pos[0] : pos.lat, lng: Array.isArray(pos) ? pos[1] : (pos.lng ?? pos.lon) }
+      : mapRef.current ? { lat: mapRef.current.getCenter().lat, lng: mapRef.current.getCenter().lng } : null;
+    if (!center) return base;
+    return base.filter(n => haversine(center.lat, center.lng, n.lat, n.lng) <= aprsRadiusKm);
+  }, [privateNodes, aprsLiveNodes, aprsRadiusKm, fixedPosition, userPosition]);
 
   const bmNodes = useMemo(() => privateNodes.filter(n => {
     const src = (n.source || "").toLowerCase();
@@ -1843,6 +1862,9 @@ export default function Home() {
             activeCountries={activeCountries}
           />
         )}
+        {activeLayers.includes("aprs") && showAprsTracks && (
+          <AprsTrackLayer nodes={aprsNodes} />
+        )}
         {activeLayers.includes("brandmeister") && (
           <PrivateNodeLayer
             nodes={bmNodes}
@@ -2103,6 +2125,11 @@ export default function Home() {
               countries={aprsCountries}
               filterCountries={aprsFilterCountries}
               onFilterCountriesChange={setAprsFilterCountries}
+              radiusKm={aprsRadiusKm}
+              onRadiusChange={setAprsRadiusKm}
+              showTracks={showAprsTracks}
+              onShowTracksChange={setShowAprsTracks}
+              liveCount={aprsLiveNodes.length}
               leftOffsetClass="left-16"
               hideTrigger={true}
               externalOpen={openFilter === "aprs"}

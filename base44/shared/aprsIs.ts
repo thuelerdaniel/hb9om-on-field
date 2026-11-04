@@ -250,6 +250,7 @@ export async function readAprsStream(opts: {
     lines: 0,
     parsed: 0,
     by_format: {} as Record<string, number>,
+    mice_skipped: 0,
     duration_ms: 0,
     error: null as string | null,
   };
@@ -275,6 +276,10 @@ export async function readAprsStream(opts: {
         stats.lines++;
         if (line && !line.startsWith("#")) {
           const p = parseAprsLine(line);
+          if (!p) {
+            const payload = line.slice(line.indexOf(":") + 1);
+            if (payload.startsWith("'") || payload.startsWith("`")) stats.mice_skipped++;
+          }
           if (p) {
             stats.by_format[p.format] = (stats.by_format[p.format] || 0) + 1;
             // nur die neueste Position pro Callsign innerhalb des Fensters

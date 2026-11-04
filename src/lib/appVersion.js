@@ -13,11 +13,18 @@ export const APP_VERSION = "1.0";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202611041000";
+export const APP_BUILD = "202611041020";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "04.11.2026: APRS DIREKT VON APRS-IS — APRS-Daten kommen nicht mehr über aprs.fi, sondern direkt aus dem APRS-IS-Netz (Port 14580). Der 200-km-Radius um Bern wird alle 5 Minuten gelesen; gespeichert werden Position, Tempo, Kurs, Höhe, Kommentar, Symbol und die empfangene Paketart.",
+  "04.11.2026: MOBILE STATIONEN — Mobile Stationen werden nicht mehr ausgefiltert und sind im APRS-Layer sichtbar. Tempo und Kurs stammen aus dem Paket (CSE/SPD) oder werden aus der Bewegung zwischen zwei Läufen berechnet.",
+  "04.11.2026: BEWEGUNGSSPUREN — Neuer Schalter im APRS-Filter zeigt die letzten Positionen mobiler Stationen als Spur (72-Stunden-Historie, max. 40 Stationen je Kartenausschnitt).",
+  "04.11.2026: APRS-RADIUS — Im APRS-Filter lässt sich der Radius um GPS-Position bzw. Kartenmitte auf 50, 100, 200 oder 500 km begrenzen; «Alle» zeigt den ganzen Bestand.",
+  "04.11.2026: LIVE-ZÄHLER — Der APRS-Filter zeigt, wie viele der angezeigten Stationen aus dem laufenden APRS-IS-Empfang stammen.",
+  "04.11.2026: APRS-STATUS — Die Quelle «aprs» meldet Zeitpunkt, Anzahl, Dauer und Fehler des letzten Laufs.",
+  "04.11.2026: GRENZEN DER TECHNIK — Der Sammellauf startet alle 5 Minuten (kürzere Abstände lässt die Plattform nicht zu); Mic-E-Pakete werden nicht ausgewertet und im Laufprotokoll gezählt; Pakete, die der Server nicht an den Filter schickt, können nicht erfasst werden.",
   "04.11.2026: VERSION 1.0 — erste stabile Hauptversion.",
   "04.11.2026: EBENEN-FENSTER ZENTRIERT — Das Ebenen-Menü öffnet mittig im Bildschirm (horizontal und vertikal) und belegt höchstens 85 % der Höhe mit internem Scroll. Es ragt nie unten aus dem Bild; Verschieben bleibt möglich.",
   "04.11.2026: ALLE FILTER-FENSTER ZENTRIERT — SOTA, POTA, WWFF, Burgen, WWBOTA, IOTA, TOTA, LLOTA, Leuchttürme, APRS, BrandMeister und Relais öffnen zentriert. Eine selbst gewählte Position wird gespeichert und beim nächsten Öffnen wiederhergestellt — getrennt pro Gerät (Handy / Tablet / PC). Ohne eigene Verschiebung: wieder zentriert.",
