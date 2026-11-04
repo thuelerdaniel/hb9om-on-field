@@ -16,6 +16,7 @@ import MapTileLayer from "@/components/map/MapTileLayer";
 import MapLibreTileLayer from "@/components/map/MapLibreTileLayer";
 import MapLifecycleGuard from "@/components/map/MapLifecycleGuard";
 import MapHeader from "@/components/map/MapHeader";
+import MapController from "@/components/map/MapController";
 import LayerControl from "@/components/map/LayerControl";
 import LeftControlPanel from "@/components/map/LeftControlPanel";
 import MapLegend from "@/components/map/MapLegend";
@@ -78,6 +79,7 @@ import { startBatchBoundaryLoad, fetchBoundaryWithCache, abortBoundaryRefill } f
 
 // Other components
 import BottomNavigation from "@/components/BottomNavigation";
+import { consumeLayerMenuRequest, subscribeLayerMenu } from "@/lib/layerMenuBus";
 import FirstTimeSetup from "@/components/FirstTimeSetup";
 import MapMenuDrawer from "@/components/map/MapMenuDrawer";
 import { useAppFeatures, syncFeaturesFromUser } from "@/lib/appFeatures";
@@ -204,33 +206,6 @@ function buildSearchCandidates(data, repeaters) {
     });
   }
   return candidates;
-}
-
-// Component to handle map events (zoom, move) and expose map ref
-function MapController({ onMapReady, onZoomIn, onZoomOut, lockedScale, onMapClick }) {
-  const map = useMap();
-  // Ref ensures the click handler always calls the latest onMapClick,
-  // even though useMapEvents only registers once.
-  const onMapClickRef = useRef(null);
-  onMapClickRef.current = onMapClick;
-
-  useEffect(() => {
-    if (onMapReady) onMapReady(map);
-  }, [map, onMapReady]);
-
-  useMapEvents({
-    zoomend: () => {
-      const c = map.getCenter();
-      safeSetItem("hb9om_map_state", JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
-    },
-    moveend: () => {
-      const c = map.getCenter();
-      safeSetItem("hb9om_map_state", JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
-    },
-    click: (e) => { if (onMapClickRef.current) onMapClickRef.current(e.latlng); },
-  });
-
-  return null;
 }
 
 export default function Home() {
@@ -561,6 +536,14 @@ export default function Home() {
 
   // Layer menu open state — lifted for external control (ViewportLimitHint action button)
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+
+  // v1.0: Ebenen-Button der unteren Menüleiste öffnet dieses Menü.
+  // Ist die Karte schon offen, kommt die Anfrage direkt; wurde von einer anderen
+  // Seite hierher gewechselt, liegt sie beim Aufbau bereit und wird einmalig abgeholt.
+  useEffect(() => {
+    if (consumeLayerMenuRequest()) setLayerMenuOpen(true);
+    return subscribeLayerMenu(() => setLayerMenuOpen(true));
+  }, []);
 
   // Left control panel state — which filter popup is opened from the panel
   const [openFilter, setOpenFilter] = useState(null);
@@ -1739,9 +1722,6 @@ export default function Home() {
         <MapLifecycleGuard />
         <MapController
           onMapReady={handleMapReady}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          lockedScale={lockedScale}
           onMapClick={(latlng) => {
             if (mapClickForCoverage) {
               setUserCoveragePosition([latlng.lat, latlng.lng]);
@@ -2013,8 +1993,6 @@ export default function Home() {
         onScaleUp={handleScaleUp}
         onScaleDown={handleScaleDown}
         scaleLabel={lockedScale ? `1:${lockedScale / 1000}k` : "Auto"}
-        onOpenLayers={() => { setOpenFilter(null); setLayerMenuOpen(true); }}
-        layersOpen={layerMenuOpen}
         legendVisible={legendVisible}
         onToggleLegend={() => setLegendVisible(v => !v)}
         showLegend={features.tools.legende !== false}

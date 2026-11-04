@@ -1,16 +1,31 @@
-import React, { memo, useState, useRef, useEffect, useCallback } from "react";
-import { Marker, Popup, CircleMarker, useMap, useMapEvents } from "react-leaflet";
+import React, { memo, useEffect, useMemo } from "react";
+import { Marker, CircleMarker, useMap } from "react-leaflet";
 import L from "leaflet";
 import MarkerPopup from "@/components/map/MarkerPopup";
 import DraggablePopup from "@/components/map/DraggablePopup";
 import { getMarkerSvg } from "@/lib/markerShapes";
 import { isValidCoord } from "@/lib/geoUtilsFrontend";
 import { AGGREGATE_THRESHOLD } from "@/components/map/CountryAggregateLayer";
+import { useStableViewport } from "@/hooks/useStableViewport";
 
-// Hard cap on markers rendered at once — prevents "page not responding" on extreme loads.
-// Canvas mode (CircleMarkers) is far cheaper than SVG divIcons, so allow 5x more.
+// Marker-Rendering der Referenz-Layer (SOTA/POTA/WWFF/…)
+//
+// v1.0 — Stabilität beim Pannen:
+//   · Der Viewport kommt aus useStableViewport (200 ms Debounce, ein Frame) —
+//     nicht mehr aus einem eigenen, sofort feuernden moveend-Handler.
+//   · Die Marker-Reihenfolge wird nur bei neuen DATEN berechnet, nicht bei jeder
+//     Bewegung. Dadurch bleiben Marker während des Ziehens an ihrem Platz.
+//   · Massenmarker (> 400 im Ausschnitt) laufen automatisch über den Canvas-
+//     Renderer (CircleMarker) statt über DOM-Symbole — kein Flackern, kein Ruckeln.
+//   · Sichtbarkeitsfilter und Deckel sind memoisiert: nur Marker am Rand des
+//     Ausschnitts kommen hinzu oder fallen weg.
+
 const MAX_RENDER_MARKERS_SVG = 2000;
 const MAX_RENDER_MARKERS_CANVAS = 10000;
+
+// Ab dieser Anzahl sichtbarer Marker wird automatisch auf Canvas umgeschaltet —
+// unabhängig davon, ob der Performance-Modus in den Einstellungen aktiv ist.
+const AUTO_CANVAS_THRESHOLD = 400;
 
 // Cache divIcons per (layerType, color) — creating L.divIcon for every marker is extremely expensive
 const iconCache = new Map();
@@ -51,65 +66,55 @@ function getDraggableIcon(color) {
 
 function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, performanceMode, autoCanvasActive, userPosition, onViewportLimitChange, boundaryKeys, onToggleBoundary, onBoundaryRadiusChange, boundaryRadiusMap }) {
   const map = useMap();
-  const [zoom, setZoom] = useState(map.getZoom());
-  const [bounds, setBounds] = useState(map.getBounds());
-  const debounceRef = useRef(null);
+  // Stabile Viewport-Werte (Debounce + rAF) — siehe src/hooks/useStableViewport.js
+  const { bounds, zoom } = useStableViewport();
 
-  // Debounced viewport update — prevents filter+re-render storm during pan/zoom
-  const updateBounds = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setBounds(map.getBounds());
-      setZoom(map.getZoom());
-    }, 150);
-  }, [map]);
-
-  useMapEvents({
-    zoomend: updateBounds,
-    moveend: updateBounds,
-  });
-
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+  // Reihenfolge EINMAL pro Datensatz: nach Entfernung zur Kartenmitte, damit beim
+  // Deckeln die nächstgelegenen Marker Vorrang haben. Während des Pannens wird
+  // NICHT neu sortiert — das war die Ursache des Flackerns.
+  const orderedMarkers = useMemo(() => {
+    if (!markers || markers.length === 0) return [];
+    const center = map.getCenter();
+    const clat = center.lat, clng = center.lng;
+    return markers
+      .map(m => ({ m, d: isValidCoord(m.lat, m.lng) ? (m.lat - clat) ** 2 + (m.lng - clng) ** 2 : Infinity }))
+      .sort((a, b) => a.d - b.d)
+      .map(x => x.m);
+  }, [markers, map]);
 
   // Zoom-based aggregation: when zoomed out below threshold, skip individual markers
   // — CountryAggregateLayer shows country-level badges instead for performance
-  const isAggregated = zoom < AGGREGATE_THRESHOLD && markers.length > 200;
+  const isAggregated = zoom < AGGREGATE_THRESHOLD && orderedMarkers.length > 200;
 
   // Viewport culling: only render markers within current bounds + 30% buffer
-  const paddedBounds = bounds.pad(0.3);
-  const visibleMarkers = markers.filter(m =>
-    isValidCoord(m.lat, m.lng) && paddedBounds.contains([m.lat, m.lng])
+  const paddedBounds = useMemo(() => bounds.pad(0.3), [bounds]);
+  const visibleMarkers = useMemo(
+    () => orderedMarkers.filter(m => isValidCoord(m.lat, m.lng) && paddedBounds.contains([m.lat, m.lng])),
+    [orderedMarkers, paddedBounds]
   );
 
-  // Canvas mode: performance mode OR auto-canvas (time-based, triggered by parent)
-  const useCanvasMode = performanceMode || autoCanvasActive;
+  // Canvas mode: performance mode, auto-canvas from parent, or simply "too many markers"
+  const useCanvasMode = performanceMode || autoCanvasActive || visibleMarkers.length > AUTO_CANVAS_THRESHOLD;
 
-  // Always sort by distance from map center — nearest markers render first.
-  // This ensures markers closest to the viewport center are always prioritized
-  // (progressive center-outward loading) and, when capping is needed, the
-  // nearest ones are kept over distant ones earlier in the data array.
   const maxRender = useCanvasMode ? MAX_RENDER_MARKERS_CANVAS : MAX_RENDER_MARKERS_SVG;
-  const center = map.getCenter();
-  const clat = center.lat, clng = center.lng;
-  const withDist = visibleMarkers.map(m => ({
-    m,
-    d: (m.lat - clat) ** 2 + (m.lng - clng) ** 2,
-  }));
-  withDist.sort((a, b) => a.d - b.d);
-  const cappedMarkers = withDist.slice(0, maxRender).map(x => x.m);
 
-  // Report viewport capping state to parent — used for the red blinking hint
-  // above the legend when not all available data is displayed.
+  const cappedMarkers = useMemo(
+    () => (visibleMarkers.length > maxRender ? visibleMarkers.slice(0, maxRender) : visibleMarkers),
+    [visibleMarkers, maxRender]
+  );
+
+  // Report viewport capping state to parent — used for the red hint above the legend
+  // when not all available data is displayed.
   useEffect(() => {
     if (onViewportLimitChange) {
       onViewportLimitChange({
         visibleCount: visibleMarkers.length,
         maxRender,
-        totalCount: markers.length,
+        totalCount: orderedMarkers.length,
         isCapped: visibleMarkers.length > maxRender,
       });
     }
-  }, [visibleMarkers.length, maxRender, markers.length, onViewportLimitChange]);
+  }, [visibleMarkers.length, maxRender, orderedMarkers.length, onViewportLimitChange]);
 
   // Aggregation active — CountryAggregateLayer takes over, skip individual markers
   if (isAggregated) return null;
@@ -139,7 +144,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
     );
   }
 
-  // Canvas mode (performance mode OR auto-switch when too many markers): lightweight CircleMarkers on canvas
+  // Canvas mode: lightweight CircleMarkers on the canvas renderer (preferCanvas)
   // Touch devices get larger markers for easier tapping; desktop stays compact for density
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   const circleRadius = isTouch ? 10 : 7;
@@ -190,7 +195,7 @@ function MapMarkersInner({ markers, dragMode, isAdmin, onEdit, onMarkerDrag, per
       })}
     </>
   );
-  }
+}
 
 function arePropsEqual(prev, next) {
   return (

@@ -1,5 +1,6 @@
-import React, { memo, useMemo, useRef, useEffect, useCallback, useState } from "react";
-import { CircleMarker, Polyline, Popup, useMap, useMapEvents, Marker, Circle, Polygon } from "react-leaflet";
+import React, { memo, useMemo, useRef, useEffect, useCallback } from "react";
+import { CircleMarker, Polyline, useMap, Marker } from "react-leaflet";
+import { useStableViewport } from "@/hooks/useStableViewport";
 import L from "leaflet";
 import RepeaterPopup from "@/components/map/RepeaterPopup";
 import DraggablePopup from "@/components/map/DraggablePopup";
@@ -45,8 +46,10 @@ const LINE_DASH_ARRAYS = {
 
 function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuery, showLinks, showCoverage, showOnlyLinked, performanceMode, filterCountries, userPosition, radiusKm, adminLinks, onSuggestLink, individualCoverage, onToggleCoverage, onRepeaterUpdate, activeContinents, activeCountries, isAdmin }) {
   const map = useMap();
-  const [zoom, setZoom] = useState(map.getZoom());
-  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  // v1.0: Viewport kommt aus dem stabilen Hook (200 ms Debounce + ein Frame).
+  // Vorher wurde der Kartenausschnitt bei jedem Render frisch aus der Karte gelesen —
+  // dadurch wechselte der Marker-Bestand bei jedem Pan und die Marker flackerten.
+  const { bounds, zoom } = useStableViewport();
 
   // Link sources + displayability come from the shared display pipeline, so the map and
   // the PDF export judge "verlinkte Relais" identically.
@@ -328,12 +331,15 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   // CountryAggregateLayer shows country-level badges instead — skip individual markers
   const isAggregated = zoom < AGGREGATE_THRESHOLD && filteredRepeaters.length > 200;
 
-  // Viewport culling
-  const bounds = map.getBounds();
-  const paddedBounds = bounds.pad(REPEATER_VIEWPORT_PADDING);
-  const visibleRepeaters = filteredRepeaters.filter(r =>
+  // Hinweis: `bounds`/`zoom` stammen aus useStableViewport und ändern sich erst
+  // 200 ms nach dem Gestus — der Marker-Bestand bleibt beim Pannen stehen.
+
+  // Viewport culling — memoisiert: rechnet nur neu, wenn sich Filter oder
+  // Kartenausschnitt wirklich geändert haben (nicht bei jedem Render).
+  const paddedBounds = useMemo(() => bounds.pad(REPEATER_VIEWPORT_PADDING), [bounds]);
+  const visibleRepeaters = useMemo(() => filteredRepeaters.filter(r =>
     isValidCoord(r.lat, r.lng) && paddedBounds.contains([r.lat, r.lng])
-  );
+  ), [filteredRepeaters, paddedBounds]);
 
   // Viewport culling already limits to the current map area. The cap is a safety net
   // for extreme zoom-out (e.g. all of Europe with all countries selected). Canvas
@@ -343,18 +349,26 @@ function RepeaterLayerInner({ repeaters, filterModes, exclusiveModes, searchQuer
   // Auto-switch to CircleMarker (canvas-rendered) when there are too many repeaters.
   // divIcon Marker rendering freezes the browser above ~500 markers.
   const MAX = REPEATER_MAX_MARKERS;
-  const cappedRepeaters = visibleRepeaters.length > MAX ? visibleRepeaters.slice(0, MAX) : visibleRepeaters;
-  const useCircleMode = performanceMode || cappedRepeaters.length > 500;
+  const cappedRepeaters = useMemo(
+    () => (visibleRepeaters.length > MAX ? visibleRepeaters.slice(0, MAX) : visibleRepeaters),
+    [visibleRepeaters, MAX]
+  );
+
+  // Canvas (CircleMarker) ab 200 Markern — der Canvas-Renderer der Karte zeichnet
+  // tausende Punkte ohne die Ruckler, die DOM-Symbole verursachen.
+  const useCircleMode = performanceMode || cappedRepeaters.length > 200;
 
   // Only show link lines where BOTH endpoints are actually rendered as markers.
   // cappedRepeaters may be a subset of filteredRepeaters (MAX limit), so lines
   // connecting to repeaters outside the cap would appear without markers.
-  const cappedPositionSet = new Set(cappedRepeaters.map(r => `${r.lat.toFixed(5)},${r.lng.toFixed(5)}`));
-  const visibleLines = allLines.filter(line => {
-    const [p1, p2] = line.positions;
-    return cappedPositionSet.has(`${p1[0].toFixed(5)},${p1[1].toFixed(5)}`) &&
-           cappedPositionSet.has(`${p2[0].toFixed(5)},${p2[1].toFixed(5)}`);
-  });
+  const visibleLines = useMemo(() => {
+    const cappedPositionSet = new Set(cappedRepeaters.map(r => `${r.lat.toFixed(5)},${r.lng.toFixed(5)}`));
+    return allLines.filter(line => {
+      const [p1, p2] = line.positions;
+      return cappedPositionSet.has(`${p1[0].toFixed(5)},${p1[1].toFixed(5)}`) &&
+             cappedPositionSet.has(`${p2[0].toFixed(5)},${p2[1].toFixed(5)}`);
+    });
+  }, [allLines, cappedRepeaters]);
 
   const isTouch = typeof navigator !== "undefined" && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   const circleRadius = performanceMode ? (isTouch ? 8 : 6) : (isTouch ? 10 : 8);

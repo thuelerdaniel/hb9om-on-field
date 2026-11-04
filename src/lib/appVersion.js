@@ -8,16 +8,28 @@
 // 3. Add a changelog entry to CHANGELOG below
 // 4. The menu drawer displays these values automatically (offline-readable)
 
-export const APP_VERSION = "0.951";
+export const APP_VERSION = "1.0";
 
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202610220645";
+export const APP_BUILD = "202611040830";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "04.11.2026: VERSION 1.0 — erste stabile Hauptversion.",
+  "04.11.2026: EBENEN-BUTTON UNTEN — Das Ebenen-Menü (Layer-Stack-Symbol) sitzt jetzt in der unteren Menüleiste zwischen «Karte» und «Hunting» und ist damit auf jeder Seite erreichbar. Die untere Leiste bleibt auch bei 390 px Breite vollständig bedienbar (Icons und Beschriftungen kompakt, nichts abgeschnitten).",
+  "04.11.2026: PANEL-GRIFF MITTE LINKS — Der Griff zum Öffnen des seitlichen Bedien-Panels liegt jetzt vertikal zentriert am linken Rand statt oben links. Bei geöffnetem Panel ist der Zu-Griff weiterhin der oberste Knopf IM Panel — er verdeckt keinen Inhalt.",
+  "04.11.2026: KARTE STABIL — Ursache des Flackerns gefunden: Jede Pan-Bewegung löste ein Neu-Filtern, Neu-Sortieren und damit ein Neu-Anlegen von mehreren hundert Markern aus. Jetzt gilt: Viewport erst 200 ms nach dem Gestus (Debounce) und gebündelt in einem Frame, Marker-Bestand bleibt beim Ziehen stehen (kein Clear/Neuaufbau), Massenmarker werden auf dem Canvas gezeichnet, und es werden keine Daten beim Pannen nachgeladen.",
+  "04.11.2026: DIALOGE IMMER OBEN — Verbindliche z-Ebenen-Skala: Dialoge und Bestätigungen liegen über Leaflet, Panel, Filter-Popups und unterer Menüleiste; Toasts liegen auch über Dialogen, damit ihre Aktions-Knöpfe immer klickbar sind.",
+  "04.11.2026: HINTERGRUND-LADEN — Kein blockierender Vollbild-Loader mehr: dezenter, abbrechbarer Ladehinweis am oberen Rand, Karte bleibt während des Ladens bedienbar (Zoomen/Verschieben). Bekannte Kartenausschnitte werden nicht erneut geladen; Nachladen passiert in Leerlaufphasen im Hintergrund.",
+  "04.11.2026: KOMPAKTE POPUPS — «Was ist neu» und das Ebenen-Menü belegen maximal ~72 % der Bildschirmhöhe, scrollen intern und haben kleinere Abstände — die Karte bleibt sichtbar.",
+  "04.11.2026: HILFE & PDFs AUF v1.0 — Hilfe-Seite, PDF-Hilfe und Release Notes beschreiben die neuen Bedienorte (Ebenen-Button unten, Panel-Griff mittig links, Hintergrund-Laden, kompakte Dialoge).",
+  "04.11.2026: RELAIS-BESTAND — USA aus Hearham: 13'075 Relais (alle mit Koordinaten), Süd-/Mittelamerika 77. Gesamtbestand 30'051 Relais.",
+  "04.11.2026: KEIN DATENVERLUST BEI TEIL-LÄUFEN — Regionale Einträge werden nur noch nach einem vollständigen Durchlauf aufgeräumt, und nur wenn die neuen Daten den Bestand mindestens zur Hälfte abdecken (Mindestboden 50).",
+  "04.11.2026: APRS-STATIONEN FRISCH — Pro Lauf werden 300 Bestands-Stationen aus der Datenbank aufgefrischt (älteste zuerst), zweimal täglich (06:30 / 18:30 UTC) — jede Station ist innerhalb von 12 Stunden wieder aktuell.",
+  "04.11.2026: SYNC-STATUS & TAGESREPORT — Status, Anzahl und Dauer bleiben stehen (kein Zurücksetzen auf «pending»); Wochen-Tage werden zusammen mit dem Wochentag geprüft, Montags-Quellen laufen nicht am Donnerstag; der Tagesreport weist deaktivierte und nicht geplante Quellen neutral aus, 0-Spots gelten nicht als Fehler, Monats-Cache-Quellen zeigen ihr Cache-Datum.",
   "22.10.2026: APRS-DATEN WIEDER AKTUELL — Bisher hat der Lauf nur neu entdeckte Stationen geschrieben; bestehende Datensätze behielten ihren Stand vom Seed (last_heard z.B. 14.10.). Jetzt werden pro Lauf 300 Bestands-Stationen direkt aus der Datenbank aufgefrischt (älteste zuerst). Der Lauf startet zweimal täglich (06:30 und 18:30 UTC) — damit ist jede Station innerhalb von 12 Stunden wieder frisch. Zusätzlich verschwundene Schreibfehler: Fehler beim Speichern werden jetzt gemeldet statt still verschluckt.",
   "22.10.2026: RELAIS-TEIL-LAUFSCHUTZ — Der US-Teil-Lauf (3 Staaten pro Tick) hat vorab die regionalen Einträge gelöscht, obwohl nur ein Bruchteil geholt wurde. Jetzt wird ausschliesslich nach einem vollständigen Durchlauf aufgeräumt, und zusätzlich nur, wenn die neuen Daten den Bestand mindestens zur Hälfte abdecken. Teil-Läufe sind reine Aktualisierungen und melden das im Status.",
   "22.10.2026: US-RELAIS AUS HEARHAM — RepeaterBook liefert für die USA keine Koordinaten mehr. Die Region «USA» lädt jetzt aus Hearham (bis ~10'000 Relais mit Koordinaten pro Lauf); der Bestand wird nur ersetzt, wenn die neue Datenmenge ihn wirklich abdeckt.",

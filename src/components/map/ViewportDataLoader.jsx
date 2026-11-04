@@ -1,52 +1,60 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { useMap, useMapEvents } from "react-leaflet";
 import { base44 } from "@/api/base44Client";
 
-// Viewport-based loading: only fetch reference points within the visible map area.
-// Replaces the old "load all 270k+ points into memory" approach.
-// Calls getReferencesInBounds backend function on debounced pan/zoom.
-// Accumulates visited areas so panning back doesn't re-fetch.
-// Repeaters are NOT loaded here — useMapData loads the complete repeater set
-// (loadAllRepeaters) so every country is available regardless of the map view.
+// Viewport-based loading of the reference layers (SOTA, POTA, WWFF, …).
+//
+// v1.0 — Hintergrund-Laden:
+//   · Kein Nachladen mehr beim Pannen in bereits geladene Gebiete: liegt der
+//     aktuelle Ausschnitt im zuletzt geladenen Bereich (gleiche Layer-Auswahl),
+//     wird nichts angefordert — der Bestand bleibt ruhig und die Karte flüssig.
+//   · Nach jedem erfolgreichen Laden holt ein Leerlauf-Task (requestIdleCallback)
+//     den doppelt so grossen Bereich im HINTERGRUND nach (staged prefetch).
+//     Wer danach pannt, hat die Daten meist schon — ohne Ladepause.
+//   · Abbrechbar: eine neue Anfrage bricht die vorherige ab, beim Unmount ebenfalls.
 const DEBOUNCE_MS = 350;
 const MAX_PER_TYPE = 20000;
 const REQUEST_TIMEOUT_MS = 30000;
 const REF_TYPES = ["sota", "pota", "hbff", "wwbota", "castle", "lighthouse", "llota", "iota", "aprs", "brandmeister"];
 
+// Leerlauf-Task: requestIdleCallback mit Timeout-Fallback (Safari älter).
+function onIdle(fn) {
+  if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+    const id = window.requestIdleCallback(fn, { timeout: 4000 });
+    return () => window.cancelIdleCallback?.(id);
+  }
+  const id = setTimeout(fn, 1500);
+  return () => clearTimeout(id);
+}
+
+function boundsContain(outer, inner, epsilon = 0.02) {
+  return (
+    inner.getNorth() <= outer.getNorth() + epsilon &&
+    inner.getSouth() >= outer.getSouth() - epsilon &&
+    inner.getEast() <= outer.getEast() + epsilon &&
+    inner.getWest() >= outer.getWest() - epsilon
+  );
+}
+
 export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffline, reloadTrigger }) {
   const map = useMap();
   const debounceRef = useRef(null);
   const abortRef = useRef(null);
-  const fetchedBoundsRef = useRef(null); // Track the largest bounds we've fetched
+  const fetchedRef = useRef(null); // { bounds, typesKey } — zuletzt geladener Bereich
   const isFirstLoadRef = useRef(true);
+  const idleCancelRef = useRef(null);
 
-  // Reload when reloadTrigger changes (e.g. when FirstTimeSetup modal closes)
-  useEffect(() => {
-    if (reloadTrigger) {
-      isFirstLoadRef.current = true;
-      fetchedBoundsRef.current = null;
-      handleMapChange();
-    }
-  }, [reloadTrigger]);
+  const typesKey = REF_TYPES.filter(t => activeLayers.includes(t)).join(",");
 
-  // Abort in-flight requests when active layers change (PUNKT 3: clean layer toggle)
-  useEffect(() => {
-    if (abortRef.current) abortRef.current.aborted = true;
-    fetchedBoundsRef.current = null;
-    isFirstLoadRef.current = true;
-  }, [activeLayers]);
-
-  const loadBounds = useCallback(async (bounds, types) => {
+  const fetchArea = useCallback(async (bounds, types, { isFirstLoad = false, replace = true } = {}) => {
     if (types.length === 0 || isOffline) return;
 
-    // Abort previous in-flight request
     if (abortRef.current) abortRef.current.aborted = true;
     const myAbort = { aborted: false };
     abortRef.current = myAbort;
 
     try {
       const padded = bounds.pad(0.3);
-      // Race the function call against a timeout — prevents hanging if the backend is slow
       const responsePromise = base44.functions.invoke("getReferencesInBounds", {
         bounds: {
           north: padded.getNorth(),
@@ -62,47 +70,79 @@ export default function ViewportDataLoader({ activeLayers, onDataLoaded, isOffli
       );
       const response = await Promise.race([responsePromise, timeoutPromise]);
 
-      // SDK may wrap response in a `data` field — handle both formats
       const responseData = response?.data || response;
 
-      if (!myAbort.aborted && onDataLoaded) {
-        const center = map.getCenter();
-        onDataLoaded(responseData?.references || {}, isFirstLoadRef.current, { lat: center.lat, lng: center.lng });
+      if (myAbort.aborted || !onDataLoaded) return;
+
+      const center = map.getCenter();
+      onDataLoaded(responseData?.references || {}, isFirstLoad, { lat: center.lat, lng: center.lng });
+
+      if (replace) {
+        fetchedRef.current = { bounds: padded, typesKey: types.join(",") };
         isFirstLoadRef.current = false;
-        fetchedBoundsRef.current = padded;
       }
     } catch (e) {
       // Silent — offline cache or previous data still shows
     }
-  }, [onDataLoaded, isOffline]);
+  }, [map, onDataLoaded, isOffline]);
+
+  // Lädt den sichtbaren Bereich — aber nur, wenn er nicht schon abgedeckt ist.
+  const loadVisible = useCallback(({ force = false } = {}) => {
+    if (isOffline) return;
+    const types = REF_TYPES.filter(t => activeLayers.includes(t));
+    if (types.length === 0) return;
+
+    const bounds = map.getBounds();
+    const known = fetchedRef.current;
+    if (!force && known && known.typesKey === typesKey && boundsContain(known.bounds, bounds)) {
+      // Ausschnitt ist bereits abgedeckt — kein Nachladen, kein Flackern beim Pannen.
+      return;
+    }
+
+    fetchArea(bounds, types, { isFirstLoad: isFirstLoadRef.current });
+
+    // Staged prefetch: im Leerlauf den doppelt so grossen Bereich nachziehen,
+    // damit das nächste Pannen ohne Wartezeit Daten hat.
+    if (idleCancelRef.current) idleCancelRef.current();
+    idleCancelRef.current = onIdle(() => {
+      if (abortRef.current?.aborted) return;
+      const big = map.getBounds().pad(1.0);
+      fetchArea(big, types, { isFirstLoad: false, replace: false });
+    });
+  }, [map, activeLayers, typesKey, fetchArea, isOffline]);
 
   const handleMapChange = useCallback(() => {
-    if (isOffline) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      const bounds = map.getBounds();
-      const types = REF_TYPES.filter(t => activeLayers.includes(t));
-      if (types.length === 0) return;
+    debounceRef.current = setTimeout(() => loadVisible(), DEBOUNCE_MS);
+  }, [loadVisible]);
 
-      // Always re-fetch on map change — bounds caching prevented worldwide data from loading
-      // when panning to new areas (e.g. POTA only showed CH because old CH bounds were cached)
-      loadBounds(bounds, types);
-    }, DEBOUNCE_MS);
-  }, [map, activeLayers, loadBounds, isOffline]);
+  // Neue Layer-Auswahl → alter Bereich gilt nicht mehr (andere Typen).
+  useEffect(() => {
+    if (abortRef.current) abortRef.current.aborted = true;
+    fetchedRef.current = null;
+    isFirstLoadRef.current = true;
+    if (idleCancelRef.current) idleCancelRef.current();
+    loadVisible({ force: true });
+  }, [typesKey, loadVisible]);
+
+  // Reload when reloadTrigger changes (e.g. when FirstTimeSetup modal closes)
+  useEffect(() => {
+    if (reloadTrigger) {
+      isFirstLoadRef.current = true;
+      fetchedRef.current = null;
+      loadVisible({ force: true });
+    }
+  }, [reloadTrigger, loadVisible]);
 
   useMapEvents({
     moveend: handleMapChange,
     zoomend: handleMapChange,
   });
 
-  // Load on mount and when active layers change
-  useEffect(() => {
-    handleMapChange();
-  }, [handleMapChange]);
-
   // Cleanup
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (idleCancelRef.current) idleCancelRef.current();
     if (abortRef.current) abortRef.current.aborted = true;
   }, []);
 

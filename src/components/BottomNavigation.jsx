@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { MapPin, BookOpen, Settings as SettingsIcon, LogOut, Shield, Crosshair, Navigation } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { MapPin, BookOpen, Settings as SettingsIcon, LogOut, Shield, Crosshair, Navigation, Layers } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAppFeatures } from "@/lib/appFeatures";
+import { requestLayerMenu } from "@/lib/layerMenuBus";
+import { Z } from "@/lib/zLayers";
 
+// Untere Menüleiste (v1.0).
+//
+// Neu in v1.0: Das Ebenen-Menü hat hier seinen Platz — zwischen «Karte» und
+// «Hunting». Es ist damit auf jeder Seite erreichbar. Die Leiste bleibt auch bei
+// 390 px Breite vollständig bedienbar: kompakte Icons, 9-px-Beschriftungen,
+// gleichbreite Segmente, kein Abschneiden.
 export default function BottomNavigation() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { features: rawFeatures } = useAppFeatures();
   const features = rawFeatures || { tools: {}, layers: {}, bands: {} };
   const tools = features.tools || {};
@@ -28,40 +37,70 @@ export default function BottomNavigation() {
     }
   };
 
-  // Build nav items based on feature flags
-  const navItems = [
-    { path: "/", label: "Karte", icon: MapPin, always: true },
-    { path: "/hunting", label: "Hunting", icon: Crosshair, always: true },
+  // Ebenen-Menü: auf der Karte direkt öffnen, von jeder anderen Seite zur Karte
+  // wechseln und dort öffnen (die Karte holt die Anfrage beim Aufbau ab).
+  const handleOpenLayers = () => {
+    requestLayerMenu();
+    if (location.pathname !== "/") navigate("/");
+  };
+
+  const itemClass = (active, extra = "") =>
+    `flex-1 min-w-0 basis-0 min-h-[44px] flex flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors touch-manipulation select-none ${
+      active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"
+    } ${extra}`;
+
+  const labelClass = "text-[9px] font-medium leading-none whitespace-nowrap";
+  const iconClass = (active) => `w-[18px] h-[18px] ${active ? "scale-110" : ""} transition-transform`;
+
+  // Feste Reihenfolge: Karte · Ebenen · Hunting · Logbuch · Mobil · Einstellungen
+  const items = [
+    { path: "/", label: "Karte", icon: MapPin },
+    { action: "layers", label: "Ebenen", icon: Layers },
+    { path: "/hunting", label: "Hunting", icon: Crosshair },
   ];
-  if (tools.logbook !== false) {
-    navItems.push({ path: "/log", label: "Logbuch", icon: BookOpen });
-  }
-  navItems.push({ path: "/mobil", label: "Mobil", icon: Navigation });
-  navItems.push({ path: "/settings", label: "Einstell.", icon: SettingsIcon });
+  if (tools.logbook !== false) items.push({ path: "/log", label: "Logbuch", icon: BookOpen });
+  items.push({ path: "/mobil", label: "Mobil", icon: Navigation });
+  items.push({ path: "/settings", label: "Einstell.", icon: SettingsIcon });
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-[1100] bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-stretch gap-0 overflow-x-auto"
+      className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 flex items-stretch gap-0"
       style={{
+        zIndex: Z.BOTTOM_NAV,
         paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))",
-        scrollbarWidth: "none",
         minHeight: "48px",
         touchAction: "manipulation",
       }}
     >
-      {navItems.map(item => {
-        const active = location.pathname === item.path;
+      {items.map(item => {
         const Icon = item.icon;
+
+        if (item.action === "layers") {
+          return (
+            <button
+              key="layers"
+              onClick={handleOpenLayers}
+              className={itemClass(false, "hover:text-blue-600 dark:hover:text-blue-400")}
+              title="Ebenen-Menü öffnen"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              <Icon className={iconClass(false)} />
+              <span className={labelClass}>{item.label}</span>
+            </button>
+          );
+        }
+
+        const active = location.pathname === item.path;
         return (
           <Link
             key={item.path}
             to={item.path}
-            className={`flex-1 min-w-[40px] min-h-[44px] flex flex-col items-center justify-center gap-0.5 px-1.5 py-1.5 transition-colors touch-manipulation select-none ${active ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}
+            className={itemClass(active)}
             title={item.label}
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
-            <Icon className={`w-5 h-5 ${active ? "scale-110" : ""} transition-transform`} />
-            <span className="text-[10px] font-medium leading-none hidden min-[360px]:block">{item.label}</span>
+            <Icon className={iconClass(active)} />
+            <span className={labelClass}>{item.label}</span>
           </Link>
         );
       })}
@@ -70,27 +109,26 @@ export default function BottomNavigation() {
       {isAdmin && (
         <Link
           to="/settings"
-          className={`flex-1 min-w-[40px] min-h-[44px] flex flex-col items-center justify-center gap-0.5 px-1.5 py-1.5 transition-colors touch-manipulation select-none ${
-            location.pathname.startsWith("/admin")
-              ? "text-red-600 dark:text-red-400"
-              : "text-red-500 dark:text-red-400 hover:text-red-600"
-          }`}
+          className={itemClass(
+            location.pathname.startsWith("/admin"),
+            location.pathname.startsWith("/admin") ? "text-red-600 dark:text-red-400" : "text-red-500 dark:text-red-400"
+          )}
           title="Admin-Menü"
           style={{ WebkitTapHighlightColor: "transparent" }}
         >
-          <Shield className={`w-5 h-5 ${location.pathname.startsWith("/admin") ? "scale-110" : ""} transition-transform`} />
-          <span className="text-[10px] font-bold leading-none text-red-500 dark:text-red-400">Admin</span>
+          <Shield className={iconClass(location.pathname.startsWith("/admin"))} />
+          <span className="text-[9px] font-bold leading-none text-red-500 dark:text-red-400">Admin</span>
         </Link>
       )}
 
       <button
         onClick={handleLogout}
-        className="flex-1 min-w-[40px] min-h-[44px] flex flex-col items-center justify-center gap-0.5 px-1.5 py-1.5 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors touch-manipulation select-none"
+        className={itemClass(false, "hover:text-red-500 dark:hover:text-red-400")}
         title="Abmelden"
         style={{ WebkitTapHighlightColor: "transparent" }}
       >
-        <LogOut className="w-5 h-5" />
-        <span className="text-[10px] font-medium leading-none hidden min-[360px]:block">Abmelden</span>
+        <LogOut className={iconClass(false)} />
+        <span className={labelClass}>Abmelden</span>
       </button>
     </nav>
   );

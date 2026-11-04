@@ -3,11 +3,12 @@ import {
   ChevronRight, ChevronLeft, LocateFixed, Crosshair, CloudOff, Cloud,
   Download, MapPin, Move, Radio, Mountain, Plus, Minus, Filter,
   Wifi, Satellite, Antenna, Droplets, Trees, Castle, Building2, Ship,
-  Layers, List, ChevronsUp, ChevronsDown,
+  List, ChevronsUp, ChevronsDown,
   Zap, Radio as RadioIcon,
 } from "lucide-react";
 import { useAppFeatures } from "@/lib/appFeatures";
 import { useUISettings } from "@/lib/UISettingsContext";
+import { Z } from "@/lib/zLayers";
 
 // Collapsible panel at the left edge of the map.
 // Contains ALL left-side map controls, grouped:
@@ -153,9 +154,9 @@ export default function LeftControlPanel({
       {!isOpen && (
         <button
           onClick={togglePanel}
-          className="fixed left-0 top-20 z-[1001] w-7 h-14 flex items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg rounded-r-lg border border-l-0 border-gray-200 dark:border-gray-600 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
+          className="fixed left-0 top-1/2 -translate-y-1/2 w-7 h-14 flex items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg rounded-r-lg border border-l-0 border-gray-200 dark:border-gray-600 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
           title="Bedienelemente öffnen"
-          style={{ touchAction: "manipulation" }}
+          style={{ touchAction: "manipulation", zIndex: Z.RAIL }}
         >
           <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           {/* Badge dot when collapsed and dynamic buttons exist */}
@@ -167,10 +168,10 @@ export default function LeftControlPanel({
 
       {/* Panel — slides in from left */}
       <div
-        className={`fixed left-0 top-20 bottom-16 z-[1000] transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-20 bottom-16 transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-        style={{ touchAction: "pan-y" }}
+        style={{ touchAction: "pan-y", zIndex: Z.MAP_UI }}
       >
         <div className="h-full w-14 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-lg border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-2 gap-1.5 overflow-y-auto overscroll-contain"
           style={{ scrollbarWidth: "thin" }}
@@ -261,16 +262,7 @@ export default function LeftControlPanel({
           {/* ── Gruppe: Layer / Filter ── */}
           <Divider />
 
-          {onOpenLayers && (
-            <PanelButton
-              onClick={onOpenLayers}
-              active={layersOpen}
-              dataLayerTrigger
-              title={layersOpen ? "Ebenen-Menü schliessen" : "Ebenen-Menü öffnen"}
-            >
-              <Layers className="w-5 h-5" />
-            </PanelButton>
-          )}
+          {/* Ebenen-Menü: seit v1.0 in der unteren Menüleiste (siehe BottomNavigation) */}
 
           {activeFilterTriggers.map(ft => {
             const Icon = ft.config.icon;
