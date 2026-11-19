@@ -52,7 +52,47 @@ function parseRows(text) {
   return rows;
 }
 
+import { getCountryByName } from "@/lib/countries";
+
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// Länder, die in der allgemeinen Liste fehlen (RepeaterBook-CSV-Schreibweisen)
+const EXTRA_COUNTRIES = {
+  aruba: "AW", bangladesh: "BD", barbados: "BB", bonaire: "BQ", corsica: "FR",
+  "costa rica": "CR", cuba: "CU", dominica: "DM", "dominican republic": "DO",
+  "el salvador": "SV", georgia: "GE", guam: "GU", guatemala: "GT", haiti: "HT",
+  honduras: "HN", "hong kong": "HK", indonesia: "ID", jamaica: "JM",
+  kazakhstan: "KZ", kuwait: "KW", laos: "LA", lebanon: "LB", morocco: "MA",
+  pakistan: "PK", panama: "PA", "papua new guinea": "PG", philippines: "PH",
+  "puerto rico": "PR", qatar: "QA", reunion: "RE", "saint lucia": "LC",
+  "saudi arabia": "SA", singapore: "SG", "sri lanka": "LK",
+  "trinidad and tobago": "TT", turkiye: "TR", "united arab emirates": "AE",
+  uzbekistan: "UZ",
+};
+
+// "Andorra" → AD, "Argentina Republic" → AR, "CH" → CH
+function resolveCountryCode(raw) {
+  const v = String(raw || "").trim();
+  if (!v) return "";
+  if (v.length === 2) return v.toUpperCase();
+  const extra = EXTRA_COUNTRIES[v.toLowerCase()];
+  if (extra) return extra;
+  return getCountryByName(v) || "";
+}
+
+// "DMR" / "C4FM" / "D-STAR" / "FM" → Flags, die repeaterImportMapping versteht
+function applyTypeFlags(type, record) {
+  const t = String(type || "").toUpperCase();
+  if (!t) return;
+  if (t.includes("DMR")) record.dmr = "YES";
+  if (t.includes("D-STAR") || t.includes("DSTAR")) record.dstar_node = "YES";
+  if (t.includes("C4FM") || t.includes("FUSION") || t.includes("YSF")) record.ysf = "YES";
+  if (t.includes("NXDN")) record.nxdn = "YES";
+  if (t.includes("P25")) record.p25 = "YES";
+  if (t.includes("TETRA")) record.tetra = "YES";
+  if (t.includes("M17")) record.m17 = "YES";
+  if (t.includes("ATV")) record.atv = "YES";
+}
 
 // Spalten-Aliase → Feldname des JSON-Exports
 const ALIASES = {
@@ -65,9 +105,10 @@ const ALIASES = {
   lat: ["latitude", "lat"],
   lon: ["longitude", "lon", "lng", "long"],
   city: ["location", "city", "place", "ort"],
-  state: ["state", "province", "canton", "kanton"],
+  state: ["state", "province", "stateprovince", "canton", "kanton"],
   country: ["country", "countrycode", "land"],
-  landmark: ["landmark", "description", "notes", "bemerkung"],
+  landmark: ["landmark", "description", "details", "notes", "bemerkung"],
+  type: ["type", "mode", "system", "modulation"],
   echolink_node: ["echolinknode", "echolink"],
   dmr: ["dmr"],
   dstar_node: ["dstar", "dstarnode", "dstar"],
@@ -120,7 +161,7 @@ export function parseRepeaterCsv(text) {
       offset = Math.round((inputFreq - parseFloat(freq)) * 1000) / 1000;
     }
 
-    records.push({
+    const record = {
       callsign: callsign.toUpperCase(),
       freq_mhz: freq,
       offset_mhz: offset,
@@ -130,7 +171,7 @@ export function parseRepeaterCsv(text) {
       lon: get(row, "lon"),
       city: get(row, "city"),
       state: get(row, "state"),
-      country: get(row, "country"),
+      country: resolveCountryCode(get(row, "country")),
       landmark: get(row, "landmark"),
       echolink_node: get(row, "echolink_node"),
       dmr: isTruthyFlag(get(row, "dmr")) ? "YES" : "",
@@ -141,7 +182,9 @@ export function parseRepeaterCsv(text) {
       tetra: isTruthyFlag(get(row, "tetra")) ? "YES" : "",
       m17: isTruthyFlag(get(row, "m17")) ? "YES" : "",
       atv: isTruthyFlag(get(row, "atv")) ? "YES" : "",
-    });
+    };
+    applyTypeFlags(get(row, "type"), record);
+    records.push(record);
   }
   return records;
 }

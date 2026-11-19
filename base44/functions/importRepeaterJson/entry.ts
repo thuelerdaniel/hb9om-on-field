@@ -35,6 +35,8 @@ export default async function(req: Request): Promise<Response> {
     const jsonContent = body.json_content;
     const sourceTag = body.source_tag || 'RepeaterBook Export';
     const filename = body.filename || 'unknown.json';
+    // Trockenlauf: prüfen und zählen, aber nichts schreiben
+    const dryRun = body.dry_run === true;
 
     if (!jsonContent || typeof jsonContent !== 'string') {
       return Response.json({ status: 'failed', error: 'Kein JSON-Inhalt erhalten' }, { status: 400 });
@@ -115,79 +117,102 @@ export default async function(req: Request): Promise<Response> {
         }
       }
 
+      // Schreiben gebündelt: pro Batch ein bulkCreate und ein bulkUpdate.
+      // Einzelne Schreibaufrufe je Datensatz schaffen grosse Dateien nicht.
+      const pendingCreates: any[] = [];
+      const pendingUpdates: any[] = [];
+
       // Process each mapped record
       for (const rec of mapped) {
-        try {
-          // Track stats
-          if (rec.lat != null && rec.lng != null) withCoords++;
-          else withoutCoords++;
-          byCountry[rec.country_code] = (byCountry[rec.country_code] || 0) + 1;
-          for (const m of rec.modes) byMode[m] = (byMode[m] || 0) + 1;
+        // Track stats
+        if (rec.lat != null && rec.lng != null) withCoords++;
+        else withoutCoords++;
+        byCountry[rec.country_code] = (byCountry[rec.country_code] || 0) + 1;
+        for (const m of rec.modes) byMode[m] = (byMode[m] || 0) + 1;
 
-          // Intra-file dedup
-          const dedupKey = getDedupKey(rec);
-          if (processedKeys.has(dedupKey)) {
-            skippedDuplicates++;
-            continue;
+        // Intra-file dedup
+        const dedupKey = getDedupKey(rec);
+        if (processedKeys.has(dedupKey)) {
+          skippedDuplicates++;
+          continue;
+        }
+        processedKeys.add(dedupKey);
+
+        const existing = existingMap.get(dedupKey);
+
+        if (existing) {
+          // --- Update existing record ---
+          const updateData: any = {
+            id: existing.id,
+            frequency: rec.frequency,
+            offset_mhz: rec.offset_mhz,
+            tone: rec.tone,
+            dcs: rec.dcs,
+            location_name: rec.location_name,
+            band: rec.band,
+            modes: rec.modes,
+            primary_mode: rec.primary_mode,
+            country_code: rec.country_code,
+            country: rec.country,
+            source_id: JSON_IMPORT_SOURCE_ID,
+          };
+          if (rec.description) updateData.description = rec.description;
+          if (rec.echolink_node) updateData.echolink_node = rec.echolink_node;
+
+          // Coordinates: JSON wins if present, keep DB if JSON is null
+          if (rec.lat != null && rec.lng != null) {
+            updateData.lat = rec.lat;
+            updateData.lng = rec.lng;
           }
-          processedKeys.add(dedupKey);
 
-          const existing = existingMap.get(dedupKey);
-
-          if (existing) {
-            // --- Update existing record ---
-            const updateData: any = {
-              frequency: rec.frequency,
-              offset_mhz: rec.offset_mhz,
-              tone: rec.tone,
-              dcs: rec.dcs,
-              location_name: rec.location_name,
-              band: rec.band,
-              modes: rec.modes,
-              primary_mode: rec.primary_mode,
-              country_code: rec.country_code,
-              country: rec.country,
-              source_id: JSON_IMPORT_SOURCE_ID,
-            };
-            if (rec.description) updateData.description = rec.description;
-            if (rec.echolink_node) updateData.echolink_node = rec.echolink_node;
-
-            // Coordinates: JSON wins if present, keep DB if JSON is null
-            if (rec.lat != null && rec.lng != null) {
-              updateData.lat = rec.lat;
-              updateData.lng = rec.lng;
-            }
-
-            // Supplement-only fields (don't overwrite existing values)
-            if (!existing.status || existing.status === 'unknown') updateData.status = 'on-air';
-            if (!existing.web_url) updateData.web_url = '';
-            if (!existing.fm_funknetz) updateData.fm_funknetz = false;
-            if (!existing.linked_callsigns || existing.linked_callsigns.length === 0) {
-              updateData.linked_callsigns = [];
-            }
-            if (!existing.needs_recalc) updateData.needs_recalc = false;
-            if (existing.terrain_factor == null || existing.terrain_factor === 1) {
-              updateData.terrain_factor = 1;
-            }
-            if (!existing.power_source || existing.power_source === 'unknown') {
-              updateData.power_source = 'unknown';
-            }
-            if (!existing.has_emergency_power) updateData.has_emergency_power = false;
-
-            await base44.asServiceRole.entities.Repeater.update(existing.id, updateData);
-            updated++;
-          } else {
-            // --- Create new record ---
-            const createData: any = { ...rec };
-            for (const key of Object.keys(createData)) {
-              if (createData[key] === undefined) delete createData[key];
-            }
-            await base44.asServiceRole.entities.Repeater.create(createData);
-            importedNew++;
+          // Supplement-only fields (don't overwrite existing values)
+          if (!existing.status || existing.status === 'unknown') updateData.status = 'on-air';
+          if (!existing.web_url) updateData.web_url = '';
+          if (!existing.fm_funknetz) updateData.fm_funknetz = false;
+          if (!existing.linked_callsigns || existing.linked_callsigns.length === 0) {
+            updateData.linked_callsigns = [];
           }
-        } catch (e: any) {
-          errorDetails.push(`Fehler ${rec.callsign}: ${e.message}`);
-          errors++;
+          if (!existing.needs_recalc) updateData.needs_recalc = false;
+          if (existing.terrain_factor == null || existing.terrain_factor === 1) {
+            updateData.terrain_factor = 1;
+          }
+          if (!existing.power_source || existing.power_source === 'unknown') {
+            updateData.power_source = 'unknown';
+          }
+          if (!existing.has_emergency_power) updateData.has_emergency_power = false;
+
+          pendingUpdates.push(updateData);
+        } else {
+          // --- Create new record ---
+          const createData: any = { ...rec };
+          for (const key of Object.keys(createData)) {
+            if (createData[key] === undefined) delete createData[key];
+          }
+          pendingCreates.push(createData);
+        }
+      }
+
+      if (dryRun) {
+        importedNew += pendingCreates.length;
+        updated += pendingUpdates.length;
+      } else {
+        if (pendingCreates.length > 0) {
+          try {
+            await base44.asServiceRole.entities.Repeater.bulkCreate(pendingCreates);
+            importedNew += pendingCreates.length;
+          } catch (e: any) {
+            errors += pendingCreates.length;
+            errorDetails.push(`Bulk-Create (${pendingCreates.length}): ${e.message}`);
+          }
+        }
+        if (pendingUpdates.length > 0) {
+          try {
+            await base44.asServiceRole.entities.Repeater.bulkUpdate(pendingUpdates);
+            updated += pendingUpdates.length;
+          } catch (e: any) {
+            errors += pendingUpdates.length;
+            errorDetails.push(`Bulk-Update (${pendingUpdates.length}): ${e.message}`);
+          }
         }
       }
 
@@ -200,9 +225,11 @@ export default async function(req: Request): Promise<Response> {
     const duration_ms = Date.now() - startTime;
     const status = errors === 0 ? 'success' : (importedNew > 0 || updated > 0) ? 'partial' : 'failed';
 
-    await logImport(base44, filename, sourceTag, total, importedNew, updated,
-      skippedDuplicates, errors, withCoords, withoutCoords,
-      byCountry, byMode, duration_ms, status, errorDetails.slice(0, 50));
+    if (!dryRun) {
+      await logImport(base44, filename, sourceTag, total, importedNew, updated,
+        skippedDuplicates, errors, withCoords, withoutCoords,
+        byCountry, byMode, duration_ms, status, errorDetails.slice(0, 50));
+    }
 
     return Response.json({
       total,
@@ -217,6 +244,7 @@ export default async function(req: Request): Promise<Response> {
       duration_ms,
       error_details: errorDetails.slice(0, 20),
       status,
+      dry_run: dryRun,
       filename,
       cleanup: 'Datei nach Import automatisch entfernt',
     });

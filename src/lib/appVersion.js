@@ -13,11 +13,16 @@ export const APP_VERSION = "1.0";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202611190710";
+export const APP_BUILD = "202611190830";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "19.11.2026: CSV-SPALTEN ERWEITERT — Der Relais-Import versteht jetzt auch die Spalten «Type», «State / Province», «Details» und «Access» sowie Länder als ausgeschriebenen Namen (z. B. «Argentina Republic», «Bosnia and Hercegovina», «Turkiye») — 105 Länder werden auf den ISO-Code abgebildet, keine «XX»-Einträge mehr.",
+  "19.11.2026: CSV-MODUS — Aus der Spalte «Type» (DMR, D-STAR, C4FM, NXDN, P25, Tetra, M17, ATV) wird die passende Modulationsart gesetzt; «Details» wird zur Beschreibung.",
+  "19.11.2026: IMPORT IN BLÖCKEN — Neue und bestehende Relais werden pro 100er-Block gebündelt geschrieben statt einzeln. Grosse Dateien (über 10'000 Zeilen) laufen damit in einem Durchgang durch.",
+  "19.11.2026: TESTDATEI — RepeaterBook-Export mit 11'753 Zeilen geprüft: 6'593 neu, 4'477 bestehend, 683 Duplikate in der Datei, 0 Fehler, 10'963 mit Koordinaten, 105 Länder (Trockenlauf, nichts geschrieben).",
+  "19.11.2026: BUILD — Build-Nummer auf 202611190830 nachgezogen (Versionsnummer 1.0 unverändert, wird nur von Daniel gesetzt).",
   "19.11.2026: RELAIS-IMPORT AUCH ALS CSV — Der Admin-Bereich «JSON-Repeater-Import» nimmt jetzt .json UND .csv an. CSV braucht eine Kopfzeile mit Spaltennamen; erkannt werden u. a. Callsign, Frequency, Input Freq, Offset, Uplink Tone/CTCSS, DCS, Location/City, State, Country, Latitude, Longitude, Landmark, EchoLink Node sowie DMR, D-Star, Fusion, NXDN, P25, Tetra, M17, ATV.",
   "19.11.2026: CSV-DETAILS — Trennzeichen , ; oder Tab wird automatisch erkannt, Anführungszeichen und Kommas in Feldern bleiben erhalten. Fehlt der Offset, wird er aus «Input Freq» berechnet. Koordinaten, Rufzeichen und Frequenz werden wie beim JSON-Import geprüft; Vorschau, Duplikat-Erkennung, Import-Protokoll und Sync-Schutz sind identisch.",
   "19.11.2026: BUILD — Build-Nummer auf 202611190710 nachgezogen (Versionsnummer 1.0 unverändert, wird nur von Daniel gesetzt).",
