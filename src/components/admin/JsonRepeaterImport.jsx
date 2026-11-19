@@ -1,14 +1,14 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Upload, FileJson, Loader2, Play, CheckCircle2, XCircle, AlertCircle, Trash2 } from "lucide-react";
+import { Upload, FileJson, FileSpreadsheet, Loader2, Play, CheckCircle2, XCircle, AlertCircle, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import ImportHistoryTable from "@/components/admin/ImportHistoryTable";
+import { parseRepeaterCsv } from "@/lib/repeaterCsvParser";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 export default function JsonRepeaterImport() {
   const [file, setFile] = useState(null);
-  const [jsonContent, setJsonContent] = useState(null);
   const [parsedData, setParsedData] = useState(null);
   const [sourceTag, setSourceTag] = useState("RepeaterBook Export");
   const [dragging, setDragging] = useState(false);
@@ -20,8 +20,10 @@ export default function JsonRepeaterImport() {
 
   const handleFile = useCallback(async (f) => {
     if (!f) return;
-    if (!f.name.endsWith(".json")) {
-      toast({ title: "Nur .json-Dateien", variant: "destructive" });
+    const name = f.name.toLowerCase();
+    const isCsv = name.endsWith(".csv");
+    if (!isCsv && !name.endsWith(".json")) {
+      toast({ title: "Nur .json- oder .csv-Dateien", variant: "destructive" });
       return;
     }
     if (f.size > MAX_FILE_SIZE) {
@@ -33,16 +35,25 @@ export default function JsonRepeaterImport() {
     setParseError(null);
     try {
       const text = await f.text();
-      setJsonContent(text);
-      const parsed = JSON.parse(text);
-      if (!parsed.records || !Array.isArray(parsed.records)) {
-        setParseError("Invalid JSON: missing 'records' array");
-        setParsedData(null);
-        return;
+      if (isCsv) {
+        const records = parseRepeaterCsv(text);
+        if (records.length === 0) {
+          setParseError("CSV enthält keine Datenzeilen (Kopfzeile mit Spaltennamen nötig)");
+          setParsedData(null);
+          return;
+        }
+        setParsedData({ records });
+      } else {
+        const parsed = JSON.parse(text);
+        if (!parsed.records || !Array.isArray(parsed.records)) {
+          setParseError("Invalid JSON: missing 'records' array");
+          setParsedData(null);
+          return;
+        }
+        setParsedData(parsed);
       }
-      setParsedData(parsed);
     } catch (e) {
-      setParseError(`JSON Parse Error: ${e.message}`);
+      setParseError(`Parse Error: ${e.message}`);
       setParsedData(null);
     }
   }, [toast]);
@@ -55,12 +66,12 @@ export default function JsonRepeaterImport() {
   }, [handleFile]);
 
   const handleImport = async () => {
-    if (!jsonContent) return;
+    if (!parsedData) return;
     setImporting(true);
     setResult(null);
     try {
       const res = await base44.functions.invoke("importRepeaterJson", {
-        json_content: jsonContent,
+        json_content: JSON.stringify(parsedData),
         source_tag: sourceTag,
         filename: file?.name || "unknown.json",
       });
@@ -75,7 +86,6 @@ export default function JsonRepeaterImport() {
       // Clear file on success or partial (not on failed)
       if (res.data?.status !== "failed") {
         setFile(null);
-        setJsonContent(null);
         setParsedData(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
@@ -87,7 +97,6 @@ export default function JsonRepeaterImport() {
 
   const handleClearFile = () => {
     setFile(null);
-    setJsonContent(null);
     setParsedData(null);
     setParseError(null);
     setResult(null);
@@ -100,7 +109,8 @@ export default function JsonRepeaterImport() {
     <div className="space-y-3">
       {/* Description */}
       <p className="text-xs text-gray-500 dark:text-slate-400">
-        JSON-Dateien mit Repeater-Daten hochladen. Neue Relais werden hinzugefuegt, bestehende werden ergaenzt.
+        JSON- oder CSV-Dateien mit Relais-Daten hochladen. Neue Relais werden hinzugefuegt, bestehende werden ergaenzt.
+        CSV braucht eine Kopfzeile mit Spaltennamen (z. B. Callsign, Frequency, Offset, Location, State, Country, Latitude, Longitude).
         Importierte Dateien werden automatisch geloescht.
       </p>
 
@@ -116,12 +126,12 @@ export default function JsonRepeaterImport() {
           }`}
         >
           <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-600 dark:text-slate-400 font-medium">JSON-Datei hierher ziehen</p>
-          <p className="text-xs text-gray-400 mt-1">oder klicken zum Auswaehlen (.json, max 10 MB)</p>
+          <p className="text-sm text-gray-600 dark:text-slate-400 font-medium">JSON- oder CSV-Datei hierher ziehen</p>
+          <p className="text-xs text-gray-400 mt-1">oder klicken zum Auswaehlen (.json, .csv, max 10 MB)</p>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".json,application/json"
+            accept=".json,.csv,application/json,text/csv"
             className="hidden"
             onChange={(e) => handleFile(e.target.files[0])}
           />
@@ -133,7 +143,9 @@ export default function JsonRepeaterImport() {
         <div className="space-y-2">
           <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-900 rounded-lg p-2.5">
             <div className="flex items-center gap-2 min-w-0">
-              <FileJson className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              {file.name.toLowerCase().endsWith(".csv")
+                ? <FileSpreadsheet className="w-4 h-4 text-green-600 flex-shrink-0" />
+                : <FileJson className="w-4 h-4 text-blue-500 flex-shrink-0" />}
               <span className="text-xs font-medium text-gray-700 dark:text-slate-300 truncate">{file.name}</span>
               <span className="text-[10px] text-gray-400 flex-shrink-0">({(file.size / 1024).toFixed(0)} KB)</span>
             </div>

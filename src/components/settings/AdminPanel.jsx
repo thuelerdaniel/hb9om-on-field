@@ -588,7 +588,7 @@ export default function AdminPanel({
         {/* JSON Repeater Import */}
         <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3">
           <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5 mb-2">
-            <FileJson className="w-4 h-4 text-blue-600" /> JSON Repeater Import
+            <FileJson className="w-4 h-4 text-blue-600" /> JSON-/CSV Repeater Import
           </h3>
           <JsonRepeaterImport />
         </section>

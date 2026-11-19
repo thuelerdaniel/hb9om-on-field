@@ -13,11 +13,14 @@ export const APP_VERSION = "1.0";
 // Build number — timestamp-based, unique per build.
 // Format: YYYYMMDDHHMM (e.g. 202608132237)
 // Update this before each APK build to the current timestamp.
-export const APP_BUILD = "202611041140";
+export const APP_BUILD = "202611190710";
 
 // Changelog — short list of changes for the current version.
 // Displayed in the hamburger menu under the version number.
 export const APP_CHANGELOG = [
+  "19.11.2026: RELAIS-IMPORT AUCH ALS CSV — Der Admin-Bereich «JSON-Repeater-Import» nimmt jetzt .json UND .csv an. CSV braucht eine Kopfzeile mit Spaltennamen; erkannt werden u. a. Callsign, Frequency, Input Freq, Offset, Uplink Tone/CTCSS, DCS, Location/City, State, Country, Latitude, Longitude, Landmark, EchoLink Node sowie DMR, D-Star, Fusion, NXDN, P25, Tetra, M17, ATV.",
+  "19.11.2026: CSV-DETAILS — Trennzeichen , ; oder Tab wird automatisch erkannt, Anführungszeichen und Kommas in Feldern bleiben erhalten. Fehlt der Offset, wird er aus «Input Freq» berechnet. Koordinaten, Rufzeichen und Frequenz werden wie beim JSON-Import geprüft; Vorschau, Duplikat-Erkennung, Import-Protokoll und Sync-Schutz sind identisch.",
+  "19.11.2026: BUILD — Build-Nummer auf 202611190710 nachgezogen (Versionsnummer 1.0 unverändert, wird nur von Daniel gesetzt).",
   "04.11.2026: APRS-ANZEIGEDAUER — Der APRS-Layer zeigt nur noch Stationen, deren letzte Positionsmeldung innerhalb der eingestellten Frist liegt. Nach Ablauf verschwindet der Punkt; Datensätze werden nicht gelöscht (Archiv/Retention bleibt separat).",
   "04.11.2026: EINSTELLUNGEN → APRS — Neues Feld «Anzeigedauer» mit 6 / 12 / 24 / 48 Std., Standard 24 Std., pro Nutzer gespeichert. Wirkt beim nächsten Abgleich (spätestens 2 Minuten), ohne Neuladen.",
   "04.11.2026: ZÄHLER UND LISTEN — Der Zähler im APRS-Popup, die Suche, die Bewegungsspuren und die PDF-Liste verwenden dieselbe gefilterte Stationsliste; ältere Stationen erscheinen dort nicht mehr.",

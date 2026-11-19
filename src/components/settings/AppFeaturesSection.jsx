@@ -73,7 +73,7 @@ const TOOL_TOGGLES = [
   ]},
   { group: "Admin", items: [
     { key: "admin", label: "Admin-Bereich", desc: "Admin-Panel (nur Admins)" },
-    { key: "json_import", label: "JSON-Import", desc: "Repeater JSON Import", dependsOn: "admin" },
+    { key: "json_import", label: "JSON-/CSV-Import", desc: "Repeater-Import aus JSON oder CSV", dependsOn: "admin" },
     { key: "sync_status", label: "Sync-Status", desc: "Synchronisierungs-Logs", dependsOn: "admin" },
   ]},
   { group: "Anträge & Feedback", items: [
