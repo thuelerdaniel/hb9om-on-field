@@ -4,8 +4,28 @@ import {
 } from '../../shared/repeaterImportMapping.ts';
 import { JSON_IMPORT_SOURCE_ID } from '../../shared/syncProtection.ts';
 
-const BATCH_SIZE = 100;
+// 500 Datensätze pro Block: hält die Zahl der Schreibaufrufe unter dem
+// Plattform-Limit (75 Schreibaufrufe pro Minute) — auch bei grossen Dateien.
+const BATCH_SIZE = 500;
 const BATCH_PAUSE_MS = 100;
+
+// Wartet bei "Rate limit exceeded" und versucht es erneut.
+async function withRateLimitRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
+  let lastError: any;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      lastError = e;
+      const msg = String(e?.message || '');
+      if (!/rate limit/i.test(msg)) throw e;
+      const match = msg.match(/retry after (\d+)s/i);
+      const waitMs = (match ? parseInt(match[1], 10) : 10) * 1000 + 1000;
+      await new Promise(r => setTimeout(r, Math.min(waitMs, 30000)));
+    }
+  }
+  throw lastError;
+}
 
 export default async function(req: Request): Promise<Response> {
   try {
@@ -198,7 +218,7 @@ export default async function(req: Request): Promise<Response> {
       } else {
         if (pendingCreates.length > 0) {
           try {
-            await base44.asServiceRole.entities.Repeater.bulkCreate(pendingCreates);
+            await withRateLimitRetry(() => base44.asServiceRole.entities.Repeater.bulkCreate(pendingCreates));
             importedNew += pendingCreates.length;
           } catch (e: any) {
             errors += pendingCreates.length;
@@ -207,7 +227,7 @@ export default async function(req: Request): Promise<Response> {
         }
         if (pendingUpdates.length > 0) {
           try {
-            await base44.asServiceRole.entities.Repeater.bulkUpdate(pendingUpdates);
+            await withRateLimitRetry(() => base44.asServiceRole.entities.Repeater.bulkUpdate(pendingUpdates));
             updated += pendingUpdates.length;
           } catch (e: any) {
             errors += pendingUpdates.length;
