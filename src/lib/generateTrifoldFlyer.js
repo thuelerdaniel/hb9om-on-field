@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { APP_VERSION } from "@/lib/appVersion";
 
 const HERO_IMAGE_URL = "https://media.base44.com/images/public/6a4a64185561a655062a41bf/b2f8036bf_generated_image.png";
 const SCREEN_MAP = "https://media.base44.com/images/public/6a4a64185561a655062a41bf/51001fde7_generated_image.png";
@@ -115,7 +116,7 @@ export async function generateTrifoldFlyer(options = {}) {
   // Version footer
   doc.setTextColor(150, 150, 150);
   doc.setFontSize(6);
-  doc.text("v0.9007 · Made in Switzerland", PW / 2, H - 8, { align: "center" });
+  doc.text(`v${APP_VERSION} · Made in Switzerland`, PW / 2, H - 8, { align: "center" });
 
   drawFoldLine(PW);
 
@@ -439,7 +440,7 @@ export async function generateTrifoldFlyer(options = {}) {
   doc.setTextColor(180, 180, 180);
   doc.setFontSize(6);
   doc.setFont("helvetica", "normal");
-  doc.text("HB9OM On Field · v0.9007", rx2 + PW / 2, H - 4, { align: "center" });
+  doc.text(`HB9OM On Field · v${APP_VERSION}`, rx2 + PW / 2, H - 4, { align: "center" });
 
   if (returnBlob) {
     return doc.output("blob");

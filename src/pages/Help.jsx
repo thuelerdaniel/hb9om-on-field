@@ -956,59 +956,11 @@ const ADMIN_SECTIONS = [
     icon: Bell,
     title: "Release History (Versionen)",
     color: "#6366f1",
-    description: "Alle Versionen seit v0.8 mit Änderungen — das Versions-Popup zeigt nur die neuesten Versionen.",
+    description: "Kurze Übersicht der aktuellen Version — Details zeigt das Versions-Popup.",
     items: [
       {
-        title: "v0.9018 — 4 kritische Fixes: Club-Filter, SOTA/WWFF Sync",
-        body: "Clubstation Filter: fetchQrzClubLog verwendet immer HB9OM als club_callsign (ignoriert ADIF STATION_CALLSIGN). normalizeLogClubCall Backend-Function korrigiert bestehende Einträge (HB3YNF → HB9OM). Logbuch-Filter zeigt 'Persönlich (HB3YNF)' und 'Clubstation (HB9OM)' Labels. SOTA Sync: upsertPointsByCode mit Parallel-Batches (5 concurrent) + 250s Time-Budget verarbeitet alle 181k Einträge. WWFF Sync: upsertPointsByCode verarbeitet alle 65.815 Einträge (vorher nur 9.000). Kein Delete-Phase mehr (upsert by code) → keine Datenverluste bei Timeout.",
-      },
-      {
-        title: "v0.9017 — 8 Bugfixes: Cronjobs, Filter, Dark Mode, GPX",
-        body: "Repeater-Coverage Cronjob: fetchRepeaters aktualisiert DailyRefreshSchedule (success/error), calculateRepeaterCoverage verarbeitet nur needs_recalc/no-coverage (Batch 50, 250s Time-Budget), neuer Schedule-Eintrag 'Repeater Abdeckung' (07:00 UTC). LLOTA: fetchLlotaSpots schreibt last_error/last_error_detail bei Fehlern. Reference Data: getReferencesInBounds & searchReferences laden nur neuesten/größten Eintrag pro Typ — 5 alte Duplikate gelöscht. WWFF: upsertPoints mit 120s Time-Budget verhindert Timeout bei 65k Einträgen. Clubstation Filter: Logbuch filtert explizit is_clubstation===true/false. fetchQrzClubLog: STATION_CALLSIGN=HB9OM verhindert Abruf von HB3YNF QSOs. normalizeLogData Backend-Function: Bänder zu lowercase, club_operator_callsign Korrektur, Duplikat-Erkennung (2012 Duplikate gefunden). Dark Mode Logbuch: dunkler Hintergrund (#1a1a1a), heller Text (#e0e0e0), Tabellen-Header (#2a2a2a), blaue Akzentfarbe. GPX Import: File-Input über Button+Ref (klickbar auf Mobile).",
-      },
-      {
-        title: "v0.9016 — Mobil: Map Jumping, dBm Flicker, Marker",
-        body: "Karte springt nicht mehr bei manueller Interaktion (Auto-Center pausiert 5s nach Drag/Zoom). GPS Auto-Center mit panTo Animation statt fitBounds Sprung, throttled (max 1x/3s, >10m). dBm-Ampel flackert nicht mehr (stabile HTML-Struktur, ITM Loading nur bei Repeater-Wechsel). Kleinere Marker: Repeater 6px, GPS 10px. Coverage-Polygone dezenter (fillOpacity 0.08).",
-      },
-      {
-        title: "v0.9015 — Datenkonsistenz: Castle, TotaPoint, POTA",
-        body: "Castle-Layer: 43 Schweizer WCA-Schlösser (HB-XXXXX) mit OSM-Daten gemergt — Schweizer Schlösser wieder sichtbar. TotaPoint: 5277 Duplikate entfernt (Sync lief zweimal). deduplicateTotaPoints Backend-Function für zukünftige Bereinigung. POTA ReferenceData total_count korrigiert (war 0, jetzt 89650). fetchTota verwendet upsertPointsByCode (keine Duplikate mehr bei Timeout).",
-      },
-      {
-        title: "v0.9003 — Hunting-Fixes",
-        body: "Spot-Konsolidierung (Call+Frequenz = ein Eintrag mit Nx Badge), mobile Tabelle ohne horizontales Scrollen (6 Spalten), DX Opportunity klickbar (scrollt zum Spot mit Highlight), QSO loggen aus Spot-Detail (grün, QRZ-Vorausfüllung), Priority DX konsolidiert (max 5 unique), Hear-Score differenziert (Distanz/Alter/Confidence/Band), SOTA API mit CORS-Proxy, DX-Backend löscht alle Spots vor Neuladen, Fox-Modus QSO-Button verschiebbar.",
-      },
-      {
-        title: "v0.9002 — Karten-Stabilität & Zoom-Fix",
-        body: "Stabile Container-Keys verhindern _leaflet_pos-Fehler bei View-Wechseln. Zoom-Animation deaktiviert — keine Abstürze beim Schliessen von Modalen. QSO-Weltkarte sauberes Umschalten zwischen Globus und 2D-Karte.",
-      },
-      {
-        title: "v0.9001 — Hunting-Modul & Live SOTA/POTA",
-        body: "Hunting-Modul mit DX-Spots, GPS-basierter Distanz/Azimuth, Activity Panel (SOTA/POTA), Propagation-Dashboard, Fox Hunting, QSO loggen aus Spot, QRZ-Lookup, Priority DX, GPS-Tracking, Theme-aware, Build-Optimierung.",
-      },
-      {
-        title: "v0.87 — Abdeckungs-Dialog & Öffentliche Position",
-        body: "Abdeckungs-Dialog verschiebbar, Antennenhöhe-Slider, Berechnungs-Verlauf, Öffentliche Position mit GPS-Refresh, Karte zeigt öffentliche Positionen.",
-      },
-      {
-        title: "v0.86 — Passwort-Sicherheit & Demo-Beschränkungen",
-        body: "Passwort-Sichtbarkeit, Verbindungs-Tests, BrandMeister-Login, Demo-Konto gesperrt, Konfigurations-Status, einklappbare Menüs, Hilfe-Links.",
-      },
-      {
-        title: "v0.85 — Terrain-Abdeckung & Relais-Performance",
-        body: "Terrain-LOS Abdeckung mit SRTM 30m, Meine Abdeckung berechnen, Position auf Karte setzen, CircleMarker bei >500 Stationen, Admin Abdeckungs-Stats.",
-      },
-      {
-        title: "v0.82 — TOTA weltweit & IOTA erweitert",
-        body: "TOTA 5315 Türme weltweit, IOTA 326 Inselgruppen, Multi-Select Länder-Filter, Leuchttürme laden sofort, stabile Zähler, Paginierung repariert.",
-      },
-      {
-        title: "v0.81 — Leuchtturm-Scraper & Relais-Länder-Filter",
-        body: "Leuchtturm-Scraper sequenziell (15 Regionen), Relais-Länder-Filter repariert (31000+), Daten-Zähler konsistent, Auto-Geocodierung, Splash-Screen Zähler.",
-      },
-      {
-        title: "v0.8 — Weltweite Referenzen & Nordamerika-Relais",
-        body: "SOTA/POTA/WWFF/WWBOTA/Burgen weltweit, WWFF ersetzt HBFF, RepeaterBook USA+Kanada, IOTA weltweit, Kontinent-Filter, Marker-Sortierung, Restore-Points, API-Key-Verwaltung, BrandMeister, Admin E-Mail-Reports, Club-Rufzeichen.",
+        title: "v1.001 — kleine Korrekturen und Bugfixing",
+        body: "Menüband links: Schaltflächen kompakter, kleinere Abstände oben und unten — alle Knöpfe sind vollständig sichtbar. Kleine Korrekturen und Bugfixing an der Bedienung. Alle PDF-Dateien (Hilfe, Admin-Hilfe, Relais-Liste, Route, Flyer) tragen die Versionsnummer 1.001.",
       },
     ]
   }

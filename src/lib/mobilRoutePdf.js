@@ -1,5 +1,6 @@
 // PDF-Export für Mobil-Route — PURE JavaScript, keine externe Library.
 // v0.9030: OSM Standard Tiles + enger Zoom (15% Margin) + Farben auf Karte.
+import { APP_VERSION } from "@/lib/appVersion";
 
 function haversine(a, b) {
   const R = 6371;
@@ -378,7 +379,7 @@ export async function generateMobilRoutePdf(routeName, date, totalDistance, mode
   t1('HB9OM On Field - Routenplan', 30, 30, 16);
   t1('Route: ' + (routeName || 'Unbenannt'), 30, 50, 10);
   t1('Datum: ' + (date || new Date().toLocaleDateString('de-CH')), 30, 64, 10);
-  t1('Version: v0.9030', 30, 78, 9);
+  t1('Version: v' + APP_VERSION, 30, 78, 9);
 
   cs1 += 'q\n';
   cs1 += imgW + ' 0 0 ' + imgH + ' ' + imgX + ' ' + (PH - imgY - imgH) + ' cm\n';

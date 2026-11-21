@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { APP_VERSION } from "@/lib/appVersion";
 
 const HERO_IMAGE_URL = "https://media.base44.com/images/public/6a4a64185561a655062a41bf/b2f8036bf_generated_image.png";
 const SCREEN_MAP = "https://media.base44.com/images/public/6a4a64185561a655062a41bf/51001fde7_generated_image.png";
@@ -124,7 +125,7 @@ export async function generateFlyer(options = {}) {
   doc.setTextColor(180, 180, 180);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("hb9om.ch  ·  Amateurfunk Referenzkarte & QSO-Logbuch  ·  v0.9007", W / 2, H - 8, { align: "center" });
+  doc.text(`hb9om.ch  ·  Amateurfunk Referenzkarte & QSO-Logbuch  ·  v${APP_VERSION}`, W / 2, H - 8, { align: "center" });
 
   // ========== PAGE 2: FEATURES + SCREENSHOTS ==========
   doc.addPage();
