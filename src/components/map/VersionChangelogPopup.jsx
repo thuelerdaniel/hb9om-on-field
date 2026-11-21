@@ -11,7 +11,7 @@ export const VERSION_CHANGELOG = [
     version: "1.001",
     title: "Version 1.001 — kleine Korrekturen und Bugfixing",
     changes: [
-      "MENÜBAND LINKS — Die Schaltflächen sind kompakter, die Abstände oben und unten kleiner: alle Knöpfe sind vollständig sichtbar.",
+      "MENÜBAND LINKS — Der Streifen umschliesst die Knöpfe jetzt genau: oben und unten kein Leerraum mehr, alle Knöpfe vollständig sichtbar.",
       "Kleine Korrekturen und Bugfixing an der Bedienung.",
       "PDFs — Hilfe, Admin-Hilfe, Relais-Liste, Route und Flyer zeigen die Versionsnummer 1.001.",
     ],

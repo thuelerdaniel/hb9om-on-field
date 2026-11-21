@@ -960,7 +960,7 @@ const ADMIN_SECTIONS = [
     items: [
       {
         title: "v1.001 — kleine Korrekturen und Bugfixing",
-        body: "Menüband links: Schaltflächen kompakter, kleinere Abstände oben und unten — alle Knöpfe sind vollständig sichtbar. Kleine Korrekturen und Bugfixing an der Bedienung. Alle PDF-Dateien (Hilfe, Admin-Hilfe, Relais-Liste, Route, Flyer) tragen die Versionsnummer 1.001.",
+        body: "Menüband links: der Streifen umschliesst die Knöpfe genau — oben und unten kein Leerraum mehr, alle Knöpfe vollständig sichtbar. Kleine Korrekturen und Bugfixing an der Bedienung. Alle PDF-Dateien (Hilfe, Admin-Hilfe, Relais-Liste, Route, Flyer) tragen die Versionsnummer 1.001.",
       },
     ]
   }

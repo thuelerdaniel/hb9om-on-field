@@ -40,7 +40,7 @@ function PanelButton({ onClick, active, activeClass, title, children, disabled, 
       disabled={disabled || loading}
       title={title}
       data-layer-trigger={dataLayerTrigger ? "true" : undefined}
-      className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg shadow-sm border transition-colors ${
+      className={`w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg shadow-sm border transition-colors ${
         active
           ? (activeClass || "bg-blue-500 border-blue-600 text-white")
           : "bg-white/90 dark:bg-gray-800/90 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -168,12 +168,12 @@ export default function LeftControlPanel({
 
       {/* Panel — slides in from left */}
       <div
-        className={`fixed left-0 top-14 bottom-12 transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-1/2 -translate-y-1/2 transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         style={{ touchAction: "pan-y", zIndex: Z.MAP_UI }}
       >
-        <div className="h-full w-12 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-lg border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-1 gap-1 overflow-y-auto overscroll-contain"
+        <div className="w-12 max-h-[calc(100dvh-7rem)] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-lg border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-1 gap-1 overflow-y-auto overscroll-contain"
           style={{ scrollbarWidth: "thin" }}
         >
           {/* Close handle — only while the panel is OPEN, as part of the panel layout
@@ -330,7 +330,7 @@ export default function LeftControlPanel({
               <button
                 onClick={onOpenQso}
                 title="QSO loggen"
-                className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg shadow-sm border-2 border-[#8cff00] bg-[#8cff00] text-black hover:bg-[#7df000] transition-colors"
+                className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg shadow-sm border-2 border-[#8cff00] bg-[#8cff00] text-black hover:bg-[#7df000] transition-colors"
               >
                 <Plus className="w-5 h-5" />
               </button>
