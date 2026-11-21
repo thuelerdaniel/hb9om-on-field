@@ -13,22 +13,21 @@ import { normalizeCallsign, normalizeTime } from './logDedup.ts';
 
 /**
  * Build the upsert key for a Log record.
- * Normalizes callsign (strips /P, /M suffixes) and time (truncates to HH:MM)
- * so QSOs from different sources with format differences still match.
+ * DUPLIKAT-FIX 2026-11-21: reiner QSO-Schlüssel (Rufzeichen + Datum + HH:MM).
+ * Früher enthielten operator_callsign/log_type/club_callsign den Schlüssel —
+ * dadurch galten dieselben QSOs als verschieden, sobald ein Importweg diese
+ * Metadaten anders setzte (z. B. club_callsign null statt ""). Entspricht der
+ * semantischen Gruppierung von cleanupLogDuplicates.
  */
 export function upsertKey(
-  operatorCallsign: string | undefined,
+  _operatorCallsign: string | undefined,
   callsign: string | undefined,
   qsoDate: string | undefined,
   timeStart: string | undefined,
-  logType: string | undefined,
-  clubCallsign: string | undefined,
+  _logType: string | undefined,
+  _clubCallsign: string | undefined,
 ): string {
-  const op = normalizeCallsign(operatorCallsign || '');
-  const call = normalizeCallsign(callsign || '');
-  const time = normalizeTime(timeStart || '');
-  const club = clubCallsign ? normalizeCallsign(clubCallsign) : '';
-  return `${op}|${call}|${qsoDate || ''}|${time}|${logType || ''}|${club}`;
+  return `${normalizeCallsign(callsign || '')}|${qsoDate || ''}|${normalizeTime(timeStart || '')}`;
 }
 
 // Built-in fields that must NOT be overwritten on update
@@ -81,7 +80,7 @@ export async function loadExistingLogMapTargeted(sr: any, qsos: any[]): Promise<
   const callsigns = [...new Set(qsos.map(q => q.callsign).filter(Boolean))];
   if (callsigns.length === 0) return map;
 
-  const BATCH = 25;
+  const BATCH = 100; // grössere Rufzeichen-Blöcke → weniger DB-Abfragen beim Voll-Import
   for (let i = 0; i < callsigns.length; i += BATCH) {
     const batchCallsigns = callsigns.slice(i, i + BATCH);
     let offset = 0;
@@ -184,20 +183,17 @@ export async function upsertLogs(
 }
 
 /**
- * FLOOD-FIX: Native SDK upsert with normalized key fields.
+ * DUPLIKAT-FIX 2026-11-21: Upsert mit in JS normalisierten Schlüsseln.
  *
- * Normalizes time_start to "HH:MM" and club_callsign to '' (empty string for consistency)
- * before upserting. The SDK's upsert() handles the dedup server-side — no need to load
- * existing records. This is O(1) per QSO, not O(n) like loadExistingLogMap.
+ * Das frühere serverseitige Log.upsert() verglich die ROHWERTE der Schlüsselfelder:
+ * gespeichert "22:24:00" gegen importiert "22:24", oder club_callsign null gegen "".
+ * Beide galten als verschieden → jeder Importlauf legte dieselben QSOs erneut an.
  *
- * Key: ['operator_callsign', 'callsign', 'qso_date', 'time_start', 'log_type', 'club_callsign']
- * Up to 500 QSOs per upsert call (SDK limit).
+ * Jetzt werden vorhandene Einträge gezielt zu den betroffenen Rufzeichen geladen
+ * und über den normalisierten Schlüssel (Rufzeichen | Datum | HH:MM) abgeglichen.
+ * Gleiche QSOs werden aktualisiert statt neu angelegt.
  *
  * Returns { created, updated, errors, errorDetails, skipped }.
- * - created: new records inserted
- * - updated: existing records updated
- * - skipped: within-batch duplicates (same key in same batch)
- * - errors: DB errors
  */
 export async function upsertLogsNative(
   sr: any,
@@ -223,38 +219,15 @@ export async function upsertLogsNative(
   });
   const skipped = normalized.length - uniqueQsos.length;
 
-  let created = 0;
-  let updated = 0;
-  let errors = 0;
-  const errorDetails: string[] = [];
-
-  // SDK's native upsert — handles dedup server-side, up to 500 per call
-  const BATCH = 500;
-  for (let i = 0; i < uniqueQsos.length; i += BATCH) {
-    const batch = uniqueQsos.slice(i, i + BATCH);
-    try {
-      const result = await sr.entities.Log.upsert(batch, {
-        key: ['operator_callsign', 'callsign', 'qso_date', 'time_start', 'log_type', 'club_callsign'],
-      });
-      created += result.created || 0;
-      updated += result.updated || 0;
-    } catch (e: any) {
-      console.log(`[upsertLogsNative] SDK upsert batch ${i} failed: ${e.message}, falling back to targeted query`);
-      // Fallback: use targeted query + custom upsert for this batch
-      try {
-        const existingMap = await loadExistingLogMapTargeted(sr, batch);
-        const fallbackResult = await upsertLogs(sr, batch, existingMap);
-        created += fallbackResult.created;
-        updated += fallbackResult.updated;
-        errors += fallbackResult.errors;
-        errorDetails.push(...fallbackResult.errorDetails);
-      } catch (fallbackErr: any) {
-        errors += batch.length;
-        errorDetails.push(`Batch ${i}: ${fallbackErr.message || 'fallback error'}`);
-      }
-    }
+  let result: { created: number; updated: number; errors: number; errorDetails: string[] };
+  try {
+    const existingMap = await loadExistingLogMapTargeted(sr, uniqueQsos);
+    result = await upsertLogs(sr, uniqueQsos, existingMap);
+  } catch (e: any) {
+    console.log(`[upsertLogsNative] Targeted upsert failed: ${e.message}`);
+    result = { created: 0, updated: 0, errors: uniqueQsos.length, errorDetails: [e.message || 'upsert error'] };
   }
 
-  console.log(`[upsertLogsNative] ${created} new, ${updated} updated, ${skipped} skipped, ${errors} errors`);
-  return { created, updated, errors, errorDetails, skipped };
+  console.log(`[upsertLogsNative] ${result.created} new, ${result.updated} updated, ${skipped} skipped, ${result.errors} errors`);
+  return { ...result, skipped };
 }
