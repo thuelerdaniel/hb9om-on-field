@@ -16,6 +16,7 @@ import WavelogSyncButtons from "@/components/log/WavelogSyncButtons";
 import { importFromWavelog, processWavelogOfflineQueue } from "@/lib/wavelogSync";
 import { DEMO_EMAIL } from "@/lib/constants";
 import { loadLocal, saveLocal, syncFromServer, createEntry, updateEntry, deleteEntry, deleteMany, getLastSync, syncPending, getPendingCount } from "@/lib/localLogStore";
+import { isClubEntry, LOG_STATION_VIEW_KEY } from "@/lib/logClassification";
 
 const REF_TYPE_LABELS = {
   sota: "SOTA", pota: "POTA", hbff: "HBFF", wwbota: "WWBOTA",
@@ -29,7 +30,19 @@ export default function Log() {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("active");
-  const [filterSource, setFilterSource] = useState("all"); // all | club | personal
+  // Ansicht "Beide / Mein Rufzeichen / Clubstation" — pro Gerät gespeichert
+  const [filterSource, setFilterSourceState] = useState(() => {
+    try {
+      const v = localStorage.getItem(LOG_STATION_VIEW_KEY);
+      return v === "private" || v === "club" ? v : "all";
+    } catch { return "all"; }
+  });
+  const setFilterSource = (value) => {
+    setFilterSourceState(value);
+    try { localStorage.setItem(LOG_STATION_VIEW_KEY, value); } catch {}
+  };
+  // Rufzeichen für die Anzeige (aus club_callsign_config)
+  const [stationCalls, setStationCalls] = useState({ club: "", private: "" });
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -52,8 +65,6 @@ export default function Log() {
   const [isDemo, setIsDemo] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [clubSyncLoading, setClubSyncLoading] = useState(false);
-  const [clubEntries, setClubEntries] = useState([]);
-  const [clubLogLoading, setClubLogLoading] = useState(false);
   const [clubLogUploading, setClubLogUploading] = useState(false);
   const [loggingBackend, setLoggingBackend] = useState("qrz");
   const [syncPaused, setSyncPaused] = useState(false);
@@ -79,6 +90,10 @@ export default function Log() {
       const res = await base44.entities.AppSetting.filter({ key: 'club_callsign_config' });
       if (res && res.length > 0) {
         const config = JSON.parse(res[0].value || '{}');
+        setStationCalls({
+          club: config.club_callsign || "",
+          private: config.private_callsign || "",
+        });
         if (config.last_club_sync) {
           setLastClubSync({
             timestamp: config.last_club_sync,
@@ -212,26 +227,6 @@ export default function Log() {
     };
   }, []);
 
-  // v0.9003: Load club entries via getClubLog (service-role, bypasses RLS)
-  const loadClubEntries = async () => {
-    setClubLogLoading(true);
-    try {
-      const res = await base44.functions.invoke("getClubLog", { limit: 500, skip: 0 });
-      if (res.data?.success) {
-        setClubEntries(res.data.records || []);
-      }
-    } catch {} finally {
-      setClubLogLoading(false);
-    }
-  };
-
-  // Reload club entries when club filter is activated
-  useEffect(() => {
-    if (filterSource === "club") {
-      loadClubEntries();
-    }
-  }, [filterSource]);
-
   const loadEntries = async () => {
     const local = loadLocal();
     if (local.length > 0) {
@@ -246,9 +241,9 @@ export default function Log() {
     setLoading(false);
   };
 
-  // v0.951-HF4: Filter based on log_type ONLY — works for all import sources
-  // (manual QSO, Wavelog-Import, ADIF-Import, QRZ-Import) regardless of is_clubstation/club_callsign.
-  const isClubQso = (e) => e.log_type === "club";
+  // Einheitliche Zuordnung für Filter, Zähler, Badges und Uploads:
+  // log_type entscheidet, ältere Importe ohne log_type fallen auf is_clubstation zurück.
+  const isClubQso = isClubEntry;
 
   const filtered = useMemo(() => {
     let result = [...entries];
@@ -278,6 +273,22 @@ export default function Log() {
   // v0.951: Strict Private/Club counters — same isClubQso criteria as filter
   const privateTotal = useMemo(() => entries.filter(e => !isClubQso(e)).length, [entries]);
   const clubTotal = useMemo(() => entries.filter(e => isClubQso(e)).length, [entries]);
+
+  // Rufzeichen für die Anzeige: aus der Club-Konfiguration, sonst aus den Einträgen abgeleitet
+  const ownCallsigns = useMemo(() => {
+    const mostCommon = (list, pick) => {
+      const counts = {};
+      list.forEach(e => {
+        const v = (pick(e) || "").toUpperCase().trim();
+        if (v) counts[v] = (counts[v] || 0) + 1;
+      });
+      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+    };
+    return {
+      club: stationCalls.club || mostCommon(entries.filter(e => isClubQso(e)), e => e.club_callsign),
+      private: stationCalls.private || mostCommon(entries.filter(e => !isClubQso(e)), e => e.operator_callsign),
+    };
+  }, [entries, stationCalls]);
 
   const handleExport = () => {
     const header = "HB9OM On Field - ADIF Export\n<adif_ver:5>3.1.4\n<programid:14>HB9OM On Field\n<eoh>\n\n";
@@ -393,7 +404,6 @@ export default function Log() {
         toast({ title: "QRZ Club", description: msg, duration: 5000 });
         loadEntries();
         loadLastClubSync();
-        if (filterSource === "club") loadClubEntries();
       } else {
         setQrzUploadResult({ success: false, message: "Keine QSOs im Club-Logbuch gefunden" });
         toast({ title: "QRZ Club", description: "Keine QSOs im Club-Logbuch gefunden", variant: "destructive", duration: 5000 });
@@ -707,25 +717,56 @@ export default function Log() {
               { value: "callsign", label: "Rufzeichen (A-Z)" }
             ]}
           />
-          {/* v0.9018: Toggle-Buttons Alle | Privat | Club */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 rounded-lg p-0.5">
-            {[
-              { value: "all", label: "Alle" },
-              { value: "private", label: "Privat" },
-              { value: "club", label: "Club" }
-            ].map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setFilterSource(opt.value)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  filterSource === opt.value
-                    ? "bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 shadow-sm"
-                    : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          {/* Rufzeichen-Ansicht: Beide | persönliches Rufzeichen | Clubstation */}
+          <div className="flex items-center gap-1.5 max-w-full">
+            <span className="text-xs text-gray-500 dark:text-slate-400 whitespace-nowrap">Ansicht:</span>
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 rounded-lg p-0.5 flex-wrap">
+              {[
+                {
+                  value: "all",
+                  label: "Beide",
+                  count: entries.length,
+                  icon: null,
+                  activeClass: "bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 shadow-sm",
+                  title: "Alle Einträge anzeigen",
+                },
+                {
+                  value: "private",
+                  label: ownCallsigns.private || "Mein Rufzeichen",
+                  count: privateTotal,
+                  icon: User,
+                  activeClass: "bg-white dark:bg-slate-900 text-green-600 dark:text-green-400 shadow-sm",
+                  title: `Nur QSOs unter meinem persönlichen Rufzeichen${ownCallsigns.private ? ` (${ownCallsigns.private})` : ""}`,
+                },
+                {
+                  value: "club",
+                  label: `Club ${ownCallsigns.club}`.trim(),
+                  count: clubTotal,
+                  icon: Building,
+                  activeClass: "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm",
+                  title: `Nur QSOs der Clubstation${ownCallsigns.club ? ` ${ownCallsigns.club}` : ""}`,
+                },
+              ].map(opt => {
+                const Icon = opt.icon;
+                const active = filterSource === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setFilterSource(opt.value)}
+                    title={opt.title}
+                    className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${
+                      active
+                        ? opt.activeClass
+                        : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    {Icon && <Icon className="w-3.5 h-3.5" />}
+                    <span className="whitespace-nowrap">{opt.label}</span>
+                    <span className="text-[10px] opacity-70">({opt.count})</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex items-center gap-1">
@@ -888,19 +929,15 @@ export default function Log() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-bold text-gray-900 text-sm">{entry.callsign}{entry.callsign_suffix}</span>
                       {entry.operator_name && <span className="text-xs text-gray-500">{entry.operator_name}</span>}
-                      {entry.is_clubstation && entry.club_callsign && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1">
-                          <Building className="w-2.5 h-2.5" /> {entry.club_callsign}
+                      {/* Stations-Badge: unter welchem Rufzeichen wurde der QSO geloggt */}
+                      {isClubQso(entry) ? (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300 rounded-full flex items-center gap-1">
+                          <Building className="w-2.5 h-2.5" /> {entry.club_callsign || ownCallsigns.club}
                           {entry.club_operator_callsign && ` · Op: ${entry.club_operator_callsign}`}
                         </span>
-                      )}
-                      {entry.is_clubstation && !entry.club_callsign && entry.club_operator_callsign && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">Op: {entry.club_operator_callsign}{entry.club_operator_name && ` · ${entry.club_operator_name}`}</span>
-                      )}
-                      {/* v0.953 Fix 3: Privat-Badge für nicht-Club QSOs — nutzt log_type/is_clubstation aus dem Record */}
-                      {!entry.is_clubstation && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400 rounded-full">
-                          Privat
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400 rounded-full flex items-center gap-1">
+                          <User className="w-2.5 h-2.5" /> {entry.operator_callsign || ownCallsigns.private || "Privat"}
                         </span>
                       )}
                       {entry.status === "archived" && (
