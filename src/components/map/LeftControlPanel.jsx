@@ -168,12 +168,12 @@ export default function LeftControlPanel({
 
       {/* Panel — slides in from left */}
       <div
-        className={`fixed left-0 top-1/2 -translate-y-1/2 transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-[3.7rem] bottom-12 flex items-center transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         style={{ touchAction: "pan-y", zIndex: Z.MAP_UI }}
       >
-        <div className="w-12 max-h-[calc(100dvh-7rem)] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-lg border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-1 gap-1 overflow-y-auto overscroll-contain"
+        <div className="w-12 max-h-[calc(80dvh-5.2rem)] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-lg border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-1 gap-1 overflow-y-auto overscroll-contain"
           style={{ scrollbarWidth: "thin" }}
         >
           {/* Close handle — only while the panel is OPEN, as part of the panel layout
