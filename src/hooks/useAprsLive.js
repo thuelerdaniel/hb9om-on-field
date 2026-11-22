@@ -50,7 +50,14 @@ export function useAprsLive() {
         // ohne Anmeldung gilt der Standard
       }
 
-      const page = await base44.entities.AprsPosition.list({ sort: "-last_heard", limit: 5000 });
+      // Netzwerkfehler (z. B. Mobilfunk-Lücke) dürfen keine unbehandelte
+      // Promise-Rejection auslösen: bestehende Marker behalten, nächster Versuch läuft weiter.
+      let page = null;
+      try {
+        page = await base44.entities.AprsPosition.list({ sort: "-last_heard", limit: 5000 });
+      } catch {
+        return;
+      }
       const items = page?.items || [];
       if (cancelled) return;
       setNodes(

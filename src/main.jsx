@@ -84,6 +84,12 @@ window.addEventListener('unhandledrejection', (event) => {
       return;
     }
   }
+  // Reine Verbindungsfehler (Mobilfunk-Lücke, Flugmodus) sind keine App-Fehler
+  // und werden nur in der Konsole protokolliert — kein Admin-Report.
+  if (/network error|failed to fetch|networkerror|load failed|err_internet|err_network/i.test(msg)) {
+    console.warn('Netzwerkfehler (nicht gemeldet):', msg);
+    return;
+  }
   reportError('unhandled_promise', msg, reason?.stack);
 });
 
